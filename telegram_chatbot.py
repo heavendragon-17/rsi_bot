@@ -40,11 +40,9 @@ class Chatbot:
         await self.app.bot.send_message(chat_id=chat_id, text=message)
 
 
-# ================= NEW: chatid command =================
 async def chatid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     await update.message.reply_text(f"📌 Your chat ID is:\n\n{chat_id}")
-# ======================================================
 
 
 async def text_as_crypto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,7 +64,7 @@ def create_application() -> Application:
     app.bot_data["chatbot"] = chatbot
 
     # Register handlers
-    app.add_handler(CommandHandler("chatid", chatid))   # 👈 added
+    app.add_handler(CommandHandler("chatid", chatid))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_as_crypto))
 
     return app

@@ -1,33 +1,69 @@
 # RSI Bot
 
-## Setting up environment
+A Python bot that sends RSI-based alerts to Telegram.
+
+---
+
+## Quick Start
+
+### Create environment file
+
+Create a file named `env.txt` in the project root:
+
+```txt
+TELEGRAM_BOT_TOKEN=PASTE_YOUR_TOKEN_HERE
+TARGET_CHAT_ID=PASTE_YOUR_CHAT_ID_HERE
+```
+
+---
+
+### Run setup
+
+#### Linux / macOS / Git Bash / WSL
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+source setup.sh
 ```
 
-## Setting environment variables
+#### Windows (PowerShell)
 
-**Windows:**
-
-```cmd
-$env:TELEGRAM_BOT_TOKEN="PASTE_YOUR_TOKEN_HERE"
-$env:TARGET_CHAT_ID="PASTE_YOUR_CHAT_ID_HERE"
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\setup.ps1
 ```
 
-**Linux/macOS:**
+This will:
 
-```bash
-export TELEGRAM_BOT_TOKEN="PASTE_YOUR_TOKEN_HERE"
-export TARGET_CHAT_ID="PASTE_YOUR_CHAT_ID_HERE"
-```
+-   Create a virtual environment
+-   Load environment variables
+-   Activate the virtual environment
+-   Install dependencies
 
-## Running the bot
+---
 
-Activate your virtual environment if not already active, then run:
+## Run the bot
+
+Make sure the virtual environment is active, then run:
 
 ```bash
 python main.py
 ```
+
+---
+
+## Environment Variables
+
+| Variable           | Description        |
+| ------------------ | ------------------ |
+| TELEGRAM_BOT_TOKEN | Telegram bot token |
+| TARGET_CHAT_ID     | Telegram chat ID   |
+
+> ⚠️ Do NOT commit `env.txt` to version control.
+
+---
+
+## Requirements
+
+-   Python **3.9+**
+-   Telegram Bot Token
+-   Telegram Chat ID
