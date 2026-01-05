@@ -7,7 +7,6 @@ import yaml
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.backtest.engine import BacktestEngine
-from app.backtest.portfolio import BacktestPortfolio
 from app.backtest.reporting import BacktestReporter
 from app.strategies.loader import load_strategy
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
@@ -25,16 +24,16 @@ def main():
     # Load Base Config
     config = load_config()
 
-    # Initialize Portfolio
-    portfolio = BacktestPortfolio(initial_balance=args.balance)
+    # Override balance in config for backtest context
+    if 'backtest' not in config:
+        config['backtest'] = {}
+    config['backtest']['initial_balance'] = args.balance
 
     # Initialize Engine
-    # Note: We pass the strategy class, not instance, to let Engine manage it if needed,
-    # but currently Engine instantiates it.
+    # Engine now creates MockExchange and PortfolioManager internally based on config
     engine = BacktestEngine(
         data_path=args.data,
         strategy_class=RsiWmaRetestStrategy,
-        portfolio=portfolio,
         config=config
     )
 
@@ -42,7 +41,8 @@ def main():
     engine.run()
 
     # Report
-    reporter = BacktestReporter(portfolio)
+    # Pass exchange from engine to reporter
+    reporter = BacktestReporter(engine.exchange)
     reporter.generate_report()
 
 if __name__ == "__main__":
