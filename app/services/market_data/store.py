@@ -6,10 +6,18 @@ MAX_CANDLES_IN_RAM = 300
 class MarketDataStore:
     def __init__(self):
         self.data = {}
-        self.lock = threading.Lock()
+        self.locks = {}
+        self.global_lock = threading.Lock() # For accessing self.locks dictionary safely
+
+    def _get_lock(self, symbol):
+        with self.global_lock:
+            if symbol not in self.locks:
+                self.locks[symbol] = threading.Lock()
+            return self.locks[symbol]
 
     def update_candle(self, candle):
-        with self.lock:
+        symbol = candle.symbol
+        with self._get_lock(symbol):
             # candle is now a Candle object
             new_row = {
                 'timestamp': candle.timestamp,
@@ -20,8 +28,6 @@ class MarketDataStore:
                 'volume': candle.volume,
                 'closed': candle.closed
             }
-
-            symbol = candle.symbol
 
             if symbol not in self.data:
                 df = pd.DataFrame([new_row])
@@ -49,5 +55,5 @@ class MarketDataStore:
                     self.data[symbol] = self.data[symbol].tail(MAX_CANDLES_IN_RAM)
 
     def get_dataframe(self, symbol):
-        with self.lock:
+        with self._get_lock(symbol):
             return self.data.get(symbol, None).copy() if symbol in self.data else None
