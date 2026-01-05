@@ -81,3 +81,7 @@ The bot will initialize the database (`trades.db`), fetch historical data, and s
 *   **'python' is not recognized**: Ensure you checked "Add Python to PATH" during installation.
 *   **ImportError**: Make sure you activated the virtual environment (`.\venv\Scripts\activate`) before running the bot.
 *   **Service unavailable / 451 Error**: If you are in a restricted region (like the US), Binance.com API may be blocked. You may need to use a VPN or switch to a supported exchange.
+* **Unit Tests**:
+```
+pytest tests/test_config_validation.py
+```
