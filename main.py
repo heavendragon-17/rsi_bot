@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.utils.logger import setup_logger
+from app.utils.validators import validate_config
 from app.repository.db_connect import init_db
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
@@ -27,6 +28,11 @@ def main():
     
     # 1. Config
     config = load_config()
+    try:
+        validate_config(config)
+    except ValueError as e:
+        logger.error(f"Configuration Error: {e}")
+        sys.exit(1)
     
     # 2. Database
     init_db()
