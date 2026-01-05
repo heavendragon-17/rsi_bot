@@ -1,0 +1,12 @@
+bot:
+  active: true
+  mode: "paper" # paper or live
+
+exchange:
+  name: "binance" # binance or hyperliquid
+  
+timeframe: "5m"
+symbols:
+  - "BTC/USDT"
+  - "ETH/USDT"
+  - "BNB/USDT"
