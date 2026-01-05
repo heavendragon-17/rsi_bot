@@ -1,12 +1,28 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+
+class EventType(Enum):
+    TICK_UPDATE = "TICK_UPDATE"   # Nến đang chạy (Real-time)
+    KLINE_CLOSE = "KLINE_CLOSE"   # Nến vừa đóng cửa (Confirmed)
+
+@dataclass
+class Candle:
+    symbol: str
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    closed: bool
 
 @dataclass
 class MarketEvent:
-    symbol: str
-    timestamp: datetime
-    data: dict
-    event_type: str = "TICK"
+    type: EventType
+    exchange: str
+    payload: Candle
+    received_at: datetime = field(default_factory=datetime.now)
 
 @dataclass
 class SignalEvent:

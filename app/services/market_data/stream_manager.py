@@ -2,6 +2,7 @@ import websocket
 import threading
 import json
 import time
+from .normalizer import DataNormalizer
 
 STREAM_URL = "wss://fstream.binance.com/stream?streams="
 
@@ -18,9 +19,11 @@ class BinanceStreamManager:
     def on_message(self, ws, message):
         json_msg = json.loads(message)
         if 'data' in json_msg:
-            kline = json_msg['data']['k']
-            symbol = json_msg['data']['s']
-            self.store.update_candle(symbol, kline)
+            # 1. Normalize Data (Layer 1)
+            event = DataNormalizer.normalize_binance(json_msg['data'])
+            
+            # 2. Update Store (Pass Payload)
+            self.store.update_candle(event.payload)
 
     def on_error(self, ws, error):
         print(f"Websocket Error: {error}")

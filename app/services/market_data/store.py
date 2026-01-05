@@ -8,17 +8,20 @@ class MarketDataStore:
         self.data = {}
         self.lock = threading.Lock()
 
-    def update_candle(self, symbol, candle_data):
+    def update_candle(self, candle):
         with self.lock:
+            # candle is now a Candle object
             new_row = {
-                'timestamp': pd.to_datetime(candle_data['t'], unit='ms'),
-                'open': float(candle_data['o']),
-                'high': float(candle_data['h']),
-                'low': float(candle_data['l']),
-                'close': float(candle_data['c']),
-                'volume': float(candle_data['v']),
-                'closed': candle_data['x']
+                'timestamp': candle.timestamp,
+                'open': candle.open,
+                'high': candle.high,
+                'low': candle.low,
+                'close': candle.close,
+                'volume': candle.volume,
+                'closed': candle.closed
             }
+
+            symbol = candle.symbol
 
             if symbol not in self.data:
                 df = pd.DataFrame([new_row])
