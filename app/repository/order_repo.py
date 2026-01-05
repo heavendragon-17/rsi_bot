@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Numeric
 from datetime import datetime
 from .db_connect import Base
 
@@ -8,8 +8,8 @@ class Order(Base):
     symbol = Column(String)
     order_id = Column(String)
     side = Column(String)
-    price = Column(Float)
-    amount = Column(Float)
+    price = Column(Numeric(precision=20, scale=8))
+    amount = Column(Numeric(precision=20, scale=8))
     status = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
