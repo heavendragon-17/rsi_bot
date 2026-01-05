@@ -12,7 +12,6 @@ A cryptocurrency trading bot designed to trade based on RSI and WMA signals. Thi
 1.  **Clone the repository:**
     ```powershell
     git clone <repository_url>
-    cd rsi_bot_system
     ```
 
 2.  **Create a virtual environment:**
@@ -20,7 +19,9 @@ A cryptocurrency trading bot designed to trade based on RSI and WMA signals. Thi
     ```powershell
     python -m venv venv
     ```
-
+    ```powershell
+    cd rsi_bot
+    ```
 3.  **Activate the virtual environment:**
     ```powershell
     .\venv\Scripts\activate
