@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .DS_Store
 bot.log
+backtest_logs.csv
+data/
+data/*.csv
+data/

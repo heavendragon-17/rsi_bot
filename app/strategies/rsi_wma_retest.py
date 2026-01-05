@@ -7,20 +7,35 @@ class RsiWmaRetestStrategy(BaseStrategy):
         if df is None or len(df) < 50:
             return None
         
+        # Get Config Parameters (with defaults)
+        rsi_period = self.config.get('strategy', {}).get('rsi_period', 14)
+        rsi_buy = self.config.get('strategy', {}).get('rsi_buy', 30)
+        rsi_sell = self.config.get('strategy', {}).get('rsi_sell', 80)
+
         # Calculate Indicators
-        rsi = Indicators.calculate_rsi(df['close'])
-        wma = Indicators.calculate_wma(df['close']) # Example params, can load from config
+        rsi = Indicators.calculate_rsi(df['close'], length=rsi_period)
+        # wma = Indicators.calculate_wma(df['close']) # Not used in simple logic yet
         
         last_rsi = rsi.iloc[-1]
         
-        # Simple Logic for scaffolding (Replace with complex logic later)
-        if last_rsi < 30:
+        # Entry Logic (Buy)
+        if last_rsi < rsi_buy:
             return SignalEvent(
                 symbol=symbol, 
                 signal_type='BUY', 
                 price=df.iloc[-1]['close'], 
                 timestamp=df.index[-1], 
-                reason="RSI OVERSOLD"
+                reason=f"RSI OVERSOLD ({last_rsi:.2f} < {rsi_buy})"
+            )
+
+        # Exit Logic (Sell)
+        if last_rsi > rsi_sell:
+            return SignalEvent(
+                symbol=symbol,
+                signal_type='SELL',
+                price=df.iloc[-1]['close'],
+                timestamp=df.index[-1],
+                reason=f"RSI OVERBOUGHT ({last_rsi:.2f} > {rsi_sell})"
             )
             
         return None
