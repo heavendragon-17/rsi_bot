@@ -10,3 +10,8 @@ symbols:
   - "BTC/USDT"
   - "ETH/USDT"
   - "BNB/USDT"
+
+strategy:
+  rsi_period: 14
+  rsi_buy: 40
+  rsi_sell: 60

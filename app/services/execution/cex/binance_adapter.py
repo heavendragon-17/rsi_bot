@@ -17,5 +17,10 @@ class BinanceAdapter(IExchange):
         params = {}
         return self.client.create_order(symbol, type, side, amount, price, params)
     
+    def get_balance(self) -> float:
+        # Fetch USDT balance
+        balance = self.client.fetch_balance()
+        return balance['USDT']['total']
+
     def subcribe(self, symbols):
         pass # WebSocket handled by stream_manager
