@@ -8,3 +8,4 @@ backtest_logs.csv
 data/
 data/*.csv
 data/
+venv
