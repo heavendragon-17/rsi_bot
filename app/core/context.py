@@ -50,16 +50,22 @@ class ActiveTrade:
     Used to:
       - Prevent duplicate alerts
       - Lock a symbol while a trade is active
-      - Extend later for trade management (SL/TP, trailing, etc.)
+      - Track TP/SL levels for trade management
     """
 
     symbol: str
     timeframe: str
-    side: str                    # "LONG" or "SHORT"
+    side: str                    # "LONG" only (LONG only strategy)
     entry_ts: float              # time.time() when trade opened
     entry_price: Optional[float] = None
     qty: Optional[float] = None
     meta: Dict[str, Any] = field(default_factory=dict)
+    
+    # TP/SL prices from signal
+    tp1_price: Optional[float] = None
+    tp2_price: Optional[float] = None
+    tp3_price: Optional[float] = None
+    sl_price: Optional[float] = None
 
 
 @dataclass
