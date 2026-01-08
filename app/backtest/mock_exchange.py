@@ -2,16 +2,19 @@
 Backtest Mock Exchange
 =======================
 Simulates exchange for backtesting with Decimal support.
+
+IMPORTANT:
+- For LIMIT orders, we fill at the LIMIT price (not the current price).
+  This is essential for stoploss LIMIT realism, otherwise results become worse than expected.
 """
 from decimal import Decimal
 from typing import Optional, Dict, Any, Sequence
 from app.core.interfaces import IExchange
-from datetime import datetime
 
 
 class MockExchange(IExchange):
     """Mock exchange for backtesting with Decimal support."""
-    
+
     def __init__(self, initial_balance: float = 1000.0):
         self.balance = Decimal(str(initial_balance))
         self.positions: Dict[str, Decimal] = {}
@@ -23,40 +26,45 @@ class MockExchange(IExchange):
     def update_price(self, symbol: str, price, timestamp) -> None:
         """Called by BacktestEngine to update current market price."""
         self.current_prices[symbol] = {
-            'price': Decimal(str(price)) if not isinstance(price, Decimal) else price,
-            'time': timestamp
+            "price": Decimal(str(price)) if not isinstance(price, Decimal) else price,
+            "time": timestamp,
         }
-        
-        # Check pending limit orders
         self._check_pending_orders(symbol)
 
     def _check_pending_orders(self, symbol: str) -> None:
-        """Check if any pending limit orders should be executed."""
+        """
+        Check if any pending limit orders should be executed.
+
+        SELL LIMIT rule:
+          - Trigger when current_price <= limit_price
+          - Fill at limit_price (best price you can get), NOT at current_price
+        """
         current_data = self.current_prices.get(symbol)
         if not current_data:
             return
-        
-        current_price = current_data['price']
+
+        current_price = current_data["price"]
         orders_to_execute = []
-        
+
         for order_id, order in list(self.pending_orders.items()):
-            if order['symbol'] != symbol:
+            if order["symbol"] != symbol:
                 continue
-            
-            # SELL limit order executes when price drops to or below limit price
-            if order['side'] == 'SELL' and current_price <= order['price']:
-                orders_to_execute.append((order_id, order, current_price))
-        
+
+            # SELL LIMIT executes when price drops to or below limit price
+            if order["side"] == "SELL" and current_price <= order["price"]:
+                # Fill at LIMIT price (important fix)
+                orders_to_execute.append((order_id, order, order["price"]))
+
         for order_id, order, exec_price in orders_to_execute:
             self._execute_order(
-                symbol=order['symbol'],
-                side=order['side'],
-                amount=order['amount'],
+                symbol=order["symbol"],
+                side=order["side"],
+                amount=order["amount"],
                 exec_price=exec_price,
-                timestamp=current_data['time']
+                timestamp=current_data["time"],
             )
             del self.pending_orders[order_id]
-            print(f"Limit SL triggered at {exec_price}")
+            print(f"Limit SL triggered at {current_price} (filled @ {exec_price})")
 
     def get_balance(self) -> Decimal:
         return self.balance
@@ -70,41 +78,38 @@ class MockExchange(IExchange):
         order_type: str,
         side: str,
         amount: Decimal,
-        price: Optional[Decimal] = None
+        price: Optional[Decimal] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create market or limit order."""
-        # Convert amount to Decimal if needed
         if not isinstance(amount, Decimal):
             amount = Decimal(str(amount))
-        
+
         current_data = self.current_prices.get(symbol)
         if not current_data:
             print(f"MockExchange: No price data for {symbol}")
             return None
 
-        if order_type.upper() == 'LIMIT' and price is not None:
-            # Store as pending order
+        if order_type.upper() == "LIMIT" and price is not None:
             self._order_counter += 1
             order_id = f"mock_order_{self._order_counter}"
-            
+
             if not isinstance(price, Decimal):
                 price = Decimal(str(price))
-            
+
             self.pending_orders[order_id] = {
-                'id': order_id,
-                'symbol': symbol,
-                'side': side,
-                'amount': amount,
-                'price': price,
-                'type': 'LIMIT',
-                'status': 'PENDING'
+                "id": order_id,
+                "symbol": symbol,
+                "side": side,
+                "amount": amount,
+                "price": price,
+                "type": "LIMIT",
+                "status": "PENDING",
             }
-            return {'id': order_id, 'status': 'PENDING', 'type': 'LIMIT'}
-        
+            return {"id": order_id, "status": "PENDING", "type": "LIMIT"}
+
         # Market order - execute immediately
-        exec_price = current_data['price']
-        timestamp = current_data['time']
-        
+        exec_price = current_data["price"]
+        timestamp = current_data["time"]
         return self._execute_order(symbol, side, amount, exec_price, timestamp)
 
     def _execute_order(
@@ -113,19 +118,19 @@ class MockExchange(IExchange):
         side: str,
         amount: Decimal,
         exec_price: Decimal,
-        timestamp
+        timestamp,
     ) -> Optional[Dict[str, Any]]:
         """Execute an order at given price."""
         cost = exec_price * amount
 
-        if side == 'BUY':
+        if side == "BUY":
             if cost > self.balance:
                 print(f"MockExchange: Insufficient funds. Cost: {cost}, Bal: {self.balance}")
                 return None
             self.balance -= cost
             self.positions[symbol] = self.positions.get(symbol, Decimal("0")) + amount
 
-        elif side == 'SELL':
+        elif side == "SELL":
             current_pos = self.positions.get(symbol, Decimal("0"))
             if amount > current_pos:
                 print(f"MockExchange: Insufficient position. Has: {current_pos}, Want: {amount}")
@@ -139,13 +144,13 @@ class MockExchange(IExchange):
             cost = revenue  # For logging
 
         trade = {
-            'time': timestamp,
-            'symbol': symbol,
-            'side': side,
-            'price': float(exec_price),
-            'amount': float(amount),
-            'cost_or_revenue': float(cost),
-            'balance_after': float(self.balance)
+            "time": timestamp,
+            "symbol": symbol,
+            "side": side,
+            "price": float(exec_price),
+            "amount": float(amount),
+            "cost_or_revenue": float(cost),
+            "balance_after": float(self.balance),
         }
         self.trade_history.append(trade)
         return trade

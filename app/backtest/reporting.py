@@ -22,6 +22,7 @@ class BacktestReporter:
             return
 
         df = pd.DataFrame(trades)
+        print(df.head()) # Debug: show first few trades
 
         # Calculate metrics
         final_balance = self.exchange.get_balance()

@@ -72,6 +72,7 @@ class PortfolioManager:
         - BUY: Open position with limit SL order
         - SELL: Close position
         """
+        self.sync_from_exchange()
         balance = self.sync_balance()
 
         if signal.signal_type == 'BUY':
@@ -158,7 +159,7 @@ class PortfolioManager:
         )
 
         if order:
-            del self.positions[signal.symbol]
+            self.positions.pop(signal.symbol, None)
             print(f"Executed SELL for {signal.symbol} @ {signal.price}")
             return order
 
@@ -264,3 +265,34 @@ class PortfolioManager:
     def get_position(self, symbol: str) -> Optional[Position]:
         """Get position details if exists."""
         return self.positions.get(symbol)
+    
+    def on_fill(self, trade: dict) -> None:
+        """
+        Sync portfolio internal state from an executed trade.
+        Required because SL fills happen inside MockExchange (pending orders).
+        """
+        symbol = trade.get("symbol")
+        side = trade.get("side")
+
+        if not symbol or not side:
+            return
+
+        # If the exchange sold, position might be partially or fully closed.
+        # In this backtest, SL closes the full remaining position -> remove it.
+        if side == "SELL":
+            pos = self.positions.get(symbol)
+            if pos:
+                # Clear local state
+                self.positions.pop(symbol, None)
+
+
+    def sync_from_exchange(self) -> None:
+        """
+        Make portfolio positions consistent with exchange positions.
+        In backtest, SL limit fills can occur inside exchange without going through on_signal().
+        """
+        # Remove portfolio positions that no longer exist on exchange
+        for sym in list(self.positions.keys()):
+            if sym not in self.exchange.positions:
+                self.positions.pop(sym, None)
+
