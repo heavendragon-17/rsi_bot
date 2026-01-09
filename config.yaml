@@ -1,12 +1,12 @@
 bot:
     active: true
     mode: 'paper' # paper or live
-    timeframe: '5m'
+    timeframe: '15m'
 
 exchange:
     name: 'binance' # binance or hyperliquid
 
-timeframe: '5m'
+timeframe: '15m'
 symbols:
     - 'BTC/USDT'
     - 'ETH/USDT'
@@ -20,10 +20,9 @@ strategy:
     rsi_wma_length: 45
     price_ema_fast: 21
     price_ema_slow: 200
-    sl_lock_candles: 12 # 12 candles on 5m = 60 minutes lock after SL
 
     # Entry conditions (LONG only)
-    wma_retest_distance: 3 # Max distance for valid retest (relax for testing, original ≤1)
+    wma_retest_distance: 1 # Max distance for valid retest (relax for testing, original ≤1)
     rsi_floor: 40 # No close below R40 during retest
     wma45_min: 30 # Class 1 signal minimum (optimal)
     wma45_max: 50 # Class 1 signal maximum (optimal)

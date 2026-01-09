@@ -29,7 +29,7 @@ class Indicators:
 
     def __init__(
         self,
-        rsi_length: int = 14,
+        rsi_length: int = 21,
         rsi_ema_length: int = 9,
         rsi_wma_length: int = 45,
         price_ema_fast: int = 21,

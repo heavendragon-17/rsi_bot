@@ -1,11 +1,11 @@
 """
-Backtest Engine
-================
-Runs strategy on historical data with Decimal support.
+Backtest Engine (NO COOLDOWN / NO WAITING / NO SL LOCK)
+=======================================================
+Runs strategy on historical data.
 
-IMPORTANT:
-- SL limit orders can be executed inside MockExchange without creating a SignalEvent.
-- Therefore we must "sync fills" from exchange -> portfolio to clear positions correctly.
+Key:
+- SL limit fills happen inside MockExchange.update_price()
+- We must sync those fills into PortfolioManager and StrategyContext.
 """
 import pandas as pd
 from decimal import Decimal
@@ -15,9 +15,8 @@ from app.core.portfolio import PortfolioManager
 from app.backtest.mock_exchange import MockExchange
 from app.core.context import SCANNING
 
-class BacktestEngine:
-    """Engine to run backtests on historical data."""
 
+class BacktestEngine:
     def __init__(self, data_path: str, strategy_class, config: dict):
         self.data = pd.read_csv(data_path)
         self.data["timestamp"] = pd.to_datetime(self.data["timestamp"])
@@ -27,51 +26,35 @@ class BacktestEngine:
 
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         self.exchange = MockExchange(initial_balance=initial_balance)
-
         self.portfolio = PortfolioManager(self.exchange, config)
         self.strategy = strategy_class(config)
 
-        # Track fills that happen inside exchange (SL pending orders)
         self._last_trade_count = 0
 
     def _sync_exchange_fills(self) -> None:
-        """
-        Sync fills that happen inside exchange (SL limit fills, etc.)
-
-        Why:
-        - MockExchange executes SL internally (pending order) -> Portfolio position is closed,
-            but strategy context may still think trade is active -> it can emit SELL later.
-        - This keeps Portfolio + StrategyContext consistent with Exchange.
-        """
         trades = self.exchange.trade_history
         while self._last_trade_count < len(trades):
             trade = trades[self._last_trade_count]
             self._last_trade_count += 1
 
-            # 1) Sync Portfolio (removes self.positions[symbol] on SELL)
+            # Sync portfolio
             self.portfolio.on_fill(trade)
 
+            # Sync strategy context (remove active trade on exchange SELL)
             symbol = trade.get("symbol")
             side = trade.get("side")
-            now_ts = trade.get("time")  # datetime from MockExchange
+            now_ts = trade.get("time")
 
             if not symbol or not side:
                 continue
 
-            # 2) Sync StrategyContext when exchange closes a position
             if side == "SELL" and hasattr(self.strategy, "context") and self.strategy.context:
                 ctx = self.strategy.context
-
-                # Build the same key as strategy uses
                 tf = getattr(self.strategy, "timeframe", "")
                 key = f"{symbol}:{tf}" if tf else f"{symbol}:"
 
-                # Stop tracking this trade inside strategy immediately
                 ctx.close_trade(symbol)
-
-                # Exit WAITING (if any) and reset state machine
-                ctx.clear_waiting(key, now_ts=now_ts)
-                ctx.transition(key, SCANNING, reason="Exchange SELL fill (SL/TP)", now_ts=now_ts)
+                ctx.transition(key, SCANNING, reason="Exchange SELL fill", now_ts=now_ts)
 
     def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
@@ -90,13 +73,12 @@ class BacktestEngine:
                 volume=Decimal(str(row["volume"])),
                 closed=True,
             )
+
             self.store.update_candle(candle)
 
-            # Update exchange price (this may trigger pending SL orders)
+            # Update price (may fill SL)
             self.exchange.update_price(self.symbol, candle.close, candle.timestamp)
-
-            # IMPORTANT: sync fills after update_price
-            self._sync_exchange_fills()
+            self.portfolio.sync_from_exchange()
 
             if i < warmup_period:
                 continue
@@ -107,11 +89,7 @@ class BacktestEngine:
             if signal:
                 self.portfolio.on_signal(signal)
 
-                # In case orders executed immediately (market orders)
-                self._sync_exchange_fills()
-
         print("\nBacktest complete!")
         print(f"Final balance: {self.exchange.get_balance()}")
         print(f"Open positions: {self.exchange.positions}")
         print(f"Total trades: {len(self.exchange.trade_history)}")
-            
