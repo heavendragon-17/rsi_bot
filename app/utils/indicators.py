@@ -54,6 +54,10 @@ class Indicators:
         if df is None or df.empty:
             return pd.DataFrame()
 
+        # Skip if indicators already computed (for backtest optimization)
+        if "rsi" in df.columns and "rsi_wma45" in df.columns:
+            return df
+
         # Cache key based on symbol, timeframe, last timestamp, length
         last_timestamp = int(df.iloc[-1]["ts"]) if "ts" in df.columns else len(df)
         key = (symbol, timeframe, last_timestamp, len(df))
