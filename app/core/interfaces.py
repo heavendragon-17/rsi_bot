@@ -44,9 +44,18 @@ class IExchange(ABC):
         pass
 
     @abstractmethod
-    def get_balance(self) -> float:
+    def get_balances(self, assets: Optional[Iterable[str]] = None) -> Dict[str, float]:
         """
-        Returns the total balance in quote currency (e.g. USDT).
+        Return balances for requested assets.
+        - assets=None  -> return all non-zero balances
+        - assets=[...] -> return only those assets
+        """
+        pass
+
+    @abstractmethod
+    def get_balance_of(self, asset: str) -> float:
+        """
+        Convenience method: return balance of a single asset.
         """
         pass
 
