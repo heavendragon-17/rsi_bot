@@ -47,7 +47,7 @@ def download_data(symbol, timeframe, days):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbol", type=str, default="BTC/USDT")
-    parser.add_argument("--timeframe", type=str, default="5m")
+    parser.add_argument("--timeframe", type=str, default="15m")
     parser.add_argument("--days", type=int, default=7)
     args = parser.parse_args()
 

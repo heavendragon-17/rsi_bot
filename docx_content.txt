@@ -1,0 +1,251 @@
+DOCS SIGNALS BUY CRYPTO 
+
+MỤC LỤC: 
+
+
+1/ Biểu đồ nến
+
+2/ RSI 
+
+3/ Setup vào lệnh cụ thể , điều kiện kích hoạt
+
+4/ Cách đặt TP
+
+5/ Cách đặt SL 
+
+6/ Tài liệu tham khảo, Link Tradingview 
+
+
+1/ Biểu đồ nến: 
+
+
+
+Biểu đồ nến bao gồm các thành phần cụ thể như sau: 
+
+- Nến tăng ( được biểu thị bởi màu xanh và trắng ) 
+
+- nến giảm ( được biểu thị bởi màu đen và tím ) 
+
+- EMA21 là đường màu xanh, có công thức tính như sau: 
+
+
+
+Trong đó:
+
+Giá đóng cửa hiện tại: là giá kết thúc của phiên giao dịch đang xét ( giá đóng nến)
+
+EMA trước đó: là giá trị EMA đã tính được từ chu kỳ liền kề trước đó.
+
+Hệ số làm mượt (smoothing factor) hay còn gọi là độ nhạy, được tính theo công thức:
+
+Hệ số = 2/(N + 1) (Với N là số chu kỳ EMA (ví dụ: 10 ngày, 20 ngày, 50 ngày…).
+
+- EMA200 là đường màu đỏ, có công thức tính tương tự đường EMA21 nhưng dài hơn để xác định xu hướng dài hạn.
+
+Các đường - - 50 , - - 60 , - - 70 là các mốc RSI 21 được thể hiện trên biểu đồ nến, giúp chúng ta dễ dàng nhìn được ở hiện tại thì giá đang ở mốc RSI nào để có những chiến lược phù hợp hơn 
+
+
+
+
+2/ RSI 
+
+RSI ( Relative Strength Index ) hay còn gọi là chỉ báo RSI là một chỉ báo dao động động lượng được sử dụng để xác định những thay đổi về động lượng và hướng giá. 
+
+RSI chỉ giao động trong khoảng từ 0 -> 100 và phản ánh tương quan giữa người mua và người bán 
+
+
+
+Bản thân RSI khi đứng một mình sẽ không có quá nhiều ý nghĩa, vì vậy tương tự như trên biểu đồ nến thì ta cũng cần 2 đường EMA9 và WMA45 để xác định xu hướng từ đó cho ra những chiến lược giao dịch phù hợp 
+
+Những thành phần chính của indicator RSI cần có: 
+Mức giá tương ứng với RSI được tính dựa trên giá đóng cửa.
+RSI21 ( hình thành sau khi trải qua 21 phiên giao dịch ) ( đã có sẵn ở code mẫu ) 
+
+EMA9 ( đường trung bình động hàm mũ, số 9 đại diện cho 9 giá trị rsi trước đó , công thức tính: 
+
+Như đã đề cập, EMA đặt trọng số cao hơn cho dữ liệu giá gần đây. Bạn có thể áp dụng EMA cho các kỳ khác nhau nhưng để minh họa, chúng ta sẽ coi mỗi kỳ là một ngày giao dịch trọn vẹn. EMA có thể tính bằng công thức sau: 
+
+
+EMA = (Giá đóng cửa -  EMA trước đó) x Hệ số nhân + EMA trước đó, trong đó:
+
+
+Giá đóng cửa ​là giá của giao dịch cuối cùng của kỳ (ngày). Vì vậy, nếu bạn sử dụng biểu đồ hàng ngày, thông số này chính là mức đóng cửa hàng ngày của nến. Nếu ngày giao dịch hiện tại vẫn chưa đóng cửa, bạn có thể bỏ qua ngày này và sử dụng các kỳ trước đó để thay thế.
+
+EMA trước đó là giá trị EMA của kỳ (ngày) trước đó. Nếu bạn không có EMA trước đó, bạn có thể thay thế thông số này bằng đường trung bình động đơn giản (SMA) (xem ví dụ bên dưới).
+
+
+Hệ số nhân = 2 / (n + 1). Đây là hằng số làm mịn. Giá trị này được xác định bởi số kỳ bạn sử dụng (n).
+
+https://www.binance.com/vi/academy/glossary/exponential-moving-average-ema ( tham khảo link này, cái này là tính ema cho biểu đồ nến chứ k phải rsi , nhưng có thể áp dụng tương tự để tính đường ema cho rsi ) 
+
+
+WMA45: đường Trung bình động có trọng số (Weighted Moving Average) (WMA) trong phân tích kỹ thuật tài chính, với chu kỳ 45, tức là nó tính trung bình giá đóng cửa của 45 kỳ gần nhất, nhưng đặt trọng số cao hơn cho các giá gần đây để phản ánh nhanh hơn biến động thị trường so với các đường trung bình đơn giản (SMA) hay hàm mũ (EMA). Nó giúp nhà đầu tư xác định xu hướng và tín hiệu mua/bán sớm, thường được dùng kết hợp với các WMA khác
+
+Chi tiết cách tính tham khảo link dưới đây: 
+
+https://www.binance.com/vi/academy/glossary/weighted-moving-average-wma
+
+Ở đây ta có thể thấy các ký hiệu như: –60 , –40 và ….. Ở trên –60 và ….. Ở dưới -40 
+
+Cụ thể nó là gì? 
+
+–60 : là mốc RSI 60, kháng cự quan trọng ( tại đây dễ xuất hiện giảm giá do người bán nhiều ) 
+
+–40: là mốc RSI 40, hỗ trợ quan trọng( Tại đây dễ xuất hiện tăng giá do người mua tập trung nhiều, lưu ý là RSI 40 là mốc quan trọng trong signals của chúng ta ) 
+
+….. Ở trên RSI 60 mang ý nghĩa là chốt chặn cuối cùng của phe bán, nếu giá vượt qua -> phe mua áp đảo 
+
+…. Ở dưới RSI 40 cũng mang ý nghĩa rằng đó là chốt chặn cuối cùng của phe mua, nếu giá vượt qua -> phe bán áp đảo 
+
+
+
+Mấy dấu chấm xanh trên RSI này là SnR buy Wma, t chưa hiểu chỗ này lắm nên sẽ bổ sung và giải thích sau, dường như nó là 1 dạng tín hiệu khi RSI kiểm tra lại vùng Wma.
+
+
+
+
+
+
+
+3/ Setup vào lệnh cụ thể , điều kiện kích hoạt 
+
+
+Chart giá bao gồm: nến, ema21 , ema200
+
+Chart rsi bao gồm: rsi21 , ema9 , wma45
+
+Setup vào lệnh sẽ dựa vào cả biểu đồ nến lẫn RSI, cụ thể: 
+
+Điều kiện 1: RSI phải nằm trên 2 đường EMA9 và WMA45 trước khi Retest , xem ở ví dụ bên dưới: ( Điều kiện 1 xảy ra trên chart RSI ) 
+
+
+
+
+
+Điều kiện 2: RSI ( đường màu đen ) về retest ( kiểm tra ) lại vùng wma45 nhưng không gãy -> sau đó bật tăng trở lại bằng một cây nến xanh và đóng nến ở trên ema21 trên biểu đồ nến 
+Cây nến xanh này phải xuất hiện trong vòng 3-5 cây tiếp theo kể từ khi chạm WMA45.( điều kiện 2 xảy ra ở cả chart RSI và chart nến )  
+
+
+Lưu ý điều kiện 2: Ta nhìn bằng mắt thường thì thấy RSI retest thành công và bật tăng, tuy nhiên thực tế thì RSI lại rớt sâu hơn so với wma45 sau đó mới bật tăng 
+
+Vì vậy khi code phải tinh chỉnh sao cho có sự sai lệch 1 ít vẫn được tính (Là lệch 1-2 đơn vị RSI (Ví dụ: WMA45 là 48, RSI xuống 46 được tính)
+
+Ảnh minh họa bên dưới
+
+
+
+				( ảnh mô tả cho lưu ý điều kiện 2) 
+
+Điều kiện 3: Giá phải giữ được > rsi40 khi retest , nghĩa là giá không đóng nến dưới rsi40 khi retest => có thể có râu quét qua tuy nhiên tuyệt đối không được đóng nến dưới rsi40 ( xảy ra trên chart nến ) 
+
+Hình minh họa bên dưới
+
+
+
+				( ảnh mô tả cho điều kiện 3 ) 
+
+Điều kiện 4: ( xảy ra trên chart rsi ) 
+
+Wma45 phải nằm ở vùng từ 30 - 50 trong thời điểm diễn ra retest ( ở vùng này được xếp signal loại 1 ) ( tốt nhất thì wma45 nên nằm tại vùng từ 40 -> dưới 50 ) 
+
+
+Wma45 nằm ở vùng 50 - 60 được xếp hạng loại 2 ( hạn chế hoặc không nên vào lệnh ).  Giảm Volume (chỉ đi 50% vốn so với Loại 1).
+
+Wma45 >60 thì hiện tại không giao dịch, cái này sẽ có 1 con bot khác cho những Setup khác.
+
+Lưu ý : đang đề cập đến wma45 của 2 khung thời gian m5 hoặc m15 , không quan trọng wma45 của các khung thời gian khác như thế nào 
+
+
+
+
+Điều kiện 5 ( option ) : điều kiện này dùng để lọc nhiễu , sẽ có trường hợp nó thỏa các điều kiện trên nhưng chỉ là 1 pha fake vậy thì xử lý như thế nào ? ( xảy ra trên chart rsi ) 
+
+
+
+Có thể nhìn thấy trong ảnh, đây là một tín hiệu nhiễu khi mà nó thỏa điều kiện 1,2,4.
+
+Tuy nhiên ta có thể thấy pha retest này đang có wma45 ở mức khá cao ( trong hình là >50 ) => hạn chế vào lệnh khi rsi đang ở quá cao như này
+
+Ngoài ra, ở trên biểu đồ giá sau khi retest thành công -> bật tăng thì giá đã nằm sẵn trên ema21, cao hơn ema21 nên không thể kích hoạt điều kiện giá đóng nến > ema21 ( cái này ghi bằng tay hơi khó hiểu, thảo luận qua meet 1 phát là hiểu ngay  ) 
+
+Giải thích thêm: 
+
+Mâu thuẫn "Giá đóng nến > EMA21":
+
+Điều kiện 2: Yêu cầu nến tín hiệu phải đóng cửa trên EMA21.
+
+Điều kiện 5 (Lọc nhiễu): Cảnh báo trường hợp "giá đã nằm sẵn trên ema21... không thể kích hoạt điều kiện giá đóng nến > ema21".
+
+Missing Case: Nếu giá đã nằm trên EMA21 từ trước khi RSI retest WMA45 (tức là giá không bao giờ cắt xuống dưới EMA21), thì bỏ qua kèo này.
+
+ Nếu một lệnh Buy đã được kích hoạt và chưa chạm TP/SL, nhưng 3 cây nến sau đó lại xuất hiện tín hiệu Retest đẹp nữa, Bot có mua tiếp (nhồi lệnh) không? Câu trả lời là không.
+
+Các trường hợp ngoại lệ (Edge Cases) chưa đề cập
+
+Để code một con bot hoàn chỉnh, bạn cần xử lý các tình huống "xấu" mà tài liệu chưa nói:
+
+Hủy lệnh (Invalidation): Nếu sau khi Retest, RSI không tăng mà đi ngang mãi, khi nào thì hủy Setup này? (Ví dụ: Sau 10 nến mà giá chưa chạy?).
+
+RSI Breakout: Nếu RSI chọc thủng WMA45 quá sâu (ví dụ xuống tận RSI 30) rồi mới vòng lên, thì có coi là "gãy" (failed retest) không? Cần một ngưỡng "Gãy" cụ thể (Ví dụ: RSI không được xuống dưới 35).
+
+Tín hiệu "SnR buy Wma": Tài liệu ghi "chưa hiểu chỗ này lắm nên sẽ bổ sung sau". AI không thể code phần này. Bạn nên bảo AI bỏ qua các chấm xanh này hoặc cung cấp logic nếu muốn dùng.
+
+Khoảng cách giữa EMA9 và WMA45: Điều kiện 1 nói RSI nằm trên EMA9 và WMA45. Có cần điều kiện EMA9 phải nằm trên WMA45 không? (Xu hướng tăng mạnh).
+
+Câu trả lời 
+
+1/ Không bao giờ huỷ.
+
+2/ đã có trả lời , nếu khoảng cách quá xa thì ko đc tính là retest thành công , khoảng cách nên từ 3 đơn vị trở xuống 
+
+3/ snr buy wma là phần retest 
+
+4/ có, ema9 phải nằm trên wma45
+
+
+Sau khi thỏa tất cả các điều kiện trên => kích hoạt 1 lệnh MUA ( BUY ) ngay lập tức hoặc một lệnh mua tại EMA21 với điểm chốt lãi và dừng lỗ như mục 4 , 5 đã đề cập 
+buy market luôn hoặc mua limit tại ema21 đều được
+Tham khảo mục 4 - 5 để biết điểm dừng lỗ và chốt lãi.
+
+
+
+4/ Cách đặt TP ( Take Profit ) 
+
+Take Profit sẽ được thực hiện ở các mốc RSI, cụ thể : 
+
+Mốc RSI60 ( gọi tắt là R60 ) : ở đây chúng ta sẽ chốt lãi một phần và dời dừng lỗ lên Entry để đảm bảo không bị lỗ 
+
+Mốc RSI70 ( gọi tắt là R70 ): ở mốc này chúng ta nên chốt lãi ⅔ hoặc toàn bộ vị thế 
+
+Mốc RSI80 ( gọi tắt là R80 ): ở mốc này phải chốt 100% lệnh, khi này chúng ta đã ghi nhận lãi gấp 3 - 4 lần số tiền ta bỏ ra 
+
+Ngoài ra còn có những cách chốt lãi khác như: Chốt lãi khi giá chạm EMA200 ( trường hợp EMA200 ở cách xa nơi chúng ta vào lệnh ) 
+
+
+
+5/ Cách đặt lệnh SL ( Stop loss ) 
+
+
+Stoploss ( dừng lỗ ) được đặt ở khu vực R40 sau khi giá đã kiểm tra lại một lần trước đó, trong trường hợp tránh bị quét thì phải đặt Stoploss xa thêm 0,3% so với mốc R40 là an toàn nhất , hướng dẫn cụ thể như sau: 
+
+
+
+
+Cả tp và sl đều được thiết lập cố định ngay tại thời điểm vào lệnh bằng lệnh limit. Các lệnh đó sẽ chờ giá tự khớp, không cần thay đổi theo đường giá.
+
+6/ tài liệu tham khảo, đường link 
+
+Link: https://vn.tradingview.com/script/SJ7DVEpd-RSI-MA-Divergence-SnR-Price-level/
+
+File txt rsi có trong nhóm 
+
+https://t.me/+YaNUiaCgDXo3Njc1 ( group test bot ) 
+
+https://github.com/heavendragon-17/rsi_bot/tree/chatbot ( github ) 
+
+https://vn.tradingview.com/v/DTpxNNdM/ ( link tradingview, mô phỏng lại như này )
+
+https://in.tradingview.com/v/TQUdu4yL/ ( rsi trên chart ) 
+
+Trong các link đều có mô tả, ae đọc mô tả để hiểu 
+

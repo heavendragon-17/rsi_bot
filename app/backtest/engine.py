@@ -1,62 +1,86 @@
+"""
+Backtest Engine (Vectorized)
+============================
+Runs strategy on historical data with wick-based SL/TP checking.
+Pre-computes all indicators once for O(n) performance.
+"""
 import pandas as pd
-from app.services.market_data.store import MarketDataStore
+import numpy as np
+from decimal import Decimal
 from app.core.events import Candle, SignalEvent
 from app.core.portfolio import PortfolioManager
 from app.backtest.mock_exchange import MockExchange
-from datetime import datetime
+from app.core.context import SCANNING
+from app.utils.indicators import Indicators
+
 
 class BacktestEngine:
-    def __init__(self, data_path, strategy_class, config):
+    def __init__(self, data_path: str, strategy_class, config: dict):
         self.data = pd.read_csv(data_path)
-        self.data['timestamp'] = pd.to_datetime(self.data['timestamp'])
+        self.data["timestamp"] = pd.to_datetime(self.data["timestamp"])
         self.config = config
-        self.symbol = config['symbols'][0]
-        self.store = MarketDataStore()
+        self.symbol = config["symbols"][0]
 
-        # 1. Initialize Mock Exchange
-        initial_balance = config.get('backtest', {}).get('initial_balance', 1000.0)
+        initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         self.exchange = MockExchange(initial_balance=initial_balance)
-
-        # 2. Initialize Real Portfolio Manager (injected with Mock Exchange)
         self.portfolio = PortfolioManager(self.exchange, config)
-
-        # 3. Initialize Strategy
         self.strategy = strategy_class(config)
+        
+        # Pre-compute all indicators ONCE
+        self._full_df = self._prepare_dataframe()
 
-    def run(self):
+    def _prepare_dataframe(self) -> pd.DataFrame:
+        """Pre-process data and compute all indicators once."""
+        df = self.data.copy()
+        df.set_index("timestamp", inplace=True)
+        df["closed"] = True
+        df["ts"] = df.index.astype(np.int64) // 10**6
+        
+        # Pre-compute indicators using strategy's indicator config
+        indicators = self.strategy.indicators
+        df = indicators.compute(df, symbol=self.symbol, timeframe="backtest")
+        
+        return df
+
+    def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
+        print(f"Initial balance: {self.exchange.get_balance()}")
 
-        warmup_period = 50
+        warmup_period = 220
+        n_rows = len(self._full_df)
 
-        for i, row in self.data.iterrows():
-            # 1. Update Market Data
-            candle = Candle(
-                symbol=self.symbol,
-                timestamp=row['timestamp'],
-                open=row['open'],
-                high=row['high'],
-                low=row['low'],
-                close=row['close'],
-                volume=row['volume'],
-                closed=True
+        for i in range(warmup_period, n_rows):
+            row = self._full_df.iloc[i]
+            ts = self._full_df.index[i]
+            o, h, l, c = row["open"], row["high"], row["low"], row["close"]
+
+            # Update exchange with full OHLC (checks pending SL/TP against wicks)
+            executed_orders = self.exchange.update_candle(
+                self.symbol, float(o), float(h), float(l), float(c), ts
             )
-            self.store.update_candle(candle)
 
-            # 2. Update Exchange Price (Mark-to-Market)
-            self.exchange.update_price(self.symbol, candle.close, candle.timestamp)
+            # Handle executed SL orders
+            for order in executed_orders:
+                if order['order_type'] == 'STOP_LOSS':
+                    if self.symbol in self.portfolio.positions:
+                        del self.portfolio.positions[self.symbol]
+                    if hasattr(self.strategy, 'context') and self.strategy.context:
+                        self.strategy.context.close_trade(self.symbol)
+                        tf = getattr(self.strategy, 'timeframe', '')
+                        key = f"{self.symbol}:{tf}"
+                        self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
+                    print(f"SL triggered @ {order['price']:.6f}")
 
-            # Check SL/TP (Portfolio responsibility? or Strategy?)
-            # In this architecture, PortfolioManager manages risk on signals.
-            # Continuous monitoring (SL/TP) would typically happen here via `portfolio.on_tick(candle)`
-            # but for this iteration, we rely on Strategy to emit EXIT signals.
+            self.portfolio.sync_from_exchange()
 
-            if i < warmup_period:
-                continue
+            # Pass pre-computed slice (indicators already calculated)
+            df_slice = self._full_df.iloc[:i+1]
+            signal = self.strategy.analyze(self.symbol, df_slice)
 
-            # 3. Run Strategy
-            df = self.store.get_dataframe(self.symbol)
-            signal = self.strategy.analyze(self.symbol, df)
-
-            # 4. Process Signal via Portfolio
             if signal:
                 self.portfolio.on_signal(signal)
+
+        print("\nBacktest complete!")
+        print(f"Final balance: {self.exchange.get_balance()}")
+        print(f"Open positions: {dict(self.exchange.positions)}")
+        print(f"Total trades: {len(self.exchange.trade_history)}")
