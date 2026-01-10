@@ -18,6 +18,7 @@ from typing import Optional
 
 from app.strategies.base import BaseStrategy
 from app.utils.indicators import Indicators
+from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent
 from app.core.context import StrategyContext, SCANNING, RETESTING, CONFIRMING
 
@@ -50,6 +51,10 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         # Filter: only trade when WMA45 < 50
         self.wma45_max = float(strategy_cfg.get("wma45_max", 50.0))
+
+        # H1 Filter: WMA45 > 45 on H1
+        self.check_h1_wma45 = bool(strategy_cfg.get("check_h1_wma45", True))
+        self.h1_wma45_min = float(strategy_cfg.get("h1_wma45_min", 45.0))
 
         # TP ladder (by RSI)
         self.tp1_rsi = float(strategy_cfg.get("tp1_rsi", 60.0))
@@ -219,6 +224,27 @@ class RsiWmaRetestStrategy(BaseStrategy):
                         now_ts=ts,
                     )
                     return None
+
+                # Check H1 condition: WMA45 > 45
+                if self.check_h1_wma45:
+                    # Resample to H1
+                    df_h1 = resample_dataframe(df, "1h")
+                    if not df_h1.empty:
+                        # Compute indicators on H1
+                        df_h1_ind = self.indicators.compute(df_h1, symbol=symbol, timeframe="1h")
+                        last_h1 = Indicators.last(df_h1_ind)
+                        h1_rsi_wma45 = last_h1.get("rsi_wma45")
+
+                        if h1_rsi_wma45 is None or h1_rsi_wma45 <= self.h1_wma45_min:
+                            # Log and transition to SCANNING
+                            wma_val = f"{h1_rsi_wma45:.2f}" if h1_rsi_wma45 is not None else "None"
+                            self.context.transition(
+                                key,
+                                SCANNING,
+                                reason=f"H1 WMA45 too low ({wma_val} <= {self.h1_wma45_min})",
+                                now_ts=ts,
+                            )
+                            return None
 
                 # Compute TP/SL prices for PortfolioManager
                 tp1_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp1_rsi)
