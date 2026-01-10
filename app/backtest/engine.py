@@ -1,62 +1,95 @@
+"""
+Backtest Engine (NO COOLDOWN / NO WAITING / NO SL LOCK)
+=======================================================
+Runs strategy on historical data.
+
+Key:
+- SL limit fills happen inside MockExchange.update_price()
+- We must sync those fills into PortfolioManager and StrategyContext.
+"""
 import pandas as pd
+from decimal import Decimal
 from app.services.market_data.store import MarketDataStore
-from app.core.events import Candle, SignalEvent
+from app.core.events import Candle
 from app.core.portfolio import PortfolioManager
 from app.backtest.mock_exchange import MockExchange
-from datetime import datetime
+from app.core.context import SCANNING
+
 
 class BacktestEngine:
-    def __init__(self, data_path, strategy_class, config):
+    def __init__(self, data_path: str, strategy_class, config: dict):
         self.data = pd.read_csv(data_path)
-        self.data['timestamp'] = pd.to_datetime(self.data['timestamp'])
+        self.data["timestamp"] = pd.to_datetime(self.data["timestamp"])
         self.config = config
-        self.symbol = config['symbols'][0]
+        self.symbol = config["symbols"][0]
         self.store = MarketDataStore()
 
-        # 1. Initialize Mock Exchange
-        initial_balance = config.get('backtest', {}).get('initial_balance', 1000.0)
+        initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         self.exchange = MockExchange(initial_balance=initial_balance)
-
-        # 2. Initialize Real Portfolio Manager (injected with Mock Exchange)
         self.portfolio = PortfolioManager(self.exchange, config)
-
-        # 3. Initialize Strategy
         self.strategy = strategy_class(config)
 
-    def run(self):
-        print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
+        self._last_trade_count = 0
 
-        warmup_period = 50
+    def _sync_exchange_fills(self) -> None:
+        trades = self.exchange.trade_history
+        while self._last_trade_count < len(trades):
+            trade = trades[self._last_trade_count]
+            self._last_trade_count += 1
+
+            # Sync portfolio
+            self.portfolio.on_fill(trade)
+
+            # Sync strategy context (remove active trade on exchange SELL)
+            symbol = trade.get("symbol")
+            side = trade.get("side")
+            now_ts = trade.get("time")
+
+            if not symbol or not side:
+                continue
+
+            if side == "SELL" and hasattr(self.strategy, "context") and self.strategy.context:
+                ctx = self.strategy.context
+                tf = getattr(self.strategy, "timeframe", "")
+                key = f"{symbol}:{tf}" if tf else f"{symbol}:"
+
+                ctx.close_trade(symbol)
+                ctx.transition(key, SCANNING, reason="Exchange SELL fill", now_ts=now_ts)
+
+    def run(self) -> None:
+        print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
+        print(f"Initial balance: {self.exchange.get_balance()}")
+
+        warmup_period = 220
 
         for i, row in self.data.iterrows():
-            # 1. Update Market Data
             candle = Candle(
                 symbol=self.symbol,
-                timestamp=row['timestamp'],
-                open=row['open'],
-                high=row['high'],
-                low=row['low'],
-                close=row['close'],
-                volume=row['volume'],
-                closed=True
+                timestamp=row["timestamp"],
+                open=Decimal(str(row["open"])),
+                high=Decimal(str(row["high"])),
+                low=Decimal(str(row["low"])),
+                close=Decimal(str(row["close"])),
+                volume=Decimal(str(row["volume"])),
+                closed=True,
             )
+
             self.store.update_candle(candle)
 
-            # 2. Update Exchange Price (Mark-to-Market)
+            # Update price (may fill SL)
             self.exchange.update_price(self.symbol, candle.close, candle.timestamp)
-
-            # Check SL/TP (Portfolio responsibility? or Strategy?)
-            # In this architecture, PortfolioManager manages risk on signals.
-            # Continuous monitoring (SL/TP) would typically happen here via `portfolio.on_tick(candle)`
-            # but for this iteration, we rely on Strategy to emit EXIT signals.
+            self.portfolio.sync_from_exchange()
 
             if i < warmup_period:
                 continue
 
-            # 3. Run Strategy
             df = self.store.get_dataframe(self.symbol)
             signal = self.strategy.analyze(self.symbol, df)
 
-            # 4. Process Signal via Portfolio
             if signal:
                 self.portfolio.on_signal(signal)
+
+        print("\nBacktest complete!")
+        print(f"Final balance: {self.exchange.get_balance()}")
+        print(f"Open positions: {self.exchange.positions}")
+        print(f"Total trades: {len(self.exchange.trade_history)}")

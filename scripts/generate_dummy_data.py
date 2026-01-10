@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-def create_dummy_data(symbol="BTC/USDT", timeframe="5min", days=7):
+def create_dummy_data(symbol="BTC/USDT", timeframe="15min", days=7):
     print(f"Generating dummy data for {symbol}...")
 
     # Generate time range
@@ -38,4 +38,4 @@ def create_dummy_data(symbol="BTC/USDT", timeframe="5min", days=7):
     print(f"Saved {len(df)} rows of dummy data to {filename}")
 
 if __name__ == "__main__":
-    create_dummy_data(timeframe="5min")
+    create_dummy_data(timeframe="15min")
