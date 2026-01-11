@@ -7,6 +7,7 @@ from app.services.market_data.store import MarketDataStore
 from app.core.events import Candle
 from app.utils.indicators import Indicators
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from decimal import Decimal
 import yaml
 
@@ -16,7 +17,7 @@ with open('config.yaml') as f:
 config['symbols'] = ['BTC']
 
 # Create strategy
-strategy = RsiWmaRetestStrategy(config)
+strategy = RsiNoRetestStrategy(config)
 
 # Load data
 df = pd.read_csv('data/BTCUSDT_5m.csv')

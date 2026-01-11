@@ -22,7 +22,10 @@ class BacktestReporter:
             return
 
         df = pd.DataFrame(trades)
-        print(df.head()) # Debug: show first few trades
+        pd.set_option('display.max_rows', None)    # Show all rows
+        pd.set_option('display.max_columns', None) # Show all columns
+        pd.set_option('display.width', None)       # Adjust width to fit console
+        print(df)
 
         # Calculate metrics
         final_balance = self.exchange.get_balance()
