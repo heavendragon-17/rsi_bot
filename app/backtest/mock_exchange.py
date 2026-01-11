@@ -23,6 +23,8 @@ class MockExchange(IExchange):
     def __init__(self, initial_balance: float = 1000.0):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.positions: Dict[str, Decimal] = {}  # symbol -> amount
+        self.entry_times: Dict[str, Any] = {}  # symbol -> entry timestamp
+        self.entry_prices: Dict[str, Decimal] = {}  # symbol -> entry price
         self.trade_history: List[Dict] = []
         self.current_prices: Dict[str, Dict] = {}  # symbol -> {price, time}
         
@@ -73,13 +75,16 @@ class MockExchange(IExchange):
                     fill_price = trigger_price
             
             if triggered:
+                # Use stored exit_reason if available, otherwise use order_type
+                stored_exit_reason = order.get('exit_reason') or order_type
                 result = self._execute_order(
                     symbol=order['symbol'],
                     side=order['side'],
                     amount=to_decimal(order['amount']),
                     exec_price=fill_price,
                     timestamp=timestamp,
-                    order_type=order_type
+                    order_type=order_type,
+                    exit_reason=stored_exit_reason
                 )
                 if result:
                     executed.append(result)
@@ -158,7 +163,7 @@ class MockExchange(IExchange):
         return False
 
     def create_order(self, symbol: str, order_type: str, side: str, amount, 
-                     price=None) -> Optional[Dict]:
+                     price=None, exit_reason: str = None) -> Optional[Dict]:
         """Create an order. MARKET executes immediately, LIMIT goes pending."""
         amount = to_decimal(amount)
         
@@ -179,7 +184,8 @@ class MockExchange(IExchange):
                 'price': price_dec,
                 'trigger_price': price_dec,
                 'order_type': 'LIMIT',
-                'status': 'PENDING'
+                'status': 'PENDING',
+                'exit_reason': exit_reason  # Store for when order fills
             }
             self.pending_orders[order_id] = order
             return {'id': order_id, 'status': 'PENDING', 'type': 'LIMIT'}
@@ -188,12 +194,17 @@ class MockExchange(IExchange):
         exec_price = to_decimal(price) if price else current_data['price']
         timestamp = current_data['time']
 
-        return self._execute_order(symbol, side, amount, exec_price, timestamp)
+        return self._execute_order(symbol, side, amount, exec_price, timestamp, exit_reason=exit_reason)
 
     def _execute_order(self, symbol: str, side: str, amount: Decimal, exec_price: Decimal,
-                       timestamp, order_type: str = "MARKET") -> Optional[Dict]:
+                       timestamp, order_type: str = "MARKET", exit_reason: str = None) -> Optional[Dict]:
         """Internal method to execute an order."""
         cost = exec_price * amount
+        entry_price = None
+        entry_time = None
+        hold_duration_seconds = None
+        pnl = None
+        pnl_pct = None
 
         if side == 'BUY':
             if cost > self.balance:
@@ -201,21 +212,48 @@ class MockExchange(IExchange):
                 return None
             self.balance -= cost
             self.positions[symbol] = self.positions.get(symbol, Decimal("0")) + amount
+            # Track entry info for this position
+            self.entry_times[symbol] = timestamp
+            self.entry_prices[symbol] = exec_price
 
         elif side == 'SELL':
             current_pos = self.positions.get(symbol, Decimal("0"))
             tolerance = current_pos * Decimal("1.001")
             if amount > tolerance:
-                print(f"MockExchange: Insufficient position. Has: {current_pos}, Want: {amount}")
-                return None
+                return None  # Silently reject - insufficient position
 
             # Clamp to actual position
             amount = min(amount, current_pos)
             revenue = exec_price * amount
             self.balance += revenue
             self.positions[symbol] -= amount
+            
+            # Calculate PnL and hold duration
+            entry_price = self.entry_prices.get(symbol)
+            entry_time = self.entry_times.get(symbol)
+            
+            if entry_price is not None:
+                # PnL for this sell amount
+                entry_cost = entry_price * amount
+                pnl = float(revenue - entry_cost)
+                pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            
+            if entry_time is not None and timestamp is not None:
+                try:
+                    # Calculate hold duration in seconds
+                    if hasattr(entry_time, 'timestamp') and hasattr(timestamp, 'timestamp'):
+                        hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
+                    elif hasattr(entry_time, 'value') and hasattr(timestamp, 'value'):
+                        # pandas Timestamp
+                        hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
+                except Exception:
+                    pass
+            
+            # Clear entry tracking if position fully closed
             if self.positions[symbol] <= Decimal("1e-8"):
                 del self.positions[symbol]
+                self.entry_times.pop(symbol, None)
+                self.entry_prices.pop(symbol, None)
             cost = revenue
 
         trade = {
@@ -226,8 +264,14 @@ class MockExchange(IExchange):
             'amount': float(amount),
             'cost_or_revenue': float(cost),
             'balance_after': float(self.balance),
-            'order_type': order_type
+            'order_type': order_type,
+            'exit_reason': exit_reason,
+            'entry_price': float(entry_price) if entry_price else None,
+            'pnl': pnl,
+            'pnl_pct': pnl_pct,
+            'hold_duration_seconds': hold_duration_seconds
         }
         self.trade_history.append(trade)
         
         return trade
+

@@ -99,8 +99,7 @@ class BinanceStreamManager:
 
         print("Fetching initial historical data (binanceusdm)...")
         try:
-            self.exchange.load_markets()
-
+            exchange = ccxt.binanceusdm()
             for symbol in self.raw_symbols:
                 ccxt_symbol = self._to_ccxt_symbol(symbol)
                 try:
