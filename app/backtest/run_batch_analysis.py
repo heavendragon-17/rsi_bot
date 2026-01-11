@@ -42,7 +42,8 @@ class BatchHtmlGenerator:
             'profit': float,
             'profit_pct': float,
             'drawdown': float,
-            'trades': int
+            'trades': int,
+            'round_trips': pd.DataFrame
         }
         """
         self.results = batch_results
@@ -64,6 +65,32 @@ class BatchHtmlGenerator:
         avg_drawdown = sum(r['drawdown'] for r in self.results) / len(self.results) if self.results else 0
         total_trades = sum(r['trades'] for r in self.results)
         
+        # --- Prepare Equity Curve Data ---
+        all_trades = []
+        for r in self.results:
+            if 'round_trips' in r and not r['round_trips'].empty:
+                t = r['round_trips'].copy()
+                t['symbol'] = r['symbol']
+                # Ensure exit_time is datetime
+                t['exit_time'] = pd.to_datetime(t['exit_time'])
+                all_trades.append(t)
+
+        equity_values = [total_initial]
+        equity_labels = ["Start"] # Date strings
+
+        if all_trades:
+            combined = pd.concat(all_trades)
+            # Sort by exit time to simulate portfolio equity evolution
+            combined = combined.sort_values('exit_time')
+
+            current_equity = total_initial
+
+            for i, row in combined.iterrows():
+                current_equity += row['pnl']
+                equity_values.append(current_equity)
+                # Use exit time as label
+                equity_labels.append(row['exit_time'].strftime('%Y-%m-%d %H:%M'))
+
         # Build Navigation
         nav_html = """
         <div class="nav-sidebar">
@@ -109,6 +136,12 @@ class BatchHtmlGenerator:
                     <div class="value">{total_trades}</div>
                 </div>
             </div>
+
+            <!-- Portfolio Equity Curve -->
+            <h2 class="section-title">Portfolio Equity Curve</h2>
+            <div class="chart-container" style="height: 400px; position: relative;">
+                <canvas id="portfolioEquityChart"></canvas>
+            </div>
             
             <h2 class="section-title">Performance Comparison</h2>
             <div class="table-container">
@@ -135,7 +168,7 @@ class BatchHtmlGenerator:
                     <td class="{pnl_class}">{res['profit_pct']:+.2f}%</td>
                     <td>{res['drawdown']:.2f}%</td>
                     <td>{res['trades']}</td>
-                    <td>{res['metrics']['win_rate']:.1f}%</td>
+                    <td>{res.get('metrics', {}).get('win_rate', 0):.1f}%</td>
                 </tr>
             """
             
@@ -334,6 +367,59 @@ class BatchHtmlGenerator:
             document.getElementById(tabName).classList.add("active");
             evt.currentTarget.className += " active";
         }}
+
+        // Portfolio Equity Chart
+        document.addEventListener('DOMContentLoaded', function() {{
+            const ctx = document.getElementById('portfolioEquityChart').getContext('2d');
+
+            new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: {equity_labels},
+                    datasets: [{{
+                        label: 'Total Portfolio Value ($)',
+                        data: {equity_values},
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 2,
+                        pointHoverRadius: 5
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {{
+                        mode: 'index',
+                        intersect: false,
+                    }},
+                    plugins: {{
+                        title: {{
+                            display: true,
+                            text: 'Total Portfolio Equity (Realized)',
+                            color: '#eee',
+                            font: {{ size: 16 }}
+                        }},
+                        legend: {{
+                            labels: {{ color: '#eee' }}
+                        }}
+                    }},
+                    scales: {{
+                        x: {{
+                            title: {{ display: true, text: 'Time', color: '#888' }},
+                            ticks: {{ color: '#888', maxTicksLimit: 12 }},
+                            grid: {{ color: 'rgba(255,255,255,0.05)' }}
+                        }},
+                        y: {{
+                            title: {{ display: true, text: 'Equity ($)', color: '#888' }},
+                            ticks: {{ color: '#888' }},
+                            grid: {{ color: 'rgba(255,255,255,0.05)' }}
+                        }}
+                    }}
+                }}
+            }});
+        }});
     </script>
 </body>
 </html>
@@ -436,7 +522,8 @@ def main():
                 'initial_balance': float(balance),
                 'final_balance': float(final_bal),
                 'drawdown': drawdown.get('avg_drawdown_pct', 0),
-                'trades': metrics.get('total_trades', 0)
+                'trades': metrics.get('total_trades', 0),
+                'round_trips': round_trips
             })
             
         except Exception as e:
@@ -451,7 +538,10 @@ def main():
         generator.generate(filename=report_path)
         
         print(f"Opening batch report: {report_path}")
-        webbrowser.open('file://' + os.path.abspath(report_path))
+        try:
+            webbrowser.open('file://' + os.path.abspath(report_path))
+        except:
+            print("Could not open browser automatically.")
     else:
         print("No results to generate report.")
 
