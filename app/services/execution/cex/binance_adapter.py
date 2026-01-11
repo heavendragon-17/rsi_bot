@@ -190,3 +190,16 @@ class BinanceAdapter(IExchange):
             out[symbol] = df
 
         return out
+    
+    def cancel_order(self, order_id: str, symbol: str) -> bool:
+        """
+        Cancel a single order.
+        Returns True if request succeeded, False otherwise.
+        """
+        try:
+            self.client.cancel_order(order_id, symbol)
+            return True
+        except Exception as e:
+            # You can replace print with logger if you have one
+            print(f"BinanceAdapter.cancel_order failed: order_id={order_id}, symbol={symbol}, err={e}")
+            return False
