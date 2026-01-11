@@ -227,8 +227,15 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
                 # Check H1 condition: WMA45 > 45
                 if self.check_h1_wma45:
+                    # Optimize: Resample only necessary history for H1 indicators
+                    # RSI(14) + WMA(45) on RSI needs approx 60 H1 candles + buffer.
+                    # 1h = 12 * 5m candles. 200 H1 candles = 2400 5m candles.
+                    # This prevents resampling the entire history (O(N)) every time.
+                    lookback_5m = 2400
+                    df_to_resample = df.iloc[-lookback_5m:] if len(df) > lookback_5m else df
+
                     # Resample to H1
-                    df_h1 = resample_dataframe(df, "1h")
+                    df_h1 = resample_dataframe(df_to_resample, "1h")
                     if not df_h1.empty:
                         # Compute indicators on H1
                         df_h1_ind = self.indicators.compute(df_h1, symbol=symbol, timeframe="1h")

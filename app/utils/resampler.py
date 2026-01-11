@@ -21,11 +21,15 @@ def resample_dataframe(df: pd.DataFrame, target_timeframe: str) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
 
-    # Work on a copy
-    df_res = df.copy()
+    # Optimization: Check if we can avoid copying the dataframe
+    # If the index is already a DatetimeIndex, we can use it directly as resample() doesn't modify the source.
+    if isinstance(df.index, pd.DatetimeIndex):
+        df_res = df
+    else:
+        # Work on a copy if we need to modify index
+        df_res = df.copy()
 
-    # Ensure DatetimeIndex
-    if not isinstance(df_res.index, pd.DatetimeIndex):
+        # Ensure DatetimeIndex
         if "timestamp" in df_res.columns:
             df_res["timestamp"] = pd.to_datetime(df_res["timestamp"])
             df_res.set_index("timestamp", inplace=True)
