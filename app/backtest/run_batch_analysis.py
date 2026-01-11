@@ -19,6 +19,7 @@ if PROJECT_ROOT not in sys.path:
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data
 
 # Path constants
@@ -388,7 +389,7 @@ def main():
 
         # Run Backtest
         try:
-            engine = BacktestEngine(data_file, RsiWmaRetestStrategy, config)
+            engine = BacktestEngine(data_file, RsiNoRetestStrategy, config)
             # Re-init exchange with correct balance (engine uses config default)
             engine.exchange.initial_balance = Decimal(str(balance))
             engine.exchange.balance = Decimal(str(balance))

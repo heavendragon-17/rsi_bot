@@ -46,12 +46,12 @@ strategy:
   cooldown_sec: 300
   use_active_trades: true
 
-    nr_lookback: 30
-    nr_max_above_ema21: 0
-    nr_rsi_spread_min: 1.5
-    nr_sl_mode: "rsi_ema9"     # SL gần
-    sl_buffer_pct: 0.0
-    nr_tp_rr: 1
+  nr_lookback: 30
+  nr_max_above_ema21: 0
+  nr_rsi_spread_min: 1.5
+  nr_sl_mode: "rsi_ema9"     # SL gần
+  sl_buffer_pct: 0.0
+  nr_tp_rr: 1
 
 risk:
   max_position_size_pct: 0.99
