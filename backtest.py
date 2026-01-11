@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 
 
 def load_config() -> dict:
@@ -72,7 +73,7 @@ def main():
     # Initialize Engine
     engine = BacktestEngine(
         data_path=args.data,
-        strategy_class=RsiWmaRetestStrategy,
+        strategy_class=RsiNoRetestStrategy,
         config=config
     )
 
