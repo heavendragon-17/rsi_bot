@@ -22,7 +22,7 @@ class BinanceStreamManager:
     def fetch_initial_data(self):
         print("Fetching initial historical data...")
         try:
-            exchange = ccxt.binance()
+            exchange = ccxt.binanceusdm()
             for symbol in self.raw_symbols:
                 try:
                     # Fetch OHLCV

@@ -7,16 +7,25 @@ import argparse
 import sys
 import os
 import yaml
+import webbrowser
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Determine paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+
+# Add project root to path
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
 
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 
+# Path constants
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
 def load_config() -> dict:
-    with open("config.yaml", "r") as f:
+    with open(CONFIG_PATH, "r") as f:
         return yaml.safe_load(f)
 
 
@@ -26,6 +35,7 @@ def main():
     parser.add_argument("--balance", type=float, default=1000.0, help="Initial balance")
     parser.add_argument("--symbol", type=str, default=None, help="Trading symbol (e.g. XPL/USDT). If not provided, inferred from filename")
     parser.add_argument("--timeframe", type=str, default=None, help="Timeframe (e.g. 5m). If not provided, inferred from filename")
+    parser.add_argument("--output", type=str, default=os.path.join(SCRIPT_DIR, "report"), help="Output directory for reports")
     args = parser.parse_args()
 
     # Load Base Config
@@ -80,8 +90,21 @@ def main():
     engine.run()
 
     # Report
-    reporter = BacktestReporter(engine.exchange, initial_balance=args.balance)
-    reporter.generate_report()
+    os.makedirs(args.output, exist_ok=True)
+    print(f"Saving reports to: {args.output}")
+    
+    reporter = BacktestReporter(
+        engine.exchange, 
+        config, 
+        initial_balance=args.balance, 
+        symbol=symbol, 
+        timeframe=timeframe
+    )
+    report_path = reporter.generate_report(output_dir=args.output)
+    
+    if report_path:
+        print(f"Opening report: {report_path}")
+        webbrowser.open('file://' + os.path.abspath(report_path))
 
 
 if __name__ == "__main__":

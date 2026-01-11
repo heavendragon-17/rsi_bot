@@ -57,7 +57,7 @@ class DataNormalizer:
         
         candle = Candle(
             symbol=symbol,
-            timestamp=pd.to_datetime(kline['t'], unit='ms'),
+            timestamp=pd.to_datetime(kline['t'], unit='ms') + pd.Timedelta(hours=7),
             open=DataNormalizer._to_decimal(kline['o']),
             high=DataNormalizer._to_decimal(kline['h']),
             low=DataNormalizer._to_decimal(kline['l']),
@@ -85,7 +85,7 @@ class DataNormalizer:
             Candle with Decimal price fields
         """
         normalized_symbol = DataNormalizer._normalize_symbol(symbol)
-        timestamp = pd.to_datetime(ohlcv[0], unit='ms')
+        timestamp = pd.to_datetime(ohlcv[0], unit='ms') + pd.Timedelta(hours=7)
 
         return Candle(
             symbol=normalized_symbol,
