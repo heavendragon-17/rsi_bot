@@ -1,6 +1,5 @@
 """
 Clean Architecture Interfaces
-=============================
 Layer 1: Data Ingestion  - IDataProvider, IDataStore
 Layer 2: Core Logic      - IStrategy, IIndicators  
 Layer 3: Execution       - IExchange, IPortfolio

@@ -27,7 +27,6 @@ STRATEGY_MAP = {
     "rsi_wma_retest": RsiWmaRetestStrategy,
     "rsi_no_retest": RsiNoRetestStrategy,
 }
-
 # Path constants
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 

@@ -402,3 +402,4 @@ class MockExchange(IExchange):
         }
         self.trade_history.append(trade)
         return trade
+
