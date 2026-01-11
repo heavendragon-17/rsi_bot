@@ -69,7 +69,6 @@ class BacktestEngine:
                         tf = getattr(self.strategy, 'timeframe', '')
                         key = f"{self.symbol}:{tf}"
                         self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
-                    print(f"SL triggered @ {order['price']:.6f}")
 
             self.portfolio.sync_from_exchange()
 

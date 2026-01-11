@@ -179,13 +179,6 @@ class PortfolioManager:
             )
             if sl_order:
                 self.positions[signal.symbol].sl_order_id = sl_order.get("id")
-                print(f"Placed limit SL order at {signal.sl_price}")
-
-        print(f"Executed BUY for {signal.symbol} @ {price}")
-        print(f"  TP1: {signal.tp1_price}")
-        print(f"  TP2: {signal.tp2_price}")
-        print(f"  TP3: {signal.tp3_price}")
-        print(f"  SL : {signal.sl_price}")
 
         return order
 
@@ -211,11 +204,11 @@ class PortfolioManager:
             order_type="MARKET",
             side="SELL",
             amount=pos.amount,
+            exit_reason="MANUAL",
         )
 
         if order:
             self.positions.pop(symbol, None)
-            print(f"Executed FULL SELL for {symbol}")
             return order
 
         return None
@@ -267,13 +260,13 @@ class PortfolioManager:
             order_type="MARKET",
             side="SELL",
             amount=close_amount,
+            exit_reason=tp_level,
         )
 
         if not order:
             return None
 
         pos.amount -= close_amount
-        print(f"Executed {tp_level} SELL for {symbol}: {close_amount}")
 
         # TP1 special: move SL to entry for remaining
         if tp_level == "TP1" and pos.amount > Decimal("0"):
@@ -290,13 +283,11 @@ class PortfolioManager:
             )
             if new_sl_order:
                 pos.sl_order_id = new_sl_order.get("id")
-                print(f"Moved SL to entry (breakeven): {new_sl}")
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
             if pos.sl_order_id:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
             self.positions.pop(symbol, None)
-            print(f"Position fully closed for {symbol}")
 
         return order

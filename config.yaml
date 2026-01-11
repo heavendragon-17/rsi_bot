@@ -1,49 +1,50 @@
 bot:
-    active: true
-    mode: 'paper' # paper or live
-    timeframe: '15m'
+  active: true
+  mode: "paper" # paper or live
+  timeframe: "15m"
 
 exchange:
-    name: 'binance' # binance or hyperliquid
+  name: "binance" # binance or hyperliquid
 
-timeframe: '15m'
+timeframe: "15m"
 symbols:
-    - 'BTC/USDT'
-    - 'ETH/USDT'
-    - 'BNB/USDT'
-    - 'XPL/USDT'
+  - "BTC/USDT"
+  - "ETH/USDT"
+  - "BNB/USDT"
+  - "XPL/USDT"
+  - "RIVER/USDT"
 
 strategy:
-    # Indicator parameters
-    rsi_period: 14
-    rsi_ema_length: 9
-    rsi_wma_length: 45
-    price_ema_fast: 21
-    price_ema_slow: 200
+  # Indicator parameters
+  rsi_period: 14
+  rsi_ema_length: 9
+  rsi_wma_length: 45
+  price_ema_fast: 21
+  price_ema_slow: 200
 
-    # Entry conditions (LONG only)
-    wma_retest_distance: 0.3 # Max distance for valid retest (relax for testing, original ≤1)
-    rsi_floor: 40 # No close below R40 during retest
-    wma45_min: 30 # Class 1 signal minimum (optimal)
-    wma45_max: 50 # Class 1 signal maximum (optimal)
-    wma45_class2_max: 60 # Class 2 signal max (50% volume), above 60 = skip
-    wma45_optimal_min: 40 # Best zone min
-    wma45_optimal_max: 46 # Best zone max
+  # Entry conditions (LONG only)
+  wma_retest_distance: 0.3 # Max distance for valid retest (relax for testing, original ≤1)
+  rsi_floor: 40 # No close below R40 during retest
+  wma45_min: 30 # Class 1 signal minimum (optimal)
+  wma45_max: 50 # Class 1 signal maximum (optimal)
+  wma45_class2_max: 60 # Class 2 signal max (50% volume), above 60 = skip
+  wma45_optimal_min: 40 # Best zone min
+  wma45_optimal_max: 46 # Best zone max
 
-    # TP levels (RSI values)
-    tp1_rsi: 60 # Partial close at R60
-    tp2_rsi: 70 # Close ⅔ at R70
-    tp3_rsi: 80 # Mandatory 100% close at R80
+  # TP levels (RSI values)
+  tp1_rsi: 60 # Partial close at R60
+  tp2_rsi: 70 # Close ⅔ at R70
+  tp3_rsi: 80 # Mandatory 100% close at R80
 
-    # SL settings
-    sl_buffer_pct: 0.003 # 0.3% buffer below R40
+  # SL settings
+  sl_buffer_pct: 0.003 # 0.3% buffer below R40
 
-    # Exit (RSI overbought)
-    rsi_sell: 80
+  # Exit (RSI overbought)
+  rsi_sell: 80
 
-    # Cooldown
-    cooldown_sec: 300
-    use_active_trades: true
+  # Cooldown
+  cooldown_sec: 300
+  use_active_trades: true
 
     nr_lookback: 30
     nr_max_above_ema21: 0
@@ -53,9 +54,9 @@ strategy:
     nr_tp_rr: 1
 
 risk:
-    max_position_size_pct: 0.99
-    tp1_close_pct: 0.33 # Close 1/3 at TP1
-    tp2_close_pct: 0.50 # Close 1/2 of remaining at TP2
+  max_position_size_pct: 0.99
+  tp1_close_pct: 0.33 # Close 1/3 at TP1
+  tp2_close_pct: 0.50 # Close 1/2 of remaining at TP2
 
 backtest:
-    initial_balance: 1000
+  initial_balance: 10000

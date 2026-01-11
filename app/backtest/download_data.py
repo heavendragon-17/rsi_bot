@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 import time
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> None:
     """
@@ -20,8 +21,8 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
     """
     print(f"Downloading {limit} candles for {symbol} ({timeframe})...")
     
-    # Initialize Binance
-    exchange = ccxt.binance()
+    # Initialize Binance Futures
+    exchange = ccxt.binanceusdm()
     
     # Binance max per request
     MAX_PER_REQUEST = 1000
@@ -54,8 +55,8 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
             ohlcv = exchange.fetch_ohlcv(
                 symbol, 
                 timeframe,
-                since=oldest_ts - (batch_size * 5 * 60 * 1000),  # Approximate start time
-                limit=batch_size
+                limit=batch_size,
+                params={'endTime': oldest_ts}  # Use params for pagination with endTime
             )
             
             if not ohlcv:
@@ -84,7 +85,7 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
 
     # Convert to DataFrame
     df = pd.DataFrame(all_candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms') + pd.Timedelta(hours=7)
     
     # Sort by timestamp (oldest first)
     df = df.sort_values('timestamp').reset_index(drop=True)
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("--symbol", type=str, default="BTC/USDT", help="Trading pair (e.g. BTC/USDT)")
     parser.add_argument("--timeframe", type=str, default="5m", help="Timeframe (e.g. 1m, 5m, 1h, 1d)")
     parser.add_argument("--limit", type=int, default=1000, help="Number of candles (can exceed 1000)")
-    parser.add_argument("--output", type=str, default="data", help="Output directory")
+    parser.add_argument("--output", type=str, default=os.path.join(SCRIPT_DIR, "data"), help="Output directory")
     
     args = parser.parse_args()
     
