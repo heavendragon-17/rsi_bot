@@ -22,7 +22,7 @@ strategy:
     price_ema_slow: 200
 
     # Entry conditions (LONG only)
-    wma_retest_distance: 1 # Max distance for valid retest (relax for testing, original ≤1)
+    wma_retest_distance: 0.3 # Max distance for valid retest (relax for testing, original ≤1)
     rsi_floor: 40 # No close below R40 during retest
     wma45_min: 30 # Class 1 signal minimum (optimal)
     wma45_max: 50 # Class 1 signal maximum (optimal)

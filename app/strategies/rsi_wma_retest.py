@@ -47,7 +47,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
         )
 
         # Retest threshold (RSI points)
-        self.wma_retest_distance = float(strategy_cfg.get("wma_retest_distance", 1.0))
+        self.wma_retest_distance = float(strategy_cfg.get("wma_retest_distance", 0.3))
 
         # Filter: only trade when WMA45 < 50
         self.wma45_max = float(strategy_cfg.get("wma45_max", 50.0))
@@ -212,7 +212,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 return None
 
             crossed_up = (prev_close <= prev_ema21) and (close > ema21)
-            rsi_bounced = rsi > rsi_wma45
+            rsi_bounced = (rsi > rsi_wma45) and (rsi > rsi_ema9)
 
             if crossed_up and rsi_bounced:
                 # Only trade when WMA45 < 50
@@ -262,7 +262,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                         symbol=symbol,
                         timeframe=self.timeframe,
                         side="LONG",
-                        entry_price=float(close),
+                        entry_price=float(ema21),
                         meta={
                             "tp1_price": tp1_price,
                             "tp2_price": tp2_price,
@@ -293,7 +293,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 )
 
             # Reset if RSI collapses too far under WMA45
-            if rsi_wma45 is not None and rsi < rsi_wma45 - 2.5:
+            if rsi_wma45 is not None and rsi < rsi_wma45 - 2:
                 self.context.transition(key, SCANNING, reason="RSI fell below WMA45 too far", now_ts=ts)
 
             return None
