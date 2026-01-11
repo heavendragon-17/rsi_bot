@@ -20,6 +20,7 @@ if PROJECT_ROOT not in sys.path:
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 
 # Path constants
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
@@ -82,7 +83,7 @@ def main():
     # Initialize Engine
     engine = BacktestEngine(
         data_path=args.data,
-        strategy_class=RsiWmaRetestStrategy,
+        strategy_class=RsiNoRetestStrategy,
         config=config
     )
 
