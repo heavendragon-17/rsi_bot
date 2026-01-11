@@ -143,7 +143,7 @@ class BatchHtmlGenerator:
                     <td class="{pnl_class}">{res['profit_pct']:+.2f}%</td>
                     <td>{res['drawdown']:.2f}%</td>
                     <td>{res['trades']}</td>
-                    <td>{res['metrics']['win_rate']:.1f}%</td>
+                    <td>{res['metrics'].get('win_rate', 0.0):.1f}%</td>
                 </tr>
             """
             
@@ -349,7 +349,7 @@ class BatchHtmlGenerator:
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(full_html)
-        print(f"\\nBatch Report Saved: {filename}")
+        print(f"\nBatch Report Saved: {filename}")
 
 
 def main():
@@ -398,7 +398,7 @@ def main():
     batch_results = []
     
     for symbol in symbols:
-        print(f"\\nProcessing {symbol}...")
+        print(f"\nProcessing {symbol}...")
         safe_symbol = symbol.replace('/', '')
         data_file = os.path.join(DATA_DIR, f"{safe_symbol}_{timeframe}.csv")
         

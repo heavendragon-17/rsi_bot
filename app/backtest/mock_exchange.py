@@ -223,14 +223,37 @@ class MockExchange(IExchange):
         return len(to_cancel)
 
     def update_stop_loss(self, symbol: str, new_trigger_price) -> bool:
-        """Update the trigger price of existing SL order for symbol."""
+        """Update the trigger price of existing SL order(s) for symbol."""
         new_price = to_decimal(new_trigger_price)
+        updated = False
+
         for order in self.pending_orders.values():
-            if order.get("symbol") == symbol and order.get("side") == "SELL" and order.get("order_type") in ("STOP_LOSS", "LIMIT"):
+            if (
+                order.get("symbol") == symbol
+                and order.get("side") == "SELL"
+                and order.get("order_type") in ("STOP_LOSS", "LIMIT")
+            ):
                 order["trigger_price"] = new_price
                 order["price"] = new_price
-                return True
-        return False
+                updated = True
+
+        if updated:
+            print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
+        return updated
+
+    def update_stop_loss_to_entry(self, symbol: str) -> bool:
+        """
+        Move existing SL order to entry price for this symbol.
+        Uses stored entry price from self.entry_prices[symbol].
+        """
+        entry = self.entry_prices.get(symbol)
+        if entry is None:
+            return False
+
+        ok = self.update_stop_loss(symbol, entry)
+        if ok:
+            print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
+        return ok
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel a specific pending order."""

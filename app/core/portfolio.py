@@ -1,3 +1,4 @@
+# app/core/portfolio_manager.py
 """
 Layer 3: Execution - Portfolio Manager
 =======================================
@@ -6,6 +7,11 @@ Handles position management, order execution, TP/SL placement.
 TP handling:
 - Strategy emits SELL with reason starting: "TP1", "TP2", "TP3"
 - PortfolioManager will partial-close accordingly.
+
+Extra:
+- Strategy can emit SELL with reason like:
+  "MOVE_SL_TO_ENTRY", "SL_TO_ENTRY", "BREAKEVEN", "MOVE_SL"
+  -> PortfolioManager will ONLY move SL to entry (no market sell).
 """
 
 from __future__ import annotations
@@ -176,8 +182,60 @@ class PortfolioManager:
 
         for sym in list(self.positions.keys()):
             if sym not in self.exchange.positions:
-                # Position is gone on exchange -> remove locally
                 self.positions.pop(sym, None)
+
+    def _move_sl_to_entry(self, symbol: str) -> bool:
+        """
+        Move SL to entry price for the remaining position.
+        Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
+        """
+        if symbol not in self.positions:
+            return False
+
+        pos = self.positions[symbol]
+        if pos.amount <= Decimal("0"):
+            return False
+
+        entry = pos.entry_price
+
+        # 1) Prefer exchange function if exists (MockExchange patch)
+        fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
+        if callable(fn):
+            ok = bool(fn(symbol))
+            if ok:
+                return True
+
+        # 2) Otherwise try generic update_stop_loss(symbol, new_price)
+        fn2 = getattr(self.exchange, "update_stop_loss", None)
+        if callable(fn2):
+            try:
+                ok = bool(fn2(symbol, entry))
+                if ok:
+                    return True
+            except Exception:
+                pass
+
+        # 3) Fallback: cancel existing SL order and re-create LIMIT at entry
+        if pos.sl_order_id:
+            try:
+                self.exchange.cancel_order(pos.sl_order_id, symbol)
+            except Exception:
+                pass
+            pos.sl_order_id = None
+
+        new_sl_order = self.exchange.create_order(
+            symbol=symbol,
+            order_type="LIMIT",
+            side="SELL",
+            amount=pos.amount,
+            price=entry,
+            exit_reason="MOVE_SL_TO_ENTRY",
+        )
+        if new_sl_order:
+            pos.sl_order_id = new_sl_order.get("id")
+            return True
+
+        return False
 
     # -------------------------
     # Main entry
@@ -186,7 +244,10 @@ class PortfolioManager:
         """
         Process a trading signal.
         - BUY: open position + place SL limit
-        - SELL: TP1/TP2/TP3 partial/full close OR full close
+        - SELL:
+            + TP1/TP2/TP3 partial/full close
+            + MOVE_SL_TO_ENTRY: only move SL to entry, do not sell
+            + Otherwise: full close
         """
         # IMPORTANT: always sync first (SL may have closed the position)
         self.sync_from_exchange()
@@ -202,6 +263,18 @@ class PortfolioManager:
 
             reason = (signal.reason or "").strip().upper()
 
+            # --- special SELL: move SL only ---
+            # any of these reason keywords will just move SL to entry
+            if (
+                "MOVE_SL_TO_ENTRY" in reason
+                or "SL_TO_ENTRY" in reason
+                or "BREAKEVEN" in reason
+                or reason.startswith("MOVE_SL")
+            ):
+                self._move_sl_to_entry(signal.symbol)
+                return None
+
+            # --- TP partial closes ---
             if reason.startswith("TP1"):
                 return self.execute_partial_close(signal.symbol, "TP1")
             if reason.startswith("TP2"):
@@ -219,7 +292,6 @@ class PortfolioManager:
     # -------------------------
     def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
         if signal.symbol in self.positions:
-            # already in a trade
             return None
 
         price = signal.price
@@ -236,7 +308,6 @@ class PortfolioManager:
             side="BUY",
             amount=amount,
         )
-
         if not order:
             return None
 
@@ -261,6 +332,7 @@ class PortfolioManager:
                 side="SELL",
                 amount=amount,
                 price=signal.sl_price,
+                exit_reason="STOP_LOSS",
             )
             if sl_order:
                 self.positions[signal.symbol].sl_order_id = sl_order.get("id")
@@ -283,7 +355,6 @@ class PortfolioManager:
         if pos.sl_order_id:
             self.exchange.cancel_order(pos.sl_order_id, symbol)
 
-        # Market SELL full amount
         order = self.exchange.create_order(
             symbol=symbol,
             order_type="MARKET",
@@ -302,18 +373,16 @@ class PortfolioManager:
     def execute_partial_close(self, symbol: str, tp_level: str):
         """
         Execute partial close for TP levels:
-        - TP1: close tp1_close_pct of original, move SL to entry on remaining
+        - TP1: close tp1_close_pct of current amount, then move SL to entry on remaining
         - TP2: close tp2_close_pct of remaining
         - TP3: close all remaining
         """
-        # Sync first in case SL filled
         self.sync_from_exchange()
 
         if symbol not in self.positions:
             return None
 
         pos = self.positions[symbol]
-
         tp_level = tp_level.upper().strip()
 
         if tp_level == "TP1" and pos.tp1_hit:
@@ -328,11 +397,9 @@ class PortfolioManager:
         if tp_level == "TP1":
             close_amount = pos.amount * self.tp1_close_pct
             pos.tp1_hit = True
-
         elif tp_level == "TP2":
             close_amount = pos.amount * self.tp2_close_pct
             pos.tp2_hit = True
-
         elif tp_level == "TP3":
             close_amount = pos.amount
             pos.tp3_hit = True
@@ -340,7 +407,6 @@ class PortfolioManager:
         if close_amount <= Decimal("0"):
             return None
 
-        # Execute partial SELL
         order = self.exchange.create_order(
             symbol=symbol,
             order_type="MARKET",
@@ -348,27 +414,14 @@ class PortfolioManager:
             amount=close_amount,
             exit_reason=tp_level,
         )
-
         if not order:
             return None
 
         pos.amount -= close_amount
 
-        # TP1 special: move SL to entry for remaining
+        # TP1: move SL to entry for remaining
         if tp_level == "TP1" and pos.amount > Decimal("0"):
-            if pos.sl_order_id:
-                self.exchange.cancel_order(pos.sl_order_id, symbol)
-
-            new_sl = pos.entry_price  # breakeven SL
-            new_sl_order = self.exchange.create_order(
-                symbol=symbol,
-                order_type="LIMIT",
-                side="SELL",
-                amount=pos.amount,
-                price=new_sl,
-            )
-            if new_sl_order:
-                pos.sl_order_id = new_sl_order.get("id")
+            self._move_sl_to_entry(symbol)
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):

@@ -8,7 +8,8 @@ Rules (as required):
 - Must be preceded by a prolonged decline: majority of candles in lookback closed below EMA21
     + allow maximum max_above_ema21 candles closed above EMA21 (noise filter)
 - RSI confirmation: (RSI_EMA9 - RSI_WMA45) >= rsi_spread_min
-- SL: based on RSI_EMA9 (price at RSI = RSI_EMA9) [for tighter SL], with option to use lowest wick in lookback
+- SL: based on RSI_EMA9 (price at RSI = RSI_EMA9) [for tighter SL], with option to use lowest wick/close in lookback
+    + Move SL to Entry when price reaches +0.5R (RR = 0.5)
 - TP: 1:1 RR CLOSE ALL
 
 No cooldown / no waiting / no SL lock
@@ -17,7 +18,7 @@ No cooldown / no waiting / no SL lock
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any
 
 import pandas as pd
 
@@ -36,7 +37,7 @@ class RsiNoRetestStrategy(BaseStrategy):
     # Default configuration for this strategy
     DEFAULT_CONFIG = {
         # Indicator parameters
-        "rsi_period": 14,
+        "rsi_period": 21,
         "rsi_ema_length": 9,
         "rsi_wma_length": 45,
         "price_ema_fast": 21,
@@ -44,11 +45,11 @@ class RsiNoRetestStrategy(BaseStrategy):
         
         # Entry conditions
         "nr_lookback": 30,           # Candles to check for pullback
-        "nr_max_above_ema21": 0,     # Max candles above EMA21 in lookback (0 = strict)
+        "nr_max_above_ema21": 1,     # Max candles above EMA21 in lookback (0 = strict)
         "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
-        "nr_sl_mode": "rsi_ema9",    # "rsi_ema9" or "lowest_wick"
+        "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
         "sl_buffer_pct": 0.0,        # No buffer for tight SL
         
         # TP settings
@@ -84,24 +85,22 @@ class RsiNoRetestStrategy(BaseStrategy):
         # ================================
         # Strategy parameters
         # ================================
-
-        # Number of candles to lookback for pullback filter
         self.lookback = int(cfg.get("nr_lookback", 30))
-
-        # Max number of candles closed above EMA21 in lookback
-        self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 0))
-
-        # Minimum RSI spread (RSI_EMA9 - RSI_WMA45) to confirm entry
+        self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 1))
         self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 1.5))
 
         # SL behavior
         # "rsi_ema9": SL = price_at_rsi(RSI_EMA9)
         # "lowest_wick": SL = min(low) lookback
+        # "lowest_close": SL = min(close) lookback
         self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
 
         # TP behavior
-        self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))
+        self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))  # 1:1
+
+        # NEW: Move SL to Entry trigger (RR = 0.5)
+        self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
     # ---------------- helpers ----------------
@@ -151,6 +150,11 @@ class RsiNoRetestStrategy(BaseStrategy):
             if "low" not in window.columns:
                 return None
             sl = self._to_dec(window["low"].min())
+        elif self.sl_mode == "lowest_close":
+            window = df_ind.iloc[-(self.lookback + 1) : -1]
+            if "close" not in window.columns:
+                return None
+            sl = self._to_dec(window["close"].min())
         else:
             # SL = price_at_rsi(RSI_EMA9)
             last = Indicators.last(df_ind)
@@ -174,6 +178,17 @@ class RsiNoRetestStrategy(BaseStrategy):
             return None
         return entry + (risk * self.tp_rr)
 
+    def _compute_price_at_rr(self, entry: Decimal, sl: Decimal, rr: Decimal) -> Optional[Decimal]:
+        """
+        For LONG:
+          risk = entry - sl
+          price_at_rr = entry + rr * risk
+        """
+        risk = entry - sl
+        if risk <= Decimal("0"):
+            return None
+        return entry + (risk * rr)
+
     # ---------------- main ----------------
     def analyze(self, symbol: str, df) -> Optional[SignalEvent]:
         if df is None or len(df) < max(220, self.lookback + 10):
@@ -194,10 +209,9 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         ts = self._ts_from_last(df_tf, last)
 
-        # prices
+        # prices (Decimals)
         close = self._to_dec(last.get("close"))
         high = self._to_dec(last.get("high"))
-        low = self._to_dec(last.get("low"))
         ema21 = self._to_dec(last.get("ema21"))
 
         if close is None or ema21 is None:
@@ -208,27 +222,58 @@ class RsiNoRetestStrategy(BaseStrategy):
         rsi_wma45 = last.get("rsi_wma45")
 
         # -------------------------
-        # EXIT management inside strategy (TP 1:1)
+        # EXIT / MANAGEMENT inside strategy:
+        #  - Move SL to Entry at +0.5R (intrabar by HIGH)
+        #  - TP 1:1 close all (intrabar by HIGH)
         # -------------------------
         if self.use_active_trades and self.context.has_active_trade(symbol):
             trade = self.context.get_trade(symbol)
             meta = trade.meta if trade and trade.meta else {}
 
+            entry_price = meta.get("entry_price")
+            sl_price = meta.get("sl_price")
             tp_price = meta.get("tp_price")
-            if tp_price is not None and high is not None:
-                # hit TP intrabar
-                if high >= tp_price:
-                    self.context.close_trade(symbol)
-                    self.context.transition(key, SCANNING, reason="TP 1:1 hit", now_ts=ts)
+            moved_sl = bool(meta.get("moved_sl_to_entry", False))
+
+            # sanity
+            if entry_price is None or sl_price is None:
+                return None
+
+            entry_price = self._to_dec(entry_price)
+            sl_price = self._to_dec(sl_price)
+            tp_price = self._to_dec(tp_price) if tp_price is not None else None
+
+            if entry_price is None or sl_price is None:
+                return None
+
+            # 1) Move SL to entry at RR=0.5
+            if (not moved_sl) and high is not None:
+                move_price = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
+                if move_price is not None and high >= move_price:
+                    # mark moved
+                    meta["moved_sl_to_entry"] = True
+                    meta["sl_price"] = entry_price  # update stored SL in meta
+                    # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
                     return SignalEvent(
                         symbol=symbol,
                         signal_type="SELL",
-                        price=tp_price,  # assume filled at TP
+                        price=entry_price,  # new SL price (entry)
                         timestamp=ts,
-                        reason=f"TP 1:1 HIT (high={high} >= tp={tp_price})",
+                        reason=f"MOVE_SL_TO_ENTRY (high={high} >= {move_price} = +{self.move_sl_rr}R)",
                     )
 
-            # do not open new trade while active
+            # 2) TP 1:1 hit => close all
+            if tp_price is not None and high is not None and high >= tp_price:
+                self.context.close_trade(symbol)
+                self.context.transition(key, SCANNING, reason="TP 1:1 hit", now_ts=ts)
+                return SignalEvent(
+                    symbol=symbol,
+                    signal_type="SELL",
+                    price=tp_price,  # assume filled at TP
+                    timestamp=ts,
+                    reason=f"TP 1:1 HIT (high={high} >= tp={tp_price})",
+                )
+
             return None
 
         # -------------------------
@@ -237,15 +282,12 @@ class RsiNoRetestStrategy(BaseStrategy):
         state = self.context.get_state(key)
 
         if state.phase == SCANNING:
-            # 1) reclaim EMA21 (check if a candle closed above EMA21 and crossed up)
             if not self._detect_reclaim(df_ind):
                 return None
 
-            # 2) pullback filter (check lookback condition)
             if not self._pullback_filter(df_ind):
                 return None
 
-            # 3) move to confirm
             self.context.transition(key, CONFIRMING, reason="Reclaim EMA21 + pullback ok", now_ts=ts)
             return None
 
@@ -255,6 +297,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             spread = float(rsi_ema9) - float(rsi_wma45)
             if spread < self.rsi_spread_min:
+                self.context.transition(key, SCANNING, reason="Spread too small", now_ts=ts)
                 return None
 
             # Entry at Close price (Market order on signal)
@@ -288,6 +331,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                         "tp_price": tp_price,
                         "rsi_spread": spread,
                         "sl_mode": self.sl_mode,
+                        "moved_sl_to_entry": False,
+                        "move_sl_rr": self.move_sl_rr,
                     },
                     now_ts=ts,
                 )
@@ -298,10 +343,10 @@ class RsiNoRetestStrategy(BaseStrategy):
             return SignalEvent(
                 symbol=symbol,
                 signal_type="BUY",
-                price=entry_price,     # BUY at EMA21
+                price=entry_price,  # BUY at EMA21
                 timestamp=ts,
                 reason=f"NO-RETEST BUY (spread={spread:.2f} >= {self.rsi_spread_min})",
-                tp1_price=tp_price,    # reuse tp1_price slot as TP 1:1
+                tp1_price=tp_price,  # reuse tp1_price as TP 1:1
                 tp2_price=None,
                 tp3_price=None,
                 sl_price=sl_price,
