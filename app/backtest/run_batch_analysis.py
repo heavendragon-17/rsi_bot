@@ -5,6 +5,7 @@ import yaml
 import pandas as pd
 import re
 import webbrowser
+import argparse
 from decimal import Decimal
 from datetime import datetime
 
@@ -21,6 +22,12 @@ from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data
+
+# Strategy mapping
+STRATEGY_MAP = {
+    "rsi_wma_retest": RsiWmaRetestStrategy,
+    "rsi_no_retest": RsiNoRetestStrategy,
+}
 
 # Path constants
 SYMBOLS_PATH = os.path.join(SCRIPT_DIR, "symbols.txt")
@@ -346,6 +353,17 @@ class BatchHtmlGenerator:
 
 
 def main():
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="Run batch backtest analysis")
+    parser.add_argument(
+        "--strategy", 
+        type=str, 
+        default=None,
+        choices=list(STRATEGY_MAP.keys()),
+        help="Strategy to use (default: from config.yaml)"
+    )
+    args = parser.parse_args()
+    
     if not os.path.exists(SYMBOLS_PATH):
         print(f"Error: {SYMBOLS_PATH} not found.")
         return
@@ -354,6 +372,18 @@ def main():
     config = load_config()
     timeframe = config.get("timeframe", "15m")
     balance = config.get("backtest", {}).get("initial_balance", 1000)
+    
+    # Get strategy from config or CLI override
+    strategy_name = args.strategy or config.get("strategy", "rsi_wma_retest")
+    if strategy_name not in STRATEGY_MAP:
+        print(f"Error: Unknown strategy '{strategy_name}'. Available: {list(STRATEGY_MAP.keys())}")
+        return
+    strategy_class = STRATEGY_MAP[strategy_name]
+    
+    print(f"\n{'='*50}")
+    print(f"  Strategy: {strategy_name}")
+    print(f"  Balance: ${balance:,.2f}")
+    print(f"{'='*50}\n")
 
     # Read Symbols
     with open(SYMBOLS_PATH, "r") as f:
@@ -389,7 +419,7 @@ def main():
 
         # Run Backtest
         try:
-            engine = BacktestEngine(data_file, RsiNoRetestStrategy, config)
+            engine = BacktestEngine(data_file, strategy_class, config)
             # Re-init exchange with correct balance (engine uses config default)
             engine.exchange.initial_balance = Decimal(str(balance))
             engine.exchange.balance = Decimal(str(balance))
@@ -397,13 +427,14 @@ def main():
             engine.run()
             
             # Generate Report (Content Only)
-            # Fix BacktestReporter init: (exchange, config, initial_balance, symbol, timeframe)
+            # Fix BacktestReporter init: (exchange, config, initial_balance, symbol, timeframe, strategy_name)
             reporter = BacktestReporter(
                 engine.exchange, 
                 config, 
                 initial_balance=float(balance),
                 symbol=symbol,
-                timeframe=timeframe
+                timeframe=timeframe,
+                strategy_name=strategy_name
             )
             
             # We need to access internal result generation logic

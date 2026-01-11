@@ -1,10 +1,11 @@
 # app/backtest/mock_exchange.py
 """
-Backtest Mock Exchange (OHLC-Based)
-===================================
-Simulates exchange for backtesting with wick-based SL/TP checking.
-Uses Decimal for precision, supports LIMIT and STOP_LOSS/TAKE_PROFIT orders.
-Implements IExchange: get_balances, get_balance_of, cancel_order, etc.
+Backtest Mock Exchange (Futures with Leverage)
+==============================================
+Simulates a futures exchange for backtesting with:
+- Leverage support (margin-based trading)
+- Wick-based SL/TP checking
+- Decimal precision
 """
 
 from __future__ import annotations
@@ -41,11 +42,15 @@ def _base_asset(symbol: str) -> str:
 
 
 class MockExchange(IExchange):
-    def __init__(self, initial_balance: float = 1000.0):
+    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
+        self.leverage = Decimal(str(leverage))  # Futures leverage
 
-        # positions: symbol -> amount (base amount)
+        # positions: symbol -> amount (base amount, notional position)
         self.positions: Dict[str, Decimal] = {}
+        
+        # Margin tracking for futures
+        self.margin_used: Dict[str, Decimal] = {}  # symbol -> margin locked
 
         # entry tracking
         self.entry_times: Dict[str, Any] = {}        # symbol -> entry timestamp
@@ -287,22 +292,41 @@ class MockExchange(IExchange):
         order_type: str = "MARKET",
         exit_reason: str = None,
     ) -> Optional[Dict]:
-        """Internal method to execute an order."""
-        cost = exec_price * amount
+        """
+        Execute an order with futures leverage support.
+        
+        For BUY:
+          - notional = amount * price
+          - margin = notional / leverage
+          - Deduct margin from balance, not full notional
+          
+        For SELL:
+          - Calculate PnL = (exit_price - entry_price) * amount
+          - Return margin + PnL to balance
+        """
+        notional = exec_price * amount
+        margin = notional / self.leverage
+        
         entry_price = None
         entry_time = None
         hold_duration_seconds = None
         pnl = None
         pnl_pct = None
+        margin_used = Decimal("0")
 
         if side == "BUY":
-            if cost > self.balance:
-                print(f"MockExchange: Insufficient funds. Cost: {cost}, Bal: {self.balance}")
+            # Check if we have enough margin
+            if margin > self.balance:
+                # print(f"MockExchange: Insufficient margin. Required: {margin:.2f}, Available: {self.balance:.2f}")
                 return None
-            self.balance -= cost
+            
+            # Deduct margin from balance
+            self.balance -= margin
             self.positions[symbol] = self.positions.get(symbol, Decimal("0")) + amount
+            self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
             self.entry_times[symbol] = timestamp
             self.entry_prices[symbol] = exec_price
+            margin_used = margin
 
         elif side == "SELL":
             current_pos = self.positions.get(symbol, Decimal("0"))
@@ -313,18 +337,34 @@ class MockExchange(IExchange):
                 return None  # insufficient position -> reject silently
 
             amount = min(amount, current_pos)
-            revenue = exec_price * amount
-            self.balance += revenue
-            self.positions[symbol] = self.positions.get(symbol, Decimal("0")) - amount
-
+            
+            # Get entry info for PnL calculation
             entry_price = self.entry_prices.get(symbol)
             entry_time = self.entry_times.get(symbol)
-
+            
+            # Calculate proportion of position being closed
+            close_ratio = amount / current_pos if current_pos > 0 else Decimal("1")
+            
+            # Get proportional margin to return
+            position_margin = self.margin_used.get(symbol, Decimal("0"))
+            margin_to_return = position_margin * close_ratio
+            
+            # Calculate PnL
             if entry_price is not None:
-                entry_cost = entry_price * amount
-                pnl = float(revenue - entry_cost)
+                price_diff = exec_price - entry_price
+                pnl = float(price_diff * amount)  # PnL on the notional
                 pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
+            else:
+                pnl = 0.0
+            
+            # Return margin + PnL to balance
+            self.balance += margin_to_return + Decimal(str(pnl or 0))
+            
+            # Update position and margin
+            self.positions[symbol] = current_pos - amount
+            self.margin_used[symbol] = position_margin - margin_to_return
 
+            # Calculate hold duration
             if entry_time is not None and timestamp is not None:
                 try:
                     if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
@@ -334,12 +374,14 @@ class MockExchange(IExchange):
                 except Exception:
                     pass
 
+            # Cleanup if position fully closed
             if self.positions[symbol] <= Decimal("1e-8"):
                 self.positions.pop(symbol, None)
+                self.margin_used.pop(symbol, None)
                 self.entry_times.pop(symbol, None)
                 self.entry_prices.pop(symbol, None)
 
-            cost = revenue
+            margin_used = margin_to_return
 
         trade = {
             "time": timestamp,
@@ -347,7 +389,9 @@ class MockExchange(IExchange):
             "side": side,
             "price": float(exec_price),
             "amount": float(amount),
-            "cost_or_revenue": float(cost),
+            "notional": float(notional),
+            "margin": float(margin_used),
+            "leverage": float(self.leverage),
             "balance_after": float(self.balance),
             "order_type": order_type,
             "exit_reason": exit_reason,

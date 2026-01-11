@@ -14,47 +14,28 @@ symbols:
   - "XPL/USDT"
   - "RIVER/USDT"
 
-strategy:
-  # Indicator parameters
-  rsi_period: 14
-  rsi_ema_length: 9
-  rsi_wma_length: 45
-  price_ema_fast: 21
-  price_ema_slow: 200
+# Strategy selection
+# Available: "rsi_wma_retest", "rsi_no_retest"
+strategy: "rsi_no_retest"
 
-  # Entry conditions (LONG only)
-  wma_retest_distance: 0.3 # Max distance for valid retest (relax for testing, original ≤1)
-  rsi_floor: 40 # No close below R40 during retest
-  wma45_min: 30 # Class 1 signal minimum (optimal)
-  wma45_max: 50 # Class 1 signal maximum (optimal)
-  wma45_class2_max: 60 # Class 2 signal max (50% volume), above 60 = skip
-  wma45_optimal_min: 40 # Best zone min
-  wma45_optimal_max: 46 # Best zone max
-
-  # TP levels (RSI values)
-  tp1_rsi: 60 # Partial close at R60
-  tp2_rsi: 70 # Close ⅔ at R70
-  tp3_rsi: 80 # Mandatory 100% close at R80
-
-  # SL settings
-  sl_buffer_pct: 0.003 # 0.3% buffer below R40
-
-  # Exit (RSI overbought)
-  rsi_sell: 80
-
-  # Cooldown
-  cooldown_sec: 300
-  use_active_trades: true
-
-  nr_lookback: 30
-  nr_max_above_ema21: 0
-  nr_rsi_spread_min: 1.5
-  nr_sl_mode: "rsi_ema9"     # SL gần
-  sl_buffer_pct: 0.0
-  nr_tp_rr: 1
+# Optional: Override strategy default parameters
+# These will be merged with the strategy's DEFAULT_CONFIG
+# strategy_params:
+#   rsi_period: 14
+#   wma_retest_distance: 0.5
 
 risk:
-  max_position_size_pct: 0.99
+  # Position sizing
+  max_position_size_pct: 0.99 # Max margin to use per trade (99% of balance)
+  risk_per_trade_pct: 0.02 # Risk 2% of capital per trade
+  use_risk_based_sizing: true # Calculate size based on SL distance
+  use_initial_capital_for_risk: true # Risk based on initial capital (not current balance)
+  min_sl_distance_pct: 0.003 # Minimum SL distance (1%) - skip trades with smaller SL
+
+  # Futures leverage
+  leverage: 10 # 10x leverage for futures
+
+  # TP percentages
   tp1_close_pct: 0.33 # Close 1/3 at TP1
   tp2_close_pct: 0.50 # Close 1/2 of remaining at TP2
 

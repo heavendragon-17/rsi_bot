@@ -62,11 +62,97 @@ class PortfolioManager:
         # Risk settings
         risk_cfg = config.get("risk", {})
         self.max_position_size_pct = Decimal(str(risk_cfg.get("max_position_size_pct", 0.99)))
+        
+        # Risk-based position sizing
+        self.risk_per_trade_pct = Decimal(str(risk_cfg.get("risk_per_trade_pct", 0.02)))  # Risk 2% per trade
+        self.use_risk_based_sizing = bool(risk_cfg.get("use_risk_based_sizing", True))
+        self.min_sl_distance_pct = Decimal(str(risk_cfg.get("min_sl_distance_pct", 0.01)))  # Min 1% SL distance
+        
+        # Futures leverage
+        self.leverage = Decimal(str(risk_cfg.get("leverage", 1)))  # Default 1x (spot-like)
+        self.use_initial_capital_for_risk = bool(risk_cfg.get("use_initial_capital_for_risk", True))
+        
+        # Store initial capital for risk calculation
+        backtest_cfg = config.get("backtest", {})
+        self.initial_capital = Decimal(str(backtest_cfg.get("initial_balance", 10000)))
 
         # TP percentages (how much to close at each level)
         self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
         self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
         # TP3 closes 100% remaining
+
+    # -------------------------
+    # Position Sizing
+    # -------------------------
+    def _calculate_position_size(
+        self, balance: Decimal, entry_price: Decimal, sl_price: Optional[Decimal]
+    ) -> Decimal:
+        """
+        Calculate position size for futures trading with leverage.
+        
+        Risk-Based Formula (Futures):
+            risk_capital = initial_capital (or current balance)
+            risk_amount = risk_capital * risk_per_trade_pct
+            sl_distance_pct = |entry_price - sl_price| / entry_price
+            position_notional = risk_amount / sl_distance_pct
+            position_size = position_notional / entry_price
+            margin_required = position_notional / leverage
+        
+        The position size represents the notional value of the trade.
+        With leverage, you only need (notional / leverage) as margin.
+        
+        Example (10x leverage, 2% risk, $10k capital, 5% SL):
+            risk_amount = $10,000 * 0.02 = $200
+            position_notional = $200 / 0.05 = $4,000
+            margin_required = $4,000 / 10 = $400
+            position_size = $4,000 / entry_price
+        """
+        # Determine risk capital (initial capital or current balance)
+        if self.use_initial_capital_for_risk:
+            risk_capital = self.initial_capital
+        else:
+            risk_capital = balance
+        
+        # Max margin we can use (based on current balance and leverage)
+        max_margin = balance * self.max_position_size_pct
+        max_notional = max_margin * self.leverage
+        max_amount = max_notional / entry_price
+        
+        # Use risk-based sizing if enabled and SL is provided
+        if self.use_risk_based_sizing and sl_price is not None and sl_price > Decimal("0"):
+            sl_distance = abs(entry_price - sl_price)
+            sl_distance_pct = sl_distance / entry_price
+            
+            # SAFETY: If SL distance is too small, use fallback sizing
+            if sl_distance_pct < self.min_sl_distance_pct:
+                print(f"  [WARNING] SL distance too small ({sl_distance_pct*100:.2f}% < {self.min_sl_distance_pct*100:.0f}%). Using max position size cap.")
+                return max_amount
+            
+            if sl_distance_pct > Decimal("0"):
+                # Risk amount in quote currency (based on initial capital)
+                risk_amount = risk_capital * self.risk_per_trade_pct
+                
+                # Position notional to risk exactly risk_amount if SL hits
+                position_notional = risk_amount / sl_distance_pct
+                position_size = position_notional / entry_price
+                
+                # Margin required for this position
+                margin_required = position_notional / self.leverage
+                
+                # Cap at max position size (based on available margin * leverage)
+                final_size = min(position_size, max_amount)
+                was_capped = position_size > max_amount
+                
+                # Calculate actual risk if capped
+                if was_capped:
+                    actual_notional = final_size * entry_price
+                    actual_risk = actual_notional * sl_distance_pct
+                    print(f"  [CAPPED] Position capped! Target risk: ${risk_amount:.2f}, Actual risk: ${actual_risk:.2f} ({(actual_risk/risk_capital)*100:.2f}%)")
+                
+                return final_size
+        
+        # Fallback: use max_position_size_pct with leverage
+        return max_amount
 
     # -------------------------
     # Helpers
@@ -124,7 +210,7 @@ class PortfolioManager:
                 return self.execute_partial_close(signal.symbol, "TP3")
 
             # Any other SELL -> close full
-            return self._handle_full_sell(signal.symbol)
+            return self._handle_full_sell(signal.symbol, price=signal.price)
 
         return None
 
@@ -140,9 +226,8 @@ class PortfolioManager:
         if price <= Decimal("0"):
             return None
 
-        # Position sizing in quote currency (e.g. USDT)
-        amount_quote = balance * self.max_position_size_pct
-        amount = amount_quote / price
+        # Position sizing
+        amount = self._calculate_position_size(balance, price, signal.sl_price)
 
         # Execute market BUY
         order = self.exchange.create_order(
@@ -185,13 +270,13 @@ class PortfolioManager:
     # -------------------------
     # SELL logic
     # -------------------------
-    def _handle_full_sell(self, symbol: str):
+    def _handle_full_sell(self, symbol: str, price: Decimal = None):
         """
         Close entire remaining position at market and cleanup.
         """
         if symbol not in self.positions:
             return None
-
+        
         pos = self.positions[symbol]
 
         # Cancel SL order if any
@@ -204,6 +289,7 @@ class PortfolioManager:
             order_type="MARKET",
             side="SELL",
             amount=pos.amount,
+            price=price,
             exit_reason="MANUAL",
         )
 

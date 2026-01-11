@@ -29,6 +29,35 @@ from app.core.context import StrategyContext, SCANNING, CONFIRMING
 
 
 class RsiNoRetestStrategy(BaseStrategy):
+    """
+    RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest.
+    """
+    
+    # Default configuration for this strategy
+    DEFAULT_CONFIG = {
+        # Indicator parameters
+        "rsi_period": 14,
+        "rsi_ema_length": 9,
+        "rsi_wma_length": 45,
+        "price_ema_fast": 21,
+        "price_ema_slow": 200,
+        
+        # Entry conditions
+        "nr_lookback": 30,           # Candles to check for pullback
+        "nr_max_above_ema21": 0,     # Max candles above EMA21 in lookback (0 = strict)
+        "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
+        
+        # SL settings
+        "nr_sl_mode": "rsi_ema9",    # "rsi_ema9" or "lowest_wick"
+        "sl_buffer_pct": 0.0,        # No buffer for tight SL
+        
+        # TP settings
+        "nr_tp_rr": 1,               # Risk:Reward ratio (1 = 1:1)
+        
+        # Trade management
+        "use_active_trades": True,
+    }
+
     def __init__(self, config: dict):
         super().__init__(config)
 
@@ -38,17 +67,18 @@ class RsiNoRetestStrategy(BaseStrategy):
         if not hasattr(self, "context"):
             self.context = StrategyContext()
 
-        strategy_cfg = config.get("strategy", {})
+        # Use strategy defaults, allow override from config
+        cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
         bot_cfg = config.get("bot", {})
 
         self.timeframe = bot_cfg.get("timeframe", "15m")
 
         self.indicators = Indicators(
-            rsi_length=strategy_cfg.get("rsi_period", 21),
-            rsi_ema_length=strategy_cfg.get("rsi_ema_length", 9),
-            rsi_wma_length=strategy_cfg.get("rsi_wma_length", 45),
-            price_ema_fast=strategy_cfg.get("price_ema_fast", 21),
-            price_ema_slow=strategy_cfg.get("price_ema_slow", 200),
+            rsi_length=cfg.get("rsi_period", 14),
+            rsi_ema_length=cfg.get("rsi_ema_length", 9),
+            rsi_wma_length=cfg.get("rsi_wma_length", 45),
+            price_ema_fast=cfg.get("price_ema_fast", 21),
+            price_ema_slow=cfg.get("price_ema_slow", 200),
         )
 
         # ================================
@@ -56,23 +86,23 @@ class RsiNoRetestStrategy(BaseStrategy):
         # ================================
 
         # Number of candles to lookback for pullback filter
-        self.lookback = int(strategy_cfg.get("nr_lookback", 30))
+        self.lookback = int(cfg.get("nr_lookback", 30))
 
         # Max number of candles closed above EMA21 in lookback
-        self.max_above_ema21 = int(strategy_cfg.get("nr_max_above_ema21", 1)) # strict as 0
+        self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 0))
 
         # Minimum RSI spread (RSI_EMA9 - RSI_WMA45) to confirm entry
-        self.rsi_spread_min = float(strategy_cfg.get("nr_rsi_spread_min", 1.5))
+        self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 1.5))
 
         # SL behavior
         # "rsi_ema9": SL = price_at_rsi(RSI_EMA9)
         # "lowest_wick": SL = min(low) lookback
-        self.sl_mode = str(strategy_cfg.get("nr_sl_mode", "rsi_ema9")).lower()
-        self.sl_buffer_pct = float(strategy_cfg.get("sl_buffer_pct", 0.0))  # default 0 for tighter SL
+        self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
+        self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
 
         # TP behavior
-        self.tp_rr = Decimal(str(strategy_cfg.get("nr_tp_rr", 1)))  # 1:1
-        self.use_active_trades = bool(strategy_cfg.get("use_active_trades", True))
+        self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))
+        self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
     # ---------------- helpers ----------------
     def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
@@ -227,8 +257,8 @@ class RsiNoRetestStrategy(BaseStrategy):
             if spread < self.rsi_spread_min:
                 return None
 
-            # Entry at EMA21 price
-            entry_price = ema21
+            # Entry at Close price (Market order on signal)
+            entry_price = close
 
             # SL computed
             sl_price = self._compute_sl(df_ind)
