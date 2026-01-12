@@ -22,6 +22,11 @@ from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 
+# Strategy mapping
+STRATEGY_MAP = {
+    "rsi_wma_retest": RsiWmaRetestStrategy,
+    "rsi_no_retest": RsiNoRetestStrategy,
+}
 # Path constants
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
@@ -33,19 +38,36 @@ def load_config() -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Run backtest on historical data")
     parser.add_argument("--data", type=str, required=True, help="Path to CSV data file")
-    parser.add_argument("--balance", type=float, default=1000.0, help="Initial balance")
+    parser.add_argument("--balance", type=float, default=None, help="Initial balance (default: from config)")
     parser.add_argument("--symbol", type=str, default=None, help="Trading symbol (e.g. XPL/USDT). If not provided, inferred from filename")
     parser.add_argument("--timeframe", type=str, default=None, help="Timeframe (e.g. 5m). If not provided, inferred from filename")
     parser.add_argument("--output", type=str, default=os.path.join(SCRIPT_DIR, "report"), help="Output directory for reports")
+    parser.add_argument(
+        "--strategy", 
+        type=str, 
+        default=None,
+        choices=list(STRATEGY_MAP.keys()),
+        help="Strategy to use (default: from config.yaml)"
+    )
     args = parser.parse_args()
 
     # Load Base Config
     config = load_config()
 
+    # Get strategy from config or CLI override
+    strategy_name = args.strategy or config.get("strategy", "rsi_wma_retest")
+    if strategy_name not in STRATEGY_MAP:
+        print(f"Error: Unknown strategy '{strategy_name}'. Available: {list(STRATEGY_MAP.keys())}")
+        sys.exit(1)
+    strategy_class = STRATEGY_MAP[strategy_name]
+
+    # Get balance from CLI or config
+    balance = args.balance or config.get('backtest', {}).get('initial_balance', 10000)
+    
     # Override backtest settings
     if 'backtest' not in config:
         config['backtest'] = {}
-    config['backtest']['initial_balance'] = args.balance
+    config['backtest']['initial_balance'] = balance
 
     # Determine symbol
     if args.symbol:
@@ -76,14 +98,16 @@ def main():
     config['timeframe'] = timeframe
     config['bot']['timeframe'] = timeframe
 
+    print(f"Strategy: {strategy_name}")
     print(f"Symbol: {symbol}")
     print(f"Timeframe: {timeframe}")
+    print(f"Balance: ${balance:,.2f}")
     print("-" * 40)
 
     # Initialize Engine
     engine = BacktestEngine(
         data_path=args.data,
-        strategy_class=RsiNoRetestStrategy,
+        strategy_class=strategy_class,
         config=config
     )
 
@@ -97,9 +121,10 @@ def main():
     reporter = BacktestReporter(
         engine.exchange, 
         config, 
-        initial_balance=args.balance, 
+        initial_balance=balance, 
         symbol=symbol, 
-        timeframe=timeframe
+        timeframe=timeframe,
+        strategy_name=strategy_name
     )
     report_path = reporter.generate_report(output_dir=args.output)
     
@@ -110,3 +135,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

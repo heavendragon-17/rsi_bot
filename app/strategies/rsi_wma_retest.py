@@ -24,6 +24,41 @@ from app.core.context import StrategyContext, SCANNING, RETESTING, CONFIRMING
 
 
 class RsiWmaRetestStrategy(BaseStrategy):
+    """
+    RSI WMA Retest Strategy - requires RSI to retest WMA45 before entry.
+    """
+    
+    # Default configuration for this strategy
+    DEFAULT_CONFIG = {
+        # Indicator parameters
+        "rsi_period": 14,
+        "rsi_ema_length": 9,
+        "rsi_wma_length": 45,
+        "price_ema_fast": 21,
+        "price_ema_slow": 200,
+        
+        # Entry conditions
+        "wma_retest_distance": 0.3,  # Max distance for valid retest
+        "rsi_floor": 40,              # No close below R40 during retest
+        "wma45_min": 30,              # Class 1 signal minimum
+        "wma45_max": 50,              # Class 1 signal maximum
+        
+        # H1 Filter
+        "check_h1_wma45": True,
+        "h1_wma45_min": 45.0,
+        
+        # TP levels (RSI values)
+        "tp1_rsi": 60,
+        "tp2_rsi": 70,
+        "tp3_rsi": 80,
+        
+        # SL settings
+        "sl_buffer_pct": 0.003,  # 0.3% buffer below R40
+        
+        # Trade management
+        "use_active_trades": True,
+    }
+
     def __init__(self, config: dict):
         super().__init__(config)
 
@@ -33,39 +68,40 @@ class RsiWmaRetestStrategy(BaseStrategy):
         if not hasattr(self, "context"):
             self.context = StrategyContext()
 
-        strategy_cfg = config.get("strategy", {})
+        # Use strategy defaults, allow override from config
+        cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
         bot_cfg = config.get("bot", {})
 
         self.timeframe = bot_cfg.get("timeframe", "1h")
 
         self.indicators = Indicators(
-            rsi_length=strategy_cfg.get("rsi_period", 21),
-            rsi_ema_length=strategy_cfg.get("rsi_ema_length", 9),
-            rsi_wma_length=strategy_cfg.get("rsi_wma_length", 45),
-            price_ema_fast=strategy_cfg.get("price_ema_fast", 21),
-            price_ema_slow=strategy_cfg.get("price_ema_slow", 200),
+            rsi_length=cfg.get("rsi_period", 14),
+            rsi_ema_length=cfg.get("rsi_ema_length", 9),
+            rsi_wma_length=cfg.get("rsi_wma_length", 45),
+            price_ema_fast=cfg.get("price_ema_fast", 21),
+            price_ema_slow=cfg.get("price_ema_slow", 200),
         )
 
         # Retest threshold (RSI points)
-        self.wma_retest_distance = float(strategy_cfg.get("wma_retest_distance", 0.3))
+        self.wma_retest_distance = float(cfg.get("wma_retest_distance", 0.3))
 
         # Filter: only trade when WMA45 < 50
-        self.wma45_max = float(strategy_cfg.get("wma45_max", 50.0))
+        self.wma45_max = float(cfg.get("wma45_max", 50.0))
 
         # H1 Filter: WMA45 > 45 on H1
-        self.check_h1_wma45 = bool(strategy_cfg.get("check_h1_wma45", True))
-        self.h1_wma45_min = float(strategy_cfg.get("h1_wma45_min", 45.0))
+        self.check_h1_wma45 = bool(cfg.get("check_h1_wma45", True))
+        self.h1_wma45_min = float(cfg.get("h1_wma45_min", 45.0))
 
         # TP ladder (by RSI)
-        self.tp1_rsi = float(strategy_cfg.get("tp1_rsi", 60.0))
-        self.tp2_rsi = float(strategy_cfg.get("tp2_rsi", 70.0))
-        self.tp3_rsi = float(strategy_cfg.get("tp3_rsi", 80.0))
+        self.tp1_rsi = float(cfg.get("tp1_rsi", 60.0))
+        self.tp2_rsi = float(cfg.get("tp2_rsi", 70.0))
+        self.tp3_rsi = float(cfg.get("tp3_rsi", 80.0))
 
         # SL buffer (used to compute SL price from R40)
-        self.sl_buffer_pct = float(strategy_cfg.get("sl_buffer_pct", 0.003))
+        self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.003))
 
         # Track one active trade per symbol
-        self.use_active_trades = bool(strategy_cfg.get("use_active_trades", True))
+        self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
         # Store R40 price at setup time (per symbol:timeframe)
         self._r40_price_at_retest: dict[str, Optional[Decimal]] = {}
