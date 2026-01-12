@@ -300,9 +300,6 @@ class RsiNoRetestStrategy(BaseStrategy):
                 self.context.transition(key, SCANNING, reason="Spread too small", now_ts=ts)
                 return None
 
-            # Entry at Close price (Market order on signal)
-            entry_price = close
-
             # SL computed
             sl_price = self._compute_sl(df_ind)
             if sl_price is None:
@@ -313,6 +310,13 @@ class RsiNoRetestStrategy(BaseStrategy):
             if sl_price is None:
                 self.context.transition(key, SCANNING, reason="No SL computed", now_ts=ts)
                 return None
+
+            # Entry logic: Try EMA21 first, but ensure it's above SL
+            entry_price = ema21
+            if entry_price <= sl_price:
+                entry_price = close
+
+
 
             tp_price = self._compute_tp_1to1(entry_price, sl_price)
             if tp_price is None:
