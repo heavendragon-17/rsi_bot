@@ -336,7 +336,9 @@ class BacktestReporter:
         var_95 = np.percentile(returns, 5) * 100 if len(returns) >= 5 else min(returns) * 100
         
         # Calmar Ratio = Total Return / Max Drawdown
-        total_return = float(self.exchange.get_balance() - self.initial_balance) / float(self.initial_balance) * 100
+        # Use realized PnL for consistency with equity curve
+        realized_pnl = round_trips['pnl'].sum() if not round_trips.empty else 0.0
+        total_return = (realized_pnl / float(self.initial_balance)) * 100
         max_dd = drawdown.get('max_drawdown_pct', 0)
         calmar_ratio = total_return / max_dd if max_dd > 0 else 0
         
@@ -409,7 +411,9 @@ class BacktestReporter:
         
         # Final balance
         final_balance = self.exchange.get_balance()
-        profit = float(final_balance) - float(self.initial_balance)
+        # Use sum of round_trips PnL for consistency with equity curve
+        realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
+        profit = realized_pnl
         profit_pct = (profit / float(self.initial_balance)) * 100
 
         # Console Report

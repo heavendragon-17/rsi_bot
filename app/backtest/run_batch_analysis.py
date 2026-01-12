@@ -7,8 +7,9 @@ import re
 import webbrowser
 import argparse
 from decimal import Decimal
+from decimal import Decimal
 from datetime import datetime
-
+import copy
 # Determine paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
@@ -505,7 +506,11 @@ def main():
 
         # Run Backtest
         try:
-            engine = BacktestEngine(data_file, strategy_class, config)
+            # Create a run-specific config with the correct symbol
+            run_config = copy.deepcopy(config)
+            run_config['symbols'] = [symbol]
+            
+            engine = BacktestEngine(data_file, strategy_class, run_config)
             # Re-init exchange with correct balance (engine uses config default)
             engine.exchange.initial_balance = Decimal(str(balance))
             engine.exchange.balance = Decimal(str(balance))
