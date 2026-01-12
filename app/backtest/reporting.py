@@ -16,10 +16,10 @@ import os
 class BacktestReporter:
     """Generate performance reports from backtest results."""
     
-    def __init__(self, exchange, config: dict, initial_balance: float = 1000.0, symbol: str = "N/A", timeframe: str = "N/A"):
+    def __init__(self, exchange, config: dict, initial_balance: float = 1000.0, symbol: str = "N/A", timeframe: str = "N/A", strategy_name: str = "N/A"):
         self.exchange = exchange
         # Get settings
-        initial_balance = config.get('backtest', {}).get('initial_balance', initial_balance) # Use parameter as default if not in config
+        initial_balance = config.get('backtest', {}).get('initial_balance', initial_balance)
         try:
             self.initial_balance = Decimal(str(initial_balance))
         except Exception as e:
@@ -27,6 +27,8 @@ class BacktestReporter:
             raise e
         self.symbol = symbol
         self.timeframe = timeframe
+        self.strategy_name = strategy_name
+        self.leverage = config.get('risk', {}).get('leverage', 1)
 
     def _build_round_trips(self, trades_df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -92,6 +94,15 @@ class BacktestReporter:
         total_revenue = sum(e.get('price', 0) * e.get('amount', 0) for e in exits)
         avg_exit_price = total_revenue / total_exit_amount if total_exit_amount > 0 else 0
         
+        # Get margin/notional (for futures compatibility)
+        # Try margin first (futures), fall back to cost_or_revenue (spot), then notional
+        entry_margin = entry.get('margin', entry.get('cost_or_revenue', entry.get('notional', 1)))
+        entry_notional = entry.get('notional', entry.get('cost_or_revenue', entry_margin))
+        leverage = entry.get('leverage', 1)
+        
+        # PnL % based on margin (capital at risk)
+        pnl_pct = (total_pnl / entry_margin) * 100 if entry_margin and entry_margin > 0 else 0
+        
         return {
             'entry_time': entry.get('time'),
             'exit_time': last_exit.get('time'),
@@ -101,8 +112,11 @@ class BacktestReporter:
             'avg_exit_price': float(avg_exit_price),
             'amount': entry.get('amount'),
             'exit_amount': total_exit_amount,
+            'margin': entry_margin,
+            'notional': entry_notional,
+            'leverage': leverage,
             'pnl': total_pnl,
-            'pnl_pct': (total_pnl / entry.get('cost_or_revenue', 1)) * 100 if entry.get('cost_or_revenue') else 0,
+            'pnl_pct': pnl_pct,
             'hold_duration_seconds': hold_duration_seconds,
             'hold_duration_hours': hold_duration_seconds / 3600 if hold_duration_seconds else None,
             'exit_reason': final_exit_reason,
@@ -679,7 +693,11 @@ class BacktestReporter:
 <body>
     <div class="container">
         <h1>{self.symbol} ({self.timeframe})</h1>
-        <p style="text-align:center; color:#888; margin-top:-20px; margin-bottom:30px;">Backtest Report</p>
+        <p style="text-align:center; color:#888; margin-top:-20px; margin-bottom:10px;">Backtest Report</p>
+        <p style="text-align:center; margin-bottom:30px;">
+            <span style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-right: 10px;">Strategy: {self.strategy_name}</span>
+            <span style="background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">Leverage: {self.leverage}x</span>
+        </p>
         
         <div class="metrics-grid">
             <div class="metric-card">

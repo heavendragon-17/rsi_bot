@@ -21,8 +21,12 @@ class BacktestEngine:
         self.config = config
         self.symbol = config["symbols"][0]
 
+        # Get backtest and risk settings
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
-        self.exchange = MockExchange(initial_balance=initial_balance)
+        leverage = config.get("risk", {}).get("leverage", 1)
+        
+        # Initialize exchange with leverage
+        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
         self.portfolio = PortfolioManager(self.exchange, config)
         self.strategy = strategy_class(config)
         
@@ -45,6 +49,7 @@ class BacktestEngine:
     def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
         print(f"Initial balance: {self.exchange.get_balance()}")
+        print(f"Leverage: {self.exchange.leverage}x")
 
         warmup_period = 220
         n_rows = len(self._full_df)
@@ -79,7 +84,33 @@ class BacktestEngine:
             if signal:
                 self.portfolio.on_signal(signal)
 
+        # Close any open positions at final price for accurate reporting
+        self._close_open_positions()
+
         print("\nBacktest complete!")
         print(f"Final balance: {self.exchange.get_balance()}")
         print(f"Open positions: {dict(self.exchange.positions)}")
         print(f"Total trades: {len(self.exchange.trade_history)}")
+
+    def _close_open_positions(self) -> None:
+        """Close all open positions at the last available price for accurate final reporting."""
+        if not self.exchange.positions:
+            return
+        
+        last_row = self._full_df.iloc[-1]
+        final_ts = self._full_df.index[-1]
+        final_price = float(last_row["close"])
+        
+        positions_to_close = list(self.exchange.positions.items())
+        for symbol, amount in positions_to_close:
+            if amount > 0:
+                print(f"Closing open position: {symbol} {amount} @ {final_price} (EOD)")
+                self.exchange.create_order(
+                    symbol=symbol,
+                    order_type='MARKET',
+                    side='SELL',
+                    amount=float(amount),
+                    price=final_price,
+                    exit_reason='EOD'  # End of Data
+                )
+
