@@ -13,6 +13,10 @@ from app.backtest.mock_exchange import MockExchange
 from app.core.context import SCANNING
 from app.utils.indicators import Indicators
 
+# Limit the lookback window passed to strategies to prevent O(N^2) behavior
+# when strategies resample or copy the dataframe.
+# 50,000 candles is sufficient for almost any lookback or resampling (e.g. 1m -> 4h is ~240x)
+MAX_LOOKBACK_WINDOW = 50000
 
 class BacktestEngine:
     def __init__(self, data_path: str, strategy_class, config: dict):
@@ -72,8 +76,10 @@ class BacktestEngine:
 
             self.portfolio.sync_from_exchange()
 
-            # Pass pre-computed slice (indicators already calculated)
-            df_slice = self._full_df.iloc[:i+1]
+            # Pass windowed slice to prevent O(N^2) memory/copying behavior
+            # Strategy only needs recent history (lookback).
+            start_idx = max(0, i - MAX_LOOKBACK_WINDOW)
+            df_slice = self._full_df.iloc[start_idx:i+1]
             signal = self.strategy.analyze(self.symbol, df_slice)
 
             if signal:
