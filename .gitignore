@@ -12,4 +12,4 @@ bot.log
 # Backtest data and reports (Ignored, keeping scripts)
 app/backtest/report/
 app/backtest/data/
-app/backtest/symbols.txt
+
