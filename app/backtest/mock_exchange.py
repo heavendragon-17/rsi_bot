@@ -42,7 +42,7 @@ def _base_asset(symbol: str) -> str:
 
 
 class MockExchange(IExchange):
-    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1):
+    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1, fee_config: dict = None):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.leverage = Decimal(str(leverage))  # Futures leverage
 
@@ -62,6 +62,17 @@ class MockExchange(IExchange):
         # Pending orders: order_id -> order details
         self.pending_orders: Dict[str, Dict] = {}
         self._order_counter = 0
+        
+        # Fee configuration
+        fc = fee_config or {}
+        self.fees_enabled = fc.get('enabled', False)
+        self.maker_rate = Decimal(str(fc.get('maker_rate', 0.0002)))
+        self.taker_rate = Decimal(str(fc.get('taker_rate', 0.0004)))
+        
+        # Fee and PnL tracking
+        self.total_fees_paid = Decimal("0")
+        self.realized_pnl = Decimal("0")
+        self.total_volume = Decimal("0")  # Total notional volume traded
 
     def _next_order_id(self) -> str:
         self._order_counter += 1
@@ -237,8 +248,8 @@ class MockExchange(IExchange):
                 order["price"] = new_price
                 updated = True
 
-        if updated:
-            print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
+        # if updated:
+        #     print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
         return updated
 
     def update_stop_loss_to_entry(self, symbol: str) -> bool:
@@ -251,8 +262,8 @@ class MockExchange(IExchange):
             return False
 
         ok = self.update_stop_loss(symbol, entry)
-        if ok:
-            print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
+        # if ok:
+        #     print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
         return ok
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:
@@ -316,35 +327,48 @@ class MockExchange(IExchange):
         exit_reason: str = None,
     ) -> Optional[Dict]:
         """
-        Execute an order with futures leverage support.
+        Execute an order with futures leverage support and fee deduction.
         
         For BUY:
           - notional = amount * price
           - margin = notional / leverage
-          - Deduct margin from balance, not full notional
+          - fee = notional * fee_rate (taker for MARKET, maker for LIMIT)
+          - Deduct margin + fee from balance
           
         For SELL:
-          - Calculate PnL = (exit_price - entry_price) * amount
-          - Return margin + PnL to balance
+          - Calculate gross PnL = (exit_price - entry_price) * amount
+          - fee = notional * fee_rate
+          - Net PnL = gross PnL - fee
+          - Return margin + net PnL to balance
         """
         notional = exec_price * amount
         margin = notional / self.leverage
         
+        # Determine fee rate based on order type
+        # MARKET = taker (removes liquidity), LIMIT/SL/TP = maker (adds liquidity)
+        is_taker = order_type == "MARKET"
+        fee_rate = self.taker_rate if is_taker else self.maker_rate
+        fee = notional * fee_rate if self.fees_enabled else Decimal("0")
+        
         entry_price = None
         entry_time = None
         hold_duration_seconds = None
-        pnl = None
+        pnl_gross = None
+        pnl = None  # Net PnL (after fees)
         pnl_pct = None
         margin_used = Decimal("0")
 
         if side == "BUY":
-            # Check if we have enough margin
-            if margin > self.balance:
-                # print(f"MockExchange: Insufficient margin. Required: {margin:.2f}, Available: {self.balance:.2f}")
+            # Check if we have enough margin + fee
+            required = margin + fee
+            if required > self.balance:
                 return None
             
-            # Deduct margin from balance
-            self.balance -= margin
+            # Deduct margin + fee from balance
+            self.balance -= required
+            self.total_fees_paid += fee
+            self.total_volume += notional
+            
             self.positions[symbol] = self.positions.get(symbol, Decimal("0")) + amount
             self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
             self.entry_times[symbol] = timestamp
@@ -361,6 +385,10 @@ class MockExchange(IExchange):
 
             amount = min(amount, current_pos)
             
+            # Recalculate notional and fee for actual amount
+            notional = exec_price * amount
+            fee = notional * fee_rate if self.fees_enabled else Decimal("0")
+            
             # Get entry info for PnL calculation
             entry_price = self.entry_prices.get(symbol)
             entry_time = self.entry_times.get(symbol)
@@ -375,13 +403,18 @@ class MockExchange(IExchange):
             # Calculate PnL
             if entry_price is not None:
                 price_diff = exec_price - entry_price
-                pnl = float(price_diff * amount)  # PnL on the notional
+                pnl_gross = float(price_diff * amount)  # Gross PnL before fees
+                pnl = float(Decimal(str(pnl_gross)) - fee)  # Net PnL after fee
                 pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
             else:
-                pnl = 0.0
+                pnl_gross = 0.0
+                pnl = float(-fee) if self.fees_enabled else 0.0
             
-            # Return margin + PnL to balance
+            # Return margin + net PnL to balance
             self.balance += margin_to_return + Decimal(str(pnl or 0))
+            self.total_fees_paid += fee
+            self.realized_pnl += Decimal(str(pnl or 0))
+            self.total_volume += notional
             
             # Update position and margin
             self.positions[symbol] = current_pos - amount
@@ -419,6 +452,9 @@ class MockExchange(IExchange):
             "order_type": order_type,
             "exit_reason": exit_reason,
             "entry_price": float(entry_price) if entry_price is not None else None,
+            "fee": float(fee),
+            "fee_rate": float(fee_rate) if self.fees_enabled else 0.0,
+            "pnl_gross": pnl_gross,
             "pnl": pnl,
             "pnl_pct": pnl_pct,
             "hold_duration_seconds": hold_duration_seconds,

@@ -69,6 +69,8 @@ class BatchHtmlGenerator:
         total_pnl = sum(r['profit'] for r in self.results)
         total_initial = sum(r['initial_balance'] for r in self.results)
         total_final = sum(r['final_balance'] for r in self.results)
+        total_fees = sum(r.get('total_fees', 0) for r in self.results)
+        total_volume = sum(r.get('total_volume', 0) for r in self.results)
         portfolio_return = ((total_final - total_initial) / total_initial) * 100 if total_initial > 0 else 0
         
         avg_drawdown = sum(r['drawdown'] for r in self.results) / len(self.results) if self.results else 0
@@ -119,6 +121,16 @@ class BatchHtmlGenerator:
             """
         nav_html += "</div>"
 
+        # Fee card HTML (only if fees paid)
+        gross_pnl = total_pnl + total_fees
+        fee_card_html = f'''
+                <div class="metric-card">
+                    <h3>Total Fees Paid</h3>
+                    <div class="value negative">${total_fees:,.2f}</div>
+                    <div style="color:#888; font-size:0.75rem; margin-top:4px;">Gross: ${gross_pnl:+,.2f}</div>
+                </div>
+        ''' if total_fees > 0 else ''
+
         # Build Content Areas
         content_html = f"""
         <div id="Overview" class="tab-content active" style="display:block;">
@@ -135,6 +147,11 @@ class BatchHtmlGenerator:
                 <div class="metric-card">
                     <h3>Portfolio Return</h3>
                     <div class="value {'positive' if portfolio_return >= 0 else 'negative'}">{portfolio_return:+.2f}%</div>
+                </div>
+                {fee_card_html}
+                <div class="metric-card">
+                    <h3>Total Volume</h3>
+                    <div class="value">${total_volume:,.0f}</div>
                 </div>
                 <div class="metric-card">
                     <h3>Avg Drawdown</h3>
@@ -224,6 +241,27 @@ class BatchHtmlGenerator:
             color: var(--text-main);
             display: flex;
             min-height: 100vh;
+        }}
+        /* Custom Scrollbar - WebKit */
+        ::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+        ::-webkit-scrollbar-track {{
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }}
+        ::-webkit-scrollbar-thumb {{
+            background: rgba(102, 126, 234, 0.4);
+            border-radius: 4px;
+        }}
+        ::-webkit-scrollbar-thumb:hover {{
+            background: rgba(102, 126, 234, 0.6);
+        }}
+        /* Firefox scrollbar */
+        * {{
+            scrollbar-width: thin;
+            scrollbar-color: rgba(102, 126, 234, 0.4) rgba(0,0,0,0.2);
         }}
         /* Sidebar */
         .nav-sidebar {{
@@ -561,6 +599,8 @@ def main():
                 'profit_pct': profit_pct,
                 'initial_balance': float(balance),
                 'final_balance': float(final_bal),
+                'total_fees': float(engine.exchange.total_fees_paid) if hasattr(engine.exchange, 'total_fees_paid') else 0,
+                'total_volume': float(engine.exchange.total_volume) if hasattr(engine.exchange, 'total_volume') else 0,
                 'drawdown': drawdown.get('avg_drawdown_pct', 0),
                 'trades': metrics.get('total_trades', 0),
                 'round_trips': round_trips

@@ -43,6 +43,7 @@ class BacktestReporter:
         current_entry = None
         partial_exits = []
         total_pnl = 0.0
+        total_fees = 0.0  # Track total fees (entry + exit)
         total_exit_amount = 0.0
         
         for _, trade in trades_df.iterrows():
@@ -50,28 +51,29 @@ class BacktestReporter:
                 # If we had a previous incomplete entry, finalize it
                 if current_entry is not None and partial_exits:
                     round_trips.append(self._create_round_trip(
-                        current_entry, partial_exits, total_pnl, total_exit_amount
+                        current_entry, partial_exits, total_pnl, total_exit_amount, total_fees
                     ))
                 # Start new entry
                 current_entry = trade
                 partial_exits = []
                 total_pnl = 0.0
+                total_fees = trade.get('fee', 0) or 0  # Include entry fee
                 total_exit_amount = 0.0
             elif trade['side'] == 'SELL' and current_entry is not None:
                 partial_exits.append(trade)
                 if trade['pnl'] is not None:
-                    total_pnl += trade['pnl']
+                    total_pnl += trade['pnl']  # Already includes exit fee deduction
                 total_exit_amount += trade['amount']
         
         # Finalize last trade if exits exist
         if current_entry is not None and partial_exits:
             round_trips.append(self._create_round_trip(
-                current_entry, partial_exits, total_pnl, total_exit_amount
+                current_entry, partial_exits, total_pnl, total_exit_amount, total_fees
             ))
         
         return pd.DataFrame(round_trips) if round_trips else pd.DataFrame()
 
-    def _create_round_trip(self, entry, exits, total_pnl, total_exit_amount) -> dict:
+    def _create_round_trip(self, entry, exits, total_pnl, total_exit_amount, entry_fee: float = 0) -> dict:
         """Create a round-trip record from entry and exit trades."""
         first_exit = exits[0]
         last_exit = exits[-1]
@@ -100,8 +102,11 @@ class BacktestReporter:
         entry_notional = entry.get('notional', entry.get('cost_or_revenue', entry_margin))
         leverage = entry.get('leverage', 1)
         
+        # Net PnL = exit PnL (already net of exit fees) - entry fee
+        net_pnl = total_pnl - entry_fee
+        
         # PnL % based on margin (capital at risk)
-        pnl_pct = (total_pnl / entry_margin) * 100 if entry_margin and entry_margin > 0 else 0
+        pnl_pct = (net_pnl / entry_margin) * 100 if entry_margin and entry_margin > 0 else 0
         
         return {
             'entry_time': entry.get('time'),
@@ -115,7 +120,7 @@ class BacktestReporter:
             'margin': entry_margin,
             'notional': entry_notional,
             'leverage': leverage,
-            'pnl': total_pnl,
+            'pnl': net_pnl,  # Net of all fees (entry + exit)
             'pnl_pct': pnl_pct,
             'hold_duration_seconds': hold_duration_seconds,
             'hold_duration_hours': hold_duration_seconds / 3600 if hold_duration_seconds else None,
@@ -361,6 +366,75 @@ class BacktestReporter:
         days = hours / 24
         return f"{days:.1f}d"
 
+    def _fee_card_html(self, profit: float) -> str:
+        """Generate fee card HTML if fees are enabled."""
+        if not (hasattr(self.exchange, 'fees_enabled') and self.exchange.fees_enabled):
+            return ''
+        
+        total_fees = float(self.exchange.total_fees_paid)
+        gross_pnl = profit + total_fees
+        
+        return f'''<div class="metric-card">
+            <h3>Fees Paid</h3>
+            <div class="value negative">${total_fees:,.0f}</div>
+            <div class="sub">Gross: ${gross_pnl:+,.0f}</div>
+        </div>'''
+
+    def _volume_card_html(self) -> str:
+        """Generate total volume card HTML."""
+        total_volume = float(self.exchange.total_volume) if hasattr(self.exchange, 'total_volume') else 0
+        
+        return f'''<div class="metric-card">
+            <h3>Total Volume</h3>
+            <div class="value">${total_volume:,.0f}</div>
+        </div>'''
+
+    def _risk_metrics_section_html(self, risk_metrics: dict, metrics: dict) -> str:
+        """Generate risk metrics section HTML."""
+        if not metrics:
+            return ''
+        
+        # Use defaults for risk_metrics if empty
+        rm = risk_metrics or {}
+        
+        return f'''<div class="section">
+            <h2 class="section-title">Risk & Performance</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Sharpe Ratio</h3>
+                    <div class="value">{rm.get('sharpe_ratio', 0):.2f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Sortino Ratio</h3>
+                    <div class="value">{rm.get('sortino_ratio', 0):.2f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Calmar Ratio</h3>
+                    <div class="value">{rm.get('calmar_ratio', 0):.2f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>VaR 95%</h3>
+                    <div class="value negative">{rm.get('var_95', 0):.1f}%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Expectancy</h3>
+                    <div class="value">${metrics.get('expectancy', 0):.0f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Win</h3>
+                    <div class="value positive">${metrics.get('avg_win', 0):.0f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Loss</h3>
+                    <div class="value negative">${metrics.get('avg_loss', 0):.0f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Hold</h3>
+                    <div class="value">{self._format_duration(metrics.get('avg_hold_hours', 0))}</div>
+                </div>
+            </div>
+        </div>'''
+
     def _calculate_monthly_returns(self, round_trips: pd.DataFrame) -> dict:
         """Calculate monthly returns from round trips."""
         if round_trips.empty or 'exit_time' not in round_trips.columns:
@@ -495,6 +569,16 @@ class BacktestReporter:
         print(f"  TP3 Reached:         {metrics['tp3_count']} ({metrics['tp3_count']/total*100:.1f}%)")
         print(f"  SL Hit:              {metrics['sl_count']} ({metrics['sl_count']/total*100:.1f}%)")
         
+        # Fees (if enabled)
+        if hasattr(self.exchange, 'fees_enabled') and self.exchange.fees_enabled:
+            total_fees = float(self.exchange.total_fees_paid)
+            gross_pnl = profit + total_fees  # Net PnL = Gross PnL - Fees
+            print("\n[FEES]")
+            print("-" * 50)
+            print(f"  Total Fees Paid:     ${total_fees:,.2f}")
+            print(f"  Gross PnL:           ${gross_pnl:+,.2f}")
+            print(f"  Net PnL (after fees): ${profit:+,.2f}")
+        
         print("\n" + "=" * 50 + "\n")
 
     def _generate_html_report(self, metrics: dict, drawdown: dict, risk_metrics: dict,
@@ -588,65 +672,98 @@ class BacktestReporter:
         .container {{ max-width: 1400px; margin: 0 auto; }}
         h1 {{
             text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 30px;
+            font-size: 2rem;
+            margin-bottom: 20px;
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }}
+        /* Compact 4-column grid for small cards */
         .metrics-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }}
+        @media (max-width: 1000px) {{
+            .metrics-grid {{ grid-template-columns: repeat(2, 1fr); }}
+        }}
+        @media (max-width: 600px) {{
+            .metrics-grid {{ grid-template-columns: 1fr; }}
         }}
         .metric-card {{
             background: rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 12px;
+            padding: 16px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.08);
         }}
         .metric-card h3 {{
             color: #888;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
         }}
         .metric-card .value {{
-            font-size: 2rem;
+            font-size: 1.4rem;
             font-weight: bold;
+        }}
+        .metric-card .sub {{
+            color: #666;
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }}
+        /* Accent card for key metrics */
+        .metric-card.accent {{
+            background: linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%);
+            border: 1px solid rgba(102,126,234,0.3);
         }}
         .positive {{ color: #4CAF50; }}
         .negative {{ color: #F44336; }}
-        .chart-container {{
-            background: rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: center;
-        }}
-        .chart-wrapper {{
-            max-width: 300px;
-            width: 100%;
-            margin: 0 auto;
+        .neutral {{ color: #888; }}
+        /* Section styling */
+        .section {{
+            margin-bottom: 24px;
         }}
         .section-title {{
-            font-size: 1.5rem;
-            margin: 30px 0 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #aaa;
+            font-weight: 500;
         }}
+        /* Charts side by side */
+        .charts-row {{
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }}
+        @media (max-width: 800px) {{
+            .charts-row {{ grid-template-columns: 1fr; }}
+        }}
+        .chart-container {{
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+        }}
+        .chart-wrapper {{
+            max-width: 220px;
+            margin: 0 auto;
+        }}
+        /* Trades table */
         .trades-table {{
             width: 100%;
             border-collapse: collapse;
             background: rgba(255,255,255,0.02);
-            border-radius: 12px;
+            border-radius: 10px;
             overflow: hidden;
+            font-size: 0.85rem;
         }}
         .trades-table th, .trades-table td {{
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid rgba(255,255,255,0.05);
         }}
@@ -655,15 +772,15 @@ class BacktestReporter:
             font-weight: 600;
             color: #888;
             text-transform: uppercase;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }}
         .trades-table tr:hover {{
             background: rgba(255,255,255,0.03);
         }}
         .badge {{
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
             font-weight: 600;
         }}
         .badge-tp1 {{ background: #4CAF50; color: white; }}
@@ -674,123 +791,97 @@ class BacktestReporter:
         .badge-tp1-sl {{ background: #FF9800; color: white; }}
         .badge-tp2-sl {{ background: #06B6D4; color: white; }}
         .badge-tp3-sl {{ background: #EC4899; color: white; }}
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }}
-        .stat-item {{
-            background: rgba(255,255,255,0.03);
-            padding: 16px;
-            border-radius: 8px;
-        }}
-        .stat-item .label {{ color: #888; font-size: 0.85rem; }}
-        .stat-item .val {{ font-size: 1.25rem; font-weight: 600; margin-top: 4px; }}
+        .badge-eod {{ background: #6366F1; color: white; }}
         .report-time {{
             text-align: center;
-            color: #666;
-            margin-top: 30px;
-            font-size: 0.85rem;
+            color: #555;
+            margin-top: 20px;
+            font-size: 0.75rem;
+        }}
+        /* Header badges */
+        .header-badges {{
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .header-badge {{
+            display: inline-block;
+            padding: 5px 14px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0 4px;
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>{self.symbol} ({self.timeframe})</h1>
-        <p style="text-align:center; color:#888; margin-top:-20px; margin-bottom:10px;">Backtest Report</p>
-        <p style="text-align:center; margin-bottom:30px;">
-            <span style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-right: 10px;">Strategy: {self.strategy_name}</span>
-            <span style="background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">Leverage: {self.leverage}x</span>
-        </p>
+        <div class="header-badges">
+            <span class="header-badge" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">{self.strategy_name}</span>
+            <span class="header-badge" style="background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);">{self.leverage}x</span>
+        </div>
         
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <h3>Initial Balance</h3>
-                <div class="value">${float(self.initial_balance):,.2f}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Final Balance</h3>
-                <div class="value">${float(final_balance):,.2f}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Net Profit/Loss</h3>
-                <div class="value {'positive' if profit >= 0 else 'negative'}">${profit:+,.2f} ({profit_pct:+.1f}%)</div>
-            </div>
-            <div class="metric-card">
-                <h3>Max Drawdown</h3>
-                <div class="value negative">{drawdown.get('max_drawdown_pct', 0):.2f}%</div>
-            </div>
-            <div class="metric-card">
-                <h3>Avg Drawdown</h3>
-                <div class="value negative">{drawdown.get('avg_drawdown_pct', 0):.2f}%</div>
-            </div>
-            <div class="metric-card">
-                <h3>Max DD Duration</h3>
-                <div class="value">{drawdown.get('max_dd_duration', 0)} trades</div>
+        <!-- Portfolio Overview -->
+        <div class="section">
+            <h2 class="section-title">Portfolio Overview</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Initial Capital</h3>
+                    <div class="value">${float(self.initial_balance):,.0f}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Final Balance</h3>
+                    <div class="value {'positive' if float(final_balance) >= float(self.initial_balance) else 'negative'}">${float(final_balance):,.0f}</div>
+                </div>
+                <div class="metric-card accent">
+                    <h3>Total Return</h3>
+                    <div class="value {'positive' if profit >= 0 else 'negative'}">${profit:+,.0f}</div>
+                    <div class="sub">{profit_pct:+.1f}%</div>
+                </div>
+                {self._fee_card_html(profit)}
+                {self._volume_card_html()}
+                <div class="metric-card">
+                    <h3>Max Drawdown</h3>
+                    <div class="value negative">{drawdown.get('max_drawdown_pct', 0):.1f}%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Trades</h3>
+                    <div class="value">{metrics.get('total_trades', 0) if metrics else 0}</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Win Rate</h3>
+                    <div class="value">{metrics.get('win_rate', 0):.0f}%</div>
+                    <div class="sub">{metrics.get('win_count', 0)}W / {metrics.get('loss_count', 0)}L</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Profit Factor</h3>
+                    <div class="value">{profit_factor_display}</div>
+                </div>
             </div>
         </div>
         
-        <h2 class="section-title">Risk-Adjusted Metrics</h2>
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <h3>Sharpe Ratio</h3>
-                <div class="value">{risk_metrics.get('sharpe_ratio', 0):.2f}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Risk-adjusted return</div>
-            </div>
-            <div class="metric-card">
-                <h3>Sortino Ratio</h3>
-                <div class="value">{risk_metrics.get('sortino_ratio', 0):.2f}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Downside risk-adjusted</div>
-            </div>
-            <div class="metric-card">
-                <h3>Calmar Ratio</h3>
-                <div class="value">{risk_metrics.get('calmar_ratio', 0):.2f}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Return vs max drawdown</div>
-            </div>
-            <div class="metric-card">
-                <h3>Volatility</h3>
-                <div class="value">{risk_metrics.get('volatility', 0):.2f}%</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Trade return std dev</div>
-            </div>
-            <div class="metric-card">
-                <h3>VaR (95%)</h3>
-                <div class="value negative">{risk_metrics.get('var_95', 0):.2f}%</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Max loss at 95% confidence</div>
+        <!-- Equity Curve - Full Width -->
+        <div class="section">
+            <h2 class="section-title">Equity Curve</h2>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="equityChart_{safe_symbol}"></canvas>
             </div>
         </div>
         
-        {'<div class="metrics-grid">' + f"""
-            <div class="metric-card">
-                <h3>Win Rate</h3>
-                <div class="value">{metrics['win_rate']:.1f}%</div>
-                <div style="color:#888; margin-top:4px;">{metrics['win_count']}W / {metrics['loss_count']}L</div>
-            </div>
-            <div class="metric-card">
-                <h3>Profit Factor</h3>
-                <div class="value">{profit_factor_display}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Expectancy</h3>
-                <div class="value">${metrics['expectancy']:.2f}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Avg Hold Time</h3>
-                <div class="value">{self._format_duration(metrics['avg_hold_hours'])}</div>
-            </div>
-        """ + '</div>' if metrics else ''}
-        
-        <h2 class="section-title">Exit Distribution</h2>
-        <div class="chart-container">
-            <div class="chart-wrapper">
-                <canvas id="exitPieChart_{safe_symbol}"></canvas>
+        <!-- Exit Distribution -->
+        <div class="section">
+            <h2 class="section-title">Exit Distribution</h2>
+            <div class="chart-container">
+                <div class="chart-wrapper">
+                    <canvas id="exitPieChart_{safe_symbol}"></canvas>
+                </div>
             </div>
         </div>
         
-        <h2 class="section-title">Equity Curve</h2>
-        <div class="chart-container" style="height: 300px;">
-            <canvas id="equityChart_{safe_symbol}"></canvas>
-        </div>
+        <!-- Risk Metrics -->
+        {self._risk_metrics_section_html(risk_metrics, metrics) if metrics else ''}
         
+        <!-- Monthly Returns -->
         <h2 class="section-title">Monthly Returns</h2>
         <div style="overflow-x: auto;">
             <table class="trades-table">

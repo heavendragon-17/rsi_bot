@@ -24,9 +24,10 @@ class BacktestEngine:
         # Get backtest and risk settings
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         leverage = config.get("risk", {}).get("leverage", 1)
+        fee_config = config.get("backtest", {}).get("fees", {})
         
-        # Initialize exchange with leverage
-        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
+        # Initialize exchange with leverage and fee config
+        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage, fee_config=fee_config)
         self.portfolio = PortfolioManager(self.exchange, config)
         self.strategy = strategy_class(config)
         
