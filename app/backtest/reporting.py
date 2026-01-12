@@ -158,11 +158,13 @@ class BacktestReporter:
         # Basic counts
         total_trades = len(round_trips)
         
-        # Win/Loss based on PnL (profit = win)
+        # Win/Loss/Neutral based on PnL
         wins = round_trips[round_trips['pnl'] > 0]
-        losses = round_trips[round_trips['pnl'] <= 0]
+        losses = round_trips[round_trips['pnl'] < 0]
+        neutrals = round_trips[round_trips['pnl'] == 0]
         win_count = len(wins)
         loss_count = len(losses)
+        neutral_count = len(neutrals)
         win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0
         
         # PnL stats
@@ -198,14 +200,15 @@ class BacktestReporter:
         exit_reason_counts = round_trips['exit_reason'].value_counts().to_dict()
         
         # Consecutive wins/losses
-        pnl_signs = (round_trips['pnl'] > 0).astype(int)
+        pnl_signs = round_trips['pnl'].apply(lambda p: 1 if p > 0 else (-1 if p < 0 else 0))
         max_consec_wins = self._max_consecutive(pnl_signs, 1)
-        max_consec_losses = self._max_consecutive(pnl_signs, 0)
+        max_consec_losses = self._max_consecutive(pnl_signs, -1)
         
         return {
             'total_trades': total_trades,
             'win_count': win_count,
             'loss_count': loss_count,
+            'neutral_count': neutral_count,
             'win_rate': win_rate,
             'total_pnl': total_pnl,
             'avg_pnl': avg_pnl,
@@ -642,10 +645,10 @@ class BacktestReporter:
                         <td>${row['entry_price']:.6f}</td>
                         <td>${row['exit_price']:.6f}</td>
                         <td>${row['avg_exit_price']:.6f}</td>
-                        <td class="{pnl_class}">${row['pnl']:.2f}</td>
-                        <td class="{pnl_class}">{row['pnl_pct']:.2f}%</td>
+                        <td class=\"{pnl_class}\">${row['pnl']:.2f}</td>
+                        <td class=\"{pnl_class}\">{row['pnl_pct']:.2f}%</td>
                         <td>{self._format_duration(row['hold_duration_hours'])}</td>
-                        <td><span class="badge badge-{row['exit_reason'].lower().replace('+', '-')}">{row['exit_reason']}</span></td>
+                        <td><span class=\"badge badge-{row['exit_reason'].lower().replace('+', '-') }\">{row['exit_reason']}</span></td>
                     </tr>
                 """
             trades_table_html += "</tbody></table>"
@@ -1043,35 +1046,4 @@ class BacktestReporter:
     </script>
 </body>
 </html>
-"""
-        
-        # Save HTML report
-        if return_only:
-            return html_content
-        
-        # Save HTML report
-        safe_symbol = self.symbol.replace('/', '')
-        html_dir = os.path.join(output_dir, "html")
-        os.makedirs(html_dir, exist_ok=True)
-        report_path = os.path.join(html_dir, f"backtest_report_{safe_symbol}_{self.timeframe}.html")
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        print(f"HTML report saved to: {report_path}")
-        return report_path
-
-    def _export_csv(self, trades_df: pd.DataFrame, round_trips: pd.DataFrame, output_dir: str = ".") -> None:
-        """Export trade data to CSV files."""
-        # Raw trades log
-        safe_symbol = self.symbol.replace('/', '')
-        csv_dir = os.path.join(output_dir, "csv")
-        os.makedirs(csv_dir, exist_ok=True)
-        
-        log_path = os.path.join(csv_dir, f"backtest_logs_{safe_symbol}_{self.timeframe}.csv")
-        trades_df.to_csv(log_path, index=False)
-        print(f"Raw trades saved to: {log_path}")
-        
-        # Round-trip trades with PnL
-        if not round_trips.empty:
-            trades_path = os.path.join(csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv")
-            round_trips.to_csv(trades_path, index=False)
-            print(f"Trade details saved to: {trades_path}")
+"
