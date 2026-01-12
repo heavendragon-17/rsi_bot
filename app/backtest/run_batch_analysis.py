@@ -532,7 +532,10 @@ def main():
             monthly_returns = reporter._calculate_monthly_returns(round_trips)
             
             final_bal = engine.exchange.get_balance()
-            profit = float(final_bal) - float(balance)
+            # Use sum of round_trips PnL for consistency with equity curve
+            # This ensures realized P&L matches the equity chart 
+            realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
+            profit = realized_pnl
             profit_pct = (profit / float(balance)) * 100
             
             html_content = reporter._generate_html_report(
