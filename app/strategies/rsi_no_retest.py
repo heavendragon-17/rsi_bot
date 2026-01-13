@@ -49,8 +49,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_rsi_spread_min": 1.5,       # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
-        "nr_sl_mode": "lowest_close",   # "rsi_ema9" or "lowest_wick" or "lowest_close"
-        "sl_buffer_pct": 0.0,           # No buffer for tight SL
+        "nr_sl_mode": "lowest_wick",   # "rsi_ema9" or "lowest_wick" or "lowest_close"
+        "sl_buffer_pct": 0.3,           # No buffer for tight SL
         "sl_check_mode": "close",       # "close" or "wick" - how to check SL hit
         
         # TP settings
