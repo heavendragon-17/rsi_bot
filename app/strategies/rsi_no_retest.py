@@ -44,16 +44,17 @@ class RsiNoRetestStrategy(BaseStrategy):
         "price_ema_slow": 200,
         
         # Entry conditions
-        "nr_lookback": 30,           # Candles to check for pullback
-        "nr_max_above_ema21": 1,     # Max candles above EMA21 in lookback (0 = strict)
-        "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
+        "nr_lookback": 30,              # Candles to check for pullback
+        "nr_max_above_ema21": 1,        # Max candles above EMA21 in lookback (0 = strict)
+        "nr_rsi_spread_min": 1.5,       # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
-        "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
-        "sl_buffer_pct": 0.0,        # No buffer for tight SL
+        "nr_sl_mode": "lowest_close",   # "rsi_ema9" or "lowest_wick" or "lowest_close"
+        "sl_buffer_pct": 0.0,           # No buffer for tight SL
+        "sl_check_mode": "close",       # "close" or "wick" - how to check SL hit
         
         # TP settings
-        "nr_tp_rr": 1,               # Risk:Reward ratio (1 = 1:1)
+        "nr_tp_rr": 1,                  # Risk:Reward ratio (1 = 1:1)
         
         # Trade management
         "use_active_trades": True,
@@ -95,6 +96,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         # "lowest_close": SL = min(close) lookback
         self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
+        
+        # How to check SL hit: "close" (safer) or "wick" (stricter)
+        self.sl_check_mode = str(cfg.get("sl_check_mode", "close")).lower()
 
         # TP behavior
         self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))  # 1:1
@@ -189,6 +193,32 @@ class RsiNoRetestStrategy(BaseStrategy):
             return None
         return entry + (risk * rr)
 
+    def _check_stop_loss_hit(self, low: Optional[Decimal], close: Optional[Decimal], 
+                            sl_price: Decimal) -> tuple[bool, Optional[Decimal]]:
+        """
+        Check if stop loss was hit.
+        
+        Args:
+            low: Current candle's low price
+            close: Current candle's close price
+            sl_price: Stop loss price level
+            
+        Returns:
+            Tuple of (hit: bool, exit_price: Optional[Decimal])
+            - If hit via wick: returns (True, sl_price)
+            - If hit via close: returns (True, close or sl_price)
+            - If not hit: returns (False, None)
+        """
+        if self.sl_check_mode == "wick":
+            if low is not None and low <= sl_price:
+                return True, sl_price
+        else:
+            if close is not None and close <= sl_price:
+                exit_price = sl_price
+                return True, exit_price
+        
+        return False, None
+
     # ---------------- main ----------------
     def analyze(self, symbol: str, df) -> Optional[SignalEvent]:
         if df is None or len(df) < max(220, self.lookback + 10):
@@ -208,10 +238,9 @@ class RsiNoRetestStrategy(BaseStrategy):
             return None
 
         ts = self._ts_from_last(df_tf, last)
-
-        # prices (Decimals)
         close = self._to_dec(last.get("close"))
         high = self._to_dec(last.get("high"))
+        low = self._to_dec(last.get("low"))
         ema21 = self._to_dec(last.get("ema21"))
 
         if close is None or ema21 is None:
@@ -223,6 +252,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         # -------------------------
         # EXIT / MANAGEMENT inside strategy:
+        #  - Stop Loss check (FIRST priority)
         #  - Move SL to Entry at +0.5R (intrabar by HIGH)
         #  - TP 1:1 close all (intrabar by HIGH)
         # -------------------------
@@ -245,6 +275,21 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             if entry_price is None or sl_price is None:
                 return None
+
+            # 0) STOP LOSS CHECK (highest priority)
+            sl_hit, exit_price = self._check_stop_loss_hit(low, close, sl_price)
+            if sl_hit:
+                self.context.close_trade(symbol)
+                self.context.transition(key, SCANNING, reason="Stop Loss Hit", now_ts=ts)
+                
+                check_method = "wick" if self.sl_check_mode == "wick" else "close"
+                return SignalEvent(
+                    symbol=symbol,
+                    signal_type="SELL",
+                    price=exit_price if exit_price else sl_price,
+                    timestamp=ts,
+                    reason=f"STOP LOSS HIT ({check_method}={low if self.sl_check_mode == 'wick' else close} <= SL={sl_price})",
+                )
 
             # 1) Move SL to entry at RR=0.5
             if (not moved_sl) and high is not None:
@@ -315,8 +360,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             entry_price = ema21
             if entry_price <= sl_price:
                 entry_price = close
-
-
 
             tp_price = self._compute_tp_1to1(entry_price, sl_price)
             if tp_price is None:
