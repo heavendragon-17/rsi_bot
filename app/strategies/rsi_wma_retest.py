@@ -227,8 +227,16 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
                 # Check H1 condition: WMA45 > 45
                 if self.check_h1_wma45:
+                    # Optimize resampling: slice to last 10,000 candles.
+                    # Safety buffer for 1m timeframe:
+                    # H1 WMA45 requires ~45 hours + RSI warmup (~63 hours) = ~110 hours.
+                    # 10,000 mins = 166 hours, which is sufficient for 1m timeframe.
+                    # For 5m timeframe, 10,000 candles = 833 hours (plenty).
+                    limit = 10000
+                    df_to_resample = df.tail(limit) if len(df) > limit else df
+
                     # Resample to H1
-                    df_h1 = resample_dataframe(df, "1h")
+                    df_h1 = resample_dataframe(df_to_resample, "1h")
                     if not df_h1.empty:
                         # Compute indicators on H1
                         df_h1_ind = self.indicators.compute(df_h1, symbol=symbol, timeframe="1h")
