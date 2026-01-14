@@ -49,10 +49,17 @@ class BacktestEngine:
         warmup_period = 220
         n_rows = len(self._full_df)
 
+        # Optimization: Pre-fetch columns to avoid DataFrame access in loop
+        timestamps = self._full_df.index
+        opens = self._full_df["open"].values
+        highs = self._full_df["high"].values
+        lows = self._full_df["low"].values
+        closes = self._full_df["close"].values
+
         for i in range(warmup_period, n_rows):
-            row = self._full_df.iloc[i]
-            ts = self._full_df.index[i]
-            o, h, l, c = row["open"], row["high"], row["low"], row["close"]
+            ts = timestamps[i]
+            # Fast numpy access
+            o, h, l, c = opens[i], highs[i], lows[i], closes[i]
 
             # Update exchange with full OHLC (checks pending SL/TP against wicks)
             executed_orders = self.exchange.update_candle(
