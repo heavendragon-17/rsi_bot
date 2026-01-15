@@ -2,16 +2,19 @@
 Clean Architecture Interfaces
 Layer 1: Data Ingestion  - IDataProvider, IDataStore
 Layer 2: Core Logic      - IStrategy, IIndicators  
-Layer 3: Execution       - IExchange, IPortfolio
+Layer 3: Execution       - IFuturesExchange, IPortfolio
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Optional, Dict, Any, List, Sequence
+from typing import Optional, Dict, Any, List, Sequence, Iterable, TYPE_CHECKING
 import pandas as pd
 
 from app.core.events import Candle, SignalEvent, MarketEvent
+
+if TYPE_CHECKING:
+    from app.core.risk_types import RiskParams
 
 
 # ============================================
@@ -81,14 +84,26 @@ class IStrategy(ABC):
     def analyze(self, symbol: str, df: pd.DataFrame) -> Optional[SignalEvent]:
         """Analyze market data and return signal if conditions are met."""
         pass
+    
+    @abstractmethod
+    def get_risk_params(self, signal: SignalEvent) -> 'RiskParams':
+        """
+        Return strategy-specific risk parameters for this signal.
+        Each strategy defines its own RiskParams - no config override.
+        """
+        pass
 
 
 # ============================================
 # Layer 3: Execution Interfaces
 # ============================================
 
-class IExchange(ABC):
-    """Interface for exchange operations."""
+class IFuturesExchange(ABC):
+    """
+    Interface for perpetual futures exchange operations.
+    
+    Supports both CEX (Binance, Bybit) and perp DEX (Hyperliquid).
+    """
     
     @abstractmethod
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
@@ -105,7 +120,8 @@ class IExchange(ABC):
         order_type: str, 
         side: str, 
         amount: Decimal, 
-        price: Optional[Decimal] = None
+        price: Optional[Decimal] = None,
+        exit_reason: str = None
     ) -> Optional[Dict[str, Any]]:
         """
         Execute an order.
@@ -133,6 +149,40 @@ class IExchange(ABC):
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel an open order."""
         pass
+    
+    # ========== Futures-specific methods ==========
+    
+    @abstractmethod
+    def set_leverage(self, symbol: str, leverage: int) -> bool:
+        """Set leverage for a symbol."""
+        pass
+    
+    @abstractmethod
+    def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get current position for symbol."""
+        pass
+    
+    @abstractmethod
+    def update_price(self, symbol: str, price: float, timestamp) -> List[Dict]:
+        """
+        Update current price. Used for disaster SL checking.
+        Returns list of executed orders (if any).
+        """
+        pass
+    
+    @abstractmethod
+    def place_stop_loss(self, symbol: str, amount, trigger_price) -> Optional[str]:
+        """Place a stop loss order. Returns order ID."""
+        pass
+    
+    @abstractmethod
+    def place_take_profit(self, symbol: str, amount, trigger_price, label: str = "TP") -> Optional[str]:
+        """Place a take profit order. Returns order ID."""
+        pass
+
+
+# Backward compatibility alias
+IExchange = IFuturesExchange
 
 
 class IPortfolio(ABC):

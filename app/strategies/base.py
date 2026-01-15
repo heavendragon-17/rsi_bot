@@ -6,6 +6,8 @@ Base class for all trading strategies.
 from abc import abstractmethod
 from app.core.interfaces import IStrategy
 from app.core.context import StrategyContext
+from app.core.events import SignalEvent
+from app.core.risk_types import RiskParams
 
 
 class BaseStrategy(IStrategy):
@@ -19,3 +21,14 @@ class BaseStrategy(IStrategy):
     def analyze(self, symbol: str, df):
         """Analyze market data and return signal if conditions are met."""
         pass
+    
+    @abstractmethod
+    def get_risk_params(self, signal: SignalEvent) -> RiskParams:
+        """
+        Return strategy-specific risk parameters for this signal.
+        
+        Each strategy MUST define its own RiskParams.
+        There is no default - this forces explicit risk configuration.
+        """
+        pass
+

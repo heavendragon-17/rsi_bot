@@ -27,12 +27,28 @@ from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent
 from app.core.context import StrategyContext, SCANNING, CONFIRMING
+from app.core.risk_types import RiskParams, TPLevel, ExitTrigger
 
 
 class RsiNoRetestStrategy(BaseStrategy):
     """
     RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest.
     """
+    
+    # =========================================================
+    # RISK CONFIGURATION - Hardcoded, no config override
+    # =========================================================
+    RISK_CONFIG = RiskParams(
+        sl_type='percentage',
+        sl_value=Decimal('0.02'),  # 2% SL (fallback, actual SL computed dynamically)
+        sl_trigger=ExitTrigger.CANDLE_CLOSE,  # SL checked on candle close
+        tp_levels=[
+            TPLevel(price_pct=Decimal('1.0'), size_pct=Decimal('1.0')),  # 1:1 RR, close all
+        ],
+        tp_trigger=ExitTrigger.CANDLE_CLOSE,  # TP checked on candle close
+        disaster_sl_multiplier=3.0,  # 3x on exchange as backup
+        trailing_sl=False,  # No trailing for this strategy
+    )
     
     # Default configuration for this strategy
     DEFAULT_CONFIG = {
@@ -102,6 +118,14 @@ class RsiNoRetestStrategy(BaseStrategy):
         # NEW: Move SL to Entry trigger (RR = 0.5)
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
+
+    # ---------------- risk params ----------------
+    def get_risk_params(self, signal: SignalEvent) -> RiskParams:
+        """
+        Return strategy-specific risk parameters.
+        This strategy uses candle-close based SL/TP with 3x disaster SL on exchange.
+        """
+        return self.RISK_CONFIG
 
     # ---------------- helpers ----------------
     def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
