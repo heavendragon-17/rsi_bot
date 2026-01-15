@@ -46,6 +46,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         # Entry conditions
         "nr_lookback": 30,              # Candles to check for pullback
         "nr_max_above_ema21": 1,        # Max candles above EMA21 in lookback (0 = strict)
+        "nr_min_entry_dist_pct": 0.0005, # Min distance close > EMA21 (0.05%)
         "nr_rsi_spread_min": 1.5,       # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
@@ -88,6 +89,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         # ================================
         self.lookback = int(cfg.get("nr_lookback", 30))
         self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 1))
+        self.min_entry_dist_pct = float(cfg.get("nr_min_entry_dist_pct", 0.0005))
         self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 1.5))
 
         # SL behavior
@@ -332,6 +334,12 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             if not self._pullback_filter(df_ind):
                 return None
+
+            # Noise filter: close must be > EMA21 by min_dist_pct
+            if ema21 and ema21 > 0:
+                dist_pct = float((close - ema21) / ema21)
+                if dist_pct < self.min_entry_dist_pct:
+                    return None
 
             self.context.transition(key, CONFIRMING, reason="Reclaim EMA21 + pullback ok", now_ts=ts)
             return None
