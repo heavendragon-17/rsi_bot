@@ -6,6 +6,7 @@ Technical indicator calculations for RSI+WMA+EMA strategy.
 from __future__ import annotations
 from typing import Optional, Tuple
 from decimal import Decimal
+from collections import OrderedDict
 import pandas as pd
 
 
@@ -43,8 +44,9 @@ class Indicators:
         self.price_ema_slow = int(price_ema_slow)
         
         self.enable_cache = bool(enable_cache)
-        self._cache_key: Optional[Tuple[str, str, int, int]] = None
-        self._cache_df: Optional[pd.DataFrame] = None
+        # LRU Cache: Key -> DataFrame
+        self._cache: OrderedDict = OrderedDict()
+        self._cache_size = 32
 
     def compute(self, df: pd.DataFrame, *, symbol: str = "", timeframe: str = "") -> pd.DataFrame:
         """
@@ -62,8 +64,10 @@ class Indicators:
         last_timestamp = int(df.iloc[-1]["ts"]) if "ts" in df.columns else len(df)
         key = (symbol, timeframe, last_timestamp, len(df))
 
-        if self.enable_cache and self._cache_key == key and self._cache_df is not None:
-            return self._cache_df
+        if self.enable_cache:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
 
         out = df.copy()
 
@@ -104,8 +108,9 @@ class Indicators:
         out["_avg_loss"] = out["_loss"].ewm(alpha=1/self.rsi_length, adjust=False).mean()
 
         if self.enable_cache:
-            self._cache_key = key
-            self._cache_df = out
+            self._cache[key] = out
+            if len(self._cache) > self._cache_size:
+                self._cache.popitem(last=False)
 
         return out
 
