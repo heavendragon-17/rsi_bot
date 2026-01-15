@@ -533,7 +533,7 @@ def main():
             try:
                 # Default limit 10000 candles
                 # Use safe_symbol (no slash) for binanceusdm
-                download_data(safe_symbol, timeframe, 10000, DATA_DIR)
+                download_data(safe_symbol, timeframe, 8832, DATA_DIR)
                 
                 if not os.path.exists(data_file):
                     print(f"Download failed for {symbol}. Skipping.")
