@@ -51,7 +51,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         
         # SL settings
         "nr_sl_mode": "lowest_wick",   # "rsi_ema9" or "lowest_wick" or "lowest_close"
-        "sl_buffer_pct": 0.3,           # No buffer for tight SL
+        "sl_buffer_pct": 0.003,           # No buffer for tight SL
         "sl_check_mode": "close",       # "close" or "wick" - how to check SL hit
         
         # TP settings - Partial exits
@@ -216,9 +216,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         else:  # "close" mode (default, safer)
             # Check if close is below SL
             if close is not None and close <= sl_price:
-                # Exit at close price if below SL, or SL price if close is way below
-                exit_price = max(close, sl_price * Decimal("0.95"))  # Allow 5% slippage max
-                return True, exit_price
+                return True, close
         
         return False, None
 
