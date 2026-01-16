@@ -16,13 +16,18 @@ Extra:
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-from decimal import Decimal
+import pandas as pd
+import numpy as np
+from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
+from decimal import Decimal
+import logging
+import ccxt
 from datetime import datetime
 
 from app.core.interfaces import IExchange
 from app.core.events import SignalEvent
+from .utils import to_decimal
 
 
 @dataclass
@@ -164,7 +169,9 @@ class PortfolioManager:
     # Helpers
     # -------------------------
     def sync_balance(self) -> Decimal:
-        return self.exchange.get_balance()
+        bal = self.exchange.fetch_balance()
+        # CCXT returns total balance in 'total' dict
+        return to_decimal(bal.get("total", {}).get("USDT", 0))
 
     def has_position(self, symbol: str) -> bool:
         return symbol in self.positions
@@ -223,17 +230,21 @@ class PortfolioManager:
                 pass
             pos.sl_order_id = None
 
-        new_sl_order = self.exchange.create_order(
-            symbol=symbol,
-            order_type="LIMIT",
-            side="SELL",
-            amount=pos.amount,
-            price=entry,
-            exit_reason="MOVE_SL_TO_ENTRY",
-        )
-        if new_sl_order:
-            pos.sl_order_id = new_sl_order.get("id")
-            return True
+        try:
+            new_sl_order = self.exchange.create_order(
+                symbol=symbol,
+                order_type="LIMIT",
+                side="SELL",
+                amount=pos.amount,
+                price=entry,
+                exit_reason="MOVE_SL_TO_ENTRY",
+            )
+            if new_sl_order:
+                pos.sl_order_id = new_sl_order.get("id")
+                return True
+        except ccxt.BaseError as e:
+            logging.error(f"Failed to move SL to entry for {symbol}: {e}")
+            return False
 
         return False
 
@@ -302,13 +313,20 @@ class PortfolioManager:
         amount = self._calculate_position_size(balance, price, signal.sl_price)
 
         # Execute market BUY
-        order = self.exchange.create_order(
-            symbol=signal.symbol,
-            order_type="MARKET",
-            side="BUY",
-            amount=amount,
-        )
-        if not order:
+        try:
+            order = self.exchange.create_order(
+                symbol=signal.symbol,
+                order_type="MARKET",
+                side="BUY",
+                amount=amount,
+            )
+            if not order:
+                return None
+        except ccxt.InsufficientFunds as e:
+            logging.warning(f"Insufficient funds for {signal.symbol}: {e}")
+            return None
+        except ccxt.BaseError as e:
+            logging.error(f"Failed to execute buy for {signal.symbol}: {e}")
             return None
 
         # Create position record
@@ -326,16 +344,19 @@ class PortfolioManager:
 
         # Place SL limit order if provided
         if signal.sl_price is not None:
-            sl_order = self.exchange.create_order(
-                symbol=signal.symbol,
-                order_type="LIMIT",
-                side="SELL",
-                amount=amount,
-                price=signal.sl_price,
-                exit_reason="STOP_LOSS",
-            )
-            if sl_order:
-                self.positions[signal.symbol].sl_order_id = sl_order.get("id")
+            try:
+                sl_order = self.exchange.create_order(
+                    symbol=signal.symbol,
+                    order_type="LIMIT",
+                    side="SELL",
+                    amount=amount,
+                    price=signal.sl_price,
+                    exit_reason="STOP_LOSS",
+                )
+                if sl_order:
+                    self.positions[signal.symbol].sl_order_id = sl_order.get("id")
+            except ccxt.BaseError as e:
+                logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
 
         return order
 
@@ -353,20 +374,29 @@ class PortfolioManager:
 
         # Cancel SL order if any
         if pos.sl_order_id:
-            self.exchange.cancel_order(pos.sl_order_id, symbol)
+            try:
+                self.exchange.cancel_order(pos.sl_order_id, symbol)
+            except ccxt.OrderNotFound:
+                pass  # Already gone
+            except ccxt.BaseError as e:
+                logging.warning(f"Failed to cancel SL {pos.sl_order_id}: {e}")
 
-        order = self.exchange.create_order(
-            symbol=symbol,
-            order_type="MARKET",
-            side="SELL",
-            amount=pos.amount,
-            price=price,
-            exit_reason="MANUAL",
-        )
+        try:
+            order = self.exchange.create_order(
+                symbol=symbol,
+                order_type="MARKET",
+                side="SELL",
+                amount=pos.amount,
+                price=price,
+                exit_reason="MANUAL",
+            )
 
-        if order:
-            self.positions.pop(symbol, None)
-            return order
+            if order:
+                self.positions.pop(symbol, None)
+                return order
+        except ccxt.BaseError as e:
+            logging.error(f"Failed to execute full sell for {symbol}: {e}")
+            return None
 
         return None
 
@@ -407,14 +437,18 @@ class PortfolioManager:
         if close_amount <= Decimal("0"):
             return None
 
-        order = self.exchange.create_order(
-            symbol=symbol,
-            order_type="MARKET",
-            side="SELL",
-            amount=close_amount,
-            exit_reason=tp_level,
-        )
-        if not order:
+        try:
+            order = self.exchange.create_order(
+                symbol=symbol,
+                order_type="MARKET",
+                side="SELL",
+                amount=close_amount,
+                exit_reason=tp_level,
+            )
+            if not order:
+                return None
+        except ccxt.BaseError as e:
+            logging.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
             return None
 
         pos.amount -= close_amount
@@ -426,7 +460,12 @@ class PortfolioManager:
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
             if pos.sl_order_id:
-                self.exchange.cancel_order(pos.sl_order_id, symbol)
+                try:
+                    self.exchange.cancel_order(pos.sl_order_id, symbol)
+                except ccxt.OrderNotFound:
+                    pass
+                except ccxt.BaseError as e:
+                    logging.warning(f"Failed to cancel SL {pos.sl_order_id} during cleanup: {e}")
             self.positions.pop(symbol, None)
 
         return order

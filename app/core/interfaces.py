@@ -113,25 +113,30 @@ class IExchange(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_balances(self, assets: Optional[Iterable[str]] = None) -> Dict[str, float]:
-        """
-        Return balances for requested assets.
-        - assets=None  -> return all non-zero balances
-        - assets=[...] -> return only those assets
-        """
-        pass
 
-    @abstractmethod
-    def get_balance_of(self, asset: str) -> float:
-        """
-        Convenience method: return balance of a single asset.
-        """
-        pass
     
     @abstractmethod
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel an open order."""
+        pass
+
+
+class IFuturesExchange(IExchange):
+    """Interface for perpetual futures exchange operations."""
+    
+    @abstractmethod
+    def set_leverage(self, leverage: int, symbol: str) -> bool:
+        """Set leverage for a symbol."""
+        pass
+    
+    @abstractmethod
+    def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
+        """Fetch open positions."""
+        pass
+    
+    @abstractmethod
+    def fetch_balance(self, params: Dict = {}) -> Dict:
+        """Fetch balance in CCXT format."""
         pass
 
 

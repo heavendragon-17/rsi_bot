@@ -48,7 +48,8 @@ class BacktestEngine:
 
     def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
-        print(f"Initial balance: {self.exchange.get_balance()}")
+        initial_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        print(f"Initial balance: {initial_bal}")
         print(f"Leverage: {self.exchange.leverage}x")
 
         warmup_period = 220
@@ -88,7 +89,8 @@ class BacktestEngine:
         self._close_open_positions()
 
         print("\nBacktest complete!")
-        print(f"Final balance: {self.exchange.get_balance()}")
+        final_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        print(f"Final balance: {final_bal}")
         print(f"Open positions: {dict(self.exchange.positions)}")
         print(f"Total trades: {len(self.exchange.trade_history)}")
 

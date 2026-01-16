@@ -410,7 +410,8 @@ class BacktestReporter:
         monthly_returns = self._calculate_monthly_returns(round_trips)
         
         # Final balance
-        final_balance = self.exchange.get_balance()
+        bal_data = self.exchange.fetch_balance()
+        final_balance = Decimal(str(bal_data.get("total", {}).get("USDT", 0)))
         # Use sum of round_trips PnL for consistency with equity curve
         realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
         profit = realized_pnl
