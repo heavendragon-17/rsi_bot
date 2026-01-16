@@ -76,8 +76,12 @@ class BacktestReporter:
         first_exit = exits[0]
         last_exit = exits[-1]
         
+        # Helper to get exit_reason from info dict (CCXT standard)
+        def get_exit_reason(e):
+            return e.get('info', {}).get('exit_reason') or ''
+        
         # Determine final exit reason (highest TP level reached or SL)
-        exit_reasons = [e.get('exit_reason') for e in exits if e.get('exit_reason')]
+        exit_reasons = [get_exit_reason(e) for e in exits if get_exit_reason(e)]
         final_exit_reason = self._get_highest_exit_reason(exit_reasons)
         
         # Calculate hold duration
@@ -121,10 +125,10 @@ class BacktestReporter:
             'hold_duration_hours': hold_duration_seconds / 3600 if hold_duration_seconds else None,
             'exit_reason': final_exit_reason,
             'num_partial_exits': len(exits),
-            'hit_tp1': any(e.get('exit_reason') == 'TP1' for e in exits),
-            'hit_tp2': any(e.get('exit_reason') == 'TP2' for e in exits),
-            'hit_tp3': any(e.get('exit_reason') == 'TP3' for e in exits),
-            'hit_sl': any(e.get('exit_reason') in ('SL', 'STOP_LOSS') for e in exits),
+            'hit_tp1': any(get_exit_reason(e) == 'TP1' for e in exits),
+            'hit_tp2': any(get_exit_reason(e) == 'TP2' for e in exits),
+            'hit_tp3': any(get_exit_reason(e) == 'TP3' for e in exits),
+            'hit_sl': any(get_exit_reason(e) in ('SL', 'STOP_LOSS') for e in exits),
         }
 
     def _get_highest_exit_reason(self, exit_reasons: list) -> str:
@@ -984,4 +988,5 @@ class BacktestReporter:
         if not round_trips.empty:
             trades_path = os.path.join(csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv")
             round_trips.to_csv(trades_path, index=False)
+            print(f"Trade details saved to: {trades_path}")
             print(f"Trade details saved to: {trades_path}")

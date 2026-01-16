@@ -6,6 +6,7 @@ Simulates a futures exchange for backtesting with:
 - Leverage support (margin-based trading)
 - Wick-based SL/TP checking
 - Decimal precision
+- CCXT-compliant order structure
 """
 
 from __future__ import annotations
@@ -79,8 +80,6 @@ class MockExchange(IFuturesExchange):
     # IExchange required balance methods
     # ============================================================
 
-
-    
     def fetch_balance(self, params: Dict = {}) -> Dict:
         """
         CCXT-compliant balance fetch.
@@ -124,8 +123,8 @@ class MockExchange(IFuturesExchange):
 
             triggered = False
             fill_price: Optional[Decimal] = None
-            order_type = order.get("order_type", "LIMIT")
-            trigger_price = to_decimal(order.get("trigger_price") or order.get("price"))
+            order_type = order.get("type", "limit").upper()
+            trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
 
             # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
             if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
@@ -141,7 +140,8 @@ class MockExchange(IFuturesExchange):
                     fill_price = trigger_price
 
             if triggered and fill_price is not None:
-                stored_exit_reason = order.get("exit_reason") or order_type
+                # Get exit_reason from info dict (CCXT standard)
+                stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
                 result = self._execute_order(
                     symbol=order["symbol"],
                     side=order["side"],
@@ -159,8 +159,6 @@ class MockExchange(IFuturesExchange):
             self.pending_orders.pop(oid, None)
 
         return executed
-
-
 
     # ============================================================
     # IFuturesExchange methods
@@ -217,9 +215,11 @@ class MockExchange(IFuturesExchange):
             "symbol": symbol,
             "side": "SELL",
             "amount": to_decimal(amount),
-            "trigger_price": to_decimal(trigger_price),
-            "order_type": "STOP_LOSS",
-            "status": "PENDING",
+            "triggerPrice": to_decimal(trigger_price),
+            "price": to_decimal(trigger_price),
+            "type": "stop_loss",
+            "status": "open",
+            "info": {"exit_reason": "STOP_LOSS"},
         }
         self.pending_orders[order_id] = order
         return order
@@ -232,9 +232,11 @@ class MockExchange(IFuturesExchange):
             "symbol": symbol,
             "side": "SELL",
             "amount": to_decimal(amount),
-            "trigger_price": to_decimal(trigger_price),
-            "order_type": "TAKE_PROFIT",
-            "status": "PENDING",
+            "triggerPrice": to_decimal(trigger_price),
+            "price": to_decimal(trigger_price),
+            "type": "take_profit",
+            "status": "open",
+            "info": {"exit_reason": label},
             "label": label,
         }
         self.pending_orders[order_id] = order
@@ -256,9 +258,9 @@ class MockExchange(IFuturesExchange):
             if (
                 order.get("symbol") == symbol
                 and order.get("side") == "SELL"
-                and order.get("order_type") in ("STOP_LOSS", "LIMIT")
+                and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
             ):
-                order["trigger_price"] = new_price
+                order["triggerPrice"] = new_price
                 order["price"] = new_price
                 updated = True
 
@@ -291,28 +293,28 @@ class MockExchange(IFuturesExchange):
     def create_order(
         self,
         symbol: str,
-        order_type: str = None,  # Legacy param name
+        type: str = None,  # CCXT param name
         side: str = None,
         amount = None,
         price = None,
-        exit_reason: str = None,
-        # CCXT-style parameters
-        type: str = None,  # CCXT param name
         params: Dict = None,
+        # Legacy param name (for backward compatibility)
+        order_type: str = None,
+        exit_reason: str = None,
     ) -> Optional[Dict]:
         """
         Create an order.
         - MARKET executes immediately
         - LIMIT goes pending (and will be triggered in update_candle via wick checks)
         
-        Supports both legacy (order_type) and CCXT (type) parameter names.
+        Uses CCXT param names: type, params.
         """
         # Handle CCXT 'type' vs legacy 'order_type'
         actual_type = (type or order_type or 'market').upper()
         
-        # Handle CCXT params dict
-        if params:
-            exit_reason = params.get('exit_reason', exit_reason)
+        # Handle CCXT params dict for exit_reason
+        params = params or {}
+        exit_reason = params.get('exit_reason', exit_reason)
         
         amount = to_decimal(amount)
         current_data = self.current_prices.get(symbol)
@@ -331,19 +333,18 @@ class MockExchange(IFuturesExchange):
                 "side": side.upper() if side else 'BUY',
                 "amount": amount,
                 "price": price_dec,
-                "trigger_price": price_dec,
-                "order_type": "LIMIT",
-                "type": "limit",  # CCXT field
-                "status": "PENDING",
-                "exit_reason": exit_reason,
+                "triggerPrice": price_dec,
+                "type": "limit",
+                "status": "open",
+                "info": {"exit_reason": exit_reason or ""},
             }
             self.pending_orders[order_id] = order
-            return {"id": order_id, "status": "open", "type": "limit", "order_type": "LIMIT"}
+            return {"id": order_id, "status": "open", "type": "limit"}
 
         # MARKET executes
         exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
         timestamp = current_data["time"]
-        return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type="MARKET", exit_reason=exit_reason)
+        return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
 
     def _execute_order(
         self,
@@ -475,14 +476,12 @@ class MockExchange(IFuturesExchange):
             "fee": {"currency": "USDT", "cost": float(fee_cost), "rate": float(fee_rate)},
             "info": {"exit_reason": exit_reason or ""},
             
-            # Legacy/extended fields for reporting
+            # Extended fields for reporting (kept for backward compat in reporting.py)
             "time": timestamp,
             "notional": float(notional),
             "margin": float(margin_used),
             "leverage": float(self.leverage),
             "balance_after": float(self.balance),
-            "order_type": order_type,
-            "exit_reason": exit_reason,
             "entry_price": float(entry_price) if entry_price is not None else None,
             "pnl": pnl,
             "pnl_pct": pnl_pct,
@@ -490,4 +489,3 @@ class MockExchange(IFuturesExchange):
         }
         self.trade_history.append(order)
         return order
-

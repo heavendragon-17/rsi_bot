@@ -67,7 +67,7 @@ class BacktestEngine:
 
             # Handle executed SL orders
             for order in executed_orders:
-                if order['order_type'] == 'STOP_LOSS':
+                if order.get('type', '').upper() == 'STOP_LOSS':
                     if self.symbol in self.portfolio.positions:
                         del self.portfolio.positions[self.symbol]
                     if hasattr(self.strategy, 'context') and self.strategy.context:
@@ -109,10 +109,10 @@ class BacktestEngine:
                 print(f"Closing open position: {symbol} {amount} @ {final_price} (EOD)")
                 self.exchange.create_order(
                     symbol=symbol,
-                    order_type='MARKET',
+                    type='market',
                     side='SELL',
                     amount=float(amount),
                     price=final_price,
-                    exit_reason='EOD'  # End of Data
+                    params={'exit_reason': 'EOD'}  # End of Data
                 )
 

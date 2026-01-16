@@ -233,11 +233,11 @@ class PortfolioManager:
         try:
             new_sl_order = self.exchange.create_order(
                 symbol=symbol,
-                order_type="LIMIT",
+                type="limit",
                 side="SELL",
                 amount=pos.amount,
                 price=entry,
-                exit_reason="MOVE_SL_TO_ENTRY",
+                params={"exit_reason": "MOVE_SL_TO_ENTRY"},
             )
             if new_sl_order:
                 pos.sl_order_id = new_sl_order.get("id")
@@ -316,7 +316,7 @@ class PortfolioManager:
         try:
             order = self.exchange.create_order(
                 symbol=signal.symbol,
-                order_type="MARKET",
+                type="market",
                 side="BUY",
                 amount=amount,
             )
@@ -347,11 +347,11 @@ class PortfolioManager:
             try:
                 sl_order = self.exchange.create_order(
                     symbol=signal.symbol,
-                    order_type="LIMIT",
+                    type="limit",
                     side="SELL",
                     amount=amount,
                     price=signal.sl_price,
-                    exit_reason="STOP_LOSS",
+                    params={"exit_reason": "STOP_LOSS"},
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
@@ -384,11 +384,11 @@ class PortfolioManager:
         try:
             order = self.exchange.create_order(
                 symbol=symbol,
-                order_type="MARKET",
+                type="market",
                 side="SELL",
                 amount=pos.amount,
                 price=price,
-                exit_reason="MANUAL",
+                params={"exit_reason": "MANUAL"},
             )
 
             if order:
@@ -440,10 +440,10 @@ class PortfolioManager:
         try:
             order = self.exchange.create_order(
                 symbol=symbol,
-                order_type="MARKET",
+                type="market",
                 side="SELL",
                 amount=close_amount,
-                exit_reason=tp_level,
+                params={"exit_reason": tp_level},
             )
             if not order:
                 return None
