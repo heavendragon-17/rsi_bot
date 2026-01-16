@@ -12,89 +12,110 @@ import time
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> None:
+def download_from_exchange(exchange, symbol, timeframe, limit):
     """
-    Download historical OHLCV data from Binance.
-    
-    Binance API has a limit of 1000 candles per request.
-    This function handles pagination to download more data.
+    Helper to download from a specific exchange instance.
+    Returns DataFrame or None.
     """
-    print(f"Downloading {limit} candles for {symbol} ({timeframe})...")
-    
-    # Initialize Binance Futures
-    exchange = ccxt.binanceusdm()
-    
-    # Binance max per request
     MAX_PER_REQUEST = 1000
-    
+    if exchange.id == 'bybit':
+        MAX_PER_REQUEST = 200
+
     all_candles = []
     remaining = limit
     
-    # First request - get most recent data
-    try:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=min(remaining, MAX_PER_REQUEST))
+    # First request
+    print(f"  [{exchange.id}] Fetching initial data...")
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=min(remaining, MAX_PER_REQUEST))
+    if not ohlcv:
+        print(f"  [{exchange.id}] No data received.")
+        return None
+
+    all_candles.extend(ohlcv)
+    remaining -= len(ohlcv)
+    print(f"  [{exchange.id}] Downloaded {len(ohlcv)} candles...")
+
+    # Pagination
+    while remaining > 0 and ohlcv:
+        time.sleep(exchange.rateLimit / 1000.0 if exchange.rateLimit else 0.5)
+
+        oldest_ts = ohlcv[0][0] - 1
+        batch_size = min(remaining, MAX_PER_REQUEST)
+
+        params = {}
+        if exchange.id in ['binance', 'binanceusdm']:
+            params = {'endTime': oldest_ts}
+        elif exchange.id == 'kucoin':
+            params = {'endAt': int(oldest_ts / 1000)}
+        elif exchange.id == 'bybit':
+            params = {'end': oldest_ts}
+        elif exchange.id == 'kraken':
+             # Kraken uses 'since' (forward). Backward is hard.
+             # We will skip pagination for Kraken for now and just return what we have
+             break
+
+        ohlcv = exchange.fetch_ohlcv(
+            symbol,
+            timeframe,
+            limit=batch_size,
+            params=params
+        )
+
         if not ohlcv:
-            print("No data received.")
-            return
+            break
             
-        all_candles.extend(ohlcv)
-        remaining -= len(ohlcv)
-        print(f"  Downloaded {len(ohlcv)} candles, total: {len(all_candles)}")
+        # Deduplication / Sequencing check
+        oldest_existing = all_candles[0][0]
+        new_candles = [c for c in ohlcv if c[0] < oldest_existing]
         
-        # Continue fetching older data
-        while remaining > 0 and ohlcv:
-            time.sleep(0.5)  # Rate limiting
+        if not new_candles:
+            break
             
-            # Get timestamp before oldest candle
-            oldest_ts = ohlcv[0][0] - 1
-            
-            # Calculate start time (go back in time)
-            batch_size = min(remaining, MAX_PER_REQUEST)
-            
-            # Fetch older data
-            ohlcv = exchange.fetch_ohlcv(
-                symbol, 
-                timeframe,
-                limit=batch_size,
-                params={'endTime': oldest_ts}  # Use params for pagination with endTime
-            )
-            
-            if not ohlcv:
-                print("No more data available.")
-                break
-            
-            # Filter out any candles we already have
-            oldest_existing = all_candles[0][0]
-            new_candles = [c for c in ohlcv if c[0] < oldest_existing]
-            
-            if not new_candles:
-                print("Reached end of available data.")
-                break
-            
-            all_candles = new_candles + all_candles
-            remaining -= len(new_candles)
-            print(f"  Downloaded {len(new_candles)} new candles, total: {len(all_candles)}")
-            
-    except Exception as e:
-        print(f"Error downloading data: {e}")
-        return
+        all_candles = new_candles + all_candles
+        remaining -= len(new_candles)
+        print(f"  [{exchange.id}] Downloaded {len(new_candles)} new candles...")
 
-    if not all_candles:
-        print("No data received.")
-        return
-
-    # Convert to DataFrame
     df = pd.DataFrame(all_candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms') + pd.Timedelta(hours=7)
-    
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    return df
+
+def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> None:
+    print(f"Downloading {limit} candles for {symbol} ({timeframe})...")
+
+    # Priority list
+    exchanges_classes = [ccxt.binanceusdm, ccxt.binance, ccxt.kucoin, ccxt.bybit, ccxt.gateio, ccxt.kraken]
+
+    df = None
+
+    for ex_class in exchanges_classes:
+        exchange = None
+        try:
+            exchange = ex_class()
+            # Try to map symbol? CCXT handles BTC/USDT -> exchange specific
+            # But specific pairs might be different.
+            # Just try standard format first.
+            
+            df = download_from_exchange(exchange, symbol, timeframe, limit)
+            if df is not None and not df.empty:
+                print(f"Success with {exchange.id}")
+                break
+        except Exception as e:
+            print(f"  [{exchange.id if exchange else ex_class.__name__}] Error: {e}")
+        finally:
+            if exchange and hasattr(exchange, 'close'):
+                try:
+                    exchange.close()
+                except:
+                    pass
+
+    if df is None or df.empty:
+        print(f"Failed to download data for {symbol} from any exchange.")
+        return
+
+    # Post-process
     # Sort by timestamp (oldest first)
     df = df.sort_values('timestamp').reset_index(drop=True)
-    
-    # Remove duplicate timestamps (keep last value for each timestamp)
-    before_dedup = len(df)
     df = df.drop_duplicates(subset='timestamp', keep='last').reset_index(drop=True)
-    if before_dedup != len(df):
-        print(f"Removed {before_dedup - len(df)} duplicate timestamps")
     
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -105,11 +126,8 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
     filepath = os.path.join(output_dir, filename)
     
     df.to_csv(filepath, index=False)
-    print(f"\nData saved to {filepath}")
+    print(f"Data saved to {filepath}")
     print(f"Total candles: {len(df)}")
-    print(f"Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-    print(f"\nPreview (first 3):\n{df.head(3)}")
-    print(f"\nPreview (last 3):\n{df.tail(3)}")
 
 
 if __name__ == "__main__":
