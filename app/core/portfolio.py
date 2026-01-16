@@ -1,17 +1,8 @@
-# app/core/portfolio_manager.py
+# app/core/portfolio.py
 """
 Layer 3: Execution - Portfolio Manager
 =======================================
 Handles position management, order execution, TP/SL placement.
-
-TP handling:
-- Strategy emits SELL with reason starting: "TP1", "TP2", "TP3"
-- PortfolioManager will partial-close accordingly.
-
-Extra:
-- Strategy can emit SELL with reason like:
-  "MOVE_SL_TO_ENTRY", "SL_TO_ENTRY", "BREAKEVEN", "MOVE_SL"
-  -> PortfolioManager will ONLY move SL to entry (no market sell).
 """
 
 from __future__ import annotations
@@ -21,8 +12,9 @@ from decimal import Decimal
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.core.interfaces import IExchange
-from app.core.events import SignalEvent
+from app.core.interfaces import IFuturesExchange, IPortfolio
+from app.core.events import SignalEvent, Candle
+from app.core.risk_types import RiskParams, ExitTrigger
 
 
 @dataclass
@@ -50,17 +42,17 @@ class Position:
     tp2_hit: bool = False
     tp3_hit: bool = False
 
+    # Execution Triggers
+    sl_trigger: ExitTrigger = ExitTrigger.LIMIT_ORDER
+    tp_trigger: ExitTrigger = ExitTrigger.WICK
 
-class PortfolioManager:
+
+class PortfolioManager(IPortfolio):
     """
     Manages positions, executes orders, and handles TP/SL.
-
-    Notes for backtest:
-    - SL can fill inside MockExchange via pending limit orders.
-    - Therefore we MUST sync portfolio state from exchange frequently.
     """
 
-    def __init__(self, exchange: IExchange, config: dict):
+    def __init__(self, exchange: IFuturesExchange, config: dict):
         self.exchange = exchange
         self.config = config
         self.positions: Dict[str, Position] = {}
@@ -70,22 +62,20 @@ class PortfolioManager:
         self.max_position_size_pct = Decimal(str(risk_cfg.get("max_position_size_pct", 0.99)))
         
         # Risk-based position sizing
-        self.risk_per_trade_pct = Decimal(str(risk_cfg.get("risk_per_trade_pct", 0.02)))  # Risk 2% per trade
+        self.risk_per_trade_pct = Decimal(str(risk_cfg.get("risk_per_trade_pct", 0.02)))
         self.use_risk_based_sizing = bool(risk_cfg.get("use_risk_based_sizing", True))
-        self.min_sl_distance_pct = Decimal(str(risk_cfg.get("min_sl_distance_pct", 0.01)))  # Min 1% SL distance
+        self.min_sl_distance_pct = Decimal(str(risk_cfg.get("min_sl_distance_pct", 0.01)))
         
         # Futures leverage
-        self.leverage = Decimal(str(risk_cfg.get("leverage", 1)))  # Default 1x (spot-like)
+        self.leverage = Decimal(str(risk_cfg.get("leverage", 1)))
         self.use_initial_capital_for_risk = bool(risk_cfg.get("use_initial_capital_for_risk", True))
         
-        # Store initial capital for risk calculation
         backtest_cfg = config.get("backtest", {})
         self.initial_capital = Decimal(str(backtest_cfg.get("initial_balance", 10000)))
 
-        # TP percentages (how much to close at each level)
-        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
-        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
-        # TP3 closes 100% remaining
+        # TP percentages
+        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))
+        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))
 
     # -------------------------
     # Position Sizing
@@ -93,63 +83,31 @@ class PortfolioManager:
     def _calculate_position_size(
         self, balance: Decimal, entry_price: Decimal, sl_price: Optional[Decimal]
     ) -> Decimal:
-        """
-        Calculate position size for futures trading with leverage.
-        
-        Risk-Based Formula (Futures):
-            risk_capital = initial_capital (or current balance)
-            risk_amount = risk_capital * risk_per_trade_pct
-            sl_distance_pct = |entry_price - sl_price| / entry_price
-            position_notional = risk_amount / sl_distance_pct
-            position_size = position_notional / entry_price
-            margin_required = position_notional / leverage
-        
-        The position size represents the notional value of the trade.
-        With leverage, you only need (notional / leverage) as margin.
-        
-        Example (10x leverage, 2% risk, $10k capital, 5% SL):
-            risk_amount = $10,000 * 0.02 = $200
-            position_notional = $200 / 0.05 = $4,000
-            margin_required = $4,000 / 10 = $400
-            position_size = $4,000 / entry_price
-        """
-        # Determine risk capital (initial capital or current balance)
         if self.use_initial_capital_for_risk:
             risk_capital = self.initial_capital
         else:
             risk_capital = balance
         
-        # Max margin we can use (based on current balance and leverage)
         max_margin = balance * self.max_position_size_pct
         max_notional = max_margin * self.leverage
         max_amount = max_notional / entry_price
         
-        # Use risk-based sizing if enabled and SL is provided
         if self.use_risk_based_sizing and sl_price is not None and sl_price > Decimal("0"):
             sl_distance = abs(entry_price - sl_price)
             sl_distance_pct = sl_distance / entry_price
             
-            # SAFETY: If SL distance is too small, use fallback sizing
             if sl_distance_pct < self.min_sl_distance_pct:
                 print(f"  [WARNING] SL distance too small ({sl_distance_pct*100:.2f}% < {self.min_sl_distance_pct*100:.0f}%). Using max position size cap.")
                 return max_amount
             
             if sl_distance_pct > Decimal("0"):
-                # Risk amount in quote currency (based on initial capital)
                 risk_amount = risk_capital * self.risk_per_trade_pct
-                
-                # Position notional to risk exactly risk_amount if SL hits
                 position_notional = risk_amount / sl_distance_pct
                 position_size = position_notional / entry_price
                 
-                # Margin required for this position
-                margin_required = position_notional / self.leverage
-                
-                # Cap at max position size (based on available margin * leverage)
                 final_size = min(position_size, max_amount)
                 was_capped = position_size > max_amount
                 
-                # Calculate actual risk if capped
                 if was_capped:
                     actual_notional = final_size * entry_price
                     actual_risk = actual_notional * sl_distance_pct
@@ -157,7 +115,6 @@ class PortfolioManager:
                 
                 return final_size
         
-        # Fallback: use max_position_size_pct with leverage
         return max_amount
 
     # -------------------------
@@ -172,23 +129,35 @@ class PortfolioManager:
     def get_position(self, symbol: str) -> Optional[Position]:
         return self.positions.get(symbol)
 
+    def close_position(self, symbol: str, percentage: Decimal) -> None:
+        """Close percentage of position (0.0 - 1.0)."""
+        if symbol not in self.positions:
+            return
+        if percentage >= Decimal("1.0"):
+            self._handle_full_sell(symbol)
+        else:
+            # Implement partial close if needed, reusing execute_partial_close logic manually
+            pos = self.positions[symbol]
+            amount = pos.amount * percentage
+            if amount > 0:
+                self.exchange.create_order(symbol, "MARKET", "SELL", amount, exit_reason="MANUAL_PARTIAL")
+                pos.amount -= amount
+                if pos.amount <= Decimal("0"):
+                    self.positions.pop(symbol, None)
+
     def sync_from_exchange(self) -> None:
-        """
-        Make portfolio positions consistent with exchange positions.
-        If SL filled inside exchange, exchange.positions will no longer have symbol.
-        """
         if not hasattr(self.exchange, "positions"):
             return
-
+        # Sync simple position existence
+        # Note: In real futures exchange, get_position returns details.
+        # MockExchange.positions is just symbol->amount.
+        # We need to trust internal state mostly but verify if closed externally.
         for sym in list(self.positions.keys()):
-            if sym not in self.exchange.positions:
+            pos_data = self.exchange.get_position(sym)
+            if not pos_data or pos_data['amount'] == 0:
                 self.positions.pop(sym, None)
 
     def _move_sl_to_entry(self, symbol: str) -> bool:
-        """
-        Move SL to entry price for the remaining position.
-        Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
-        """
         if symbol not in self.positions:
             return False
 
@@ -198,73 +167,58 @@ class PortfolioManager:
 
         entry = pos.entry_price
 
-        # 1) Prefer exchange function if exists (MockExchange patch)
+        # Prefer place_stop_loss or update mechanism
+        # For parity with old code that tried `update_stop_loss_to_entry` on MockExchange:
         fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
         if callable(fn):
             ok = bool(fn(symbol))
             if ok:
                 return True
 
-        # 2) Otherwise try generic update_stop_loss(symbol, new_price)
-        fn2 = getattr(self.exchange, "update_stop_loss", None)
-        if callable(fn2):
-            try:
-                ok = bool(fn2(symbol, entry))
-                if ok:
-                    return True
-            except Exception:
-                pass
-
-        # 3) Fallback: cancel existing SL order and re-create LIMIT at entry
+        # Fallback: cancel and replace
         if pos.sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.sl_order_id, symbol)
-            except Exception:
-                pass
+            self.exchange.cancel_order(pos.sl_order_id, symbol)
             pos.sl_order_id = None
 
-        new_sl_order = self.exchange.create_order(
-            symbol=symbol,
-            order_type="LIMIT",
-            side="SELL",
-            amount=pos.amount,
-            price=entry,
-            exit_reason="MOVE_SL_TO_ENTRY",
-        )
-        if new_sl_order:
-            pos.sl_order_id = new_sl_order.get("id")
+        sl_order = self.exchange.place_stop_loss(symbol, pos.amount, entry)
+        if sl_order:
+            pos.sl_order_id = sl_order.get("id")
             return True
 
         return False
 
     # -------------------------
-    # Main entry
+    # Logic
     # -------------------------
-    def on_signal(self, signal: SignalEvent):
+    def on_candle(self, candle: Candle) -> None:
         """
-        Process a trading signal.
-        - BUY: open position + place SL limit
-        - SELL:
-            + TP1/TP2/TP3 partial/full close
-            + MOVE_SL_TO_ENTRY: only move SL to entry, do not sell
-            + Otherwise: full close
+        Check for CANDLE_CLOSE exits.
         """
-        # IMPORTANT: always sync first (SL may have closed the position)
+        if candle.symbol not in self.positions:
+            return
+
+        pos = self.positions[candle.symbol]
+
+        # SL Logic for CANDLE_CLOSE
+        if pos.sl_trigger == ExitTrigger.CANDLE_CLOSE and pos.sl_price:
+            # Assuming LONG positions only for now as per strategy
+            if pos.side == "BUY" and candle.close <= pos.sl_price:
+                self._handle_full_sell(candle.symbol, price=candle.close)
+                # print(f"CANDLE_CLOSE SL triggered for {candle.symbol} at {candle.close}")
+
+    def on_signal(self, signal: SignalEvent, risk_params: Optional[RiskParams] = None) -> None:
         self.sync_from_exchange()
 
         if signal.signal_type == "BUY":
             balance = self.sync_balance()
-            return self._handle_buy_signal(signal, balance)
+            return self._handle_buy_signal(signal, balance, risk_params)
 
         if signal.signal_type == "SELL":
-            # If SL already closed it, just ignore quietly
             if signal.symbol not in self.positions:
                 return None
 
             reason = (signal.reason or "").strip().upper()
 
-            # --- special SELL: move SL only ---
-            # any of these reason keywords will just move SL to entry
             if (
                 "MOVE_SL_TO_ENTRY" in reason
                 or "SL_TO_ENTRY" in reason
@@ -274,7 +228,6 @@ class PortfolioManager:
                 self._move_sl_to_entry(signal.symbol)
                 return None
 
-            # --- TP partial closes ---
             if reason.startswith("TP1"):
                 return self.execute_partial_close(signal.symbol, "TP1")
             if reason.startswith("TP2"):
@@ -282,15 +235,11 @@ class PortfolioManager:
             if reason.startswith("TP3"):
                 return self.execute_partial_close(signal.symbol, "TP3")
 
-            # Any other SELL -> close full
             return self._handle_full_sell(signal.symbol, price=signal.price)
 
         return None
 
-    # -------------------------
-    # BUY logic
-    # -------------------------
-    def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
+    def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal, risk_params: Optional[RiskParams]):
         if signal.symbol in self.positions:
             return None
 
@@ -298,10 +247,8 @@ class PortfolioManager:
         if price <= Decimal("0"):
             return None
 
-        # Position sizing
         amount = self._calculate_position_size(balance, price, signal.sl_price)
 
-        # Execute market BUY
         order = self.exchange.create_order(
             symbol=signal.symbol,
             order_type="MARKET",
@@ -311,7 +258,10 @@ class PortfolioManager:
         if not order:
             return None
 
-        # Create position record
+        # Determine triggers
+        sl_trigger = risk_params.sl_trigger if risk_params else ExitTrigger.LIMIT_ORDER
+        tp_trigger = risk_params.tp_trigger if risk_params else ExitTrigger.WICK
+
         self.positions[signal.symbol] = Position(
             symbol=signal.symbol,
             amount=amount,
@@ -322,36 +272,37 @@ class PortfolioManager:
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,
+            sl_trigger=sl_trigger,
+            tp_trigger=tp_trigger,
         )
 
-        # Place SL limit order if provided
+        # Handle SL
         if signal.sl_price is not None:
-            sl_order = self.exchange.create_order(
-                symbol=signal.symbol,
-                order_type="LIMIT",
-                side="SELL",
-                amount=amount,
-                price=signal.sl_price,
-                exit_reason="STOP_LOSS",
-            )
-            if sl_order:
-                self.positions[signal.symbol].sl_order_id = sl_order.get("id")
+            if sl_trigger == ExitTrigger.LIMIT_ORDER:
+                # Place standard STOP_LOSS order
+                sl_order = self.exchange.place_stop_loss(signal.symbol, amount, signal.sl_price)
+                if sl_order:
+                    self.positions[signal.symbol].sl_order_id = sl_order.get("id")
+
+            elif sl_trigger == ExitTrigger.CANDLE_CLOSE:
+                # Place Disaster SL if configured
+                if risk_params and risk_params.disaster_sl_price:
+                    sl_order = self.exchange.place_stop_loss(signal.symbol, amount, risk_params.disaster_sl_price)
+                    # We don't track this as the primary sl_order_id because we don't want to move it to entry usually?
+                    # Or maybe we do? Strategy says "Disaster SL (3x distance)".
+                    # For now, we fire and forget or track it?
+                    # The portfolio assumes `sl_order_id` is THE stop loss.
+                    if sl_order:
+                        self.positions[signal.symbol].sl_order_id = sl_order.get("id")
 
         return order
 
-    # -------------------------
-    # SELL logic
-    # -------------------------
     def _handle_full_sell(self, symbol: str, price: Decimal = None):
-        """
-        Close entire remaining position at market and cleanup.
-        """
         if symbol not in self.positions:
             return None
         
         pos = self.positions[symbol]
 
-        # Cancel SL order if any
         if pos.sl_order_id:
             self.exchange.cancel_order(pos.sl_order_id, symbol)
 
@@ -371,12 +322,6 @@ class PortfolioManager:
         return None
 
     def execute_partial_close(self, symbol: str, tp_level: str):
-        """
-        Execute partial close for TP levels:
-        - TP1: close tp1_close_pct of current amount, then move SL to entry on remaining
-        - TP2: close tp2_close_pct of remaining
-        - TP3: close all remaining
-        """
         self.sync_from_exchange()
 
         if symbol not in self.positions:
@@ -423,7 +368,6 @@ class PortfolioManager:
         if tp_level == "TP1" and pos.amount > Decimal("0"):
             self._move_sl_to_entry(symbol)
 
-        # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
             if pos.sl_order_id:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)

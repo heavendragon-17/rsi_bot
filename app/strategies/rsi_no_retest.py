@@ -26,6 +26,7 @@ from app.strategies.base import BaseStrategy
 from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent
+from app.core.risk_types import RiskParams, ExitTrigger, TPLevel
 from app.core.context import StrategyContext, SCANNING, CONFIRMING
 
 
@@ -359,3 +360,20 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         self.context.transition(key, SCANNING, reason="Unknown state reset", now_ts=ts)
         return None
+
+    def get_risk_params(self, signal: SignalEvent) -> RiskParams:
+        """
+        Get risk configuration for a specific signal.
+        Parity config: LIMIT_ORDER for SL (places real order), WICK for TP (strategy managed).
+        """
+        tp_levels = []
+        if signal.tp1_price:
+            tp_levels.append(TPLevel(price=signal.tp1_price, percentage=Decimal("1.0")))
+
+        return RiskParams(
+            sl_price=signal.sl_price,
+            tp_levels=tp_levels,
+            sl_trigger=ExitTrigger.LIMIT_ORDER,
+            tp_trigger=ExitTrigger.WICK,
+            disaster_sl_price=None
+        )

@@ -13,7 +13,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Optional, Dict, Any, List, Sequence
 
-from app.core.interfaces import IExchange
+from app.core.interfaces import IFuturesExchange
 
 
 def to_decimal(val) -> Decimal:
@@ -41,7 +41,7 @@ def _base_asset(symbol: str) -> str:
     return s.strip()
 
 
-class MockExchange(IExchange):
+class MockExchange(IFuturesExchange):
     def __init__(self, initial_balance: float = 1000.0, leverage: int = 1):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.leverage = Decimal(str(leverage))  # Futures leverage
@@ -183,6 +183,21 @@ class MockExchange(IExchange):
 
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         return []  # not used in push-based backtest
+
+    def set_leverage(self, symbol: str, leverage: int) -> bool:
+        self.leverage = Decimal(str(leverage))
+        return True
+
+    def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
+        amount = self.positions.get(symbol, Decimal("0"))
+        if amount <= 0:
+            return None
+        return {
+            "symbol": symbol,
+            "amount": amount,
+            "entry_price": self.entry_prices.get(symbol),
+            "leverage": self.leverage
+        }
 
     def place_stop_loss(self, symbol: str, amount, trigger_price) -> Dict:
         """Place a stop loss order."""

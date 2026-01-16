@@ -1,17 +1,18 @@
 """
 Clean Architecture Interfaces
 Layer 1: Data Ingestion  - IDataProvider, IDataStore
-Layer 2: Core Logic      - IStrategy, IIndicators  
-Layer 3: Execution       - IExchange, IPortfolio
+Layer 2: Core Logic      - IStrategy, IIndicators
+Layer 3: Execution       - IFuturesExchange, IPortfolio
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Optional, Dict, Any, List, Sequence
+from typing import Optional, Dict, Any, List, Sequence, Iterable
 import pandas as pd
 
 from app.core.events import Candle, SignalEvent, MarketEvent
+from app.core.risk_types import RiskParams
 
 
 # ============================================
@@ -20,12 +21,12 @@ from app.core.events import Candle, SignalEvent, MarketEvent
 
 class IDataProvider(ABC):
     """Interface for market data providers (websocket streams, REST APIs)."""
-    
+
     @abstractmethod
     def subscribe(self, symbols: List[str]) -> None:
         """Subscribe to market data for given symbols."""
         pass
-    
+
     @abstractmethod
     def unsubscribe(self, symbols: List[str]) -> None:
         """Unsubscribe from market data."""
@@ -34,12 +35,12 @@ class IDataProvider(ABC):
 
 class IDataStore(ABC):
     """Interface for storing and retrieving candle data."""
-    
+
     @abstractmethod
     def update_candle(self, candle: Candle) -> None:
         """Update or append candle data."""
         pass
-    
+
     @abstractmethod
     def get_dataframe(self, symbol: str) -> Optional[pd.DataFrame]:
         """Get candle data as DataFrame for a symbol."""
@@ -52,22 +53,22 @@ class IDataStore(ABC):
 
 class IIndicators(ABC):
     """Interface for technical indicator calculations."""
-    
+
     @abstractmethod
     def compute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """Compute all indicators and return DataFrame with new columns."""
         pass
-    
+
     @abstractmethod
     def get_mode(self, df: pd.DataFrame) -> str:
         """Get current market mode (BULLISH, NEUTRAL)."""
         pass
-    
+
     @abstractmethod
     def check_wma_retest(self, df: pd.DataFrame, distance: float) -> bool:
         """Check if RSI is retesting WMA45 within distance."""
         pass
-    
+
     @abstractmethod
     def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Decimal:
         """Calculate the price level for a target RSI value."""
@@ -76,10 +77,15 @@ class IIndicators(ABC):
 
 class IStrategy(ABC):
     """Interface for trading strategies."""
-    
+
     @abstractmethod
     def analyze(self, symbol: str, df: pd.DataFrame) -> Optional[SignalEvent]:
         """Analyze market data and return signal if conditions are met."""
+        pass
+
+    @abstractmethod
+    def get_risk_params(self, signal: SignalEvent) -> RiskParams:
+        """Get risk configuration for a specific signal."""
         pass
 
 
@@ -87,9 +93,9 @@ class IStrategy(ABC):
 # Layer 3: Execution Interfaces
 # ============================================
 
-class IExchange(ABC):
-    """Interface for exchange operations."""
-    
+class IFuturesExchange(ABC):
+    """Interface for futures exchange operations."""
+
     @abstractmethod
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         """
@@ -100,12 +106,13 @@ class IExchange(ABC):
 
     @abstractmethod
     def create_order(
-        self, 
-        symbol: str, 
-        order_type: str, 
-        side: str, 
-        amount: Decimal, 
-        price: Optional[Decimal] = None
+        self,
+        symbol: str,
+        order_type: str,
+        side: str,
+        amount: Decimal,
+        price: Optional[Decimal] = None,
+        exit_reason: str = None
     ) -> Optional[Dict[str, Any]]:
         """
         Execute an order.
@@ -128,26 +135,46 @@ class IExchange(ABC):
         Convenience method: return balance of a single asset.
         """
         pass
-    
+
     @abstractmethod
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel an open order."""
         pass
 
+    @abstractmethod
+    def set_leverage(self, symbol: str, leverage: int) -> bool:
+        """Set leverage for a symbol."""
+        pass
+
+    @abstractmethod
+    def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get current position details for a symbol."""
+        pass
+
+    @abstractmethod
+    def place_stop_loss(self, symbol: str, amount: Decimal, trigger_price: Decimal) -> Optional[Dict[str, Any]]:
+        """Place a Stop Loss order."""
+        pass
+
 
 class IPortfolio(ABC):
     """Interface for portfolio management."""
-    
+
     @abstractmethod
-    def on_signal(self, signal: SignalEvent) -> None:
+    def on_signal(self, signal: SignalEvent, risk_params: Optional[RiskParams] = None) -> None:
         """Process a trading signal."""
         pass
-    
+
+    @abstractmethod
+    def on_candle(self, candle: Candle) -> None:
+        """Process candle close updates (for Candle-Close exits)."""
+        pass
+
     @abstractmethod
     def has_position(self, symbol: str) -> bool:
         """Check if there's an open position for symbol."""
         pass
-    
+
     @abstractmethod
     def close_position(self, symbol: str, percentage: Decimal) -> None:
         """Close percentage of position (0.0 - 1.0)."""

@@ -9,7 +9,7 @@ import numpy as np
 from decimal import Decimal
 from app.core.events import Candle, SignalEvent
 from app.core.portfolio import PortfolioManager
-from app.backtest.mock_exchange import MockExchange
+from app.services.execution.exchange_factory import create_exchange
 from app.core.context import SCANNING
 from app.utils.indicators import Indicators
 
@@ -22,11 +22,12 @@ class BacktestEngine:
         self.symbol = config["symbols"][0]
 
         # Get backtest and risk settings
-        initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         leverage = config.get("risk", {}).get("leverage", 1)
         
         # Initialize exchange with leverage
-        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
+        self.exchange = create_exchange(config)
+        self.exchange.set_leverage(self.symbol, leverage)
+
         self.portfolio = PortfolioManager(self.exchange, config)
         self.strategy = strategy_class(config)
         
@@ -58,11 +59,31 @@ class BacktestEngine:
             row = self._full_df.iloc[i]
             ts = self._full_df.index[i]
             o, h, l, c = row["open"], row["high"], row["low"], row["close"]
+            v = row.get("volume", 0)
 
-            # Update exchange with full OHLC (checks pending SL/TP against wicks)
-            executed_orders = self.exchange.update_candle(
-                self.symbol, float(o), float(h), float(l), float(c), ts
+            # 1. Update Portfolio on candle close
+            candle = Candle(
+                symbol=self.symbol,
+                timestamp=ts,
+                open=Decimal(str(o)),
+                high=Decimal(str(h)),
+                low=Decimal(str(l)),
+                close=Decimal(str(c)),
+                volume=Decimal(str(v)),
+                closed=True
             )
+            self.portfolio.on_candle(candle)
+
+            # 2. Update exchange with full OHLC (checks pending SL/TP against wicks)
+            # Only if exchange supports update_candle (MockExchange)
+            executed_orders = []
+            if hasattr(self.exchange, "update_candle"):
+                executed_orders = self.exchange.update_candle(
+                    self.symbol, float(o), float(h), float(l), float(c), ts
+                )
+            else:
+                # Fallback or stub for adapters that don't simulate matching
+                pass
 
             # Handle executed SL orders
             for order in executed_orders:
@@ -82,7 +103,8 @@ class BacktestEngine:
             signal = self.strategy.analyze(self.symbol, df_slice)
 
             if signal:
-                self.portfolio.on_signal(signal)
+                risk_params = self.strategy.get_risk_params(signal)
+                self.portfolio.on_signal(signal, risk_params)
 
         # Close any open positions at final price for accurate reporting
         self._close_open_positions()

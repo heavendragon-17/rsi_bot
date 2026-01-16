@@ -2,11 +2,11 @@ import os
 import ccxt
 import pandas as pd
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Iterable, Sequence
 
-from app.core.interfaces import IExchange
+from app.core.interfaces import IFuturesExchange
 
-class BinanceAdapter(IExchange):
+class BinanceAdapter(IFuturesExchange):
     """
     Binance adapter using CCXT.
 
@@ -81,7 +81,7 @@ class BinanceAdapter(IExchange):
 
     # ---------- required interface methods ----------
 
-    def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> List[List[Any]]:
+    def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         """
         Returns list of candles:
         [timestamp(ms), open, high, low, close, volume]
@@ -94,7 +94,15 @@ class BinanceAdapter(IExchange):
 
         return self.client.fetch_ohlcv(symbol, timeframe, limit=limit)
 
-    def create_order(self, symbol: str, order_type: str, side: str, amount: Decimal, price: Optional[Decimal] = None):
+    def create_order(
+        self,
+        symbol: str,
+        order_type: str,
+        side: str,
+        amount: Decimal,
+        price: Optional[Decimal] = None,
+        exit_reason: str = None
+    ) -> Optional[Dict[str, Any]]:
         symbol = self._normalize_symbol(symbol)
 
         # CCXT wants float for amount/price typically
@@ -102,9 +110,12 @@ class BinanceAdapter(IExchange):
         prc = None if price is None else (float(price) if isinstance(price, Decimal) else float(Decimal(str(price))))
 
         params: Dict[str, Any] = {}
+        if exit_reason:
+            params['newClientOrderId'] = f"bot_{exit_reason}_{int(pd.Timestamp.now().timestamp())}"[:36]
+
         return self.client.create_order(symbol, order_type, side, amt, prc, params)
 
-    def get_balances(self, coins: Optional[List[str]] = None) -> Dict[str, Decimal]:
+    def get_balances(self, coins: Optional[Iterable[str]] = None) -> Dict[str, float]:
         """
         Return balances for a list of coins.
         If coins is None -> return all non-zero balances.
@@ -132,25 +143,18 @@ class BinanceAdapter(IExchange):
                 out[coin] = dv
         return out
 
-    def get_balance_of(self, assets: List[str]) -> Dict[str, Decimal]:
+    def get_balance_of(self, asset: str) -> float:
         """
-        REQUIRED by your IExchange (based on earlier error).
-
-        Example:
-          get_balance_of(["USDT", "BTC", "ETH"])
-          -> {"USDT": Decimal("123.4"), "BTC": Decimal("0.01"), "ETH": Decimal("0")}
+        Return balance of a single asset.
         """
-        assets_norm = [a.strip().upper() for a in assets if a and a.strip()]
-        if not assets_norm:
-            return {}
+        asset = asset.strip().upper()
+        if not asset:
+            return 0.0
 
-        bal = self._fetch_balances_raw()
+        bal = self.client.fetch_balance()
         totals = bal.get("total") or {}
-
-        out: Dict[str, Decimal] = {}
-        for a in assets_norm:
-            out[a] = Decimal(str(totals.get(a, 0) or 0))
-        return out
+        val = totals.get(asset) or 0.0
+        return float(val)
     
     def fetch_candles_df_multi(
         self,
@@ -203,3 +207,42 @@ class BinanceAdapter(IExchange):
             # You can replace print with logger if you have one
             print(f"BinanceAdapter.cancel_order failed: order_id={order_id}, symbol={symbol}, err={e}")
             return False
+
+    def set_leverage(self, symbol: str, leverage: int) -> bool:
+        symbol = self._normalize_symbol(symbol)
+        try:
+            self.client.set_leverage(leverage, symbol)
+            return True
+        except Exception:
+            return False
+
+    def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
+        symbol = self._normalize_symbol(symbol)
+        try:
+            positions = self.client.fetch_positions([symbol])
+            if not positions:
+                return None
+            # Find the one matching symbol (sometimes return list of all)
+            for p in positions:
+                if p['symbol'] == symbol:
+                    amt = float(p.get('contracts', 0))
+                    if amt == 0:
+                        return None
+                    return {
+                        "symbol": symbol,
+                        "amount": Decimal(str(amt)),
+                        "entry_price": Decimal(str(p.get('entryPrice', 0))),
+                        "leverage": Decimal(str(p.get('leverage', 1))),
+                        "side": p.get('side').upper() if p.get('side') else None
+                    }
+            return None
+        except Exception:
+            return None
+
+    def place_stop_loss(self, symbol: str, amount: Decimal, trigger_price: Decimal) -> Optional[Dict[str, Any]]:
+        symbol = self._normalize_symbol(symbol)
+        params = {
+            'stopPrice': float(trigger_price)
+        }
+        # Assuming SELL Stop Loss for LONG position
+        return self.create_order(symbol, "STOP_MARKET", "SELL", amount, None)
