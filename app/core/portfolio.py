@@ -12,22 +12,17 @@ Extra:
 - Strategy can emit SELL with reason like:
   "MOVE_SL_TO_ENTRY", "SL_TO_ENTRY", "BREAKEVEN", "MOVE_SL"
   -> PortfolioManager will ONLY move SL to entry (no market sell).
-  
-New in v2:
-- on_candle() method checks SL/TP on candle close (not wicks)
-- Disaster SL placed on exchange at 3x risk level
 """
 
 from __future__ import annotations
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from decimal import Decimal
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 from app.core.interfaces import IExchange
-from app.core.events import SignalEvent, Candle
-from app.core.risk_types import RiskParams, ExitTrigger, TPLevel
+from app.core.events import SignalEvent
 
 
 @dataclass
@@ -38,7 +33,7 @@ class Position:
     symbol: str
     amount: Decimal
     entry_price: Decimal
-    side: str  # 'LONG' or 'SHORT'
+    side: str  # 'BUY' (Long)
     timestamp: datetime
 
     # TP/SL prices (from SignalEvent)
@@ -49,15 +44,11 @@ class Position:
 
     # Order tracking
     sl_order_id: Optional[str] = None
-    disaster_sl_order_id: Optional[str] = None  # 3x backup SL on exchange
 
     # TP hit flags
     tp1_hit: bool = False
     tp2_hit: bool = False
     tp3_hit: bool = False
-    
-    # Risk params from strategy
-    risk_params: Optional[RiskParams] = None
 
 
 class PortfolioManager:
@@ -193,161 +184,6 @@ class PortfolioManager:
             if sym not in self.exchange.positions:
                 self.positions.pop(sym, None)
 
-    # -------------------------
-    # Candle-Close SL/TP Checking
-    # -------------------------
-    def on_candle(self, candle: Candle) -> List[dict]:
-        """
-        Check open positions for SL/TP on candle close.
-        
-        This method is called on every candle close by the engine.
-        It checks positions based on the strategy's ExitTrigger setting.
-        
-        Returns: List of execution events (for logging).
-        """
-        executions = []
-        symbol = candle.symbol
-        
-        if symbol not in self.positions:
-            return executions
-        
-        pos = self.positions[symbol]
-        close_price = candle.close
-        
-        # Check SL (if candle-close trigger)
-        if self._should_stop_loss(pos, close_price):
-            exec_event = self._execute_sl_on_candle(pos, candle)
-            if exec_event:
-                executions.append(exec_event)
-            return executions  # Position closed, skip TP check
-        
-        # Check TPs (if candle-close trigger)
-        tp_execs = self._check_tps_on_candle(pos, candle)
-        executions.extend(tp_execs)
-        
-        return executions
-    
-    def _should_stop_loss(self, pos: Position, close_price: Decimal) -> bool:
-        """Check if SL should trigger based on candle close."""
-        if pos.sl_price is None:
-            return False
-        
-        # Check if risk_params uses candle_close trigger
-        if pos.risk_params and pos.risk_params.sl_trigger != ExitTrigger.CANDLE_CLOSE:
-            return False  # Not using candle-close SL
-        
-        # Side-aware SL check
-        if pos.side == 'LONG' or pos.side == 'BUY':
-            return close_price <= pos.sl_price
-        else:  # SHORT
-            return close_price >= pos.sl_price
-    
-    def _execute_sl_on_candle(self, pos: Position, candle: Candle) -> Optional[dict]:
-        """Execute SL exit and cleanup."""
-        symbol = pos.symbol
-        
-        # Cancel disaster SL on exchange (we're exiting via code)
-        if pos.disaster_sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.disaster_sl_order_id, symbol)
-            except Exception:
-                pass
-        
-        # Cancel any pending SL order
-        if pos.sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.sl_order_id, symbol)
-            except Exception:
-                pass
-        
-        # Execute market close
-        close_side = 'SELL' if pos.side in ('LONG', 'BUY') else 'BUY'
-        order = self.exchange.create_order(
-            symbol=symbol,
-            order_type='MARKET',
-            side=close_side,
-            amount=pos.amount,
-            price=candle.close,
-            exit_reason='SL_CANDLE_CLOSE',
-        )
-        
-        if order:
-            self.positions.pop(symbol, None)
-            return {
-                'type': 'SL',
-                'symbol': symbol,
-                'price': float(candle.close),
-                'amount': float(pos.amount),
-                'reason': 'SL_CANDLE_CLOSE',
-            }
-        return None
-    
-    def _check_tps_on_candle(self, pos: Position, candle: Candle) -> List[dict]:
-        """Check and execute TP levels based on candle close."""
-        executions = []
-        
-        if not pos.risk_params:
-            return executions
-        
-        if pos.risk_params.tp_trigger != ExitTrigger.CANDLE_CLOSE:
-            return executions
-        
-        close_price = candle.close
-        symbol = pos.symbol
-        
-        for tp in pos.risk_params.tp_levels:
-            if tp.executed:
-                continue
-            
-            # Calculate TP price from percentage
-            tp_price = pos.entry_price * (Decimal('1') + tp.price_pct)
-            
-            # Side-aware TP check
-            is_long = pos.side in ('LONG', 'BUY')
-            tp_hit = (close_price >= tp_price) if is_long else (close_price <= tp_price)
-            
-            if tp_hit:
-                close_amount = pos.amount * tp.size_pct
-                close_side = 'SELL' if is_long else 'BUY'
-                
-                order = self.exchange.create_order(
-                    symbol=symbol,
-                    order_type='MARKET',
-                    side=close_side,
-                    amount=close_amount,
-                    price=close_price,
-                    exit_reason=f'TP_CANDLE_CLOSE',
-                )
-                
-                if order:
-                    tp.executed = True
-                    pos.amount -= close_amount
-                    
-                    executions.append({
-                        'type': 'TP',
-                        'symbol': symbol,
-                        'price': float(close_price),
-                        'amount': float(close_amount),
-                        'reason': 'TP_CANDLE_CLOSE',
-                    })
-                    
-                    # If position fully closed, cleanup
-                    if pos.amount <= Decimal('0.00000001'):
-                        if pos.disaster_sl_order_id:
-                            try:
-                                self.exchange.cancel_order(pos.disaster_sl_order_id, symbol)
-                            except Exception:
-                                pass
-                        if pos.sl_order_id:
-                            try:
-                                self.exchange.cancel_order(pos.sl_order_id, symbol)
-                            except Exception:
-                                pass
-                        self.positions.pop(symbol, None)
-                        break
-        
-        return executions
-
     def _move_sl_to_entry(self, symbol: str) -> bool:
         """
         Move SL to entry price for the remaining position.
@@ -404,7 +240,7 @@ class PortfolioManager:
     # -------------------------
     # Main entry
     # -------------------------
-    def on_signal(self, signal: SignalEvent, risk_params: Optional[RiskParams] = None):
+    def on_signal(self, signal: SignalEvent):
         """
         Process a trading signal.
         - BUY: open position + place SL limit
@@ -418,7 +254,7 @@ class PortfolioManager:
 
         if signal.signal_type == "BUY":
             balance = self.sync_balance()
-            return self._handle_buy_signal(signal, balance, risk_params)
+            return self._handle_buy_signal(signal, balance)
 
         if signal.signal_type == "SELL":
             # If SL already closed it, just ignore quietly
@@ -454,7 +290,7 @@ class PortfolioManager:
     # -------------------------
     # BUY logic
     # -------------------------
-    def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal, risk_params: Optional[RiskParams] = None):
+    def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
         if signal.symbol in self.positions:
             return None
 
@@ -475,34 +311,21 @@ class PortfolioManager:
         if not order:
             return None
 
-        # Create position record with risk_params
+        # Create position record
         self.positions[signal.symbol] = Position(
             symbol=signal.symbol,
             amount=amount,
             entry_price=price,
-            side="LONG",  # Updated from "BUY" to "LONG"
+            side="BUY",
             timestamp=signal.timestamp,
             tp1_price=signal.tp1_price,
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,
-            risk_params=risk_params,  # Store strategy's risk params
         )
 
-        # Place disaster SL on exchange (3x normal SL) if risk_params provided
-        if risk_params and signal.sl_price is not None:
-            disaster_sl_distance = abs(price - signal.sl_price) * Decimal(str(risk_params.disaster_sl_multiplier))
-            disaster_sl_price = price - disaster_sl_distance if signal.sl_price < price else price + disaster_sl_distance
-            
-            if hasattr(self.exchange, 'place_stop_loss'):
-                disaster_sl_id = self.exchange.place_stop_loss(
-                    signal.symbol, amount, disaster_sl_price
-                )
-                if disaster_sl_id:
-                    self.positions[signal.symbol].disaster_sl_order_id = disaster_sl_id
-        
-        # For backward compatibility: place regular SL if no risk_params (old flow)
-        elif signal.sl_price is not None and risk_params is None:
+        # Place SL limit order if provided
+        if signal.sl_price is not None:
             sl_order = self.exchange.create_order(
                 symbol=signal.symbol,
                 order_type="LIMIT",

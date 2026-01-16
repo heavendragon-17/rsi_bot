@@ -4,8 +4,7 @@ Backtest Mock Exchange (Futures with Leverage)
 ==============================================
 Simulates a futures exchange for backtesting with:
 - Leverage support (margin-based trading)
-- Wick-based SL/TP checking (for disaster SL only)
-- Candle-close SL/TP now handled by PortfolioManager
+- Wick-based SL/TP checking
 - Decimal precision
 """
 
@@ -14,7 +13,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Optional, Dict, Any, List, Sequence
 
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 
 
 def to_decimal(val) -> Decimal:
@@ -42,8 +41,8 @@ def _base_asset(symbol: str) -> str:
     return s.strip()
 
 
-class MockExchange(IFuturesExchange):
-    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1, fee_config: dict = None):
+class MockExchange(IExchange):
+    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.leverage = Decimal(str(leverage))  # Futures leverage
 
@@ -63,10 +62,6 @@ class MockExchange(IFuturesExchange):
         # Pending orders: order_id -> order details
         self.pending_orders: Dict[str, Dict] = {}
         self._order_counter = 0
-        
-        # Fee tracking
-        self.fee_config = fee_config or {}
-        self.total_fees_paid = Decimal("0")
 
     def _next_order_id(self) -> str:
         self._order_counter += 1
@@ -178,62 +173,9 @@ class MockExchange(IFuturesExchange):
 
         return executed
 
-    def update_price(self, symbol: str, price, timestamp) -> List[Dict]:
-        """
-        Update current price. Checks disaster SL orders only.
-        Returns list of executed orders (if any).
-        """
+    def update_price(self, symbol: str, price, timestamp) -> None:
+        """Legacy method for compatibility."""
         self.current_prices[symbol] = {"price": to_decimal(price), "time": timestamp}
-        
-        # Check for disaster SL triggers (uses wick checking)
-        # For regular backtesting, this is called after on_candle
-        # so only disaster SL (3x) would still be pending
-        executed = []
-        orders_to_remove = []
-        
-        for order_id, order in list(self.pending_orders.items()):
-            if order.get("symbol") != symbol:
-                continue
-            
-            trigger_price = to_decimal(order.get("trigger_price") or order.get("price"))
-            current_price = to_decimal(price)
-            
-            # Only check disaster SL (STOP_LOSS orders)
-            if order.get("order_type") == "STOP_LOSS" and order.get("side") == "SELL":
-                if current_price <= trigger_price:
-                    result = self._execute_order(
-                        symbol=order["symbol"],
-                        side=order["side"],
-                        amount=to_decimal(order["amount"]),
-                        exec_price=trigger_price,
-                        timestamp=timestamp,
-                        order_type="STOP_LOSS",
-                        exit_reason="DISASTER_SL",
-                    )
-                    if result:
-                        executed.append(result)
-                        orders_to_remove.append(order_id)
-        
-        for oid in orders_to_remove:
-            self.pending_orders.pop(oid, None)
-        
-        return executed
-    
-    def set_leverage(self, symbol: str, leverage: int) -> bool:
-        """Set leverage for a symbol."""
-        self.leverage = Decimal(str(leverage))
-        return True
-    
-    def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Get current position for symbol."""
-        if symbol in self.positions and self.positions[symbol] > 0:
-            return {
-                'symbol': symbol,
-                'amount': float(self.positions[symbol]),
-                'side': 'LONG',
-                'entry_price': float(self.entry_prices.get(symbol, 0)),
-            }
-        return None
 
     # ============================================================
     # IExchange trading methods

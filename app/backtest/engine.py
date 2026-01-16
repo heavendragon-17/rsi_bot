@@ -1,53 +1,32 @@
 """
 Backtest Engine (Vectorized)
 ============================
-Runs strategy on historical data with candle-close based SL/TP checking.
+Runs strategy on historical data with wick-based SL/TP checking.
 Pre-computes all indicators once for O(n) performance.
-
-v2: Uses DI for exchange, on_candle() for SL/TP management.
 """
 import pandas as pd
 import numpy as np
 from decimal import Decimal
-from datetime import datetime
-
 from app.core.events import Candle, SignalEvent
 from app.core.portfolio import PortfolioManager
-from app.core.interfaces import IFuturesExchange
+from app.backtest.mock_exchange import MockExchange
 from app.core.context import SCANNING
 from app.utils.indicators import Indicators
-from app.services.execution.exchange_factory import create_exchange
 
 
 class BacktestEngine:
-    """
-    Backtest engine with dependency injection support.
-    
-    The engine:
-    1. Pre-computes all indicators
-    2. Loops through candles
-    3. Calls portfolio.on_candle() to check SL/TP on close
-    4. Calls strategy.analyze() for new signals
-    5. Executes signals via portfolio.on_signal()
-    """
-    
-    def __init__(
-        self, 
-        data_path: str, 
-        strategy_class, 
-        config: dict,
-        exchange: IFuturesExchange = None  # DI: inject exchange
-    ):
+    def __init__(self, data_path: str, strategy_class, config: dict):
         self.data = pd.read_csv(data_path)
         self.data["timestamp"] = pd.to_datetime(self.data["timestamp"])
         self.config = config
         self.symbol = config["symbols"][0]
 
-        # Use injected exchange or create via factory
-        if exchange is None:
-            exchange = create_exchange(config)
-        self.exchange = exchange
+        # Get backtest and risk settings
+        initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
+        leverage = config.get("risk", {}).get("leverage", 1)
         
+        # Initialize exchange with leverage
+        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
         self.portfolio = PortfolioManager(self.exchange, config)
         self.strategy = strategy_class(config)
         
@@ -70,8 +49,7 @@ class BacktestEngine:
     def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
         print(f"Initial balance: {self.exchange.get_balance()}")
-        if hasattr(self.exchange, 'leverage'):
-            print(f"Leverage: {self.exchange.leverage}x")
+        print(f"Leverage: {self.exchange.leverage}x")
 
         warmup_period = 220
         n_rows = len(self._full_df)
@@ -81,58 +59,42 @@ class BacktestEngine:
             ts = self._full_df.index[i]
             o, h, l, c = row["open"], row["high"], row["low"], row["close"]
 
-            # Create Candle event for this bar
-            candle = Candle(
-                symbol=self.symbol,
-                timestamp=ts if isinstance(ts, datetime) else pd.Timestamp(ts).to_pydatetime(),
-                open=Decimal(str(o)),
-                high=Decimal(str(h)),
-                low=Decimal(str(l)),
-                close=Decimal(str(c)),
-                volume=Decimal(str(row.get("volume", 0))),
-                closed=True
+            # Update exchange with full OHLC (checks pending SL/TP against wicks)
+            executed_orders = self.exchange.update_candle(
+                self.symbol, float(o), float(h), float(l), float(c), ts
             )
 
-            # 1. Portfolio checks SL/TP on candle close
-            executions = self.portfolio.on_candle(candle)
-            
-            # 2. Handle any executions (update strategy context)
-            for exec_event in executions:
-                if exec_event.get('type') == 'SL':
+            # Handle executed SL orders
+            for order in executed_orders:
+                if order['order_type'] == 'STOP_LOSS':
+                    if self.symbol in self.portfolio.positions:
+                        del self.portfolio.positions[self.symbol]
                     if hasattr(self.strategy, 'context') and self.strategy.context:
                         self.strategy.context.close_trade(self.symbol)
                         tf = getattr(self.strategy, 'timeframe', '')
                         key = f"{self.symbol}:{tf}"
                         self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
 
-            # 3. Update exchange price (for disaster SL checking only)
-            self.exchange.update_price(self.symbol, float(c), ts)
-            
-            # 4. Sync portfolio state
             self.portfolio.sync_from_exchange()
 
-            # 5. Strategy analyzes for new entry signals
+            # Pass pre-computed slice (indicators already calculated)
             df_slice = self._full_df.iloc[:i+1]
             signal = self.strategy.analyze(self.symbol, df_slice)
 
             if signal:
-                # Attach risk params to signal for position creation
-                risk_params = self.strategy.get_risk_params(signal)
-                self.portfolio.on_signal(signal, risk_params=risk_params)
+                self.portfolio.on_signal(signal)
 
         # Close any open positions at final price for accurate reporting
         self._close_open_positions()
 
         print("\nBacktest complete!")
         print(f"Final balance: {self.exchange.get_balance()}")
-        if hasattr(self.exchange, 'positions'):
-            print(f"Open positions: {dict(self.exchange.positions)}")
-        if hasattr(self.exchange, 'trade_history'):
-            print(f"Total trades: {len(self.exchange.trade_history)}")
+        print(f"Open positions: {dict(self.exchange.positions)}")
+        print(f"Total trades: {len(self.exchange.trade_history)}")
 
     def _close_open_positions(self) -> None:
         """Close all open positions at the last available price for accurate final reporting."""
-        if not hasattr(self.exchange, 'positions') or not self.exchange.positions:
+        if not self.exchange.positions:
             return
         
         last_row = self._full_df.iloc[-1]
@@ -151,5 +113,4 @@ class BacktestEngine:
                     price=final_price,
                     exit_reason='EOD'  # End of Data
                 )
-
 
