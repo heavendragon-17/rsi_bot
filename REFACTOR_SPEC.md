@@ -1,74 +1,96 @@
-# Refactoring Prompt: Legacy Cleanup & Float/Decimal Standardization
+# Refactoring Prompt: Multi-Symbol Concurrency & Thread Safety
 
 ## Objective
 
-Refactor the codebase to eliminate legacy order keys (replacing them with CCXT standard keys), remove deprecated methods, and establish a strict data type policy (Float for Exchange API, Decimal for Core Logic).
+Enable the trading bot to run multiple trading pairs simultaneously using a multi-threaded architecture. This requires ensuring the `MockExchange` (and core logic) is thread-safe to handle concurrent order placements and state updates from multiple strategy threads.
 
 ## Core Requirements
 
-1.  **CCXT Order Standardization:**
+1.  **Thread-Safe Exchange:**
 
-    - **Replace `exit_reason`:**
-      - CCXT does not have an `exit_reason` field.
-      - **Solution:** Store `exit_reason` inside the `info` dictionary of the order object (e.g., `order['info']['exit_reason']`).
-      - Update `PortfolioManager` and `BacktestReporter` to read/write from `info['exit_reason']`.
-    - **Replace `trigger_price`:**
-      - Rename to `stopPrice` (CCXT standard) or `triggerPrice` (CCXT unified). **Decision:** Use `triggerPrice` as per modern CCXT unified specs.
-    - **Replace `order_type`:**
-      - Rename to `type` (e.g., `'limit'`, `'market'`).
-    - **Remove Custom Keys:**
-      - Ensure no other non-standard keys leak into the top level of the order dictionary. Put them in `info` if absolutely necessary.
+    - The `MockExchange` serves as the shared "server" resource.
+    - It must use `threading.RLock` to protect its internal state (`orders`, `balance`, `positions`, `trade_history`).
+    - Atomic operations for placing orders, cancelling orders, and updating balances.
 
-2.  **Float vs Decimal Policy:**
+2.  **Concurrency Architecture:**
 
-    - **Exchange Layer (`IFuturesExchange` / Adapters):**
-      - **MUST** use `float` for all price/amount inputs and outputs.
-      - This aligns with CCXT and most Python SDKs.
-    - **Core Layer (`PortfolioManager` / Strategies):**
-      - **MUST** use `Decimal` for all internal financial calculations (Risk, PnL, Sizing).
-    - **Boundary Layer (The "Gateway"):**
-      - `PortfolioManager` is the Gateway.
-      - **Outgoing:** Convert `Decimal` -> `float` before calling `exchange.create_order`.
-      - **Incoming:** Convert `float` -> `Decimal` immediately when receiving data from `exchange.fetch_balance` or `exchange.fetch_order`.
+    - **Live/Paper Mode:** Implement a `MultiSymbolRunner` that spawns a separate thread for each symbol.
+    - **Architecture:**
+      - 1 Shared `IFuturesExchange` instance.
+      - N Threads, where each thread runs its own `Strategy` loop for a specific symbol.
+      - Each thread may have its own `PortfolioManager` instance (simplest) OR share a locked `PortfolioManager`. _Decision: Share the Exchange, but keep Portfolio/Strategy instances per-symbol to avoid complex state merging._
 
-3.  **Non-CCXT Adapter Pattern:**
-    - If integrating a non-CCXT exchange (e.g., Hyperliquid SDK):
-      - Create a Wrapper Class implementing `IFuturesExchange`.
-      - **Internal:** Call the native SDK (which likely uses floats).
-      - **External:** Return strict CCXT-compliant dictionaries (using floats).
-      - **Mapping:** Manually map SDK-specific status/keys to CCXT standard (e.g., HL `sz` -> CCXT `amount`).
+3.  **Backtest Implication:**
+    - While the current `BacktestEngine` is sequential, making the Exchange thread-safe prepares it for future parallel backtesting (e.g., running 10 backtests at once).
 
 ## Implementation Steps
 
-### 1. Refactor `PortfolioManager`
+### 1. Update `MockExchange` for Thread Safety
 
-- **Imports:** `from decimal import Decimal`
-- **Helper:** Add `_to_float(decimal_val)` and `_to_decimal(float_val)`.
-- **Order Creation:**
-  - Convert amounts/prices to float.
-  - Move `exit_reason` to `params={'exit_reason': ...}`.
-  - Call `exchange.create_order(..., params=params)`.
-- **Order Consumption:**
-  - When reading `order['info']['exit_reason']`, handle missing keys gracefully.
+Modify `app/backtest/mock_exchange.py`:
 
-### 2. Update `MockExchange`
+- **Import:** `import threading`
+- **Init:** Initialize `self._lock = threading.RLock()`.
+- **Decorate Public Methods:**
+  - Use `with self._lock:` context manager inside _every_ public state-modifying or state-reading method:
+    - `create_order`
+    - `cancel_order`
+    - `fetch_balance` (and internal balance/position updates)
+    - `fetch_positions`
+    - `fetch_order`
+- **Internal Helpers:** Ensure internal methods (like `_execute_order`) assume the lock is _already held_ by the caller (hence `RLock` is preferred over `Lock`).
 
-- **Remove** `update_price` (use `update_candle`).
-- **Remove** `place_stop_loss` / `place_take_profit` custom methods if they exist as public API (use `create_order` with `params={'stopLoss': ...}` or distinct `type='stop_loss'`). _Correction:_ CCXT uses `create_order` with `params` for SL/TP or specific types. For this Mock, standardize on `create_order(..., params={'stopPrice': ...})`.
-- **Update Internal Logic:**
-  - Store `triggerPrice` instead of `trigger_price`.
-  - Store `type` instead of `order_type`.
+### 2. Multi-Symbol Runner (`app/core/runner.py`)
 
-### 3. Update Reporting (`app/backtest/reporting.py`)
+Create a specification for a new runner class:
 
-- Update parsing logic to look for `exit_reason` in `order['info']` (or fallback to top-level for backward compatibility with old logs, if needed, but preferably clean it up).
+- **Class `MultiSymbolRunner`**:
+  - **Init:** Accepts `config`, `strategy_class`, `exchange_factory`.
+  - **Setup:**
+    - Creates **one** shared exchange instance via factory.
+    - Reads `config['symbols']`.
+  - **Run Loop:**
+    - For each symbol, create a `Thread` targeting a `_run_symbol_loop` method.
+    - Start all threads.
+    - Main thread waits (join) or handles signals (Ctrl+C).
+  - **Symbol Loop (`_run_symbol_loop`):**
+    - Instantiates `Strategy(config)`.
+    - Instantiates `PortfolioManager(shared_exchange, config)`.
+    - Runs the standard "fetch candle -> analyze -> execute" loop for that specific symbol.
 
-### 4. Code Cleanup
+### 3. Example Thread-Safe Mock Implementation
 
-- Delete unused files or methods identified during refactor.
-- Ensure no `float` math exists in `PortfolioManager` (grep check).
+Provide this pattern to the agent:
 
-## Verification
+```python
+import threading
+from app.core.interfaces import IFuturesExchange
+
+class ThreadSafeMockExchange(IFuturesExchange):
+    def __init__(self, ...):
+        self._lock = threading.RLock()
+        # ... other init ...
+
+    def create_order(self, ...):
+        with self._lock:
+            # Check balance
+            # Update internal state
+            # Return result
+            pass
+
+    def fetch_balance(self, ...):
+        with self._lock:
+            # Return copy of balance dict to prevent external modification issues
+            return self.balance.copy()
+```
+
+### 4. Verification Plan
+
+- Create a test script `tests/test_concurrency.py` that:
+
+  1.  Instantiates a `MockExchange`.
+  2.  Spawns 10 threads, each placing random buy/sell orders for different symbols.
+  3.  Asserts that the final balance equals `Initial - Fees + PnL` and no "Race Condition" exceptions occurred (e.g., negative balance due to double-spend).
 
 - Run `app/backtest/run_batch_analysis.py`.
-- Ensure the report is generated without errors and metrics match the baseline.
+  Ensure the report is generated without errors and metrics match the baseline.
