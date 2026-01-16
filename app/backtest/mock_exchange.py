@@ -6,14 +6,19 @@ Simulates a futures exchange for backtesting with:
 - Leverage support (margin-based trading)
 - Wick-based SL/TP checking
 - Decimal precision
+- CCXT-compliant order structure
 """
 
 from __future__ import annotations
 
+import logging
+import random
+from typing import Dict, List, Optional, Any, Tuple, Union, Sequence
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Optional, Dict, Any, List, Sequence
+import ccxt
 
-from app.core.interfaces import IExchange
+from app.core.interfaces import IExchange, IFuturesExchange
 
 
 def to_decimal(val) -> Decimal:
@@ -41,10 +46,14 @@ def _base_asset(symbol: str) -> str:
     return s.strip()
 
 
-class MockExchange(IExchange):
-    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1):
+class MockExchange(IFuturesExchange):
+    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1, maker_fee: float = 0.0, taker_fee: float = 0.0):
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.leverage = Decimal(str(leverage))  # Futures leverage
+        
+        # Fee configuration (rates as float, e.g. 0.0002 for 0.02%)
+        self.maker_fee = Decimal(str(maker_fee))
+        self.taker_fee = Decimal(str(taker_fee))
 
         # positions: symbol -> amount (base amount, notional position)
         self.positions: Dict[str, Decimal] = {}
@@ -71,45 +80,22 @@ class MockExchange(IExchange):
     # IExchange required balance methods
     # ============================================================
 
-    def get_balance(self) -> Decimal:
-        """Return quote balance (USDT)."""
-        return self.balance
-
-    def get_balances(self, coins: Optional[List[str]] = None) -> Dict[str, Decimal]:
+    def fetch_balance(self, params: Dict = {}) -> Dict:
         """
-        Return balances by asset.
-
-        - USDT balance is tracked in self.balance
-        - Base asset balances are derived from open positions (self.positions)
-          (since this mock exchange stores positions as base amount).
+        CCXT-compliant balance fetch.
+        Returns: {'free': {}, 'used': {}, 'total': {}, 'USDT': {...}}
+        Keep as Decimal for backtest parity.
         """
-        out: Dict[str, Decimal] = {"USDT": self.balance}
-
-        # include base assets from positions
-        for sym, amt in self.positions.items():
-            base = _base_asset(sym)
-            if not base:
-                continue
-            out[base] = out.get(base, Decimal("0")) + to_decimal(amt)
-
-        if coins:
-            wanted = [c.strip().upper() for c in coins if c and c.strip()]
-            return {c: out.get(c, Decimal("0")) for c in wanted}
-
-        # default: return non-zero assets
-        return {k: v for k, v in out.items() if v != 0}
-
-    def get_balance_of(self, assets: List[str]) -> Dict[str, Decimal]:
-        """
-        Required by IExchange.
-        Example:
-          get_balance_of(["USDT", "BTC", "ETH"])
-        """
-        wanted = [a.strip().upper() for a in assets if a and a.strip()]
-        if not wanted:
-            return {}
-        all_bal = self.get_balances(None)
-        return {a: all_bal.get(a, Decimal("0")) for a in wanted}
+        usdt_balance = self.balance  # This is FREE balance
+        used_usdt = sum(self.margin_used.values())
+        total_usdt = usdt_balance + used_usdt  # Total = Free + Used
+        
+        return {
+            'free': {'USDT': usdt_balance},
+            'used': {'USDT': used_usdt},
+            'total': {'USDT': total_usdt},
+            'USDT': {'free': usdt_balance, 'used': used_usdt, 'total': total_usdt}
+        }
 
     # ============================================================
     # Market data update (OHLC)
@@ -137,8 +123,8 @@ class MockExchange(IExchange):
 
             triggered = False
             fill_price: Optional[Decimal] = None
-            order_type = order.get("order_type", "LIMIT")
-            trigger_price = to_decimal(order.get("trigger_price") or order.get("price"))
+            order_type = order.get("type", "limit").upper()
+            trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
 
             # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
             if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
@@ -154,7 +140,8 @@ class MockExchange(IExchange):
                     fill_price = trigger_price
 
             if triggered and fill_price is not None:
-                stored_exit_reason = order.get("exit_reason") or order_type
+                # Get exit_reason from info dict (CCXT standard)
+                stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
                 result = self._execute_order(
                     symbol=order["symbol"],
                     side=order["side"],
@@ -173,9 +160,45 @@ class MockExchange(IExchange):
 
         return executed
 
-    def update_price(self, symbol: str, price, timestamp) -> None:
-        """Legacy method for compatibility."""
-        self.current_prices[symbol] = {"price": to_decimal(price), "time": timestamp}
+    # ============================================================
+    # IFuturesExchange methods
+    # ============================================================
+
+    def set_leverage(self, leverage: int, symbol: str) -> bool:
+        """Set leverage for a symbol (mock uses global leverage)."""
+        self.leverage = Decimal(str(leverage))
+        return True
+
+    def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
+        """Fetch open positions in CCXT format."""
+        pos_list = []
+        for s, amt in self.positions.items():
+            if symbols and s not in symbols:
+                continue
+            amt_dec = to_decimal(amt)
+            if amt_dec == 0:
+                continue
+            
+            entry = self.entry_prices.get(s, Decimal("0"))
+            curr_data = self.current_prices.get(s, {})
+            curr = to_decimal(curr_data.get("price", entry))
+            
+            # Simple PnL calc for display
+            upnl = (curr - entry) * amt_dec
+            
+            p = {
+                "symbol": s,
+                "contracts": float(amt_dec),
+                "contractSize": 1.0,
+                "unrealizedPnl": float(upnl),
+                "leverage": float(self.leverage),
+                "entryPrice": float(entry),
+                "side": "long" if amt_dec > 0 else "short",
+                "notional": float(amt_dec * curr),
+                "info": {"marginUsed": float(self.margin_used.get(s, 0))}
+            }
+            pos_list.append(p)
+        return pos_list
 
     # ============================================================
     # IExchange trading methods
@@ -192,9 +215,11 @@ class MockExchange(IExchange):
             "symbol": symbol,
             "side": "SELL",
             "amount": to_decimal(amount),
-            "trigger_price": to_decimal(trigger_price),
-            "order_type": "STOP_LOSS",
-            "status": "PENDING",
+            "triggerPrice": to_decimal(trigger_price),
+            "price": to_decimal(trigger_price),
+            "type": "stop_loss",
+            "status": "open",
+            "info": {"exit_reason": "STOP_LOSS"},
         }
         self.pending_orders[order_id] = order
         return order
@@ -207,9 +232,11 @@ class MockExchange(IExchange):
             "symbol": symbol,
             "side": "SELL",
             "amount": to_decimal(amount),
-            "trigger_price": to_decimal(trigger_price),
-            "order_type": "TAKE_PROFIT",
-            "status": "PENDING",
+            "triggerPrice": to_decimal(trigger_price),
+            "price": to_decimal(trigger_price),
+            "type": "take_profit",
+            "status": "open",
+            "info": {"exit_reason": label},
             "label": label,
         }
         self.pending_orders[order_id] = order
@@ -231,9 +258,9 @@ class MockExchange(IExchange):
             if (
                 order.get("symbol") == symbol
                 and order.get("side") == "SELL"
-                and order.get("order_type") in ("STOP_LOSS", "LIMIT")
+                and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
             ):
-                order["trigger_price"] = new_price
+                order["triggerPrice"] = new_price
                 order["price"] = new_price
                 updated = True
 
@@ -260,50 +287,64 @@ class MockExchange(IExchange):
         if order_id in self.pending_orders:
             self.pending_orders.pop(order_id, None)
             return True
-        return False
+        
+        raise ccxt.OrderNotFound(f"Order {order_id} not found for {symbol}")
 
     def create_order(
         self,
         symbol: str,
-        order_type: str,
-        side: str,
-        amount,
-        price=None,
+        type: str = None,  # CCXT param name
+        side: str = None,
+        amount = None,
+        price = None,
+        params: Dict = None,
+        # Legacy param name (for backward compatibility)
+        order_type: str = None,
         exit_reason: str = None,
     ) -> Optional[Dict]:
         """
         Create an order.
         - MARKET executes immediately
         - LIMIT goes pending (and will be triggered in update_candle via wick checks)
+        
+        Uses CCXT param names: type, params.
         """
+        # Handle CCXT 'type' vs legacy 'order_type'
+        actual_type = (type or order_type or 'market').upper()
+        
+        # Handle CCXT params dict for exit_reason
+        params = params or {}
+        exit_reason = params.get('exit_reason', exit_reason)
+        
         amount = to_decimal(amount)
         current_data = self.current_prices.get(symbol)
         if not current_data:
             print(f"MockExchange: No price data for {symbol}")
             return None
 
+        order_id = self._next_order_id()
+
         # Pending LIMIT
-        if order_type.upper() == "LIMIT" and price is not None:
-            order_id = self._next_order_id()
+        if actual_type == "LIMIT" and price is not None:
             price_dec = to_decimal(price)
             order = {
                 "id": order_id,
                 "symbol": symbol,
-                "side": side,
+                "side": side.upper() if side else 'BUY',
                 "amount": amount,
                 "price": price_dec,
-                "trigger_price": price_dec,
-                "order_type": "LIMIT",
-                "status": "PENDING",
-                "exit_reason": exit_reason,
+                "triggerPrice": price_dec,
+                "type": "limit",
+                "status": "open",
+                "info": {"exit_reason": exit_reason or ""},
             }
             self.pending_orders[order_id] = order
-            return {"id": order_id, "status": "PENDING", "type": "LIMIT"}
+            return {"id": order_id, "status": "open", "type": "limit"}
 
         # MARKET executes
         exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
         timestamp = current_data["time"]
-        return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type="MARKET", exit_reason=exit_reason)
+        return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
 
     def _execute_order(
         self,
@@ -340,8 +381,9 @@ class MockExchange(IExchange):
         if side == "BUY":
             # Check if we have enough margin
             if margin > self.balance:
-                # print(f"MockExchange: Insufficient margin. Required: {margin:.2f}, Available: {self.balance:.2f}")
-                return None
+                raise ccxt.InsufficientFunds(
+                    f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
+                )
             
             # Deduct margin from balance
             self.balance -= margin
@@ -357,7 +399,7 @@ class MockExchange(IExchange):
             # tolerance for floating rounding
             tolerance = current_pos * Decimal("1.001")
             if amount > tolerance:
-                return None  # insufficient position -> reject silently
+                raise ccxt.InsufficientFunds(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
 
             amount = min(amount, current_pos)
             
@@ -406,23 +448,44 @@ class MockExchange(IExchange):
 
             margin_used = margin_to_return
 
-        trade = {
-            "time": timestamp,
+        # Calculate fees
+        fee_rate = self.taker_fee if order_type.upper() == 'MARKET' else self.maker_fee
+        fee_cost = notional * fee_rate
+        
+        # Deduct fee from balance
+        self.balance -= fee_cost
+
+        # Generate order ID
+        order_id = self._next_order_id()
+
+        # Build CCXT-compliant order structure
+        order = {
+            # CCXT standard fields
+            "id": order_id,
+            "clientOrderId": f"client_{order_id}",
+            "status": "closed",
+            "type": order_type.lower(),
+            "side": side,  # Keep uppercase for legacy compatibility
             "symbol": symbol,
-            "side": side,
             "price": float(exec_price),
             "amount": float(amount),
+            "filled": float(amount),
+            "remaining": 0.0,
+            "cost": float(notional),
+            "average": float(exec_price),
+            "fee": {"currency": "USDT", "cost": float(fee_cost), "rate": float(fee_rate)},
+            "info": {"exit_reason": exit_reason or ""},
+            
+            # Extended fields for reporting (kept for backward compat in reporting.py)
+            "time": timestamp,
             "notional": float(notional),
             "margin": float(margin_used),
             "leverage": float(self.leverage),
             "balance_after": float(self.balance),
-            "order_type": order_type,
-            "exit_reason": exit_reason,
             "entry_price": float(entry_price) if entry_price is not None else None,
             "pnl": pnl,
             "pnl_pct": pnl_pct,
             "hold_duration_seconds": hold_duration_seconds,
         }
-        self.trade_history.append(trade)
-        return trade
-
+        self.trade_history.append(order)
+        return order

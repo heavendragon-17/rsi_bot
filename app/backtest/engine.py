@@ -48,7 +48,8 @@ class BacktestEngine:
 
     def run(self) -> None:
         print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
-        print(f"Initial balance: {self.exchange.get_balance()}")
+        initial_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        print(f"Initial balance: {initial_bal}")
         print(f"Leverage: {self.exchange.leverage}x")
 
         warmup_period = 220
@@ -66,7 +67,7 @@ class BacktestEngine:
 
             # Handle executed SL orders
             for order in executed_orders:
-                if order['order_type'] == 'STOP_LOSS':
+                if order.get('type', '').upper() == 'STOP_LOSS':
                     if self.symbol in self.portfolio.positions:
                         del self.portfolio.positions[self.symbol]
                     if hasattr(self.strategy, 'context') and self.strategy.context:
@@ -88,7 +89,8 @@ class BacktestEngine:
         self._close_open_positions()
 
         print("\nBacktest complete!")
-        print(f"Final balance: {self.exchange.get_balance()}")
+        final_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        print(f"Final balance: {final_bal}")
         print(f"Open positions: {dict(self.exchange.positions)}")
         print(f"Total trades: {len(self.exchange.trade_history)}")
 
@@ -107,10 +109,10 @@ class BacktestEngine:
                 print(f"Closing open position: {symbol} {amount} @ {final_price} (EOD)")
                 self.exchange.create_order(
                     symbol=symbol,
-                    order_type='MARKET',
+                    type='market',
                     side='SELL',
                     amount=float(amount),
                     price=final_price,
-                    exit_reason='EOD'  # End of Data
+                    params={'exit_reason': 'EOD'}  # End of Data
                 )
 

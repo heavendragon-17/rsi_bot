@@ -104,53 +104,7 @@ class BinanceAdapter(IExchange):
         params: Dict[str, Any] = {}
         return self.client.create_order(symbol, order_type, side, amt, prc, params)
 
-    def get_balances(self, coins: Optional[List[str]] = None) -> Dict[str, Decimal]:
-        """
-        Return balances for a list of coins.
-        If coins is None -> return all non-zero balances.
-        """
-        bal = self.client.fetch_balance()
 
-        # CCXT balance structure: bal['total'] contains totals by coin
-        totals = bal.get("total") or {}
-        out: Dict[str, Decimal] = {}
-
-        if coins:
-            for c in coins:
-                v = totals.get(c)
-                if v is not None:
-                    out[c] = Decimal(str(v))
-            return out
-
-        # Otherwise return all non-zero totals
-        for coin, v in totals.items():
-            try:
-                dv = Decimal(str(v))
-            except Exception:
-                continue
-            if dv != 0:
-                out[coin] = dv
-        return out
-
-    def get_balance_of(self, assets: List[str]) -> Dict[str, Decimal]:
-        """
-        REQUIRED by your IExchange (based on earlier error).
-
-        Example:
-          get_balance_of(["USDT", "BTC", "ETH"])
-          -> {"USDT": Decimal("123.4"), "BTC": Decimal("0.01"), "ETH": Decimal("0")}
-        """
-        assets_norm = [a.strip().upper() for a in assets if a and a.strip()]
-        if not assets_norm:
-            return {}
-
-        bal = self._fetch_balances_raw()
-        totals = bal.get("total") or {}
-
-        out: Dict[str, Decimal] = {}
-        for a in assets_norm:
-            out[a] = Decimal(str(totals.get(a, 0) or 0))
-        return out
     
     def fetch_candles_df_multi(
         self,
