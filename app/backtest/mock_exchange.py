@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import random
+import threading
 from typing import Dict, List, Optional, Any, Tuple, Union, Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -47,7 +48,15 @@ def _base_asset(symbol: str) -> str:
 
 
 class MockExchange(IFuturesExchange):
+    """
+    Thread-safe mock exchange for backtesting and paper trading.
+    Uses RLock to protect all internal state for concurrent access.
+    """
+    
     def __init__(self, initial_balance: float = 1000.0, leverage: int = 1, maker_fee: float = 0.0, taker_fee: float = 0.0):
+        # Thread safety lock (RLock allows reentrant calls)
+        self._lock = threading.RLock()
+        
         self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
         self.leverage = Decimal(str(leverage))  # Futures leverage
         
@@ -73,6 +82,7 @@ class MockExchange(IFuturesExchange):
         self._order_counter = 0
 
     def _next_order_id(self) -> str:
+        """Generate next order ID. Assumes lock is held by caller."""
         self._order_counter += 1
         return f"mock_order_{self._order_counter}"
 
@@ -82,20 +92,22 @@ class MockExchange(IFuturesExchange):
 
     def fetch_balance(self, params: Dict = {}) -> Dict:
         """
-        CCXT-compliant balance fetch.
+        CCXT-compliant balance fetch. Thread-safe.
         Returns: {'free': {}, 'used': {}, 'total': {}, 'USDT': {...}}
         Keep as Decimal for backtest parity.
         """
-        usdt_balance = self.balance  # This is FREE balance
-        used_usdt = sum(self.margin_used.values())
-        total_usdt = usdt_balance + used_usdt  # Total = Free + Used
-        
-        return {
-            'free': {'USDT': usdt_balance},
-            'used': {'USDT': used_usdt},
-            'total': {'USDT': total_usdt},
-            'USDT': {'free': usdt_balance, 'used': used_usdt, 'total': total_usdt}
-        }
+        with self._lock:
+            usdt_balance = self.balance  # This is FREE balance
+            used_usdt = sum(self.margin_used.values())
+            total_usdt = usdt_balance + used_usdt  # Total = Free + Used
+            
+            # Return a copy to prevent external modification
+            return {
+                'free': {'USDT': usdt_balance},
+                'used': {'USDT': used_usdt},
+                'total': {'USDT': total_usdt},
+                'USDT': {'free': usdt_balance, 'used': used_usdt, 'total': total_usdt}
+            }
 
     # ============================================================
     # Market data update (OHLC)
@@ -103,102 +115,106 @@ class MockExchange(IFuturesExchange):
 
     def update_candle(self, symbol: str, open_, high, low, close, timestamp) -> List[Dict]:
         """
-        Update exchange with full OHLC candle data.
+        Update exchange with full OHLC candle data. Thread-safe.
         Checks pending SL/TP orders against High/Low wicks.
 
         Returns list of executed orders (for logging).
         """
-        high_dec = to_decimal(high)
-        low_dec = to_decimal(low)
-        close_dec = to_decimal(close)
+        with self._lock:
+            high_dec = to_decimal(high)
+            low_dec = to_decimal(low)
+            close_dec = to_decimal(close)
 
-        self.current_prices[symbol] = {"price": close_dec, "time": timestamp}
+            self.current_prices[symbol] = {"price": close_dec, "time": timestamp}
 
-        executed: List[Dict] = []
-        orders_to_remove: List[str] = []
+            executed: List[Dict] = []
+            orders_to_remove: List[str] = []
 
-        for order_id, order in list(self.pending_orders.items()):
-            if order.get("symbol") != symbol:
-                continue
+            for order_id, order in list(self.pending_orders.items()):
+                if order.get("symbol") != symbol:
+                    continue
 
-            triggered = False
-            fill_price: Optional[Decimal] = None
-            order_type = order.get("type", "limit").upper()
-            trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
+                triggered = False
+                fill_price: Optional[Decimal] = None
+                order_type = order.get("type", "limit").upper()
+                trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
 
-            # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
-            if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
-                if low_dec <= trigger_price:
-                    triggered = True
-                    fill_price = trigger_price
-                    order_type = "STOP_LOSS"
+                # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
+                if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
+                    if low_dec <= trigger_price:
+                        triggered = True
+                        fill_price = trigger_price
+                        order_type = "STOP_LOSS"
 
-            # TP behavior: TAKE_PROFIT triggers when high >= trigger
-            elif order_type == "TAKE_PROFIT":
-                if high_dec >= trigger_price:
-                    triggered = True
-                    fill_price = trigger_price
+                # TP behavior: TAKE_PROFIT triggers when high >= trigger
+                elif order_type == "TAKE_PROFIT":
+                    if high_dec >= trigger_price:
+                        triggered = True
+                        fill_price = trigger_price
 
-            if triggered and fill_price is not None:
-                # Get exit_reason from info dict (CCXT standard)
-                stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
-                result = self._execute_order(
-                    symbol=order["symbol"],
-                    side=order["side"],
-                    amount=to_decimal(order["amount"]),
-                    exec_price=fill_price,
-                    timestamp=timestamp,
-                    order_type=order_type,
-                    exit_reason=stored_exit_reason,
-                )
-                if result:
-                    executed.append(result)
-                    orders_to_remove.append(order_id)
+                if triggered and fill_price is not None:
+                    # Get exit_reason from info dict (CCXT standard)
+                    stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
+                    result = self._execute_order(
+                        symbol=order["symbol"],
+                        side=order["side"],
+                        amount=to_decimal(order["amount"]),
+                        exec_price=fill_price,
+                        timestamp=timestamp,
+                        order_type=order_type,
+                        exit_reason=stored_exit_reason,
+                    )
+                    if result:
+                        executed.append(result)
+                        orders_to_remove.append(order_id)
 
-        for oid in orders_to_remove:
-            self.pending_orders.pop(oid, None)
+            for oid in orders_to_remove:
+                self.pending_orders.pop(oid, None)
 
-        return executed
+            return executed
 
     # ============================================================
     # IFuturesExchange methods
     # ============================================================
 
     def set_leverage(self, leverage: int, symbol: str) -> bool:
-        """Set leverage for a symbol (mock uses global leverage)."""
-        self.leverage = Decimal(str(leverage))
-        return True
+        """Set leverage for a symbol (mock uses global leverage). Thread-safe."""
+        with self._lock:
+            self.leverage = Decimal(str(leverage))
+            return True
 
     def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
-        """Fetch open positions in CCXT format."""
-        pos_list = []
-        for s, amt in self.positions.items():
-            if symbols and s not in symbols:
-                continue
-            amt_dec = to_decimal(amt)
-            if amt_dec == 0:
-                continue
-            
-            entry = self.entry_prices.get(s, Decimal("0"))
-            curr_data = self.current_prices.get(s, {})
-            curr = to_decimal(curr_data.get("price", entry))
-            
-            # Simple PnL calc for display
-            upnl = (curr - entry) * amt_dec
-            
-            p = {
-                "symbol": s,
-                "contracts": float(amt_dec),
-                "contractSize": 1.0,
-                "unrealizedPnl": float(upnl),
-                "leverage": float(self.leverage),
-                "entryPrice": float(entry),
-                "side": "long" if amt_dec > 0 else "short",
-                "notional": float(amt_dec * curr),
-                "info": {"marginUsed": float(self.margin_used.get(s, 0))}
-            }
-            pos_list.append(p)
-        return pos_list
+        """Fetch open positions in CCXT format. Thread-safe."""
+        with self._lock:
+            pos_list = []
+            for s, amt in self.positions.items():
+                if symbols and s not in symbols:
+                    continue
+                amt_dec = to_decimal(amt)
+                if amt_dec == 0:
+                    continue
+                
+                entry = self.entry_prices.get(s, Decimal("0"))
+                curr_data = self.current_prices.get(s, {})
+                curr = to_decimal(curr_data.get("price", entry))
+                
+                # Simple PnL calc for display
+                upnl = (curr - entry) * amt_dec
+                
+                p = {
+                    "symbol": s,
+                    "contracts": float(amt_dec),
+                    "contractSize": 1.0,
+                    "unrealizedPnl": float(upnl),
+                    "leverage": float(self.leverage),
+                    "entryPrice": float(entry),
+                    "side": "long" if amt_dec > 0 else "short",
+                    "notional": float(amt_dec * curr),
+                    "info": {"marginUsed": float(self.margin_used.get(s, 0))}
+                }
+                pos_list.append(p)
+            # Return a copy of the list
+            return pos_list.copy()
 
     # ============================================================
     # IExchange trading methods
@@ -208,87 +224,94 @@ class MockExchange(IFuturesExchange):
         return []  # not used in push-based backtest
 
     def place_stop_loss(self, symbol: str, amount, trigger_price) -> Dict:
-        """Place a stop loss order."""
-        order_id = self._next_order_id()
-        order = {
-            "id": order_id,
-            "symbol": symbol,
-            "side": "SELL",
-            "amount": to_decimal(amount),
-            "triggerPrice": to_decimal(trigger_price),
-            "price": to_decimal(trigger_price),
-            "type": "stop_loss",
-            "status": "open",
-            "info": {"exit_reason": "STOP_LOSS"},
-        }
-        self.pending_orders[order_id] = order
-        return order
+        """Place a stop loss order. Thread-safe."""
+        with self._lock:
+            order_id = self._next_order_id()
+            order = {
+                "id": order_id,
+                "symbol": symbol,
+                "side": "SELL",
+                "amount": to_decimal(amount),
+                "triggerPrice": to_decimal(trigger_price),
+                "price": to_decimal(trigger_price),
+                "type": "stop_loss",
+                "status": "open",
+                "info": {"exit_reason": "STOP_LOSS"},
+            }
+            self.pending_orders[order_id] = order
+            return order
 
     def place_take_profit(self, symbol: str, amount, trigger_price, label: str = "TP") -> Dict:
-        """Place a take profit order."""
-        order_id = self._next_order_id()
-        order = {
-            "id": order_id,
-            "symbol": symbol,
-            "side": "SELL",
-            "amount": to_decimal(amount),
-            "triggerPrice": to_decimal(trigger_price),
-            "price": to_decimal(trigger_price),
-            "type": "take_profit",
-            "status": "open",
-            "info": {"exit_reason": label},
-            "label": label,
-        }
-        self.pending_orders[order_id] = order
-        return order
+        """Place a take profit order. Thread-safe."""
+        with self._lock:
+            order_id = self._next_order_id()
+            order = {
+                "id": order_id,
+                "symbol": symbol,
+                "side": "SELL",
+                "amount": to_decimal(amount),
+                "triggerPrice": to_decimal(trigger_price),
+                "price": to_decimal(trigger_price),
+                "type": "take_profit",
+                "status": "open",
+                "info": {"exit_reason": label},
+                "label": label,
+            }
+            self.pending_orders[order_id] = order
+            return order
 
     def cancel_orders_for_symbol(self, symbol: str) -> int:
-        """Cancel all pending orders for a symbol."""
-        to_cancel = [oid for oid, o in self.pending_orders.items() if o.get("symbol") == symbol]
-        for oid in to_cancel:
-            self.pending_orders.pop(oid, None)
-        return len(to_cancel)
+        """Cancel all pending orders for a symbol. Thread-safe."""
+        with self._lock:
+            to_cancel = [oid for oid, o in self.pending_orders.items() if o.get("symbol") == symbol]
+            for oid in to_cancel:
+                self.pending_orders.pop(oid, None)
+            return len(to_cancel)
 
     def update_stop_loss(self, symbol: str, new_trigger_price) -> bool:
-        """Update the trigger price of existing SL order(s) for symbol."""
-        new_price = to_decimal(new_trigger_price)
-        updated = False
+        """Update the trigger price of existing SL order(s) for symbol. Thread-safe."""
+        with self._lock:
+            new_price = to_decimal(new_trigger_price)
+            updated = False
 
-        for order in self.pending_orders.values():
-            if (
-                order.get("symbol") == symbol
-                and order.get("side") == "SELL"
-                and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
-            ):
-                order["triggerPrice"] = new_price
-                order["price"] = new_price
-                updated = True
+            for order in self.pending_orders.values():
+                if (
+                    order.get("symbol") == symbol
+                    and order.get("side") == "SELL"
+                    and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
+                ):
+                    order["triggerPrice"] = new_price
+                    order["price"] = new_price
+                    updated = True
 
-        if updated:
-            print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
-        return updated
+            if updated:
+                print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
+            return updated
 
     def update_stop_loss_to_entry(self, symbol: str) -> bool:
         """
-        Move existing SL order to entry price for this symbol.
+        Move existing SL order to entry price for this symbol. Thread-safe.
         Uses stored entry price from self.entry_prices[symbol].
+        Note: This calls update_stop_loss which also acquires the lock (RLock allows this).
         """
-        entry = self.entry_prices.get(symbol)
-        if entry is None:
-            return False
+        with self._lock:
+            entry = self.entry_prices.get(symbol)
+            if entry is None:
+                return False
 
-        ok = self.update_stop_loss(symbol, entry)
-        if ok:
-            print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
-        return ok
+            ok = self.update_stop_loss(symbol, entry)
+            if ok:
+                print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
+            return ok
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:
-        """Cancel a specific pending order."""
-        if order_id in self.pending_orders:
-            self.pending_orders.pop(order_id, None)
-            return True
-        
-        raise ccxt.OrderNotFound(f"Order {order_id} not found for {symbol}")
+        """Cancel a specific pending order. Thread-safe."""
+        with self._lock:
+            if order_id in self.pending_orders:
+                self.pending_orders.pop(order_id, None)
+                return True
+            
+            raise ccxt.OrderNotFound(f"Order {order_id} not found for {symbol}")
 
     def create_order(
         self,
@@ -303,48 +326,49 @@ class MockExchange(IFuturesExchange):
         exit_reason: str = None,
     ) -> Optional[Dict]:
         """
-        Create an order.
+        Create an order. Thread-safe.
         - MARKET executes immediately
         - LIMIT goes pending (and will be triggered in update_candle via wick checks)
         
         Uses CCXT param names: type, params.
         """
-        # Handle CCXT 'type' vs legacy 'order_type'
-        actual_type = (type or order_type or 'market').upper()
-        
-        # Handle CCXT params dict for exit_reason
-        params = params or {}
-        exit_reason = params.get('exit_reason', exit_reason)
-        
-        amount = to_decimal(amount)
-        current_data = self.current_prices.get(symbol)
-        if not current_data:
-            print(f"MockExchange: No price data for {symbol}")
-            return None
+        with self._lock:
+            # Handle CCXT 'type' vs legacy 'order_type'
+            actual_type = (type or order_type or 'market').upper()
+            
+            # Handle CCXT params dict for exit_reason
+            params = params or {}
+            exit_reason = params.get('exit_reason', exit_reason)
+            
+            amount = to_decimal(amount)
+            current_data = self.current_prices.get(symbol)
+            if not current_data:
+                print(f"MockExchange: No price data for {symbol}")
+                return None
 
-        order_id = self._next_order_id()
+            order_id = self._next_order_id()
 
-        # Pending LIMIT
-        if actual_type == "LIMIT" and price is not None:
-            price_dec = to_decimal(price)
-            order = {
-                "id": order_id,
-                "symbol": symbol,
-                "side": side.upper() if side else 'BUY',
-                "amount": amount,
-                "price": price_dec,
-                "triggerPrice": price_dec,
-                "type": "limit",
-                "status": "open",
-                "info": {"exit_reason": exit_reason or ""},
-            }
-            self.pending_orders[order_id] = order
-            return {"id": order_id, "status": "open", "type": "limit"}
+            # Pending LIMIT
+            if actual_type == "LIMIT" and price is not None:
+                price_dec = to_decimal(price)
+                order = {
+                    "id": order_id,
+                    "symbol": symbol,
+                    "side": side.upper() if side else 'BUY',
+                    "amount": amount,
+                    "price": price_dec,
+                    "triggerPrice": price_dec,
+                    "type": "limit",
+                    "status": "open",
+                    "info": {"exit_reason": exit_reason or ""},
+                }
+                self.pending_orders[order_id] = order
+                return {"id": order_id, "status": "open", "type": "limit"}
 
-        # MARKET executes
-        exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
-        timestamp = current_data["time"]
-        return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
+            # MARKET executes
+            exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
+            timestamp = current_data["time"]
+            return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
 
     def _execute_order(
         self,
@@ -358,6 +382,8 @@ class MockExchange(IFuturesExchange):
     ) -> Optional[Dict]:
         """
         Execute an order with futures leverage support.
+        
+        NOTE: This method assumes the lock is already held by the caller (RLock).
         
         For BUY:
           - notional = amount * price
