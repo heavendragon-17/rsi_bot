@@ -54,9 +54,6 @@ class BacktestEngine:
 
         warmup_period = 220
         n_rows = len(self._full_df)
-        
-        # Queue for pending BUY signals (execute on next candle's open)
-        pending_buy_signal = None
 
         for i in range(warmup_period, n_rows):
             row = self._full_df.iloc[i]
@@ -80,59 +77,13 @@ class BacktestEngine:
                         self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
 
             self.portfolio.sync_from_exchange()
-            
-            # Execute pending BUY signal at THIS candle's OPEN
-            if pending_buy_signal is not None:
-                actual_entry = Decimal(str(o))  # Entry at open
-                original_sl = pending_buy_signal.sl_price
-                
-                # Validate: SL must be below entry for LONG
-                if original_sl is not None and original_sl < actual_entry:
-                    # Recalculate TP based on actual entry (maintain RR ratio)
-                    risk = actual_entry - original_sl
-                    # Get RR from strategy config (default 1:1)
-                    rr_val = getattr(self.strategy, 'tp_rr', 1)
-                    rr = Decimal(str(rr_val))
-                    new_tp = actual_entry + (risk * rr)
-                    
-                    print(f"  [ENTRY] Executing queued BUY: Price=${actual_entry:.4f}, SL=${original_sl:.4f}, Risk=${risk:.4f}, New TP=${new_tp:.4f} (RR={rr})")
-                    
-                    # Update signal with actual values
-                    pending_buy_signal.price = actual_entry
-                    pending_buy_signal.tp1_price = new_tp
-                    
-                    # Update strategy context meta if trade exists
-                    if hasattr(self.strategy, 'context') and self.strategy.context:
-                        trade = self.strategy.context.get_trade(self.symbol)
-                        if trade and trade.meta:
-                            trade.meta["entry_price"] = actual_entry
-                            trade.meta["tp_price"] = new_tp
-                            trade.meta["initial_risk"] = risk
-                    
-                    # Execute the order
-                    self.portfolio.on_signal(pending_buy_signal)
-                else:
-                    # SL is at or above entry - skip this trade
-                    if hasattr(self.strategy, 'context') and self.strategy.context:
-                        self.strategy.context.close_trade(self.symbol)
-                        tf = getattr(self.strategy, 'timeframe', '')
-                        key = f"{self.symbol}:{tf}"
-                        self.strategy.context.transition(key, SCANNING, reason="Invalid SL at entry", now_ts=ts)
-                    print(f"  [SKIP] Entry=${actual_entry:.4f}, SL=${original_sl or 'None'} - SL at or above entry")
-                
-                pending_buy_signal = None
 
             # Pass pre-computed slice (indicators already calculated)
             df_slice = self._full_df.iloc[:i+1]
             signal = self.strategy.analyze(self.symbol, df_slice)
 
             if signal:
-                if signal.signal_type == "BUY":
-                    # Queue BUY signal for next candle's open
-                    pending_buy_signal = signal
-                else:
-                    # SELL signals execute immediately (TP/SL/exits are limit orders)
-                    self.portfolio.on_signal(signal)
+                self.portfolio.on_signal(signal)
 
         # Close any open positions at final price for accurate reporting
         self._close_open_positions()

@@ -526,10 +526,8 @@ class BacktestReporter:
             'STOP_LOSS': '#EF4444',
             'BREAKEVEN': '#F59E0B', # Amber (Moved SL triggered)
             'MANUAL': '#6B7280',   # Gray
-            'EOD': '#6B7280',      # End of Data
-            'CLOSE_BY_CANDLE': '#F59E0B',
             'TP1+SL': '#F59E0B',   # Amber/Orange
-            'TP2+SL': '#3B82F6',   # Cyan
+            'TP2+SL': '#06B6D4',   # Cyan
             'TP3+SL': '#EC4899',   # Pink
             'UNKNOWN': '#64748B',  # Slate
             'No Trades': '#9CA3AF',
@@ -559,12 +557,6 @@ class BacktestReporter:
             """
             for i, row in round_trips.iterrows():
                 pnl_class = 'positive' if row['pnl'] > 0 else 'negative'
-                # Get color from mapping for inline style (most robust)
-                r = str(row['exit_reason'])
-                # Handle TP1+SL styles by checking common prefixes
-                base_r = r.split('+')[0] if '+' in r else r
-                bg_color = colors.get(r, colors.get(base_r, '#6B7280'))
-                
                 trades_table_html += f"""
                     <tr>
                         <td>{i+1}</td>
@@ -576,7 +568,7 @@ class BacktestReporter:
                         <td class="{pnl_class}">${row['pnl']:.2f}</td>
                         <td class="{pnl_class}">{row['pnl_pct']:.2f}%</td>
                         <td>{self._format_duration(row['hold_duration_hours'])}</td>
-                        <td><span class="badge" style="background-color: {bg_color}; color: white; border: 1px solid rgba(255,255,255,0.2); display: inline-block;">{row['exit_reason']}</span></td>
+                        <td><span class="badge badge-{row['exit_reason'].lower().replace('+', '-')}">{row['exit_reason']}</span></td>
                     </tr>
                 """
             trades_table_html += "</tbody></table>"
@@ -684,8 +676,8 @@ class BacktestReporter:
         .badge-tp1 {{ background: #4CAF50; color: white; }}
         .badge-tp2 {{ background: #8BC34A; color: white; }}
         .badge-tp3 {{ background: #CDDC39; color: #333; }}
-        .badge-full-tp {{ background: #10B981; color: white; }}
-        .badge-sl, .badge-stop-loss {{ background: #F44336; color: white; }}
+        .badge-full_tp {{ background: #10B981; color: white; }}
+        .badge-sl, .badge-stop_loss {{ background: #F44336; color: white; }}
         .badge-breakeven {{ background: #F59E0B; color: white; }}
         .badge-manual {{ background: #9E9E9E; color: white; }}
         .badge-tp1-sl {{ background: #FF9800; color: white; }}
@@ -797,23 +789,6 @@ class BacktestReporter:
         """ + '</div>' if metrics else ''}
         
         <h2 class="section-title">Exit Distribution</h2>
-        <div class="metrics-grid" style="margin-bottom: 20px;">
-            <div class="metric-card" style="border-left: 5px solid #10B981; background: rgba(16, 185, 129, 0.1);">
-                <h3 style="color: #10B981;">FULL_TP Exits</h3>
-                <div class="value">{exit_data.get('FULL_TP', 0)}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Target reached</div>
-            </div>
-            <div class="metric-card" style="border-left: 5px solid #F59E0B; background: rgba(245, 158, 11, 0.1);">
-                <h3 style="color: #F59E0B;">BREAKEVEN Exits</h3>
-                <div class="value">{exit_data.get('BREAKEVEN', 0)}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Profit protected</div>
-            </div>
-            <div class="metric-card" style="border-left: 5px solid #EF4444; background: rgba(239, 68, 68, 0.1);">
-                <h3 style="color: #EF4444;">STOP_LOSS Exits</h3>
-                <div class="value">{exit_data.get('STOP_LOSS', exit_data.get('SL', 0))}</div>
-                <div style="color:#888; font-size:0.75rem; margin-top:4px;">Initial risk hit</div>
-            </div>
-        </div>
         <div class="chart-container">
             <div class="chart-wrapper">
                 <canvas id="exitPieChart_{safe_symbol}"></canvas>
