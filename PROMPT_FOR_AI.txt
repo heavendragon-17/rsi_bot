@@ -1,0 +1,43 @@
+I need you to implement a "Close by Candle" feature with a "Disaster Limit Order" failsafe. Please follow these implementation details strictly to ensure position integrity and correct risk management.
+
+**1. Strategy Layer Updates (`app/strategies/rsi_wma_retest.py`)**
+*   **Modify `analyze` method:**
+    *   **Calculate two SL prices:**
+        1.  `Soft SL`: The original calculation (based on volatility/ATR logic).
+        2.  `Disaster SL`: A safety net placed significantly further away (e.g., 3x the distance of the Soft SL) to prevent catastrophic loss if the code fails to close.
+    *   **Entry Signal:**
+        *   When emitting the `BUY` signal, pass the `Disaster SL` as the `sl_price` field (this creates the hard limit order on the exchange).
+        *   Store the `Soft SL` price in the trade's `meta` data (or `context`) so the strategy remembers it.
+    *   **Exit Logic (The "Close by Candle" Check):**
+        *   In every `analyze` loop, check if there is an active trade.
+        *   If `Candle Close <= Soft SL`:
+            *   **IMMEDIATELY emit a `SELL` signal.**
+            *   Set the reason to `"CLOSE_BY_CANDLE_SL"`.
+            *   Do **not** wait for the hard Disaster SL to hit.
+
+**2. Portfolio Layer Updates (`app/core/portfolio.py`)**
+*   **Crucial "Dust" Prevention in `_handle_full_sell`:**
+    *   When receiving a `SELL` signal (full close):
+        *   **Do NOT rely solely on internal state** (`pos.amount`).
+        *   **Action:** Call `self.exchange.fetch_positions()` (or equivalent) to get the *exact* live position size for that symbol.
+        *   Use this confirmed exchange amount for the closing order.
+        *   *Reason:* This prevents the "tiny remainder" bug where 0.00001 BTC is left open due to fees or rounding mismatches.
+    *   **Cleanup:**
+        *   After the position is successfully closed, ensure the `Disaster SL` limit order is cancelled.
+*   **Update `_move_sl_to_entry`:**
+    *   When moving SL to Breakeven:
+        *   Move the `Disaster SL` (limit order) to `Entry Price - Buffer`.
+        *   *Reason:* Do not move it exactly to Entry, as we want the "Close by Candle" logic to handle the graceful exit at Entry, while the limit order remains a slightly lower safety net against wicks.
+
+**3. Verification Script (`scripts/verify_duration.py`)**
+*   Create a script to verify the logic is working by comparing trade durations.
+*   **Logic:**
+    *   Parse the CSV/HTML reports from `app/backtest/report/`.
+    *   Calculate the **Median Trade Duration** of the *old* logic (hard SL) vs the *new* logic (Close by Candle).
+    *   **Expectation:** The new logic might have slightly longer durations (waiting for candle close), but should NOT be excessive (e.g., >30 days for 15m timeframe).
+    *   Flag any anomalies where a position remained open for an unusual amount of time without hitting TP or Soft SL.
+
+**Summary of Requirements:**
+1.  **Strategy:** Detects `Close < Soft SL` -> Emits Signal.
+2.  **Portfolio:** Receives Signal -> Checks *Exchange* Balance -> Closes 100% -> Cancels Disaster SL.
+3.  **Risk:** Disaster SL is always present as a hard limit order, moving to `Entry - Buffer` on breakeven.
