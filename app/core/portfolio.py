@@ -154,6 +154,9 @@ class PortfolioManager:
                 final_size = min(position_size, max_amount)
                 was_capped = position_size > max_amount
                 
+                # DEBUG: Log position sizing details
+                print(f"  [SIZING] Entry=${entry_price:.4f}, SL=${sl_price:.4f}, Dist={sl_distance_pct*100:.2f}%, Risk=${risk_amount:.2f}, Notional=${position_notional:.2f}, Size={final_size:.6f}")
+                
                 # Calculate actual risk if capped
                 if was_capped:
                     actual_notional = final_size * entry_price
@@ -191,9 +194,10 @@ class PortfolioManager:
             if sym not in self.exchange.positions:
                 self.positions.pop(sym, None)
 
-    def _move_sl_to_entry(self, symbol: str) -> bool:
+    def _move_sl_to_entry(self, symbol: str, new_price: Decimal = None) -> bool:
         """
-        Move SL to entry price for the remaining position.
+        Move SL to a new price for the remaining position.
+        If new_price is None, uses entry price (breakeven).
         Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
         """
         if symbol not in self.positions:
@@ -203,26 +207,31 @@ class PortfolioManager:
         if pos.amount <= Decimal("0"):
             return False
 
-        entry = pos.entry_price
+        # Default to entry price if no new_price specified
+        target_price = new_price if new_price is not None else pos.entry_price
+        # Use BREAKEVEN as exit reason for moved SL (profit protection)
+        exit_reason = "BREAKEVEN"
 
         # 1) Prefer exchange function if exists (MockExchange patch)
-        fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
-        if callable(fn):
-            ok = bool(fn(symbol))
-            if ok:
-                return True
+        # Skip this path for now - always use update_stop_loss with exit_reason
+        # if new_price is None:
+        #     fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
+        #     if callable(fn):
+        #         ok = bool(fn(symbol))
+        #         if ok:
+        #             return True
 
-        # 2) Otherwise try generic update_stop_loss(symbol, new_price)
+        # 2) Try generic update_stop_loss(symbol, new_price, exit_reason)
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
-                ok = bool(fn2(symbol, entry))
+                ok = bool(fn2(symbol, target_price, exit_reason))
                 if ok:
                     return True
             except Exception:
                 pass
 
-        # 3) Fallback: cancel existing SL order and re-create LIMIT at entry
+        # 3) Fallback: cancel existing SL order and re-create LIMIT at target_price
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
@@ -236,14 +245,15 @@ class PortfolioManager:
                 type="limit",
                 side="SELL",
                 amount=pos.amount,
-                price=entry,
-                params={"exit_reason": "MOVE_SL_TO_ENTRY"},
+                price=target_price,
+                params={"exit_reason": exit_reason},
             )
             if new_sl_order:
                 pos.sl_order_id = new_sl_order.get("id")
+                logging.info(f"[{symbol}] Moved SL to {target_price}")
                 return True
         except ccxt.BaseError as e:
-            logging.error(f"Failed to move SL to entry for {symbol}: {e}")
+            logging.error(f"Failed to move SL for {symbol}: {e}")
             return False
 
         return False
@@ -275,14 +285,17 @@ class PortfolioManager:
             reason = (signal.reason or "").strip().upper()
 
             # --- special SELL: move SL only ---
-            # any of these reason keywords will just move SL to entry
+            # any of these reason keywords will just move SL (not close position)
             if (
                 "MOVE_SL_TO_ENTRY" in reason
                 or "SL_TO_ENTRY" in reason
                 or "BREAKEVEN" in reason
                 or reason.startswith("MOVE_SL")
             ):
-                self._move_sl_to_entry(signal.symbol)
+                # If signal.price is provided, use it as new SL level
+                # Otherwise, move to entry (breakeven)
+                new_sl_price = signal.price if signal.price else None
+                self._move_sl_to_entry(signal.symbol, new_sl_price)
                 return None
 
             # --- TP partial closes ---
@@ -293,8 +306,9 @@ class PortfolioManager:
             if reason.startswith("TP3"):
                 return self.execute_partial_close(signal.symbol, "TP3")
 
-            # Any other SELL -> close full
-            return self._handle_full_sell(signal.symbol, price=signal.price)
+            # Any other SELL -> close full (pass exit_reason)
+            exit_reason = signal.reason or "MANUAL"
+            return self._handle_full_sell(signal.symbol, price=signal.price, exit_reason=exit_reason)
 
         return None
 
@@ -312,13 +326,14 @@ class PortfolioManager:
         # Position sizing
         amount = self._calculate_position_size(balance, price, signal.sl_price)
 
-        # Execute market BUY
+        # Execute market BUY - pass signal.price for consistent fill price in backtest
         try:
             order = self.exchange.create_order(
                 symbol=signal.symbol,
                 type="market",
                 side="BUY",
                 amount=amount,
+                price=price,  # Use signal price for backtest consistency
             )
             if not order:
                 return None
@@ -363,7 +378,7 @@ class PortfolioManager:
     # -------------------------
     # SELL logic
     # -------------------------
-    def _handle_full_sell(self, symbol: str, price: Decimal = None):
+    def _handle_full_sell(self, symbol: str, price: Decimal = None, exit_reason: str = "MANUAL"):
         """
         Close entire remaining position at market and cleanup.
         """
@@ -388,7 +403,7 @@ class PortfolioManager:
                 side="SELL",
                 amount=pos.amount,
                 price=price,
-                params={"exit_reason": "MANUAL"},
+                params={"exit_reason": exit_reason},
             )
 
             if order:

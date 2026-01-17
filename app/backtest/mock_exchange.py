@@ -268,8 +268,14 @@ class MockExchange(IFuturesExchange):
                 self.pending_orders.pop(oid, None)
             return len(to_cancel)
 
-    def update_stop_loss(self, symbol: str, new_trigger_price) -> bool:
-        """Update the trigger price of existing SL order(s) for symbol. Thread-safe."""
+    def update_stop_loss(self, symbol: str, new_trigger_price, exit_reason: str = None) -> bool:
+        """Update the trigger price of existing SL order(s) for symbol. Thread-safe.
+        
+        Args:
+            symbol: Trading pair symbol
+            new_trigger_price: New SL trigger price
+            exit_reason: Optional new exit reason (e.g., "BREAKEVEN")
+        """
         with self._lock:
             new_price = to_decimal(new_trigger_price)
             updated = False
@@ -282,10 +288,16 @@ class MockExchange(IFuturesExchange):
                 ):
                     order["triggerPrice"] = new_price
                     order["price"] = new_price
+                    # Update exit_reason if provided
+                    if exit_reason:
+                        if "info" not in order:
+                            order["info"] = {}
+                        order["info"]["exit_reason"] = exit_reason
                     updated = True
 
             if updated:
-                print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
+                reason_str = f" (reason={exit_reason})" if exit_reason else ""
+                print(f"[MockExchange] Updated SL for {symbol} -> {new_price}{reason_str}")
             return updated
 
     def update_stop_loss_to_entry(self, symbol: str) -> bool:

@@ -55,6 +55,10 @@ class RsiNoRetestStrategy(BaseStrategy):
         # TP settings
         "nr_tp_rr": 1,               # Risk:Reward ratio (1 = 1:1)
         
+        # SL management
+        "nr_move_sl_rr": 0.5,        # Trigger: move SL when high reaches 0.5R (halfway to TP)
+        "nr_lock_profit_rr": 0.1,    # New SL level: 0.1R above entry (lock 10% of TP)
+
         # Trade management
         "use_active_trades": True,
     }
@@ -99,8 +103,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         # TP behavior
         self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))  # 1:1
 
-        # NEW: Move SL to Entry trigger (RR = 0.5)
-        self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
+        # NEW: Move SL trigger and lock level
+        self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))       # Trigger at 0.5R (halfway to TP)
+        self.lock_profit_rr = Decimal(str(cfg.get("nr_lock_profit_rr", 0.1))) # Lock 10% profit
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
     # ---------------- helpers ----------------
@@ -246,32 +251,35 @@ class RsiNoRetestStrategy(BaseStrategy):
             if entry_price is None or sl_price is None:
                 return None
 
-            # 1) Move SL to entry at RR=0.5
+            # 1) Move SL to lock 10% profit when price reaches 0.5R (halfway to TP)
             if (not moved_sl) and high is not None:
-                move_price = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
-                if move_price is not None and high >= move_price:
-                    # mark moved
-                    meta["moved_sl_to_entry"] = True
-                    meta["sl_price"] = entry_price  # update stored SL in meta
-                    # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
-                    return SignalEvent(
-                        symbol=symbol,
-                        signal_type="SELL",
-                        price=entry_price,  # new SL price (entry)
-                        timestamp=ts,
-                        reason=f"MOVE_SL_TO_ENTRY (high={high} >= {move_price} = +{self.move_sl_rr}R)",
-                    )
+                move_trigger = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
+                if move_trigger is not None and high >= move_trigger:
+                    # Calculate new SL at 0.1R (10% of TP profit)
+                    new_sl = self._compute_price_at_rr(entry_price, sl_price, self.lock_profit_rr)
+                    if new_sl is not None:
+                        # mark moved
+                        meta["moved_sl_to_entry"] = True
+                        meta["sl_price"] = new_sl  # update stored SL in meta
+                        # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
+                        return SignalEvent(
+                            symbol=symbol,
+                            signal_type="SELL",
+                            price=new_sl,  # new SL price (0.1R above entry)
+                            timestamp=ts,
+                            reason=f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{self.move_sl_rr}R, new_sl={new_sl} = +{self.lock_profit_rr}R)",
+                        )
 
             # 2) TP 1:1 hit => close all
             if tp_price is not None and high is not None and high >= tp_price:
                 self.context.close_trade(symbol)
-                self.context.transition(key, SCANNING, reason="TP 1:1 hit", now_ts=ts)
+                self.context.transition(key, SCANNING, reason="TP hit", now_ts=ts)
                 return SignalEvent(
                     symbol=symbol,
                     signal_type="SELL",
                     price=tp_price,  # assume filled at TP
                     timestamp=ts,
-                    reason=f"TP 1:1 HIT (high={high} >= tp={tp_price})",
+                    reason="FULL_TP",
                 )
 
             return None
@@ -337,6 +345,7 @@ class RsiNoRetestStrategy(BaseStrategy):
                         "sl_mode": self.sl_mode,
                         "moved_sl_to_entry": False,
                         "move_sl_rr": self.move_sl_rr,
+                        "lock_profit_rr": self.lock_profit_rr,
                     },
                     now_ts=ts,
                 )
