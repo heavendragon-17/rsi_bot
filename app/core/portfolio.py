@@ -194,44 +194,22 @@ class PortfolioManager:
             if sym not in self.exchange.positions:
                 self.positions.pop(sym, None)
 
-    def _move_sl_to_entry(self, symbol: str, new_price: Decimal = None) -> bool:
+    def _replace_sl_order(self, symbol: str, new_price: Decimal = None, new_amount: Decimal = None, exit_reason: str = "STOP_LOSS") -> bool:
         """
-        Move SL to a new price for the remaining position.
-        If new_price is None, uses entry price (breakeven).
-        Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
+        Replace the existing SL order with a new one (new price and/or new amount).
+        Uses STOP_LIMIT order type.
         """
         if symbol not in self.positions:
             return False
 
         pos = self.positions[symbol]
-        if pos.amount <= Decimal("0"):
+        target_price = new_price if new_price is not None else pos.sl_price
+        target_amount = new_amount if new_amount is not None else pos.amount
+
+        if target_amount <= Decimal("0"):
             return False
 
-        # Default to entry price if no new_price specified
-        target_price = new_price if new_price is not None else pos.entry_price
-        # Use BREAKEVEN as exit reason for moved SL (profit protection)
-        exit_reason = "BREAKEVEN"
-
-        # 1) Prefer exchange function if exists (MockExchange patch)
-        # Skip this path for now - always use update_stop_loss with exit_reason
-        # if new_price is None:
-        #     fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
-        #     if callable(fn):
-        #         ok = bool(fn(symbol))
-        #         if ok:
-        #             return True
-
-        # 2) Try generic update_stop_loss(symbol, new_price, exit_reason)
-        fn2 = getattr(self.exchange, "update_stop_loss", None)
-        if callable(fn2):
-            try:
-                ok = bool(fn2(symbol, target_price, exit_reason))
-                if ok:
-                    return True
-            except Exception:
-                pass
-
-        # 3) Fallback: cancel existing SL order and re-create LIMIT at target_price
+        # Cancel existing SL
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
@@ -239,24 +217,41 @@ class PortfolioManager:
                 pass
             pos.sl_order_id = None
 
+        # Place new SL
         try:
             new_sl_order = self.exchange.create_order(
                 symbol=symbol,
-                type="limit",
+                type="stop_limit",
                 side="SELL",
-                amount=pos.amount,
+                amount=target_amount,
                 price=target_price,
                 params={"exit_reason": exit_reason},
             )
             if new_sl_order:
                 pos.sl_order_id = new_sl_order.get("id")
-                logging.info(f"[{symbol}] Moved SL to {target_price}")
+                pos.sl_price = target_price # Update stored SL price
+                logging.info(f"[{symbol}] Replaced SL: Price={target_price}, Amount={target_amount}")
                 return True
         except ccxt.BaseError as e:
-            logging.error(f"Failed to move SL for {symbol}: {e}")
+            logging.error(f"Failed to replace SL for {symbol}: {e}")
             return False
 
         return False
+
+    def _move_sl_to_entry(self, symbol: str, new_price: Decimal = None) -> bool:
+        """
+        Move SL to a new price for the remaining position.
+        If new_price is None, uses entry price (breakeven).
+        Updates order quantity to match current position.
+        """
+        if symbol not in self.positions:
+            return False
+
+        pos = self.positions[symbol]
+        # Default to entry price if no new_price specified
+        target_price = new_price if new_price is not None else pos.entry_price
+
+        return self._replace_sl_order(symbol, new_price=target_price, new_amount=pos.amount, exit_reason="BREAKEVEN")
 
     # -------------------------
     # Main entry
@@ -344,11 +339,14 @@ class PortfolioManager:
             logging.error(f"Failed to execute buy for {signal.symbol}: {e}")
             return None
 
+        # Determine actual entry price from order fill
+        filled_price = to_decimal(order.get('average') or order.get('price') or price)
+
         # Create position record
         self.positions[signal.symbol] = Position(
             symbol=signal.symbol,
             amount=amount,
-            entry_price=price,
+            entry_price=filled_price,
             side="BUY",
             timestamp=signal.timestamp,
             tp1_price=signal.tp1_price,
@@ -357,12 +355,12 @@ class PortfolioManager:
             sl_price=signal.sl_price,
         )
 
-        # Place SL limit order if provided
+        # Place SL order if provided (using STOP_LIMIT)
         if signal.sl_price is not None:
             try:
                 sl_order = self.exchange.create_order(
                     symbol=signal.symbol,
-                    type="limit",
+                    type="stop_limit",
                     side="SELL",
                     amount=amount,
                     price=signal.sl_price,
@@ -471,6 +469,9 @@ class PortfolioManager:
         # TP1: move SL to entry for remaining
         if tp_level == "TP1" and pos.amount > Decimal("0"):
             self._move_sl_to_entry(symbol)
+        elif pos.amount > Decimal("0"):
+            # For other partial closes (TP2), just update SL quantity
+            self._replace_sl_order(symbol, new_amount=pos.amount)
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):

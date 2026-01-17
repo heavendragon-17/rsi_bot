@@ -130,6 +130,8 @@ class MockExchange(IFuturesExchange):
             executed: List[Dict] = []
             orders_to_remove: List[str] = []
 
+            # print(f"DEBUG: update_candle {symbol} H={high_dec} L={low_dec} Pending={len(self.pending_orders)}")
+
             for order_id, order in list(self.pending_orders.items()):
                 if order.get("symbol") != symbol:
                     continue
@@ -138,13 +140,23 @@ class MockExchange(IFuturesExchange):
                 fill_price: Optional[Decimal] = None
                 order_type = order.get("type", "limit").upper()
                 trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
+                side = order.get("side")
 
-                # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
-                if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
+                # print(f"DEBUG: Checking order {order_id} {side} {order_type} @ {trigger_price}")
+
+                # SL behavior: SELL and STOP_LOSS/STOP_LIMIT triggers when low <= trigger
+                if side == "SELL" and order_type in ("STOP_LOSS", "STOP_LIMIT"):
                     if low_dec <= trigger_price:
                         triggered = True
                         fill_price = trigger_price
                         order_type = "STOP_LOSS"
+
+                # Limit Sell behavior: triggers when high >= price (Sell High)
+                elif side == "SELL" and order_type == "LIMIT":
+                    if high_dec >= trigger_price:
+                        # print("DEBUG: LIMIT SELL TRIGGERED!")
+                        triggered = True
+                        fill_price = trigger_price
 
                 # TP behavior: TAKE_PROFIT triggers when high >= trigger
                 elif order_type == "TAKE_PROFIT":
@@ -155,18 +167,21 @@ class MockExchange(IFuturesExchange):
                 if triggered and fill_price is not None:
                     # Get exit_reason from info dict (CCXT standard)
                     stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
-                    result = self._execute_order(
-                        symbol=order["symbol"],
-                        side=order["side"],
-                        amount=to_decimal(order["amount"]),
-                        exec_price=fill_price,
-                        timestamp=timestamp,
-                        order_type=order_type,
-                        exit_reason=stored_exit_reason,
-                    )
-                    if result:
-                        executed.append(result)
-                        orders_to_remove.append(order_id)
+                    try:
+                        result = self._execute_order(
+                            symbol=order["symbol"],
+                            side=order["side"],
+                            amount=to_decimal(order["amount"]),
+                            exec_price=fill_price,
+                            timestamp=timestamp,
+                            order_type=order_type,
+                            exit_reason=stored_exit_reason,
+                        )
+                        if result:
+                            executed.append(result)
+                            orders_to_remove.append(order_id)
+                    except Exception as e:
+                        print(f"MockExchange Error executing pending order {order_id}: {e}")
 
             for oid in orders_to_remove:
                 self.pending_orders.pop(oid, None)
@@ -284,7 +299,7 @@ class MockExchange(IFuturesExchange):
                 if (
                     order.get("symbol") == symbol
                     and order.get("side") == "SELL"
-                    and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
+                    and order.get("type", "").upper() in ("STOP_LOSS", "STOP_LIMIT", "LIMIT")
                 ):
                     order["triggerPrice"] = new_price
                     order["price"] = new_price
@@ -360,8 +375,8 @@ class MockExchange(IFuturesExchange):
 
             order_id = self._next_order_id()
 
-            # Pending LIMIT
-            if actual_type == "LIMIT" and price is not None:
+            # Pending LIMIT or STOP_LIMIT
+            if actual_type in ("LIMIT", "STOP_LIMIT") and price is not None:
                 price_dec = to_decimal(price)
                 order = {
                     "id": order_id,
@@ -370,15 +385,20 @@ class MockExchange(IFuturesExchange):
                     "amount": amount,
                     "price": price_dec,
                     "triggerPrice": price_dec,
-                    "type": "limit",
+                    "type": actual_type,
                     "status": "open",
                     "info": {"exit_reason": exit_reason or ""},
                 }
                 self.pending_orders[order_id] = order
-                return {"id": order_id, "status": "open", "type": "limit"}
+                return {"id": order_id, "status": "open", "type": actual_type}
 
             # MARKET executes
-            exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
+            # If Market order, we ignore the requested price and use current price (slippage simulation)
+            if actual_type == "MARKET":
+                exec_price = to_decimal(current_data["price"])
+            else:
+                exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
+
             timestamp = current_data["time"]
             return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
 
