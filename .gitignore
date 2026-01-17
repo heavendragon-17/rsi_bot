@@ -5,11 +5,9 @@ __pycache__/
 .DS_Store
 bot.log
 backtest_logs.csv
-app/backtest/data/
 venv
 bot.log
 
 # Backtest data and reports (Ignored, keeping scripts)
 app/backtest/report/
-app/backtest/data/
 
