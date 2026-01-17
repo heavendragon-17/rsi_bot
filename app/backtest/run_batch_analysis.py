@@ -7,8 +7,8 @@ import re
 import webbrowser
 import argparse
 from decimal import Decimal
-from decimal import Decimal
 from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import copy
 # Determine paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,6 +40,104 @@ DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 def load_config():
     with open(CONFIG_PATH, "r") as f:
         return yaml.safe_load(f)
+
+
+def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: float, 
+                         strategy_name: str, data_dir: str, report_dir: str) -> dict:
+    """
+    Run backtest for a single symbol. Designed to be called in a separate process.
+    
+    Returns a dict with results or None if failed.
+    """
+    try:
+        # Import strategy class here to avoid pickling issues
+        from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+        from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+        
+        strategy_map = {
+            "rsi_wma_retest": RsiWmaRetestStrategy,
+            "rsi_no_retest": RsiNoRetestStrategy,
+        }
+        strategy_class = strategy_map.get(strategy_name)
+        if not strategy_class:
+            return {"symbol": symbol, "error": f"Unknown strategy: {strategy_name}"}
+        
+        safe_symbol = symbol.replace('/', '')
+        data_file = os.path.join(data_dir, f"{safe_symbol}_{timeframe}.csv")
+        
+        # Download if missing
+        if not os.path.exists(data_file):
+            print(f"[{symbol}] Data not found. Downloading...")
+            try:
+                download_data(safe_symbol, timeframe, 8832, data_dir)
+                if not os.path.exists(data_file):
+                    return {"symbol": symbol, "error": "Download failed"}
+            except Exception as e:
+                return {"symbol": symbol, "error": f"Download error: {e}"}
+        
+        # Create run-specific config
+        run_config = copy.deepcopy(config)
+        run_config['symbols'] = [symbol]
+        
+        # Run backtest
+        engine = BacktestEngine(data_file, strategy_class, run_config)
+        engine.exchange.initial_balance = Decimal(str(balance))
+        engine.exchange.balance = Decimal(str(balance))
+        engine.run()
+        
+        # Generate report data
+        reporter = BacktestReporter(
+            engine.exchange,
+            config,
+            initial_balance=float(balance),
+            symbol=symbol,
+            timeframe=timeframe,
+            strategy_name=strategy_name
+        )
+        
+        df = pd.DataFrame(engine.exchange.trade_history)
+        round_trips = reporter._build_round_trips(df)
+        metrics = reporter._calculate_metrics(round_trips)
+        drawdown = reporter._calculate_drawdown(round_trips)
+        risk_metrics = reporter._calculate_risk_metrics(round_trips, drawdown)
+        monthly_returns = reporter._calculate_monthly_returns(round_trips)
+        
+        final_bal = engine.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
+        profit = realized_pnl
+        profit_pct = (profit / float(balance)) * 100
+        
+        html_content = reporter._generate_html_report(
+            metrics, drawdown, risk_metrics, monthly_returns,
+            final_bal, profit, profit_pct, round_trips,
+            return_only=True,
+            output_dir=report_dir
+        )
+        
+        # Export CSVs
+        reporter._export_csv(df, round_trips, output_dir=report_dir)
+        
+        print(f"[{symbol}] ✓ Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
+        
+        return {
+            'symbol': symbol,
+            'metrics': metrics,
+            'html': html_content,
+            'profit': profit,
+            'profit_pct': profit_pct,
+            'initial_balance': float(balance),
+            'final_balance': float(final_bal),
+            'drawdown': drawdown.get('avg_drawdown_pct', 0),
+            'trades': metrics.get('total_trades', 0),
+            'round_trips': round_trips
+        }
+        
+    except Exception as e:
+        import traceback
+        print(f"[{symbol}] ✗ Error: {e}")
+        traceback.print_exc()
+        return {"symbol": symbol, "error": str(e)}
+
 
 class BatchHtmlGenerator:
     def __init__(self, batch_results):
@@ -449,6 +547,17 @@ def main():
         choices=list(STRATEGY_MAP.keys()),
         help="Strategy to use (default: from config.yaml)"
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of parallel workers (default: CPU count)"
+    )
+    parser.add_argument(
+        "--sequential",
+        action="store_true",
+        help="Run sequentially (disable parallelism)"
+    )
     args = parser.parse_args()
     
     if not os.path.exists(SYMBOLS_PATH):
@@ -465,18 +574,22 @@ def main():
     if strategy_name not in STRATEGY_MAP:
         print(f"Error: Unknown strategy '{strategy_name}'. Available: {list(STRATEGY_MAP.keys())}")
         return
-    strategy_class = STRATEGY_MAP[strategy_name]
     
-    print(f"\n{'='*50}")
-    print(f"  Strategy: {strategy_name}")
-    print(f"  Balance: ${balance:,.2f}")
-    print(f"{'='*50}\n")
-
     # Read Symbols
     with open(SYMBOLS_PATH, "r") as f:
         symbols = [line.strip() for line in f if line.strip()]
 
-    print(f"Found {len(symbols)} symbols to process.")
+    # Determine worker count
+    max_workers = args.workers or min(os.cpu_count() or 4, len(symbols))
+    if args.sequential:
+        max_workers = 1
+    
+    print(f"\n{'='*50}")
+    print(f"  Strategy: {strategy_name}")
+    print(f"  Balance: ${balance:,.2f}")
+    print(f"  Symbols: {len(symbols)}")
+    print(f"  Workers: {max_workers} {'(sequential)' if max_workers == 1 else '(parallel)'}")
+    print(f"{'='*50}\n")
     
     # Create reports directory
     os.makedirs(REPORT_DIR, exist_ok=True)
@@ -484,92 +597,63 @@ def main():
     
     batch_results = []
     
-    for symbol in symbols:
-        print(f"\nProcessing {symbol}...")
-        safe_symbol = symbol.replace('/', '')
-        data_file = os.path.join(DATA_DIR, f"{safe_symbol}_{timeframe}.csv")
-        
-        # Download if missing
-        if not os.path.exists(data_file):
-            print(f"Data not found for {symbol}. Downloading...")
-            try:
-                # Default limit 10000 candles
-                # Use safe_symbol (no slash) for binanceusdm
-                download_data(safe_symbol, timeframe, 8832, DATA_DIR)
-                
-                if not os.path.exists(data_file):
-                    print(f"Download failed for {symbol}. Skipping.")
-                    continue
-            except Exception as e:
-                print(f"Error downloading {symbol}: {e}")
-                continue
-
-        # Run Backtest
-        try:
-            # Create a run-specific config with the correct symbol
-            run_config = copy.deepcopy(config)
-            run_config['symbols'] = [symbol]
-            
-            engine = BacktestEngine(data_file, strategy_class, run_config)
-            # Re-init exchange with correct balance (engine uses config default)
-            engine.exchange.initial_balance = Decimal(str(balance))
-            engine.exchange.balance = Decimal(str(balance))
-            
-            engine.run()
-            
-            # Generate Report (Content Only)
-            # Fix BacktestReporter init: (exchange, config, initial_balance, symbol, timeframe, strategy_name)
-            reporter = BacktestReporter(
-                engine.exchange, 
-                config, 
-                initial_balance=float(balance),
+    import time
+    start_time = time.time()
+    
+    if max_workers == 1:
+        # Sequential execution (original behavior)
+        for symbol in symbols:
+            print(f"\nProcessing {symbol}...")
+            result = run_single_backtest(
                 symbol=symbol,
+                config=config,
                 timeframe=timeframe,
-                strategy_name=strategy_name
+                balance=balance,
+                strategy_name=strategy_name,
+                data_dir=DATA_DIR,
+                report_dir=REPORT_DIR
             )
+            if result and "error" not in result:
+                batch_results.append(result)
+            elif result and "error" in result:
+                print(f"[{symbol}] Error: {result['error']}")
+    else:
+        # Parallel execution using ProcessPoolExecutor
+        print(f"\nStarting parallel backtest with {max_workers} workers...")
+        
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            futures = {
+                executor.submit(
+                    run_single_backtest,
+                    symbol=symbol,
+                    config=config,
+                    timeframe=timeframe,
+                    balance=balance,
+                    strategy_name=strategy_name,
+                    data_dir=DATA_DIR,
+                    report_dir=REPORT_DIR
+                ): symbol
+                for symbol in symbols
+            }
             
-            # We need to access internal result generation logic
-            df = pd.DataFrame(engine.exchange.trade_history)
-            round_trips = reporter._build_round_trips(df)
-            metrics = reporter._calculate_metrics(round_trips)
-            drawdown = reporter._calculate_drawdown(round_trips)
-            risk_metrics = reporter._calculate_risk_metrics(round_trips, drawdown)
-            monthly_returns = reporter._calculate_monthly_returns(round_trips)
-            
-            final_bal = engine.exchange.fetch_balance().get("total", {}).get("USDT", 0)
-            # Use sum of round_trips PnL for consistency with equity curve
-            # This ensures realized P&L matches the equity chart 
-            realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
-            profit = realized_pnl
-            profit_pct = (profit / float(balance)) * 100
-            
-            html_content = reporter._generate_html_report(
-                metrics, drawdown, risk_metrics, monthly_returns, 
-                final_bal, profit, profit_pct, round_trips, 
-                return_only=True,
-                output_dir=REPORT_DIR
-            )
-            
-            # Export CSVs to reports folder
-            reporter._export_csv(df, round_trips, output_dir=REPORT_DIR)
-            
-            batch_results.append({
-                'symbol': symbol,
-                'metrics': metrics,
-                'html': html_content,
-                'profit': profit,
-                'profit_pct': profit_pct,
-                'initial_balance': float(balance),
-                'final_balance': float(final_bal),
-                'drawdown': drawdown.get('avg_drawdown_pct', 0),
-                'trades': metrics.get('total_trades', 0),
-                'round_trips': round_trips
-            })
-            
-        except Exception as e:
-            print(f"Error backtesting {symbol}: {e}")
-            import traceback
-            traceback.print_exc()
+            # Collect results as they complete
+            completed = 0
+            for future in as_completed(futures):
+                symbol = futures[future]
+                completed += 1
+                try:
+                    result = future.result()
+                    if result and "error" not in result:
+                        batch_results.append(result)
+                        print(f"  [{completed}/{len(symbols)}] {symbol} completed")
+                    elif result and "error" in result:
+                        print(f"  [{completed}/{len(symbols)}] {symbol} failed: {result['error']}")
+                except Exception as e:
+                    print(f"  [{completed}/{len(symbols)}] {symbol} exception: {e}")
+    
+    elapsed = time.time() - start_time
+    print(f"\n⏱ Total time: {elapsed:.1f}s ({elapsed/len(symbols):.1f}s per symbol)")
 
     # Generate Master Report
     if batch_results:
