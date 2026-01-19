@@ -268,10 +268,19 @@ class MockExchange(IFuturesExchange):
                 self.pending_orders.pop(oid, None)
             return len(to_cancel)
 
-    def update_stop_loss(self, symbol: str, new_trigger_price) -> bool:
-        """Update the trigger price of existing SL order(s) for symbol. Thread-safe."""
+    def update_stop_loss(self, symbol: str, new_trigger_price, new_amount=None) -> bool:
+        """
+        Update the trigger price and/or amount of existing SL order(s) for symbol.
+        Thread-safe.
+        
+        Args:
+            symbol: Trading symbol
+            new_trigger_price: New SL trigger price
+            new_amount: Optional new amount for the SL order (for partial TP scenarios)
+        """
         with self._lock:
             new_price = to_decimal(new_trigger_price)
+            new_amt = to_decimal(new_amount) if new_amount is not None else None
             updated = False
 
             for order in self.pending_orders.values():
@@ -282,16 +291,24 @@ class MockExchange(IFuturesExchange):
                 ):
                     order["triggerPrice"] = new_price
                     order["price"] = new_price
+                    if new_amt is not None:
+                        order["amount"] = new_amt
                     updated = True
 
             if updated:
-                print(f"[MockExchange] Updated SL for {symbol} -> {new_price}")
+                amt_str = f", amount={new_amt}" if new_amt is not None else ""
+                print(f"[MockExchange] Updated SL for {symbol} -> price={new_price}{amt_str}")
             return updated
 
-    def update_stop_loss_to_entry(self, symbol: str) -> bool:
+    def update_stop_loss_to_entry(self, symbol: str, new_amount=None) -> bool:
         """
         Move existing SL order to entry price for this symbol. Thread-safe.
         Uses stored entry price from self.entry_prices[symbol].
+        
+        Args:
+            symbol: Trading symbol
+            new_amount: Optional new amount for the SL order (for partial TP scenarios)
+        
         Note: This calls update_stop_loss which also acquires the lock (RLock allows this).
         """
         with self._lock:
@@ -299,9 +316,10 @@ class MockExchange(IFuturesExchange):
             if entry is None:
                 return False
 
-            ok = self.update_stop_loss(symbol, entry)
+            ok = self.update_stop_loss(symbol, entry, new_amount)
             if ok:
-                print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
+                amt_str = f", amount={new_amount}" if new_amount is not None else ""
+                print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}{amt_str}")
             return ok
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:

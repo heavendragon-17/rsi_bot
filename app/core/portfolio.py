@@ -191,10 +191,14 @@ class PortfolioManager:
             if sym not in self.exchange.positions:
                 self.positions.pop(sym, None)
 
-    def _move_sl_to_entry(self, symbol: str) -> bool:
+    def _move_sl_to_entry(self, symbol: str, new_amount: Decimal = None) -> bool:
         """
         Move SL to entry price for the remaining position.
         Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
+        
+        Args:
+            symbol: Trading symbol
+            new_amount: Optional new amount for the SL order (uses pos.amount if not provided)
         """
         if symbol not in self.positions:
             return False
@@ -204,19 +208,20 @@ class PortfolioManager:
             return False
 
         entry = pos.entry_price
+        amount_to_use = new_amount if new_amount is not None else pos.amount
 
         # 1) Prefer exchange function if exists (MockExchange patch)
         fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
         if callable(fn):
-            ok = bool(fn(symbol))
+            ok = bool(fn(symbol, amount_to_use))
             if ok:
                 return True
 
-        # 2) Otherwise try generic update_stop_loss(symbol, new_price)
+        # 2) Otherwise try generic update_stop_loss(symbol, new_price, new_amount)
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
-                ok = bool(fn2(symbol, entry))
+                ok = bool(fn2(symbol, entry, amount_to_use))
                 if ok:
                     return True
             except Exception:
@@ -235,7 +240,7 @@ class PortfolioManager:
                 symbol=symbol,
                 type="limit",
                 side="SELL",
-                amount=pos.amount,
+                amount=amount_to_use,
                 price=entry,
                 params={"exit_reason": "MOVE_SL_TO_ENTRY"},
             )
@@ -244,6 +249,61 @@ class PortfolioManager:
                 return True
         except ccxt.BaseError as e:
             logging.error(f"Failed to move SL to entry for {symbol}: {e}")
+            return False
+
+        return False
+
+    def _update_sl_size(self, symbol: str, new_amount: Decimal) -> bool:
+        """
+        Update SL order size for the remaining position (without changing price).
+        Used after TP2 when SL is already at entry.
+        
+        Args:
+            symbol: Trading symbol
+            new_amount: New amount for the SL order
+        """
+        if symbol not in self.positions:
+            return False
+
+        pos = self.positions[symbol]
+        if pos.amount <= Decimal("0"):
+            return False
+
+        # Get current SL price (should be at entry after TP1)
+        sl_price = pos.entry_price  # SL should be at entry after TP1
+
+        # Try exchange update_stop_loss with new amount
+        fn = getattr(self.exchange, "update_stop_loss", None)
+        if callable(fn):
+            try:
+                ok = bool(fn(symbol, sl_price, new_amount))
+                if ok:
+                    return True
+            except Exception:
+                pass
+
+        # Fallback: cancel and recreate
+        if pos.sl_order_id:
+            try:
+                self.exchange.cancel_order(pos.sl_order_id, symbol)
+            except Exception:
+                pass
+            pos.sl_order_id = None
+
+        try:
+            new_sl_order = self.exchange.create_order(
+                symbol=symbol,
+                type="limit",
+                side="SELL",
+                amount=new_amount,
+                price=sl_price,
+                params={"exit_reason": "SL_AT_ENTRY"},
+            )
+            if new_sl_order:
+                pos.sl_order_id = new_sl_order.get("id")
+                return True
+        except ccxt.BaseError as e:
+            logging.error(f"Failed to update SL size for {symbol}: {e}")
             return False
 
         return False
@@ -455,7 +515,11 @@ class PortfolioManager:
 
         # TP1: move SL to entry for remaining
         if tp_level == "TP1" and pos.amount > Decimal("0"):
-            self._move_sl_to_entry(symbol)
+            self._move_sl_to_entry(symbol, pos.amount)
+
+        # TP2: update SL size for remaining (SL already at entry)
+        if tp_level == "TP2" and pos.amount > Decimal("0"):
+            self._update_sl_size(symbol, pos.amount)
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
