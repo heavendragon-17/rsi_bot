@@ -98,6 +98,13 @@ class LighterAdapter(IFuturesExchange):
         # Symbol cache
         self._symbol_map: Dict[str, str] = {}
 
+    def _sanitize_log_message(self, message: Any) -> str:
+        """Redact sensitive info from log messages."""
+        msg = str(message)
+        if self.secret_key and self.secret_key in msg:
+             msg = msg.replace(self.secret_key, "[REDACTED_SECRET]")
+        return msg
+
     def _get_client(self):
         """
         Create and return a NEW SignerClient instance.
@@ -217,8 +224,9 @@ class LighterAdapter(IFuturesExchange):
                 }
                 
             except Exception as e:
-                logger.error(f"fetch_balance failed: {e}")
-                raise ccxt.ExchangeError(f"Lighter fetch_balance error: {e}")
+                sanitized_msg = self._sanitize_log_message(e)
+                logger.error(f"fetch_balance failed: {sanitized_msg}")
+                raise ccxt.ExchangeError(f"Lighter fetch_balance error: {sanitized_msg}")
             finally:
                 await self._cleanup_client(client)
                 
@@ -275,7 +283,7 @@ class LighterAdapter(IFuturesExchange):
                 }
                 
             except Exception as e:
-                logger.error(f"Async create_order failed: {e}")
+                logger.error(f"Async create_order failed: {self._sanitize_log_message(e)}")
                 raise
             finally:
                 await self._cleanup_client(client)
@@ -284,7 +292,7 @@ class LighterAdapter(IFuturesExchange):
             return self._run_async(_create())
         except Exception as e:
              # Map exceptions
-             raise ccxt.ExchangeError(f"Lighter create_order error: {e}")
+             raise ccxt.ExchangeError(f"Lighter create_order error: {self._sanitize_log_message(e)}")
 
     def cancel_order(self, order_id: str, symbol: str = None, params: Dict = {}) -> bool:
         """Cancel order."""
@@ -296,7 +304,7 @@ class LighterAdapter(IFuturesExchange):
                 )
                 return True
             except Exception as e:
-                logger.error(f"Async cancel_order failed: {e}")
+                logger.error(f"Async cancel_order failed: {self._sanitize_log_message(e)}")
                 return False
             finally:
                 await self._cleanup_client(client)
@@ -330,8 +338,8 @@ class LighterAdapter(IFuturesExchange):
                     return {'id': order_id, 'status': 'unknown', 'info': {}}
                     
             except Exception as e:
-                logger.error(f"fetch_order failed: {e}")
-                return {'id': order_id, 'status': 'error', 'info': {'error': str(e)}}
+                logger.error(f"fetch_order failed: {self._sanitize_log_message(e)}")
+                return {'id': order_id, 'status': 'error', 'info': {'error': self._sanitize_log_message(e)}}
             finally:
                 await self._cleanup_client(client)
                 
@@ -397,7 +405,7 @@ class LighterAdapter(IFuturesExchange):
                 return positions
                 
             except Exception as e:
-                logger.error(f"fetch_positions failed: {e}")
+                logger.error(f"fetch_positions failed: {self._sanitize_log_message(e)}")
                 return []
             finally:
                 await self._cleanup_client(client)
