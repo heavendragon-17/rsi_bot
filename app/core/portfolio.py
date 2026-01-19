@@ -194,11 +194,16 @@ class PortfolioManager:
             if sym not in self.exchange.positions:
                 self.positions.pop(sym, None)
 
-    def _move_sl_to_entry(self, symbol: str, new_price: Decimal = None) -> bool:
+    def _move_sl_to_entry(self, symbol: str, new_price: Decimal = None, new_amount: Decimal = None) -> bool:
         """
         Move SL to a new price for the remaining position.
         If new_price is None, uses entry price (breakeven).
         Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
+        
+        Args:
+            symbol: Trading symbol
+            new_price: Optional new SL price (uses entry_price if not provided)
+            new_amount: Optional new amount for the SL order (uses pos.amount if not provided)
         """
         if symbol not in self.positions:
             return False
@@ -209,29 +214,22 @@ class PortfolioManager:
 
         # Default to entry price if no new_price specified
         target_price = new_price if new_price is not None else pos.entry_price
+        # Default to current position amount if no new_amount specified
+        amount_to_use = new_amount if new_amount is not None else pos.amount
         # Use BREAKEVEN as exit reason for moved SL (profit protection)
         exit_reason = "BREAKEVEN"
 
-        # 1) Prefer exchange function if exists (MockExchange patch)
-        # Skip this path for now - always use update_stop_loss with exit_reason
-        # if new_price is None:
-        #     fn = getattr(self.exchange, "update_stop_loss_to_entry", None)
-        #     if callable(fn):
-        #         ok = bool(fn(symbol))
-        #         if ok:
-        #             return True
-
-        # 2) Try generic update_stop_loss(symbol, new_price, exit_reason)
+        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
-                ok = bool(fn2(symbol, target_price, exit_reason))
+                ok = bool(fn2(symbol, target_price, amount_to_use, exit_reason))
                 if ok:
                     return True
             except Exception:
                 pass
 
-        # 3) Fallback: cancel existing SL order and re-create LIMIT at target_price
+        # 2) Fallback: cancel existing SL order and re-create LIMIT at target_price
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
@@ -244,7 +242,7 @@ class PortfolioManager:
                 symbol=symbol,
                 type="limit",
                 side="SELL",
-                amount=pos.amount,
+                amount=amount_to_use,
                 price=target_price,
                 params={"exit_reason": exit_reason},
             )
