@@ -60,8 +60,9 @@ class SignalEvent:
     tp2_price: Optional[Decimal] = None  # R70 level
     tp3_price: Optional[Decimal] = None  # R80 level
     
-    # SL level (limit order price)
-    sl_price: Optional[Decimal] = None   # R40 level with 0.3% buffer
+    # SL levels (dual SL system)
+    sl_price: Optional[Decimal] = None        # Disaster SL: hard limit order at 3x distance
+    soft_sl_price: Optional[Decimal] = None   # Soft SL: candle-close exit level (R40 - buffer)
     
     # Signal quality classification
     # 1 = optimal (WMA45 in 40-46 range)

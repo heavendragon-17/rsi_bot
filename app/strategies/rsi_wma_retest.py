@@ -54,7 +54,9 @@ class RsiWmaRetestStrategy(BaseStrategy):
         
         # SL settings
         "sl_buffer_pct": 0.003,  # 0.3% buffer below R40
-        
+        "disaster_sl_multiplier": 3.0,  # Disaster SL = 3x the distance of Soft SL
+        "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
+
         # Trade management
         "use_active_trades": True,
     }
@@ -99,6 +101,12 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         # SL buffer (used to compute SL price from R40)
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.003))
+        
+        # Disaster SL multiplier (3x means disaster SL is 3x further than soft SL)
+        self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 3.0))
+
+        # Slippage for candle close exits
+        self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
 
         # Track one active trade per symbol
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
@@ -157,6 +165,29 @@ class RsiWmaRetestStrategy(BaseStrategy):
         # ==================================================
         if self.use_active_trades and self.context.has_active_trade(symbol):
             meta = self._get_trade_meta(symbol)
+
+            # -------------------------------------------------
+            # Close by Candle SL: Check FIRST, before TP ladder
+            # This allows graceful exit when candle close breaches Soft SL
+            # -------------------------------------------------
+            soft_sl = meta.get("soft_sl_price")
+            if soft_sl is not None and close is not None:
+                if close_dec <= soft_sl:
+                    # Close the trade immediately
+                    self.context.close_trade(symbol)
+                    self.context.transition(key, SCANNING, reason="Close by Candle SL hit", now_ts=ts)
+                    
+                    # Apply slippage to simulate "next candle open" / real-world execution
+                    # For SELL, price is lower by slippage
+                    exec_price = close_dec * Decimal(str(1 - self.candle_close_slippage_pct))
+
+                    return SignalEvent(
+                        symbol=symbol,
+                        signal_type="SELL",
+                        price=exec_price,
+                        timestamp=ts,
+                        reason="CLOSE_BY_CANDLE_SL",
+                    )
 
             tp1_hit = bool(meta.get("tp1_hit", False))
             tp2_hit = bool(meta.get("tp2_hit", False))
@@ -288,9 +319,21 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 tp3_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp3_rsi)
                 sl_price_raw = self.indicators.calculate_price_at_rsi(df_ind, 40)
 
-                sl_price = None
+                # -------------------------------------------------
+                # Dual SL System:
+                # 1. Soft SL: R40 - buffer (for candle-close exit logic)
+                # 2. Disaster SL: 3x distance from entry (hard limit order)
+                # -------------------------------------------------
+                soft_sl_price = None
+                disaster_sl_price = None
+                
                 if sl_price_raw is not None:
-                    sl_price = sl_price_raw * Decimal(str(1 - self.sl_buffer_pct))
+                    soft_sl_price = sl_price_raw * Decimal(str(1 - self.sl_buffer_pct))
+                    
+                    # Calculate Disaster SL at multiplier x distance from entry
+                    entry_price = Decimal(str(close))
+                    soft_sl_distance = entry_price - soft_sl_price
+                    disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
 
                 # Register trade
                 if self.use_active_trades:
@@ -303,7 +346,8 @@ class RsiWmaRetestStrategy(BaseStrategy):
                             "tp1_price": tp1_price,
                             "tp2_price": tp2_price,
                             "tp3_price": tp3_price,
-                            "sl_price": sl_price,
+                            "soft_sl_price": soft_sl_price,  # For candle-close checking
+                            "disaster_sl_price": disaster_sl_price,  # Reference only
                             "tp1_hit": False,
                             "tp2_hit": False,
                             "tp3_hit": False,
@@ -324,7 +368,8 @@ class RsiWmaRetestStrategy(BaseStrategy):
                     tp1_price=tp1_price,
                     tp2_price=tp2_price,
                     tp3_price=tp3_price,
-                    sl_price=sl_price,
+                    sl_price=disaster_sl_price,  # Hard limit order on exchange
+                    soft_sl_price=soft_sl_price,  # For portfolio reference
                     signal_class=1,
                 )
 
