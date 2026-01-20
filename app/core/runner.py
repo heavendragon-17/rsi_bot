@@ -156,6 +156,13 @@ class MultiSymbolRunner:
                 # Get timestamp of latest candle
                 current_ts = df.index[-1]
                 
+                # Check for pending entry (BLOCKING)
+                # We check this frequently (throttled inside portfolio) to handle partial fills/timeouts
+                if portfolio.has_pending_entry(symbol):
+                    portfolio.check_pending_entry(symbol, current_ts)
+                    time.sleep(1.0) # Sleep a bit to avoid hot loop, internal throttle handles the rest
+                    continue
+
                 # Skip if we already processed this candle
                 if current_ts == last_processed_ts:
                     time.sleep(0.5)

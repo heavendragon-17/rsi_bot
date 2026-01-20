@@ -22,8 +22,9 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from decimal import Decimal
 import logging
+import time
 import ccxt
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.interfaces import IExchange
 from app.core.events import SignalEvent
@@ -54,6 +55,18 @@ class Position:
     tp1_hit: bool = False
     tp2_hit: bool = False
     tp3_hit: bool = False
+
+
+@dataclass
+class PendingEntry:
+    symbol: str
+    order_id: str
+    entry_ts: Any  # Candle timestamp of the signal
+    amount: Decimal
+    signal: SignalEvent
+    created_at: float
+    last_check_at: float
+    filled_amount: Decimal = Decimal("0")
 
 
 class PortfolioManager:
@@ -91,6 +104,9 @@ class PortfolioManager:
         self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
         self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
         # TP3 closes 100% remaining
+
+        # Pending Limit Entries
+        self.pending_entries: Dict[str, PendingEntry] = {}
 
     # -------------------------
     # Position Sizing
@@ -317,6 +333,9 @@ class PortfolioManager:
         if signal.symbol in self.positions:
             return None
 
+        if signal.symbol in self.pending_entries:
+            return None
+
         price = signal.price
         if price <= Decimal("0"):
             return None
@@ -326,6 +345,41 @@ class PortfolioManager:
         # sl_price (disaster SL) = only for hard limit order protection
         sizing_sl = signal.soft_sl_price if signal.soft_sl_price is not None else signal.sl_price
         amount = self._calculate_position_size(balance, price, sizing_sl)
+
+        # Check Entry Mode
+        entry_mode = self.config.get("entry_mode", "MARKET").upper()
+        if "strategy" in self.config:
+            entry_mode = self.config["strategy"].get("entry_mode", entry_mode).upper()
+
+        if entry_mode == "LIMIT":
+            try:
+                order = self.exchange.create_order(
+                    symbol=signal.symbol,
+                    type="limit",
+                    side="BUY",
+                    amount=amount,
+                    price=price,
+                )
+                if not order:
+                    return None
+
+                self.pending_entries[signal.symbol] = PendingEntry(
+                    symbol=signal.symbol,
+                    order_id=order["id"],
+                    entry_ts=signal.timestamp,
+                    amount=amount,
+                    signal=signal,
+                    created_at=time.time(),
+                    last_check_at=time.time(),
+                )
+                logging.info(f"[{signal.symbol}] Placed LIMIT ENTRY BUY at {price}")
+                return order
+            except ccxt.InsufficientFunds as e:
+                logging.warning(f"Insufficient funds for {signal.symbol}: {e}")
+                return None
+            except ccxt.BaseError as e:
+                logging.error(f"Failed to execute limit buy for {signal.symbol}: {e}")
+                return None
 
         # Execute market BUY - pass signal.price for consistent fill price in backtest
         try:
@@ -346,34 +400,7 @@ class PortfolioManager:
             return None
 
         # Create position record
-        self.positions[signal.symbol] = Position(
-            symbol=signal.symbol,
-            amount=amount,
-            entry_price=price,
-            side="BUY",
-            timestamp=signal.timestamp,
-            tp1_price=signal.tp1_price,
-            tp2_price=signal.tp2_price,
-            tp3_price=signal.tp3_price,
-            sl_price=signal.sl_price,  # Store disaster SL for reference
-        )
-
-        # Place hard SL limit order (disaster SL) if provided
-        if signal.sl_price is not None:
-            try:
-                sl_order = self.exchange.create_order(
-                    symbol=signal.symbol,
-                    type="limit",
-                    side="SELL",
-                    amount=amount,
-                    price=signal.sl_price,  # Disaster SL on exchange
-                    params={"exit_reason": "DISASTER_SL"},
-                )
-                if sl_order:
-                    self.positions[signal.symbol].sl_order_id = sl_order.get("id")
-            except ccxt.BaseError as e:
-                logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
-
+        self._register_active_position(signal, amount, price)
         return order
 
     # -------------------------
@@ -485,3 +512,169 @@ class PortfolioManager:
             self.positions.pop(symbol, None)
 
         return order
+
+    def has_pending_entry(self, symbol: str) -> bool:
+        return symbol in self.pending_entries
+
+    def _parse_timeframe_to_seconds(self, tf: str) -> int:
+        if not tf: return 900
+        if tf.endswith('m'): return int(tf[:-1]) * 60
+        if tf.endswith('h'): return int(tf[:-1]) * 3600
+        if tf.endswith('d'): return int(tf[:-1]) * 86400
+        if tf.endswith('w'): return int(tf[:-1]) * 604800
+        return 900 # default 15m
+
+    def _register_active_position(self, signal: SignalEvent, amount: Decimal, entry_price: Decimal):
+        """Register active position and place SL orders."""
+        self.positions[signal.symbol] = Position(
+            symbol=signal.symbol,
+            amount=amount,
+            entry_price=entry_price,
+            side="BUY",
+            timestamp=signal.timestamp,
+            tp1_price=signal.tp1_price,
+            tp2_price=signal.tp2_price,
+            tp3_price=signal.tp3_price,
+            sl_price=signal.sl_price,
+        )
+
+        # Place hard SL limit order (disaster SL) if provided
+        if signal.sl_price is not None:
+            try:
+                sl_order = self.exchange.create_order(
+                    symbol=signal.symbol,
+                    type="limit",
+                    side="SELL",
+                    amount=amount,
+                    price=signal.sl_price,  # Disaster SL on exchange
+                    params={"exit_reason": "DISASTER_SL"},
+                )
+                if sl_order:
+                    self.positions[signal.symbol].sl_order_id = sl_order.get("id")
+            except ccxt.BaseError as e:
+                logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
+
+    def _update_or_create_position(self, symbol: str, filled: Decimal, signal: SignalEvent, avg_price: Decimal):
+        """Update existing position or create new one."""
+        if symbol in self.positions:
+             pos = self.positions[symbol]
+             if filled > pos.amount:
+                 pos.amount = filled
+                 if pos.sl_order_id and hasattr(self.exchange, "update_stop_loss"):
+                     try:
+                         self.exchange.update_stop_loss(symbol, pos.sl_price, amount=filled)
+                     except Exception as e:
+                         logging.warning(f"Failed to update SL amount: {e}")
+        else:
+             self._register_active_position(signal, filled, avg_price)
+
+    def check_pending_entry(self, symbol: str, current_candle_timestamp: Any) -> None:
+        """
+        Check status of pending entry order.
+        - Timeout logic (5 candles)
+        - Partial fill logic
+        """
+        if symbol not in self.pending_entries:
+            return
+
+        entry = self.pending_entries[symbol]
+
+        # Calculate elapsed candles
+        tf = self.config.get("timeframe", "15m")
+        tf_seconds = self._parse_timeframe_to_seconds(tf)
+
+        # Determine elapsed time
+        elapsed_seconds = 0
+        try:
+            # Handle pandas Timestamp vs int/float
+            ts_curr = current_candle_timestamp
+            ts_entry = entry.entry_ts
+
+            if hasattr(ts_curr, "timestamp"): ts_curr = ts_curr.timestamp()
+            if hasattr(ts_entry, "timestamp"): ts_entry = ts_entry.timestamp()
+
+            # If int (ms), convert to seconds
+            if isinstance(ts_curr, (int, float)) and ts_curr > 3000000000: # heuristic for ms
+                 ts_curr /= 1000
+            if isinstance(ts_entry, (int, float)) and ts_entry > 3000000000:
+                 ts_entry /= 1000
+
+            elapsed_seconds = float(ts_curr) - float(ts_entry)
+        except Exception as e:
+            logging.error(f"Error calculating elapsed time for {symbol}: {e}")
+            elapsed_seconds = 0
+
+        candles_elapsed = elapsed_seconds / tf_seconds if tf_seconds > 0 else 0
+
+        # Check Exchange Status
+        is_timeout = candles_elapsed >= 5
+        is_mock = "MockExchange" in self.exchange.__class__.__name__
+
+        if is_mock or is_timeout or (time.time() - entry.last_check_at > 60):
+            entry.last_check_at = time.time()
+
+            # Fetch order
+            order_info = None
+            try:
+                if hasattr(self.exchange, "fetch_order"):
+                    order_info = self.exchange.fetch_order(entry.order_id, symbol)
+                else:
+                    logging.warning("Exchange does not support fetch_order")
+            except Exception as e:
+                logging.warning(f"Failed to fetch order {entry.order_id}: {e}")
+
+            if not order_info:
+                if is_timeout:
+                     logging.info(f"[{symbol}] Pending entry timed out and not found. Removing.")
+                     self.pending_entries.pop(symbol)
+                return
+
+            status = order_info.get("status", "open")
+            filled = to_decimal(order_info.get("filled", 0))
+            remaining = to_decimal(order_info.get("remaining", 0))
+
+            # Update filled amount
+            entry.filled_amount = filled
+
+            # Case: Fully Filled
+            if status == "closed" and remaining == 0 and filled > 0:
+                logging.info(f"[{symbol}] Entry filled completely ({filled}). Activating position.")
+                self._update_or_create_position(symbol, filled, entry.signal, to_decimal(order_info.get("average", entry.signal.price)))
+                self.pending_entries.pop(symbol)
+                return
+
+            # Case: Canceled (externally?)
+            if status == "canceled":
+                if filled > 0:
+                    logging.info(f"[{symbol}] Entry canceled with partial fill ({filled}). Activating position.")
+                    self._update_or_create_position(symbol, filled, entry.signal, to_decimal(order_info.get("average", entry.signal.price)))
+                self.pending_entries.pop(symbol)
+                return
+
+            # Case: Timeout
+            if is_timeout:
+                # Case A: 0% Filled
+                if filled <= 0:
+                    logging.info(f"[{symbol}] Entry timed out (0 filled). Canceling.")
+                    try:
+                        self.exchange.cancel_order(entry.order_id, symbol)
+                    except Exception as e:
+                        logging.warning(f"Failed to cancel timed out order: {e}")
+                    self.pending_entries.pop(symbol)
+                    return
+
+                # Case B: Partial Fill
+                else:
+                    logging.info(f"[{symbol}] Entry timed out (partial {filled}). Canceling remainder.")
+                    try:
+                        self.exchange.cancel_order(entry.order_id, symbol)
+                    except Exception as e:
+                        logging.warning(f"Failed to cancel remainder: {e}")
+
+                    self._update_or_create_position(symbol, filled, entry.signal, to_decimal(order_info.get("average", entry.signal.price)))
+                    self.pending_entries.pop(symbol)
+                    return
+
+            # Dynamic SL/TP Sync (Partial Fill Update)
+            if filled > 0:
+                self._update_or_create_position(symbol, filled, entry.signal, to_decimal(order_info.get("average", entry.signal.price)))

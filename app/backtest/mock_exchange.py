@@ -90,6 +90,20 @@ class MockExchange(IFuturesExchange):
     # IExchange required balance methods
     # ============================================================
 
+    def fetch_order(self, order_id: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """Fetch order details. Thread-safe."""
+        with self._lock:
+            # Check pending orders
+            if order_id in self.pending_orders:
+                return self.pending_orders[order_id]
+
+            # Check history
+            for order in self.trade_history:
+                if order.get("id") == order_id:
+                    return order
+
+            return None
+
     def fetch_balance(self, params: Dict = {}) -> Dict:
         """
         CCXT-compliant balance fetch. Thread-safe.
@@ -146,6 +160,12 @@ class MockExchange(IFuturesExchange):
                         fill_price = trigger_price
                         order_type = "STOP_LOSS"
 
+                # BUY LIMIT behavior: Trigger when Low <= Price
+                elif order.get("side") == "BUY" and order_type == "LIMIT":
+                    if low_dec <= trigger_price:
+                        triggered = True
+                        fill_price = trigger_price
+
                 # TP behavior: TAKE_PROFIT triggers when high >= trigger
                 elif order_type == "TAKE_PROFIT":
                     if high_dec >= trigger_price:
@@ -163,6 +183,7 @@ class MockExchange(IFuturesExchange):
                         timestamp=timestamp,
                         order_type=order_type,
                         exit_reason=stored_exit_reason,
+                        order_id=order_id,
                     )
                     if result:
                         executed.append(result)
@@ -383,7 +404,7 @@ class MockExchange(IFuturesExchange):
                     "info": {"exit_reason": exit_reason or ""},
                 }
                 self.pending_orders[order_id] = order
-                return {"id": order_id, "status": "open", "type": "limit"}
+                return order
 
             # MARKET executes
             exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
@@ -399,6 +420,7 @@ class MockExchange(IFuturesExchange):
         timestamp,
         order_type: str = "MARKET",
         exit_reason: str = None,
+        order_id: str = None,
     ) -> Optional[Dict]:
         """
         Execute an order with futures leverage support.
@@ -502,7 +524,8 @@ class MockExchange(IFuturesExchange):
         self.balance -= fee_cost
 
         # Generate order ID
-        order_id = self._next_order_id()
+        if order_id is None:
+            order_id = self._next_order_id()
 
         # Build CCXT-compliant order structure
         order = {

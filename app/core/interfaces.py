@@ -120,6 +120,14 @@ class IExchange(ABC):
         """Cancel an open order."""
         pass
 
+    @abstractmethod
+    def fetch_order(self, order_id: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch order details.
+        Returns: Dict with status, filled, remaining, etc.
+        """
+        pass
+
 
 class IFuturesExchange(IExchange):
     """Interface for perpetual futures exchange operations."""

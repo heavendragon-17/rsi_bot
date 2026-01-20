@@ -78,6 +78,11 @@ class BacktestEngine:
 
             self.portfolio.sync_from_exchange()
 
+            # Check Pending Entry (Blocks analysis)
+            if self.portfolio.has_pending_entry(self.symbol):
+                self.portfolio.check_pending_entry(self.symbol, ts)
+                continue
+
             # Pass pre-computed slice (indicators already calculated)
             df_slice = self._full_df.iloc[:i+1]
             signal = self.strategy.analyze(self.symbol, df_slice)
