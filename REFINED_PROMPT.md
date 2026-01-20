@@ -1,7 +1,7 @@
 # Feature Request: Limit Order Entry with Timeout and Dynamic Position Management
 
 **Role:** Senior Python Trading Systems Engineer
-**Objective:** Refactor the execution logic in `app/core/portfolio.py` and `app/core/runner.py` to switch from immediate Market Entries to Limit Order Entries with a timeout mechanism and dynamic SL/TP updates.
+**Objective:** Refactor the execution logic to switch from immediate Market Entries to Limit Order Entries with a timeout mechanism and dynamic SL/TP updates. This includes updates to the live runner, portfolio manager, and backtesting infrastructure.
 
 ---
 
@@ -9,8 +9,10 @@
 *   **Target Files:**
     *   `app/core/portfolio.py` (`PortfolioManager` class)
     *   `app/core/runner.py` (`MultiSymbolRunner._run_symbol_loop`)
-*   **Current State:** The bot currently executes a MARKET BUY immediately when `PortfolioManager.on_signal()` receives a BUY signal.
-*   **Desired State:** The bot should place a LIMIT BUY at the signal price (EMA21) and monitor it.
+    *   `app/backtest/engine.py` (`BacktestEngine.run`)
+    *   `app/backtest/mock_exchange.py` (`MockExchange.update_candle`)
+*   **Current State:** The bot currently executes a MARKET BUY immediately. The Mock Exchange only supports LIMIT SELLs (for SL/TP) but lacks LIMIT BUY logic.
+*   **Desired State:** The bot should place a LIMIT BUY at the signal price (EMA21). The system (live and backtest) must monitor this order, handle timeouts, and sync partial fills.
 
 ---
 
@@ -26,8 +28,8 @@ Modify `_handle_buy_signal` to:
     *   Store the `initial_order_amount`.
     *   Mark the status as "PENDING_ENTRY".
 
-### B. Signal Blocking (MultiSymbolRunner)
-1.  In the `_run_symbol_loop`, checks if the `PortfolioManager` has a `pending_entry_order`.
+### B. Signal Blocking (MultiSymbolRunner & BacktestEngine)
+1.  In the execution loop, check if the `PortfolioManager` has a `pending_entry_order`.
 2.  **If Pending:** Skip the `strategy.analyze()` step. Do **not** look for new signals while trying to enter.
 3.  **Instead:** Call a new maintenance method `portfolio.check_pending_entry(current_candle_timestamp)`.
 
@@ -48,7 +50,7 @@ Create a method `check_pending_entry(self, current_candle_timestamp)` that handl
         *   Transition state to "ACTIVE_POSITION".
 
 #### 2. Dynamic SL/TP Sync (Throttle: 60 Seconds)
-*   **Optimization:** To save API calls, only run this check if `time.time() - last_check_time > 60` seconds.
+*   **Optimization:** To save API calls, only run this check if `time.time() - last_check_time > 60` seconds (Live Mode only).
 *   **Action:**
     *   Fetch the specific Limit Order status from the exchange.
     *   Compare `current_filled_amount` vs `last_known_filled_amount`.
@@ -58,24 +60,44 @@ Create a method `check_pending_entry(self, current_candle_timestamp)` that handl
 
 ---
 
-## 3. Implementation Checklist
+## 3. Backtesting Infrastructure Updates
 
-### `app/core/portfolio.py`
-- [ ] Add `self.pending_entry` dictionary/object to `__init__` to store: `{order_id, timestamp, last_filled, last_check_time}`.
-- [ ] Refactor `_handle_buy_signal` to place `LIMIT` order and populate `self.pending_entry`.
-- [ ] Implement `check_pending_entry(current_candle_timestamp)`:
-    - [ ] Implement 60s throttle for exchange status checks.
-    - [ ] Implement partial fill sync logic (resize SL/TP).
-    - [ ] Implement 5-candle timeout logic (Cancel/Finalize).
+### `app/backtest/mock_exchange.py`
+The current `MockExchange` lacks logic to trigger BUY Limit orders.
+- [ ] In `update_candle`:
+    - [ ] Add logic to check for `BUY` Limit orders.
+    - [ ] **Condition:** If `Candle.Low <= Limit Price`, trigger the fill.
+    - [ ] Ensure `exit_reason` is correctly propagated.
 
-### `app/core/runner.py`
-- [ ] In `_run_symbol_loop`:
-    - [ ] Before `strategy.analyze`, check `if portfolio.has_pending_entry():`.
-    - [ ] If yes: call `portfolio.check_pending_entry(current_ts)` and `continue`.
+### `app/backtest/engine.py`
+The backtest loop currently only calls `strategy.analyze`.
+- [ ] In the main simulation loop:
+    - [ ] Add the same check as `MultiSymbolRunner`:
+    - [ ] `if portfolio.has_pending_entry(): portfolio.check_pending_entry(ts); continue`
+    - [ ] Else: `strategy.analyze(...)`
 
 ---
 
-## 4. Key Constraints
+## 4. Implementation Checklist
+
+### `app/core/portfolio.py`
+- [ ] Add `self.pending_entry` dictionary/object to `__init__`.
+- [ ] Refactor `_handle_buy_signal` to place `LIMIT` order.
+- [ ] Implement `check_pending_entry(current_candle_timestamp)`.
+
+### `app/core/runner.py`
+- [ ] In `_run_symbol_loop`: Add `check_pending_entry` logic and signal blocking.
+
+### `app/backtest/mock_exchange.py`
+- [ ] Implement `BUY` Limit Order triggering logic in `update_candle`.
+
+### `app/backtest/engine.py`
+- [ ] Update main loop to call `check_pending_entry` to support the new timeout logic in backtests.
+
+---
+
+## 5. Key Constraints
 *   **Efficiency:** Do not query the exchange on every loop iteration. Use the 60s timer for partial fill checks.
 *   **Safety:** Ensure that if the limit order is cancelled (Case B), the SL/TP are definitely updated to match the exposure.
-*   **Price:** The Limit Price is **fixed** at the moment of the signal (Signal Candle EMA21). It does *not* float or chase the price.
+*   **Price:** The Limit Price is **fixed** at the moment of the signal (Signal Candle EMA21).
+*   **Consistency:** Backtests must behave exactly like live trading (blocking signals during pending entry).
