@@ -521,8 +521,10 @@ class BacktestReporter:
             'TP1': '#22C55E',      # Bright Green
             'TP2': '#3B82F6',      # Bright Blue
             'TP3': '#8B5CF6',      # Purple
+            'FULL_TP': '#10B981',  # Emerald (Full TP hit)
             'SL': '#EF4444',       # Bright Red
             'STOP_LOSS': '#EF4444',
+            'BREAKEVEN': '#F59E0B', # Amber (Moved SL triggered)
             'MANUAL': '#6B7280',   # Gray
             'TP1+SL': '#F59E0B',   # Amber/Orange
             'TP2+SL': '#06B6D4',   # Cyan
@@ -674,7 +676,9 @@ class BacktestReporter:
         .badge-tp1 {{ background: #4CAF50; color: white; }}
         .badge-tp2 {{ background: #8BC34A; color: white; }}
         .badge-tp3 {{ background: #CDDC39; color: #333; }}
+        .badge-full_tp {{ background: #10B981; color: white; }}
         .badge-sl, .badge-stop_loss {{ background: #F44336; color: white; }}
+        .badge-breakeven {{ background: #F59E0B; color: white; }}
         .badge-manual {{ background: #9E9E9E; color: white; }}
         .badge-tp1-sl {{ background: #FF9800; color: white; }}
         .badge-tp2-sl {{ background: #06B6D4; color: white; }}
