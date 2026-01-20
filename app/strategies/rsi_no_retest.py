@@ -50,7 +50,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         
         # SL settings
         "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
-        "sl_buffer_pct": 0.0,        # No buffer for tight SL
+        "sl_buffer_pct": 0.0,            # No buffer (original behavior)
+        "disaster_sl_multiplier": 3.0,   # Disaster SL = 2x distance from entry
+        "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
         
         # TP settings
         "nr_tp_rr": 1,               # Risk:Reward ratio (1 = 1:1)
@@ -99,6 +101,12 @@ class RsiNoRetestStrategy(BaseStrategy):
         # "lowest_close": SL = min(close) lookback
         self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
+        
+        # Disaster SL multiplier (2x means disaster SL is 2x further than soft SL)
+        self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 2.0))
+        
+        # Slippage for candle close exits
+        self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
 
         # TP behavior
         self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))  # 1:1
@@ -236,41 +244,43 @@ class RsiNoRetestStrategy(BaseStrategy):
             meta = trade.meta if trade and trade.meta else {}
 
             entry_price = meta.get("entry_price")
-            sl_price = meta.get("sl_price")
+            sl_price = meta.get("sl_price")  # This is now Soft SL (for candle close check)
+            soft_sl = meta.get("soft_sl_price")  # Explicit soft SL if available
             tp_price = meta.get("tp_price")
             moved_sl = bool(meta.get("moved_sl_to_entry", False))
+            pending_candle_sl = bool(meta.get("pending_candle_sl", False))
 
             # sanity
-            if entry_price is None or sl_price is None:
+            if entry_price is None:
                 return None
 
             entry_price = self._to_dec(entry_price)
-            sl_price = self._to_dec(sl_price)
+            sl_price = self._to_dec(sl_price) if sl_price is not None else None
+            soft_sl = self._to_dec(soft_sl) if soft_sl is not None else sl_price  # Fallback to sl_price
             tp_price = self._to_dec(tp_price) if tp_price is not None else None
+            open_price = self._to_dec(last.get("open"))
 
-            if entry_price is None or sl_price is None:
+            if entry_price is None:
                 return None
 
-            # 1) Move SL to lock 10% profit when price reaches 0.5R (halfway to TP)
-            if (not moved_sl) and high is not None:
-                move_trigger = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
-                if move_trigger is not None and high >= move_trigger:
-                    # Calculate new SL at 0.1R (10% of TP profit)
-                    new_sl = self._compute_price_at_rr(entry_price, sl_price, self.lock_profit_rr)
-                    if new_sl is not None:
-                        # mark moved
-                        meta["moved_sl_to_entry"] = True
-                        meta["sl_price"] = new_sl  # update stored SL in meta
-                        # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
-                        return SignalEvent(
-                            symbol=symbol,
-                            signal_type="SELL",
-                            price=new_sl,  # new SL price (0.1R above entry)
-                            timestamp=ts,
-                            reason=f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{self.move_sl_rr}R, new_sl={new_sl} = +{self.lock_profit_rr}R)",
-                        )
+            # -------------------------------------------------
+            # STEP 0: Handle pending Close by Candle SL from previous candle
+            # Exit at THIS candle's OPEN price (simulates "next candle open")
+            # -------------------------------------------------
+            if pending_candle_sl and open_price is not None:
+                self.context.close_trade(symbol)
+                self.context.transition(key, SCANNING, reason="Close by Candle SL executed at next open", now_ts=ts)
+                return SignalEvent(
+                    symbol=symbol,
+                    signal_type="SELL",
+                    price=open_price,  # Exit at THIS candle's open (= previous candle's "next open")
+                    timestamp=ts,
+                    reason="CLOSE_BY_CANDLE_SL",
+                )
 
-            # 2) TP 1:1 hit => close all
+            # -------------------------------------------------
+            # STEP 1: TP 1:1 hit => close all (CHECK FIRST - highest priority)
+            # -------------------------------------------------
             if tp_price is not None and high is not None and high >= tp_price:
                 self.context.close_trade(symbol)
                 self.context.transition(key, SCANNING, reason="TP hit", now_ts=ts)
@@ -281,6 +291,39 @@ class RsiNoRetestStrategy(BaseStrategy):
                     timestamp=ts,
                     reason="FULL_TP",
                 )
+
+            # -------------------------------------------------
+            # STEP 2: Move SL to lock profit when price reaches 0.5R
+            # -------------------------------------------------
+            if (not moved_sl) and high is not None and sl_price is not None:
+                move_trigger = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
+                if move_trigger is not None and high >= move_trigger:
+                    # Calculate new SL at 0.1R (10% of TP profit)
+                    new_sl = self._compute_price_at_rr(entry_price, sl_price, self.lock_profit_rr)
+                    if new_sl is not None:
+                        # mark moved
+                        meta["moved_sl_to_entry"] = True
+                        meta["sl_price"] = new_sl  # update stored SL in meta
+                        meta["soft_sl_price"] = new_sl  # also update soft SL
+                        # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
+                        return SignalEvent(
+                            symbol=symbol,
+                            signal_type="SELL",
+                            price=new_sl,  # new SL price (0.1R above entry)
+                            timestamp=ts,
+                            reason=f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{self.move_sl_rr}R, new_sl={new_sl} = +{self.lock_profit_rr}R)",
+                        )
+
+            # -------------------------------------------------
+            # STEP 3: Close by Candle SL (LAST - only if TP not hit)
+            # Set flag to exit at NEXT candle's open
+            # -------------------------------------------------
+            if soft_sl is not None and close is not None:
+                if close <= soft_sl:
+                    # Mark for exit at next candle's open
+                    meta["pending_candle_sl"] = True
+                    # Don't close yet - wait for next candle
+                    return None
 
             return None
 
@@ -331,6 +374,18 @@ class RsiNoRetestStrategy(BaseStrategy):
                 self.context.transition(key, SCANNING, reason="Invalid TP risk", now_ts=ts)
                 return None
 
+            # -------------------------------------------------
+            # Dual SL System:
+            # 1. Soft SL: sl_price with buffer (for candle-close exit logic)
+            # 2. Disaster SL: multiplier x distance from entry (hard limit order)
+            # -------------------------------------------------
+            soft_sl_price = sl_price  # Already has buffer applied from _compute_sl
+            disaster_sl_price = None
+            
+            if soft_sl_price is not None:
+                soft_sl_distance = entry_price - soft_sl_price
+                disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
+
             if self.use_active_trades:
                 self.context.open_trade(
                     symbol=symbol,
@@ -339,7 +394,9 @@ class RsiNoRetestStrategy(BaseStrategy):
                     entry_price=float(entry_price),
                     meta={
                         "entry_price": entry_price,
-                        "sl_price": sl_price,
+                        "sl_price": soft_sl_price,  # Used for candle close check
+                        "soft_sl_price": soft_sl_price,  # Explicit soft SL
+                        "disaster_sl_price": disaster_sl_price,  # Reference only
                         "tp_price": tp_price,
                         "rsi_spread": spread,
                         "sl_mode": self.sl_mode,
@@ -362,7 +419,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                 tp1_price=tp_price,  # reuse tp1_price as TP 1:1
                 tp2_price=None,
                 tp3_price=None,
-                sl_price=sl_price,
+                sl_price=disaster_sl_price,  # Hard limit order on exchange
+                soft_sl_price=soft_sl_price,  # For portfolio reference
                 signal_class=2,
             )
 

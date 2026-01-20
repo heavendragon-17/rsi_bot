@@ -321,8 +321,11 @@ class PortfolioManager:
         if price <= Decimal("0"):
             return None
 
-        # Position sizing
-        amount = self._calculate_position_size(balance, price, signal.sl_price)
+        # Position sizing: Use soft_sl_price for risk calculation (2% risk)
+        # Soft SL = primary SL level for position sizing
+        # sl_price (disaster SL) = only for hard limit order protection
+        sizing_sl = signal.soft_sl_price if signal.soft_sl_price is not None else signal.sl_price
+        amount = self._calculate_position_size(balance, price, sizing_sl)
 
         # Execute market BUY - pass signal.price for consistent fill price in backtest
         try:
@@ -352,10 +355,10 @@ class PortfolioManager:
             tp1_price=signal.tp1_price,
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
-            sl_price=signal.sl_price,
+            sl_price=signal.sl_price,  # Store disaster SL for reference
         )
 
-        # Place SL limit order if provided
+        # Place hard SL limit order (disaster SL) if provided
         if signal.sl_price is not None:
             try:
                 sl_order = self.exchange.create_order(
@@ -363,8 +366,8 @@ class PortfolioManager:
                     type="limit",
                     side="SELL",
                     amount=amount,
-                    price=signal.sl_price,
-                    params={"exit_reason": "STOP_LOSS"},
+                    price=signal.sl_price,  # Disaster SL on exchange
+                    params={"exit_reason": "DISASTER_SL"},
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
