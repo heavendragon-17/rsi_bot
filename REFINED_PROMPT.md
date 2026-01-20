@@ -3,6 +3,8 @@
 **Role:** Senior Python Trading Systems Engineer
 **Objective:** Refactor the execution logic to switch from immediate Market Entries to Limit Order Entries with a timeout mechanism and dynamic SL/TP updates. This includes updates to the live runner, portfolio manager, and backtesting infrastructure.
 
+**Key Requirement:** This feature must be **configurable per strategy**. The user must be able to select between "MARKET" (legacy) and "LIMIT" (new) entry modes via the strategy configuration.
+
 ---
 
 ## 1. Context & Architecture
@@ -19,7 +21,13 @@
 ## 2. Detailed Requirements
 
 ### A. Entry Logic (PortfolioManager)
-Modify `_handle_buy_signal` to:
+Modify `_handle_buy_signal` to check the strategy configuration `entry_mode` (default: "MARKET").
+
+**If `entry_mode == "MARKET"`:**
+*   **Behavior:** Keep existing logic (Immediate Market Buy).
+*   **Return:** Execute order immediately.
+
+**If `entry_mode == "LIMIT"`:**
 1.  **Price:** Use `signal.price` (which represents the EMA21) as the Limit Order price.
 2.  **Order Type:** Place a `LIMIT` order instead of `MARKET`.
 3.  **State Management:**
@@ -30,8 +38,9 @@ Modify `_handle_buy_signal` to:
 
 ### B. Signal Blocking (MultiSymbolRunner & BacktestEngine)
 1.  In the execution loop, check if the `PortfolioManager` has a `pending_entry_order`.
-2.  **If Pending:** Skip the `strategy.analyze()` step. Do **not** look for new signals while trying to enter.
+2.  **If Pending (and only for Entry Orders):** Skip the `strategy.analyze()` step. Do **not** look for new signals while trying to enter.
 3.  **Instead:** Call a new maintenance method `portfolio.check_pending_entry(current_candle_timestamp)`.
+    *   *Critical Note:* This check is specific to the **Entry** Limit Order. Do not block or interfere with standard SL/TP limit order monitoring.
 
 ### C. Maintenance & Timeout Logic (PortfolioManager.check_pending_entry)
 Create a method `check_pending_entry(self, current_candle_timestamp)` that handles two main responsibilities:
@@ -82,11 +91,13 @@ The backtest loop currently only calls `strategy.analyze`.
 
 ### `app/core/portfolio.py`
 - [ ] Add `self.pending_entry` dictionary/object to `__init__`.
-- [ ] Refactor `_handle_buy_signal` to place `LIMIT` order.
+- [ ] Refactor `_handle_buy_signal`:
+    - [ ] Read `self.config.get('entry_mode')`.
+    - [ ] Add branching logic for `LIMIT` vs `MARKET`.
 - [ ] Implement `check_pending_entry(current_candle_timestamp)`.
 
 ### `app/core/runner.py`
-- [ ] In `_run_symbol_loop`: Add `check_pending_entry` logic and signal blocking.
+- [ ] In `_run_symbol_loop`: Add `check_pending_entry` logic and signal blocking (only active if pending entry exists).
 
 ### `app/backtest/mock_exchange.py`
 - [ ] Implement `BUY` Limit Order triggering logic in `update_candle`.
@@ -97,7 +108,9 @@ The backtest loop currently only calls `strategy.analyze`.
 ---
 
 ## 5. Key Constraints
+*   **Configuration:** The feature must be togglable via `entry_mode: "LIMIT"` in the strategy config. Default to `"MARKET"`.
 *   **Efficiency:** Do not query the exchange on every loop iteration. Use the 60s timer for partial fill checks.
 *   **Safety:** Ensure that if the limit order is cancelled (Case B), the SL/TP are definitely updated to match the exposure.
 *   **Price:** The Limit Price is **fixed** at the moment of the signal (Signal Candle EMA21).
 *   **Consistency:** Backtests must behave exactly like live trading (blocking signals during pending entry).
+*   **Scope:** The "check pending" blocking logic applies **only** to the Entry Limit Order. Normal position management (SL/TP) should not block signal generation (though usually, strategies don't enter if already in a position).
