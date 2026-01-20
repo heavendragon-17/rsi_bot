@@ -348,8 +348,14 @@ class PortfolioManager:
 
         # Check Entry Mode
         entry_mode = self.config.get("entry_mode", "MARKET").upper()
-        if "strategy" in self.config:
+
+        # Check strategy specific config (handle both dict and string cases)
+        if "strategy" in self.config and isinstance(self.config["strategy"], dict):
             entry_mode = self.config["strategy"].get("entry_mode", entry_mode).upper()
+
+        # Check strategy_params (standard place for strategy config)
+        if "strategy_params" in self.config and isinstance(self.config["strategy_params"], dict):
+             entry_mode = self.config["strategy_params"].get("entry_mode", entry_mode).upper()
 
         if entry_mode == "LIMIT":
             try:
