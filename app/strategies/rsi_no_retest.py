@@ -363,9 +363,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                 return None
 
             # Entry logic: Try EMA21 first, but ensure it's above SL
-            entry_price = ema21
-            if entry_price <= sl_price:
-                entry_price = close
+            # Entry logic: Market order at next open (simulated by current close)
+            entry_price = close
 
 
 
