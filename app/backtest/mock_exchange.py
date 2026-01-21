@@ -128,7 +128,13 @@ class MockExchange(IFuturesExchange):
             self.current_prices[symbol] = {"price": close_dec, "time": timestamp}
 
             executed: List[Dict] = []
-            orders_to_remove: List[str] = []
+
+            # Prioritize triggers:
+            # 1. Wick triggers (Hard SL, TP) - happen intra-candle
+            # 2. Close triggers (Soft SL) - happen at candle close
+
+            wick_triggers = []
+            close_triggers = []
 
             for order_id, order in list(self.pending_orders.items()):
                 if order.get("symbol") != symbol:
@@ -138,38 +144,69 @@ class MockExchange(IFuturesExchange):
                 fill_price: Optional[Decimal] = None
                 order_type = order.get("type", "limit").upper()
                 trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
+                is_soft_sl = order.get("info", {}).get("is_soft_sl", False)
+                side = order.get("side")
 
-                # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
-                if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
-                    if low_dec <= trigger_price:
-                        triggered = True
-                        fill_price = trigger_price
-                        order_type = "STOP_LOSS"
+                # --- SOFT SL Logic (Trigger on Close) ---
+                if is_soft_sl:
+                    if side == "SELL": # Long exit
+                         if close_dec <= trigger_price:
+                             triggered = True
+                             fill_price = close_dec # Fill at Close
+                             order_type = "STOP_LOSS" # Report as SL
 
-                # TP behavior: TAKE_PROFIT triggers when high >= trigger
-                elif order_type == "TAKE_PROFIT":
-                    if high_dec >= trigger_price:
-                        triggered = True
-                        fill_price = trigger_price
+                # --- Regular Wick Logic ---
+                else:
+                    # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
+                    if side == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
+                        if low_dec <= trigger_price:
+                            triggered = True
+                            fill_price = trigger_price
+                            order_type = "STOP_LOSS"
+
+                    # TP behavior: TAKE_PROFIT triggers when high >= trigger
+                    elif order_type == "TAKE_PROFIT":
+                        if high_dec >= trigger_price:
+                            triggered = True
+                            fill_price = trigger_price
 
                 if triggered and fill_price is not None:
-                    # Get exit_reason from info dict (CCXT standard)
-                    stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
-                    result = self._execute_order(
-                        symbol=order["symbol"],
-                        side=order["side"],
-                        amount=to_decimal(order["amount"]),
-                        exec_price=fill_price,
-                        timestamp=timestamp,
-                        order_type=order_type,
-                        exit_reason=stored_exit_reason,
-                    )
-                    if result:
-                        executed.append(result)
-                        orders_to_remove.append(order_id)
+                    if is_soft_sl:
+                        close_triggers.append((order_id, order, fill_price, order_type))
+                    else:
+                        wick_triggers.append((order_id, order, fill_price, order_type))
 
-            for oid in orders_to_remove:
-                self.pending_orders.pop(oid, None)
+            # Helper to execute list of triggers
+            def process_triggers(trigger_list):
+                for oid, ord_data, price, otype in trigger_list:
+                    if oid not in self.pending_orders:
+                        continue
+
+                    stored_exit_reason = ord_data.get("info", {}).get("exit_reason") or otype
+
+                    try:
+                        result = self._execute_order(
+                            symbol=ord_data["symbol"],
+                            side=ord_data["side"],
+                            amount=to_decimal(ord_data["amount"]),
+                            exec_price=price,
+                            timestamp=timestamp,
+                            order_type=otype,
+                            exit_reason=stored_exit_reason,
+                        )
+                        if result:
+                            executed.append(result)
+                            self.pending_orders.pop(oid, None)
+                    except ccxt.InsufficientFunds:
+                        # Position likely closed by previous trigger (e.g. Wick trigger closed it, now Soft SL tries)
+                        # We can safely ignore this as the position is already closed.
+                        pass
+                    except Exception as e:
+                        print(f"MockExchange error executing order {oid}: {e}")
+
+            # Execute Wick triggers first, then Close triggers
+            process_triggers(wick_triggers)
+            process_triggers(close_triggers)
 
             return executed
 
@@ -371,6 +408,11 @@ class MockExchange(IFuturesExchange):
             # Pending LIMIT
             if actual_type == "LIMIT" and price is not None:
                 price_dec = to_decimal(price)
+
+                # Merge params into info
+                info = params.copy()
+                info["exit_reason"] = exit_reason or ""
+
                 order = {
                     "id": order_id,
                     "symbol": symbol,
@@ -380,7 +422,7 @@ class MockExchange(IFuturesExchange):
                     "triggerPrice": price_dec,
                     "type": "limit",
                     "status": "open",
-                    "info": {"exit_reason": exit_reason or ""},
+                    "info": info,
                 }
                 self.pending_orders[order_id] = order
                 return {"id": order_id, "status": "open", "type": "limit"}

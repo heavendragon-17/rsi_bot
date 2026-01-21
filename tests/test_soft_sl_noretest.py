@@ -89,24 +89,55 @@ class TestSoftSLNoRetest(unittest.TestCase):
             "closed": True
         })
         
+        # Add NEXT candle to trigger the exit (since NoRetest exits at next open)
+        data.append({
+            "close": 93.0,
+            "high": 95.0,
+            "low": 91.0,
+            "open": 93.9, # Should exit near here
+            "rsi": 44.0,
+            "rsi_ema9": 50.0,
+            "rsi_wma45": 55.0,
+            "ema21": 100.0,
+            "ema200": 90.0,
+            "closed": True
+        })
+
+        # Adjust timestamps to match data length
+        timestamps = [pd.Timestamp.now() - pd.Timedelta(minutes=15*i) for i in range(len(data))]
+        timestamps.reverse()
+
         df_mock = pd.DataFrame(data, index=timestamps)
         
         # Mock indicators.compute to return our df
         self.strategy.indicators.compute = lambda df, **ks: df_mock
         
-        # 3. Run Analyze
+        # 3. Run Analyze - First pass (identifies Soft SL hit)
+        # We need to run it iteratively to simulate candle updates
+        # But analyze() takes the full DF.
+
+        # Simulate passing DF up to trigger candle
+        df_trigger = df_mock.iloc[:-1]
+        signal1 = self.strategy.analyze(symbol, df_trigger)
+        self.assertIsNone(signal1, "Should not exit yet (waiting for next candle)")
+
+        # Verify Pending Flag is set
+        trade = self.strategy.context.get_trade(symbol)
+        self.assertTrue(trade.meta.get("pending_candle_sl"), "Should have marked pending SL")
+
+        # Simulate passing full DF (next candle open simulation)
         signal = self.strategy.analyze(symbol, df_mock)
         
         print("\nGenerated Signal:", signal)
 
         # 4. Verify Signal
-        self.assertIsNotNone(signal, "Should have generated a signal")
+        self.assertIsNotNone(signal, "Should have generated a signal on next candle")
         self.assertEqual(signal.signal_type, "SELL")
         self.assertEqual(signal.reason, "CLOSE_BY_CANDLE_SL")
         
-        # Check Price (should have slippage)
-        # 94 * (1 - 0.001) = 94 * 0.999 = 93.906
-        expected_price = Decimal("94") * Decimal("0.999")
+        # Check Price (should be NEXT OPEN price)
+        # Next Open is 93.9
+        expected_price = Decimal("93.9")
         self.assertAlmostEqual(float(signal.price), float(expected_price), places=4)
 
 if __name__ == '__main__':
