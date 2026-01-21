@@ -49,7 +49,6 @@ class Position:
 
     # Order tracking
     sl_order_id: Optional[str] = None
-    soft_sl_order_id: Optional[str] = None
 
     # TP hit flags
     tp1_hit: bool = False
@@ -238,14 +237,6 @@ class PortfolioManager:
                 pass
             pos.sl_order_id = None
 
-        # Also cancel Soft SL if it exists (since we are consolidating to one SL at entry)
-        if pos.soft_sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.soft_sl_order_id, symbol)
-            except Exception:
-                pass
-            pos.soft_sl_order_id = None
-
         try:
             new_sl_order = self.exchange.create_order(
                 symbol=symbol,
@@ -383,22 +374,6 @@ class PortfolioManager:
             except ccxt.BaseError as e:
                 logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
 
-        # Place Soft SL limit order if provided
-        if signal.soft_sl_price is not None:
-            try:
-                soft_sl_order = self.exchange.create_order(
-                    symbol=signal.symbol,
-                    type="limit",
-                    side="SELL",
-                    amount=amount,
-                    price=signal.soft_sl_price,
-                    params={"exit_reason": "SOFT_SL", "is_soft_sl": True},
-                )
-                if soft_sl_order:
-                    self.positions[signal.symbol].soft_sl_order_id = soft_sl_order.get("id")
-            except ccxt.BaseError as e:
-                logging.error(f"Failed to place Soft SL order for {signal.symbol}: {e}")
-
         return order
 
     # -------------------------
@@ -421,15 +396,6 @@ class PortfolioManager:
                 pass  # Already gone
             except ccxt.BaseError as e:
                 logging.warning(f"Failed to cancel SL {pos.sl_order_id}: {e}")
-
-        # Cancel Soft SL order if any
-        if pos.soft_sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.soft_sl_order_id, symbol)
-            except ccxt.OrderNotFound:
-                pass  # Already gone
-            except ccxt.BaseError as e:
-                logging.warning(f"Failed to cancel Soft SL {pos.soft_sl_order_id}: {e}")
 
         try:
             order = self.exchange.create_order(
@@ -516,14 +482,6 @@ class PortfolioManager:
                     pass
                 except ccxt.BaseError as e:
                     logging.warning(f"Failed to cancel SL {pos.sl_order_id} during cleanup: {e}")
-
-            if pos.soft_sl_order_id:
-                try:
-                    self.exchange.cancel_order(pos.soft_sl_order_id, symbol)
-                except ccxt.OrderNotFound:
-                    pass
-                except ccxt.BaseError as e:
-                    logging.warning(f"Failed to cancel Soft SL {pos.soft_sl_order_id} during cleanup: {e}")
 
             self.positions.pop(symbol, None)
 
