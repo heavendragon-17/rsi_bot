@@ -154,7 +154,8 @@ class MockExchange(IFuturesExchange):
 
                 if triggered and fill_price is not None:
                     # Get exit_reason from info dict (CCXT standard)
-                    stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
+                    stored_info = order.get("info", {})
+                    stored_exit_reason = stored_info.get("exit_reason") or order_type
                     result = self._execute_order(
                         symbol=order["symbol"],
                         side=order["side"],
@@ -163,6 +164,7 @@ class MockExchange(IFuturesExchange):
                         timestamp=timestamp,
                         order_type=order_type,
                         exit_reason=stored_exit_reason,
+                        info=stored_info,
                     )
                     if result:
                         executed.append(result)
@@ -371,6 +373,10 @@ class MockExchange(IFuturesExchange):
             # Pending LIMIT
             if actual_type == "LIMIT" and price is not None:
                 price_dec = to_decimal(price)
+                info_dict = {"exit_reason": exit_reason or ""}
+                if params:
+                    info_dict.update(params)
+
                 order = {
                     "id": order_id,
                     "symbol": symbol,
@@ -380,7 +386,7 @@ class MockExchange(IFuturesExchange):
                     "triggerPrice": price_dec,
                     "type": "limit",
                     "status": "open",
-                    "info": {"exit_reason": exit_reason or ""},
+                    "info": info_dict,
                 }
                 self.pending_orders[order_id] = order
                 return {"id": order_id, "status": "open", "type": "limit"}
@@ -388,7 +394,18 @@ class MockExchange(IFuturesExchange):
             # MARKET executes
             exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
             timestamp = current_data["time"]
-            return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
+
+            # Prepare info dict for market orders
+            info_dict = {"exit_reason": exit_reason or ""}
+            if params:
+                info_dict.update(params)
+
+            return self._execute_order(
+                symbol, side, amount, exec_price, timestamp,
+                order_type=actual_type,
+                exit_reason=exit_reason,
+                info=info_dict
+            )
 
     def _execute_order(
         self,
@@ -399,6 +416,7 @@ class MockExchange(IFuturesExchange):
         timestamp,
         order_type: str = "MARKET",
         exit_reason: str = None,
+        info: Dict = None,
     ) -> Optional[Dict]:
         """
         Execute an order with futures leverage support.
@@ -423,6 +441,11 @@ class MockExchange(IFuturesExchange):
         pnl = None
         pnl_pct = None
         margin_used = Decimal("0")
+
+        info = info or {}
+        signal_sl_price = to_decimal(info.get("signal_sl_price")) if info.get("signal_sl_price") else None
+        expected_risk = None
+        realized_risk = None
 
         if side == "BUY":
             # Check if we have enough margin
@@ -465,6 +488,15 @@ class MockExchange(IFuturesExchange):
                 price_diff = exec_price - entry_price
                 pnl = float(price_diff * amount)  # PnL on the notional
                 pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
+
+                # Calculate Risk metrics
+                if signal_sl_price and signal_sl_price > 0:
+                     # Expected Risk: (Entry - SignalSL) * Amount
+                     # Loss is positive value for risk
+                     expected_risk = float((entry_price - signal_sl_price) * amount)
+
+                if pnl < 0:
+                     realized_risk = pnl # Negative value
             else:
                 pnl = 0.0
             
@@ -520,7 +552,7 @@ class MockExchange(IFuturesExchange):
             "cost": float(notional),
             "average": float(exec_price),
             "fee": {"currency": "USDT", "cost": float(fee_cost), "rate": float(fee_rate)},
-            "info": {"exit_reason": exit_reason or ""},
+            "info": info,
             
             # Extended fields for reporting (kept for backward compat in reporting.py)
             "time": timestamp,
@@ -532,6 +564,9 @@ class MockExchange(IFuturesExchange):
             "pnl": pnl,
             "pnl_pct": pnl_pct,
             "hold_duration_seconds": hold_duration_seconds,
+            "signal_sl_price": float(signal_sl_price) if signal_sl_price else None,
+            "expected_risk": expected_risk,
+            "realized_risk": realized_risk,
         }
         self.trade_history.append(order)
         return order

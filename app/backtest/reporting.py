@@ -107,6 +107,25 @@ class BacktestReporter:
         # PnL % based on margin (capital at risk)
         pnl_pct = (total_pnl / entry_margin) * 100 if entry_margin and entry_margin > 0 else 0
         
+        # New risk metrics extraction
+        signal_sl_price = None
+        expected_risk = 0.0
+        realized_risk = 0.0
+        exec_sl_price = None
+
+        # Find signal_sl_price and exec_sl_price
+        for e in exits:
+             if e.get("signal_sl_price"):
+                 signal_sl_price = e.get("signal_sl_price")
+             if e.get("expected_risk"):
+                 expected_risk += float(e.get("expected_risk", 0.0))
+             if e.get("realized_risk"):
+                 realized_risk += float(e.get("realized_risk", 0.0))
+
+             reason = get_exit_reason(e)
+             if reason in ('SL', 'STOP_LOSS'):
+                 exec_sl_price = e.get("price")
+
         return {
             'entry_time': entry.get('time'),
             'exit_time': last_exit.get('time'),
@@ -129,6 +148,10 @@ class BacktestReporter:
             'hit_tp2': any(get_exit_reason(e) == 'TP2' for e in exits),
             'hit_tp3': any(get_exit_reason(e) == 'TP3' for e in exits),
             'hit_sl': any(get_exit_reason(e) in ('SL', 'STOP_LOSS') for e in exits),
+            'signal_sl_price': signal_sl_price,
+            'exec_sl_price': exec_sl_price,
+            'expected_risk': expected_risk,
+            'realized_risk': realized_risk,
         }
 
     def _get_highest_exit_reason(self, exit_reasons: list) -> str:
@@ -543,13 +566,15 @@ class BacktestReporter:
                     <tr>
                         <th>#</th>
                         <th>Entry Time</th>
-                        <th>Exit Time</th>
+                        <th>Symbol</th>
                         <th>Entry $</th>
-                        <th>Exit $</th>
-                        <th>Avg Exit $</th>
+                        <th>Pos Size</th>
+                        <th>Signal SL</th>
+                        <th>Exec SL</th>
+                        <th>Exp Risk ($)</th>
+                        <th>Real Risk ($)</th>
                         <th>PnL</th>
                         <th>PnL %</th>
-                        <th>Hold Time</th>
                         <th>Exit Reason</th>
                     </tr>
                 </thead>
@@ -557,17 +582,32 @@ class BacktestReporter:
             """
             for i, row in round_trips.iterrows():
                 pnl_class = 'positive' if row['pnl'] > 0 else 'negative'
+
+                # Check for Slippage/Risk Mismatch
+                real_risk_class = ""
+                exp_risk_val = abs(row.get('expected_risk', 0) or 0)
+                real_risk_val = abs(row.get('realized_risk', 0) or 0)
+
+                # Highlight if Real Risk > Expected Risk by 5%
+                if exp_risk_val > 0 and real_risk_val > exp_risk_val * 1.05:
+                     real_risk_class = "negative"
+
+                signal_sl_display = f"${row['signal_sl_price']:.2f}" if row.get('signal_sl_price') else "N/A"
+                exec_sl_display = f"${row['exec_sl_price']:.2f}" if row.get('exec_sl_price') else "-"
+
                 trades_table_html += f"""
                     <tr>
                         <td>{i+1}</td>
                         <td>{row['entry_time']}</td>
-                        <td>{row['exit_time']}</td>
+                        <td>{row['symbol']}</td>
                         <td>${row['entry_price']:.6f}</td>
-                        <td>${row['exit_price']:.6f}</td>
-                        <td>${row['avg_exit_price']:.6f}</td>
+                        <td>{row['amount']:.4f}</td>
+                        <td>{signal_sl_display}</td>
+                        <td>{exec_sl_display}</td>
+                        <td>${row.get('expected_risk', 0):.2f}</td>
+                        <td class="{real_risk_class}">${row.get('realized_risk', 0):.2f}</td>
                         <td class="{pnl_class}">${row['pnl']:.2f}</td>
                         <td class="{pnl_class}">{row['pnl_pct']:.2f}%</td>
-                        <td>{self._format_duration(row['hold_duration_hours'])}</td>
                         <td><span class="badge badge-{row['exit_reason'].lower().replace('+', '-')}">{row['exit_reason']}</span></td>
                     </tr>
                 """

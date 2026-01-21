@@ -47,6 +47,10 @@ class Position:
     tp3_price: Optional[Decimal] = None
     sl_price: Optional[Decimal] = None
 
+    # Risk Metadata
+    signal_sl_price: Optional[Decimal] = None
+    initial_risk_pct: Optional[Decimal] = None
+
     # Order tracking
     sl_order_id: Optional[str] = None
 
@@ -356,6 +360,8 @@ class PortfolioManager:
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,  # Store disaster SL for reference
+            signal_sl_price=sizing_sl,
+            initial_risk_pct=self.risk_per_trade_pct,
         )
 
         # Place hard SL limit order (disaster SL) if provided
@@ -367,7 +373,11 @@ class PortfolioManager:
                     side="SELL",
                     amount=amount,
                     price=signal.sl_price,  # Disaster SL on exchange
-                    params={"exit_reason": "DISASTER_SL"},
+                    params={
+                        "exit_reason": "DISASTER_SL",
+                        "signal_sl_price": sizing_sl,
+                        "initial_risk_pct": self.risk_per_trade_pct,
+                    },
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
@@ -404,7 +414,11 @@ class PortfolioManager:
                 side="SELL",
                 amount=pos.amount,
                 price=price,
-                params={"exit_reason": exit_reason},
+                params={
+                    "exit_reason": exit_reason,
+                    "signal_sl_price": pos.signal_sl_price,
+                    "initial_risk_pct": pos.initial_risk_pct,
+                },
             )
 
             if order:
@@ -459,7 +473,11 @@ class PortfolioManager:
                 type="market",
                 side="SELL",
                 amount=close_amount,
-                params={"exit_reason": tp_level},
+                params={
+                    "exit_reason": tp_level,
+                    "signal_sl_price": pos.signal_sl_price,
+                    "initial_risk_pct": pos.initial_risk_pct,
+                },
             )
             if not order:
                 return None
