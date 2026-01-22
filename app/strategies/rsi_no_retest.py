@@ -49,13 +49,16 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
-        "nr_sl_mode": "lowest_wick",    # "rsi_ema9" or "lowest_wick"
+        "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
         "sl_buffer_pct": 0.0,            # No buffer (original behavior)
         "disaster_sl_multiplier": 3.0,   # Disaster SL = 2x distance from entry
         "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
         
         # TP settings
-        "nr_tp_rr": 1,               # Risk:Reward ratio (1 = 1:1)
+        "use_partial_tp": False,          # TOGGLE: True = 1R (50%) & 2R (50%), False = Full TP
+        "nr_tp_rr": 1.0,                 # RR for Full TP (used if use_partial_tp is False)
+        "nr_tp1_rr": 1.0,                # RR for Partial TP1
+        "nr_tp2_rr": 2.0,                # RR for Partial TP2
         
         # SL management
         "nr_move_sl_rr": 0.5,        # Trigger: move SL when high reaches 0.5R (halfway to TP)
@@ -109,7 +112,10 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
 
         # TP behavior
-        self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1)))  # 1:1
+        self.use_partial_tp = bool(cfg.get("use_partial_tp", True))
+        self.tp_rr = Decimal(str(cfg.get("nr_tp_rr", 1.0)))
+        self.tp1_rr = Decimal(str(cfg.get("nr_tp1_rr", 1.0)))
+        self.tp2_rr = Decimal(str(cfg.get("nr_tp2_rr", 2.0)))
 
         # NEW: Move SL trigger and lock level
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))       # Trigger at 0.5R (halfway to TP)
@@ -247,6 +253,8 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl_price = meta.get("sl_price")  # This is now Soft SL (for candle close check)
             soft_sl = meta.get("soft_sl_price")  # Explicit soft SL if available
             tp_price = meta.get("tp_price")
+            tp1_price = meta.get("tp1_price")
+            tp2_price = meta.get("tp2_price")
             moved_sl = bool(meta.get("moved_sl_to_entry", False))
             pending_candle_sl = bool(meta.get("pending_candle_sl", False))
 
@@ -258,6 +266,8 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl_price = self._to_dec(sl_price) if sl_price is not None else None
             soft_sl = self._to_dec(soft_sl) if soft_sl is not None else sl_price  # Fallback to sl_price
             tp_price = self._to_dec(tp_price) if tp_price is not None else None
+            tp1_price = self._to_dec(tp1_price)
+            tp2_price = self._to_dec(tp2_price)
             open_price = self._to_dec(last.get("open"))
 
             if entry_price is None:
@@ -291,6 +301,23 @@ class RsiNoRetestStrategy(BaseStrategy):
                     timestamp=ts,
                     reason="FULL_TP",
                 )
+            
+            if self.use_partial_tp:
+                # Target 1: 1R (50%)
+                if not meta.get("tp1_hit") and tp1_price and high >= tp1_price:
+                    meta["tp1_hit"] = True
+                    return SignalEvent(symbol=symbol, signal_type="SELL", price=tp1_price, timestamp=ts, reason="TP1")
+                # Target 2: 2R (Remainder)
+                if tp2_price and high >= tp2_price:
+                    self.context.close_trade(symbol)
+                    self.context.transition(key, SCANNING, reason="TP2", now_ts=ts)
+                    return SignalEvent(symbol=symbol, signal_type="SELL", price=tp2_price, timestamp=ts, reason="TP2")
+            else:
+                # Full TP Mode
+                if tp1_price and high >= tp1_price:
+                    self.context.close_trade(symbol)
+                    self.context.transition(key, SCANNING, reason="TP1", now_ts=ts)
+                    return SignalEvent(symbol=symbol, signal_type="SELL", price=tp1_price, timestamp=ts, reason="FULL_TP")
 
             # -------------------------------------------------
             # STEP 2: Move SL to lock profit when price reaches 0.5R
