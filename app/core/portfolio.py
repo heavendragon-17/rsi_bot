@@ -88,7 +88,7 @@ class PortfolioManager:
         self.initial_capital = Decimal(str(backtest_cfg.get("initial_balance", 10000)))
 
         # TP percentages (how much to close at each level)
-        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
+        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.50)))  # close 1/3
         self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
         # TP3 closes 100% remaining
 
