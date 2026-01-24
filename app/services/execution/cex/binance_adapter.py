@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 import threading
 from decimal import Decimal
@@ -77,10 +78,8 @@ def _to_um_symbol(symbol: str) -> str:
 
 class UMFuturesPaperClient:
     """
-    CCXT-ish wrapper around UMFutures for PAPER mode.
-    Only implements what your tests call:
-      - fetch_ticker(symbol) -> {'last': float, 'symbol': <external symbol>}
-      - fetch_ohlcv(symbol, timeframe, limit) -> [[ts, o,h,l,c,v], ...]
+    Wrapper for UMFutures (Testnet/Paper) to mimic CCXT behavior.
+    Includes error handling for Testnet latency (Error -2013).
     """
 
     def __init__(self, um: UMFutures):
@@ -89,12 +88,10 @@ class UMFuturesPaperClient:
     def fetch_ticker(self, symbol: str) -> Dict[str, Any]:
         ext = _to_external_symbol(symbol)
         um_sym = _to_um_symbol(ext)
-        # UM returns: {'symbol': 'BTCUSDT', 'price': '...'}
         t = self.um.ticker_price(symbol=um_sym)
-        last = float(t["price"])
         return {
             "symbol": ext,
-            "last": last,
+            "last": float(t["price"]),
             "info": t,
         }
 
@@ -108,13 +105,64 @@ class UMFuturesPaperClient:
             "1d": "1d", "1w": "1w",
         }
         interval = tf_map.get(timeframe, timeframe)
+        
+        # Testnet sometimes fails on klines, simple retry
+        try:
+            data = self.um.klines(symbol=um_sym, interval=interval, limit=limit)
+        except ClientError:
+            time.sleep(1)
+            data = self.um.klines(symbol=um_sym, interval=interval, limit=limit)
 
-        data = self.um.klines(symbol=um_sym, interval=interval, limit=limit)
         out: List[List[Any]] = []
         for k in data:
+            # [time, open, high, low, close, vol, ...]
             out.append([k[0], float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])])
         return out
 
+    def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+        """
+        Fetches order status. Handles Testnet -2013 error (latency) automatically.
+        """
+        ext = _to_external_symbol(symbol)
+        um_sym = _to_um_symbol(ext)
+        
+        try:
+            resp = self.um.query_order(symbol=um_sym, orderId=int(order_id))
+            return {
+                "id": str(resp.get("orderId")),
+                "symbol": ext,
+                "status": resp.get("status").lower(), # new, filled, canceled
+                "price": float(resp.get("price", 0)),
+                "amount": float(resp.get("origQty", 0)),
+                "side": resp.get("side").lower(),
+                "type": resp.get("type").lower(),
+                "info": resp
+            }
+        except ClientError as e:
+            # Error -2013: Order does not exist.
+            # On Testnet, querying immediately after placing often causes this.
+            if e.error_code == -2013:
+                # Return 'unknown' status so the bot logic doesn't crash and retries later
+                return {
+                    "id": str(order_id),
+                    "status": "unknown", 
+                    "symbol": ext,
+                }
+            
+            # Print other errors
+            print(f"fetch_order failed ({e.error_code}): {e.error_message}")
+            raise e
+
+    def cancel_order(self, order_id: str, symbol: str):
+        ext = _to_external_symbol(symbol)
+        um_sym = _to_um_symbol(ext)
+        try:
+            return self.um.cancel_order(symbol=um_sym, orderId=int(order_id))
+        except ClientError as e:
+            if e.error_code == -2011: # Unknown order (already canceled or not found)
+                return True
+            print(f"cancel_order failed: {e}")
+            return False
 
 @dataclass
 class Position:
