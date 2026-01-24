@@ -1,0 +1,4 @@
+## 2026-01-24 - Sensitive Data Exposure in Logs
+**Vulnerability:** The application logger was configured to log messages without sanitization, potentially exposing sensitive environment variables (API keys, secrets) if they were included in log strings.
+**Learning:** Python's `logging` module does not sanitize data by default. Any application dealing with financial or authentication secrets must implement explicit log sanitization.
+**Prevention:** Implemented a `RedactingFilter` in `app/utils/logger.py`. This filter inspects `os.environ` on initialization for sensitive keys (containing "KEY", "SECRET", "TOKEN", "PASSWORD", "PWD", "AUTH") and automatically redacts their values from all log records.
