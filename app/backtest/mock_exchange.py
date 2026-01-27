@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import ccxt
 
-from app.core.interfaces import IExchange, IFuturesExchange
+from app.core.interfaces import IFuturesExchange
 
 
 def to_decimal(val) -> Decimal:
