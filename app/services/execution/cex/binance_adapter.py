@@ -220,7 +220,7 @@ class BinanceAdapter:
         if value not in ["live", "paper"]:
             raise ValueError("Mode must be 'live' or 'paper'")
         self._mode = value
-        print(f"🔄 Switched BinanceAdapter to {self._mode.upper()} mode.")
+        print(f"[Info] Switched BinanceAdapter to {self._mode.upper()} mode.")
 
     @property
     def client(self):

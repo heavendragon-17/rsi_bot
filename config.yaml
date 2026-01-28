@@ -1,6 +1,6 @@
 bot:
     active: true
-    mode: 'mock' # mock | paper | live
+    mode: 'paper' # mock | paper | live
 
 exchange:
     name: 'binanceusdm' # binanceusdm | lighter | etc.

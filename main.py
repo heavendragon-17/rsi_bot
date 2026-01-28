@@ -1,78 +1,194 @@
 """
 RSI Trading Bot - Main Entry Point
 ===================================
-Multi-symbol concurrent trading bot with paper/live mode support.
+Realtime integration of:
+- RsiNoRetestStrategy (Strategy)
+- BinanceAdapter (Exchange/Paper)
+- BinanceSignalExecutor (Execution)
+- TelegramBot (Notification)
+
+Usage:
+    python main.py
 """
-import yaml
-import sys
 import os
+import sys
+import time
+import yaml
+import threading
+import pandas as pd
+from datetime import datetime
+from dotenv import load_dotenv
+from decimal import Decimal
 
 # Add the current directory to sys.path to allow imports from app
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.utils.logger import setup_logger
-from app.utils.validators import validate_config
-from app.repository.db_connect import init_db
-from app.core.runner import MultiSymbolRunner
-from app.services.execution.exchange_factory import create_exchange
-from app.strategies.loader import load_strategy
+from app.services.execution.cex.binance_adapter import BinanceAdapter
+from app.services.execution.cex.binance_signal_executor import BinanceSignalExecutor
+from app.services.notification.telegram_bot import TelegramBot
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.core.context import StrategyContext, SCANNING
 
+# Load Env
+load_dotenv()
+
+# Logger
+logger = setup_logger()
 
 def load_config():
     try:
         with open("config.yaml", "r") as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
-        print("Error: config.yaml not found.")
+        logger.error("config.yaml not found.")
         sys.exit(1)
 
+def run_executor_thread(executor, signal_dict, usdt_amount, symbol):
+    """
+    Runs the executor in a separate thread to prevent blocking the main scanning loop.
+    """
+    logger.info(f"[{symbol}] Starting Executor Thread...")
+    try:
+        executor.execute(signal_dict, usdt_amount)
+    except Exception as e:
+        logger.exception(f"[{symbol}] Executor Thread Error: {e}")
+    finally:
+        logger.info(f"[{symbol}] Executor Thread Finished.")
 
 def main():
-    logger = setup_logger()
-    logger.info("Starting RSI Bot System...")
+    logger.info("Starting RSI Bot (Realtime)...")
     
-    # 1. Load and validate config
+    # 1. Load Config
     config = load_config()
+    
+    # Force Paper Mode based on user request/config
+    bot_mode = config.get("bot", {}).get("mode", "paper")
+    logger.info(f"Bot Mode: {bot_mode.upper()}")
+    
+    # 2. Initialize Components
+    
+    # Telegram
     try:
-        validate_config(config)
-    except ValueError as e:
-        logger.error(f"Configuration Error: {e}")
-        sys.exit(1)
-    
-    # 2. Initialize database
-    init_db()
-    logger.info("Database initialized (trades.db checked).")
-    
-    # 3. Load strategy class
-    try:
-        strategy_class = load_strategy(config)
-        logger.info(f"Strategy loaded: {strategy_class.__name__}")
-    except ValueError as e:
-        logger.error(f"Strategy Error: {e}")
-        sys.exit(1)
-    
-    # 4. Create and start the multi-symbol runner
-    runner = MultiSymbolRunner(
-        config=config,
-        strategy_class=strategy_class,
-        exchange_factory=create_exchange,
-    )
-    
-    mode = config.get('bot', {}).get('mode', 'paper')
-    symbols = config.get('symbols', [])
-    logger.info(f"Mode: {mode.upper()}")
-    logger.info(f"Symbols: {symbols}")
-    logger.info(f"Exchange: {type(runner.exchange).__name__}")
-    
-    # 5. Start trading
-    runner.start()
-    
-    # 6. Wait (blocks until shutdown signal)
-    logger.info("Bot is running. Press Ctrl+C to stop.")
-    runner.wait()
-    
-    logger.info("Bot shutdown complete.")
+        telegram = TelegramBot()
+        telegram.send_message(f"🚀 RSI Bot Started [{bot_mode.upper()}]")
+    except Exception as e:
+        logger.warning(f"Telegram init failed: {e}")
+        telegram = None
 
+    # Adapter (Exchange)
+    adapter = BinanceAdapter(config, initial_balance=1000.0)
+    # Ensure mode is set correctly
+    try:
+        adapter.mode = bot_mode
+    except Exception as e:
+        logger.error(f"Failed to set adapter mode: {e}")
+        sys.exit(1)
+
+    # Executor (Trade Monitoring)
+    executor = BinanceSignalExecutor(adapter)
+    
+    # Context (State Machine)
+    context = StrategyContext()
+    
+    # Strategy
+    # We pass the shared context to the strategy so it persists state across loops
+    strategy = RsiNoRetestStrategy(config)
+    strategy.context = context # Inject context
+    
+    # 3. Setup Symbols & Timeframe
+    symbols = config.get("symbols", ["BTC/USDT"])
+    timeframe = config.get("bot", {}).get("timeframe", "15m") 
+    # Check if timeframe is top-level (legacy) or in bot/strategy section
+    if "timeframe" in config and isinstance(config["timeframe"], str):
+         timeframe = config["timeframe"]
+         
+    lookback_candles = 500 # Ensure enough data for strategy
+    
+    logger.info(f"Monitoring: {symbols} on {timeframe}")
+    
+    # 4. Main Realtime Loop
+    try:
+        while True:
+            for symbol in symbols:
+                try:
+                    # Skip if active trade exists (Executor is handling it)
+                    # Note: Strategy check is still useful to update state/logging, 
+                    # but we shouldn't trigger new BUYs.
+                    if context.has_active_trade(symbol):
+                        # Optional: Print status or just skip
+                        continue
+
+                    # A. Fetch Data
+                    # logger.info(f"[{symbol}] Fetching data...")
+                    ohlcv = adapter.fetch_ohlcv(symbol, timeframe, limit=lookback_candles)
+                    if not ohlcv:
+                        logger.warning(f"[{symbol}] No data returned.")
+                        continue
+                        
+                    # Convert to DataFrame
+                    df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+                    df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+                    
+                    # B. Analyze
+                    signal = strategy.analyze(symbol, df)
+                    
+                    # C. Handle Signal
+                    if signal:
+                        logger.info(f"[{symbol}] SIGNAL: {signal.signal_type} | {signal.reason}")
+                        
+                        # Notify
+                        if telegram:
+                            msg = (f"📢 <b>{signal.signal_type} {symbol}</b>\n"
+                                   f"Price: {signal.price}\n"
+                                   f"Reason: {signal.reason}")
+                            telegram.send_message(msg)
+
+                        # Execute (Only BUY/LONG entries are handled by executor in this logic)
+                        if signal.signal_type == "BUY":
+                            # Prepare Signal Dict for Executor
+                            # Executor expects:
+                            # {"Symbol": ..., "Side": "BUY", "SL": ..., "TP 1": ..., "Timeframe": ...}
+                            
+                            sig_dict = {
+                                "Symbol": symbol,
+                                "Side": "BUY",
+                                "SL": signal.sl_price or signal.soft_sl_price, # Use hard or soft SL
+                                "Timeframe": timeframe
+                            }
+                            
+                            # Add TPs
+                            if signal.tp1_price: sig_dict["TP 1"] = signal.tp1_price
+                            if signal.tp2_price: sig_dict["TP 2"] = signal.tp2_price
+                            if signal.tp3_price: sig_dict["TP 3"] = signal.tp3_price
+                            
+                            # Fallback if only single TP in logic (strategy returns tp1_price usually)
+                            
+                            # Determine Position Size
+                            # Simple approach: Fixed USDT amount or % of balance
+                            # For paper mode simplicity: use fixed 100 USDT or similar
+                            invest_amount = Decimal("100") 
+                            
+                            # Launch Thread
+                            t = threading.Thread(
+                                target=run_executor_thread,
+                                args=(executor, sig_dict, invest_amount, symbol),
+                                daemon=True
+                            )
+                            t.start()
+                            
+                except Exception as e:
+                    logger.error(f"[{symbol}] Loop Error: {e}")
+                    # time.sleep(1) # prevent rapid error loops
+            
+            # Sleep between cycles (e.g. 10s)
+            time.sleep(10)
+
+    except KeyboardInterrupt:
+        logger.info("Updates stopped by user.")
+        if telegram:
+             telegram.send_message("Bot Stopped")
 
 if __name__ == "__main__":
     main()
