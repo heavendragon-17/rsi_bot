@@ -88,8 +88,9 @@ class PortfolioManager:
         self.initial_capital = Decimal(str(backtest_cfg.get("initial_balance", 10000)))
 
         # TP percentages (how much to close at each level)
-        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
-        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
+        # TP percentages (how much to close at each level)
+        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.50)))  # close 50%
+        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 50% of remaining
         # TP3 closes 100% remaining
 
     # -------------------------
@@ -220,21 +221,29 @@ class PortfolioManager:
         exit_reason = "BREAKEVEN"
 
         # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
+        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
+                # DEBUG PRINT
+                print(f"[_move_sl_to_entry] Calling update_stop_loss for {symbol}: price={target_price}, amount={amount_to_use}")
                 ok = bool(fn2(symbol, target_price, amount_to_use, exit_reason))
                 if ok:
+                    print(f"[_move_sl_to_entry] update_stop_loss SUCCESS for {symbol}")
                     return True
-            except Exception:
+                else:
+                    print(f"[_move_sl_to_entry] update_stop_loss returned FALSE for {symbol}")
+            except Exception as e:
+                print(f"[_move_sl_to_entry] update_stop_loss failed for {symbol}: {e}")
                 pass
 
         # 2) Fallback: cancel existing SL order and re-create LIMIT at target_price
+        logging.info(f"[_move_sl_to_entry] Fallback to Cancel+Replance for {symbol}")
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning(f"[_move_sl_to_entry] Failed to cancel SL {pos.sl_order_id} for {symbol}: {e}")
             pos.sl_order_id = None
 
         try:
@@ -298,11 +307,11 @@ class PortfolioManager:
 
             # --- TP partial closes ---
             if reason.startswith("TP1"):
-                return self.execute_partial_close(signal.symbol, "TP1")
+                return self.execute_partial_close(signal.symbol, "TP1", new_sl_price=signal.sl_price)
             if reason.startswith("TP2"):
-                return self.execute_partial_close(signal.symbol, "TP2")
+                return self.execute_partial_close(signal.symbol, "TP2", new_sl_price=signal.sl_price)
             if reason.startswith("TP3"):
-                return self.execute_partial_close(signal.symbol, "TP3")
+                return self.execute_partial_close(signal.symbol, "TP3", new_sl_price=signal.sl_price)
 
             # Any other SELL -> close full (pass exit_reason)
             exit_reason = signal.reason or "MANUAL"
@@ -416,10 +425,10 @@ class PortfolioManager:
 
         return None
 
-    def execute_partial_close(self, symbol: str, tp_level: str):
+    def execute_partial_close(self, symbol: str, tp_level: str, new_sl_price: Optional[Decimal] = None):
         """
         Execute partial close for TP levels:
-        - TP1: close tp1_close_pct of current amount, then move SL to entry on remaining
+        - TP1: close tp1_close_pct of current amount, then move SL to entry (or new_sl_price) for remaining
         - TP2: close tp2_close_pct of remaining
         - TP3: close all remaining
         """
@@ -453,6 +462,8 @@ class PortfolioManager:
         if close_amount <= Decimal("0"):
             return None
 
+        print(f"[DEBUG] exec_partial: start pos.amount={pos.amount}, close_amount={close_amount}, level={tp_level}")
+
         try:
             order = self.exchange.create_order(
                 symbol=symbol,
@@ -462,16 +473,21 @@ class PortfolioManager:
                 params={"exit_reason": tp_level},
             )
             if not order:
+                print("[DEBUG] exec_partial: create_order returned None")
                 return None
         except ccxt.BaseError as e:
             logging.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
             return None
 
+        old_amount = pos.amount
         pos.amount -= close_amount
+        print(f"[DEBUG] exec_partial: updated pos.amount from {old_amount} to {pos.amount}")
 
-        # TP1: move SL to entry for remaining
-        if tp_level == "TP1" and pos.amount > Decimal("0"):
-            self._move_sl_to_entry(symbol)
+        # Update SL amount for remaining position (resize SL order)
+        # If new_sl_price is provided, it moves there. If None, it moves to Entry (or stays at Entry).
+        if pos.amount > Decimal("0"):
+            print(f"[DEBUG] exec_partial: Resizing SL order. new_price={new_sl_price}, pos.amount={pos.amount}")
+            self._move_sl_to_entry(symbol, new_price=new_sl_price)
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
