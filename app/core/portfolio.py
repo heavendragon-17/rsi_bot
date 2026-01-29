@@ -1,4 +1,4 @@
-# app/core/portfolio_manager.py
+# app/core/portfolio.py
 """
 Layer 3: Execution - Portfolio Manager
 =======================================
@@ -19,7 +19,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 import logging
 import ccxt
@@ -46,9 +46,11 @@ class Position:
     tp2_price: Optional[Decimal] = None
     tp3_price: Optional[Decimal] = None
     sl_price: Optional[Decimal] = None
+    lock_profit_price: Optional[Decimal] = None
 
     # Order tracking
     sl_order_id: Optional[str] = None
+    tp_order_ids: Dict[str, str] = field(default_factory=dict)
 
     # TP hit flags
     tp1_hit: bool = False
@@ -320,6 +322,86 @@ class PortfolioManager:
         return None
 
     # -------------------------
+    # Execution Handling
+    # -------------------------
+    def process_executions(self, executed_orders: List[Dict]):
+        """
+        Process orders executed by the exchange (triggered TPs or SLs).
+        """
+        for order in executed_orders:
+            symbol = order.get("symbol")
+            if not symbol or symbol not in self.positions:
+                continue
+
+            pos = self.positions[symbol]
+            side = order.get("side", "").upper()
+            exit_reason = order.get("info", {}).get("exit_reason", "").upper()
+            amount_filled = to_decimal(order.get("amount", 0))
+
+            if side == "SELL":
+                # Check for TPs
+                if "TP1" in exit_reason:
+                    pos.tp1_hit = True
+                    print(f"[{symbol}] TP1 Executed on Exchange. Moving SL...")
+                    # Update position amount
+                    pos.amount -= amount_filled
+                    # Move SL to lock profit price (or entry)
+                    target_sl = pos.lock_profit_price if pos.lock_profit_price else pos.entry_price
+                    self._move_sl_to_entry(symbol, new_price=target_sl)
+
+                elif "TP2" in exit_reason:
+                    pos.tp2_hit = True
+                    pos.amount -= amount_filled
+                    # Resize SL
+                    self._move_sl_to_entry(symbol, new_price=pos.sl_price) # Keep current SL price, just resize
+
+                elif "TP3" in exit_reason:
+                    pos.tp3_hit = True
+                    pos.amount -= amount_filled
+                    # Final cleanup will happen if amount <= 0
+
+                elif "SL" in exit_reason or "STOP_LOSS" in exit_reason:
+                    # SL Hit
+                    pos.amount -= amount_filled
+
+                # Cleanup if closed
+                if pos.amount <= Decimal("0.00000001"):
+                    self._cancel_open_orders(symbol)
+                    self.positions.pop(symbol, None)
+
+    def _cancel_open_orders(self, symbol: str):
+        """Cancel all open orders (TPs, SL) for a symbol."""
+        pos = self.positions.get(symbol)
+        if not pos:
+            return
+
+        # Cancel SL
+        if pos.sl_order_id:
+            try:
+                self.exchange.cancel_order(pos.sl_order_id, symbol)
+            except Exception:
+                pass
+
+        # Cancel TPs
+        for label, oid in pos.tp_order_ids.items():
+            try:
+                self.exchange.cancel_order(oid, symbol)
+            except Exception:
+                pass
+        pos.tp_order_ids.clear()
+
+    def _place_tp_order(self, symbol: str, amount: Decimal, price: Decimal, label: str):
+        """Place a TP order on the exchange."""
+        if hasattr(self.exchange, "place_take_profit"):
+            try:
+                order = self.exchange.place_take_profit(symbol, amount, price, label)
+                if order:
+                    if symbol in self.positions:
+                        self.positions[symbol].tp_order_ids[label] = order['id']
+            except Exception as e:
+                logging.error(f"Failed to place {label} for {symbol}: {e}")
+
+    # -------------------------
     # BUY logic
     # -------------------------
     def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
@@ -331,19 +413,17 @@ class PortfolioManager:
             return None
 
         # Position sizing: Use soft_sl_price for risk calculation (2% risk)
-        # Soft SL = primary SL level for position sizing
-        # sl_price (disaster SL) = only for hard limit order protection
         sizing_sl = signal.soft_sl_price if signal.soft_sl_price is not None else signal.sl_price
         amount = self._calculate_position_size(balance, price, sizing_sl)
 
-        # Execute market BUY - pass signal.price for consistent fill price in backtest
+        # Execute market BUY
         try:
             order = self.exchange.create_order(
                 symbol=signal.symbol,
                 type="market",
                 side="BUY",
                 amount=amount,
-                price=price,  # Use signal price for backtest consistency
+                price=price,
             )
             if not order:
                 return None
@@ -364,7 +444,8 @@ class PortfolioManager:
             tp1_price=signal.tp1_price,
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
-            sl_price=signal.sl_price,  # Store disaster SL for reference
+            sl_price=signal.sl_price,
+            lock_profit_price=signal.lock_profit_price
         )
 
         # Place hard SL limit order (disaster SL) if provided
@@ -375,13 +456,34 @@ class PortfolioManager:
                     type="limit",
                     side="SELL",
                     amount=amount,
-                    price=signal.sl_price,  # Disaster SL on exchange
+                    price=signal.sl_price,
                     params={"exit_reason": "DISASTER_SL"},
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
             except ccxt.BaseError as e:
                 logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
+
+        # Place TP Orders
+        total_tp_amount = Decimal("0")
+
+        # TP1
+        if signal.tp1_price and self.tp1_close_pct > 0:
+            tp1_amt = amount * self.tp1_close_pct
+            self._place_tp_order(signal.symbol, tp1_amt, signal.tp1_price, "TP1")
+            total_tp_amount += tp1_amt
+
+        # TP2
+        remaining = amount - total_tp_amount
+        if signal.tp2_price and self.tp2_close_pct > 0 and remaining > 0:
+            tp2_amt = remaining * self.tp2_close_pct
+            self._place_tp_order(signal.symbol, tp2_amt, signal.tp2_price, "TP2")
+            total_tp_amount += tp2_amt
+
+        # TP3 (Close all remainder)
+        remaining = amount - total_tp_amount
+        if signal.tp3_price and remaining > 0:
+            self._place_tp_order(signal.symbol, remaining, signal.tp3_price, "TP3")
 
         return order
 
@@ -397,14 +499,8 @@ class PortfolioManager:
         
         pos = self.positions[symbol]
 
-        # Cancel SL order if any
-        if pos.sl_order_id:
-            try:
-                self.exchange.cancel_order(pos.sl_order_id, symbol)
-            except ccxt.OrderNotFound:
-                pass  # Already gone
-            except ccxt.BaseError as e:
-                logging.warning(f"Failed to cancel SL {pos.sl_order_id}: {e}")
+        # Cancel Open Orders (SL, TPs)
+        self._cancel_open_orders(symbol)
 
         try:
             order = self.exchange.create_order(
@@ -432,6 +528,7 @@ class PortfolioManager:
         - TP2: close tp2_close_pct of remaining
         - TP3: close all remaining
         """
+        # Sync with exchange first (to catch any limit fills that happened)
         self.sync_from_exchange()
 
         if symbol not in self.positions:
@@ -448,6 +545,20 @@ class PortfolioManager:
             return None
 
         close_amount = Decimal("0")
+
+        # NOTE: If we are using Pending TPs, this method shouldn't be called for those levels
+        # unless we are using a strategy that manages TPs manually (MARKET sells).
+        # We assume if TPs are pending, they will be hit via process_executions.
+        # But if the strategy sends a signal, we respect it (Double protection or manual override).
+
+        # However, if we have pending TPs, we should probably cancel the pending TP for this level
+        # before executing market sell to avoid double selling?
+        if tp_level in pos.tp_order_ids:
+             try:
+                 self.exchange.cancel_order(pos.tp_order_ids[tp_level], symbol)
+                 del pos.tp_order_ids[tp_level]
+             except Exception:
+                 pass
 
         if tp_level == "TP1":
             close_amount = pos.amount * self.tp1_close_pct
@@ -491,13 +602,7 @@ class PortfolioManager:
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):
-            if pos.sl_order_id:
-                try:
-                    self.exchange.cancel_order(pos.sl_order_id, symbol)
-                except ccxt.OrderNotFound:
-                    pass
-                except ccxt.BaseError as e:
-                    logging.warning(f"Failed to cancel SL {pos.sl_order_id} during cleanup: {e}")
+            self._cancel_open_orders(symbol)
             self.positions.pop(symbol, None)
 
         return order

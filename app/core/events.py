@@ -63,6 +63,7 @@ class SignalEvent:
     # SL levels (dual SL system)
     sl_price: Optional[Decimal] = None        # Disaster SL: hard limit order at 3x distance
     soft_sl_price: Optional[Decimal] = None   # Soft SL: candle-close exit level (R40 - buffer)
+    lock_profit_price: Optional[Decimal] = None # Price to move SL to after TP1 (e.g. 0.2R)
     
     # Signal quality classification
     # 1 = optimal (WMA45 in 40-46 range)

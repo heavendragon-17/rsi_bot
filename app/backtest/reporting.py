@@ -239,38 +239,50 @@ class BacktestReporter:
                 current = 0
         return max_count
 
-    def _calculate_drawdown(self, round_trips: pd.DataFrame) -> dict:
-        """Calculate maximum drawdown from round-trip equity curve."""
-        if round_trips.empty or 'pnl' not in round_trips.columns:
+    def _calculate_drawdown(self, trades_df: pd.DataFrame) -> dict:
+        """Calculate maximum drawdown from high-resolution equity curve (all fills)."""
+        if trades_df.empty:
             return {
                 'max_drawdown_pct': 0, 'max_drawdown_value': 0, 
                 'equity_curve': [float(self.initial_balance)],
                 'max_dd_duration': 0, 'avg_drawdown_pct': 0
             }
         
-        # Build equity curve from cumulative PnL of closed trades
-        initial = float(self.initial_balance)
-        cumulative_pnl = round_trips['pnl'].cumsum().tolist()
-        equity_curve = [initial] + [initial + pnl for pnl in cumulative_pnl]
+        # Sort trades by time to ensure chronological order
+        if 'time' in trades_df.columns:
+            trades_df = trades_df.sort_values('time')
+
+        # Build equity curve from cumulative realized PnL - Fees
+        # We start with initial balance
+        current_equity = float(self.initial_balance)
+        equity_curve = [current_equity]
+
+        for _, trade in trades_df.iterrows():
+            pnl = float(trade.get('pnl', 0) or 0)
+
+            # Handle Fee structure from CCXT (can be dict or None)
+            fee_cost = 0.0
+            fee_data = trade.get('fee')
+            if isinstance(fee_data, dict):
+                fee_cost = float(fee_data.get('cost', 0) or 0)
+
+            # Update equity
+            current_equity += (pnl - fee_cost)
+            equity_curve.append(current_equity)
         
         # Calculate drawdown metrics from equity curve
         peak = equity_curve[0]
         max_dd = 0
         max_dd_value = 0
-        current_dd_start = 0
-        max_dd_duration = 0
         current_dd_duration = 0
+        max_dd_duration = 0
         all_drawdowns = []
         
-        for i, val in enumerate(equity_curve):
-            if val > peak:
+        for val in equity_curve:
+            if val >= peak:
                 peak = val
-                # End of drawdown period
-                if current_dd_duration > 0:
-                    max_dd_duration = max(max_dd_duration, current_dd_duration)
                 current_dd_duration = 0
             else:
-                # In drawdown
                 dd = (peak - val) / peak if peak > 0 else 0
                 if dd > 0:
                     all_drawdowns.append(dd * 100)
@@ -278,12 +290,9 @@ class BacktestReporter:
                 if dd > max_dd:
                     max_dd = dd
                     max_dd_value = peak - val
+
+                max_dd_duration = max(max_dd_duration, current_dd_duration)
         
-        # Final duration check
-        if current_dd_duration > 0:
-            max_dd_duration = max(max_dd_duration, current_dd_duration)
-        
-        # Average drawdown (when in drawdown)
         avg_drawdown = sum(all_drawdowns) / len(all_drawdowns) if all_drawdowns else 0
         
         return {
@@ -409,7 +418,8 @@ class BacktestReporter:
         
         # Calculate metrics
         metrics = self._calculate_metrics(round_trips)
-        drawdown = self._calculate_drawdown(round_trips)
+        # Use raw trades DF for drawdown to get granular equity curve
+        drawdown = self._calculate_drawdown(df)
         risk_metrics = self._calculate_risk_metrics(round_trips, drawdown)
         monthly_returns = self._calculate_monthly_returns(round_trips)
         
@@ -962,35 +972,3 @@ class BacktestReporter:
 </body>
 </html>
 """
-        
-        # Save HTML report
-        if return_only:
-            return html_content
-        
-        # Save HTML report
-        safe_symbol = self.symbol.replace('/', '')
-        html_dir = os.path.join(output_dir, "html")
-        os.makedirs(html_dir, exist_ok=True)
-        report_path = os.path.join(html_dir, f"backtest_report_{safe_symbol}_{self.timeframe}.html")
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        print(f"HTML report saved to: {report_path}")
-        return report_path
-
-    def _export_csv(self, trades_df: pd.DataFrame, round_trips: pd.DataFrame, output_dir: str = ".") -> None:
-        """Export trade data to CSV files."""
-        # Raw trades log
-        safe_symbol = self.symbol.replace('/', '')
-        csv_dir = os.path.join(output_dir, "csv")
-        os.makedirs(csv_dir, exist_ok=True)
-        
-        log_path = os.path.join(csv_dir, f"backtest_logs_{safe_symbol}_{self.timeframe}.csv")
-        trades_df.to_csv(log_path, index=False)
-        print(f"Raw trades saved to: {log_path}")
-        
-        # Round-trip trades with PnL
-        if not round_trips.empty:
-            trades_path = os.path.join(csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv")
-            round_trips.to_csv(trades_path, index=False)
-            print(f"Trade details saved to: {trades_path}")
-            print(f"Trade details saved to: {trades_path}")

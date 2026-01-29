@@ -65,16 +65,28 @@ class BacktestEngine:
                 self.symbol, float(o), float(h), float(l), float(c), ts
             )
 
-            # Handle executed SL orders
-            for order in executed_orders:
-                if order.get('type', '').upper() == 'STOP_LOSS':
-                    if self.symbol in self.portfolio.positions:
-                        del self.portfolio.positions[self.symbol]
-                    if hasattr(self.strategy, 'context') and self.strategy.context:
+            # Let Portfolio Manager update its state based on executions (TPs, SLs)
+            self.portfolio.process_executions(executed_orders)
+
+            # Sync Portfolio state back to Strategy Context to avoid double execution
+            self._sync_strategy_state()
+
+            # Handle Strategy Context transitions for any Full Exits (SL or TP3)
+            if self.symbol not in self.portfolio.positions:
+                closed_reason = None
+                for order in executed_orders:
+                    reason = order.get("info", {}).get("exit_reason", "").upper()
+                    if "STOP_LOSS" in reason or "SL" in reason:
+                        closed_reason = "SL hit"
+                    elif "TP3" in reason:
+                        closed_reason = "TP3 hit"
+
+                if closed_reason and hasattr(self.strategy, 'context') and self.strategy.context:
+                    if self.strategy.context.has_active_trade(self.symbol):
                         self.strategy.context.close_trade(self.symbol)
                         tf = getattr(self.strategy, 'timeframe', '')
                         key = f"{self.symbol}:{tf}"
-                        self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
+                        self.strategy.context.transition(key, SCANNING, reason=closed_reason, now_ts=ts)
 
             self.portfolio.sync_from_exchange()
 
@@ -93,6 +105,33 @@ class BacktestEngine:
         print(f"Final balance: {final_bal}")
         print(f"Open positions: {dict(self.exchange.positions)}")
         print(f"Total trades: {len(self.exchange.trade_history)}")
+
+    def _sync_strategy_state(self) -> None:
+        """Sync PortfolioManager execution state to StrategyContext to prevent double execution."""
+        if not hasattr(self.strategy, 'context') or not self.strategy.context:
+            return
+
+        for symbol, pos in self.portfolio.positions.items():
+            if self.strategy.context.has_active_trade(symbol):
+                trade = self.strategy.context.get_trade(symbol)
+                meta = trade.meta
+
+                # Sync TP1
+                if pos.tp1_hit and not meta.get('tp1_hit'):
+                    meta['tp1_hit'] = True
+                    # Emulate strategy logic for TP1 hit: move SL to lock profit
+                    meta['moved_sl_to_entry'] = True
+                    if pos.lock_profit_price:
+                        meta['sl_price'] = pos.lock_profit_price
+                        meta['soft_sl_price'] = pos.lock_profit_price
+
+                # Sync TP2
+                if pos.tp2_hit and not meta.get('tp2_hit'):
+                    meta['tp2_hit'] = True
+
+                # Sync TP3
+                if pos.tp3_hit and not meta.get('tp3_hit'):
+                    meta['tp3_hit'] = True
 
     def _close_open_positions(self) -> None:
         """Close all open positions at the last available price for accurate final reporting."""
@@ -115,4 +154,3 @@ class BacktestEngine:
                     price=final_price,
                     params={'exit_reason': 'EOD'}  # End of Data
                 )
-
