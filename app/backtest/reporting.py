@@ -409,7 +409,7 @@ class BacktestReporter:
         trades = self.exchange.trade_history
         if not trades:
             print("No trades executed.")
-            return
+            return None
 
         df = pd.DataFrame(trades)
         
@@ -972,3 +972,35 @@ class BacktestReporter:
 </body>
 </html>
 """
+
+        # Save HTML report
+        if return_only:
+            return html_content
+
+        # Save HTML report
+        safe_symbol = self.symbol.replace('/', '')
+        html_dir = os.path.join(output_dir, "html")
+        os.makedirs(html_dir, exist_ok=True)
+        report_path = os.path.join(html_dir, f"backtest_report_{safe_symbol}_{self.timeframe}.html")
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        print(f"HTML report saved to: {report_path}")
+        return report_path
+
+    def _export_csv(self, trades_df: pd.DataFrame, round_trips: pd.DataFrame, output_dir: str = ".") -> None:
+        """Export trade data to CSV files."""
+        # Raw trades log
+        safe_symbol = self.symbol.replace('/', '')
+        csv_dir = os.path.join(output_dir, "csv")
+        os.makedirs(csv_dir, exist_ok=True)
+
+        log_path = os.path.join(csv_dir, f"backtest_logs_{safe_symbol}_{self.timeframe}.csv")
+        trades_df.to_csv(log_path, index=False)
+        print(f"Raw trades saved to: {log_path}")
+
+        # Round-trip trades with PnL
+        if not round_trips.empty:
+            trades_path = os.path.join(csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv")
+            round_trips.to_csv(trades_path, index=False)
+            print(f"Trade details saved to: {trades_path}")
+            print(f"Trade details saved to: {trades_path}")

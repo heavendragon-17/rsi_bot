@@ -445,7 +445,15 @@ class MockExchange(IFuturesExchange):
             # tolerance for floating rounding
             tolerance = current_pos * Decimal("1.001")
             if amount > tolerance:
-                raise ccxt.InsufficientFunds(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
+                # If this is a conditional exit order (SL/TP) triggered by the system,
+                # it might be trying to close more than we have (e.g. if partial TP happened in same candle).
+                # In this case, we just Close All (cap at current_pos) instead of crashing.
+                if order_type in ("STOP_LOSS", "TAKE_PROFIT", "LIMIT"):
+                    # Log warning but proceed with max available
+                    # print(f"[MockExchange] Warning: Capping exit order for {symbol} from {amount} to {current_pos}")
+                    amount = current_pos
+                else:
+                    raise ccxt.InsufficientFunds(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
 
             amount = min(amount, current_pos)
             

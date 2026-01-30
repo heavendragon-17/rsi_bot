@@ -223,7 +223,6 @@ class PortfolioManager:
         exit_reason = "BREAKEVEN"
 
         # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
-        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
@@ -239,8 +238,10 @@ class PortfolioManager:
                 print(f"[_move_sl_to_entry] update_stop_loss failed for {symbol}: {e}")
                 pass
 
-        # 2) Fallback: cancel existing SL order and re-create LIMIT at target_price
+        # 2) Fallback: cancel existing SL order (but keep TPs!) and re-create LIMIT at target_price
         logging.info(f"[_move_sl_to_entry] Fallback to Cancel+Replance for {symbol}")
+
+        # Only cancel the specific SL order ID, do NOT call cancel_open_orders
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
@@ -369,7 +370,7 @@ class PortfolioManager:
                     self._cancel_open_orders(symbol)
                     self.positions.pop(symbol, None)
 
-    def _cancel_open_orders(self, symbol: str):
+    def _cancel_open_orders(self, symbol: str, exclude_tps: bool = False):
         """Cancel all open orders (TPs, SL) for a symbol."""
         pos = self.positions.get(symbol)
         if not pos:
@@ -382,13 +383,14 @@ class PortfolioManager:
             except Exception:
                 pass
 
-        # Cancel TPs
-        for label, oid in pos.tp_order_ids.items():
-            try:
-                self.exchange.cancel_order(oid, symbol)
-            except Exception:
-                pass
-        pos.tp_order_ids.clear()
+        if not exclude_tps:
+            # Cancel TPs
+            for label, oid in pos.tp_order_ids.items():
+                try:
+                    self.exchange.cancel_order(oid, symbol)
+                except Exception:
+                    pass
+            pos.tp_order_ids.clear()
 
     def _place_tp_order(self, symbol: str, amount: Decimal, price: Decimal, label: str):
         """Place a TP order on the exchange."""
