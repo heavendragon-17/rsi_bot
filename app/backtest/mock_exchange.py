@@ -31,22 +31,6 @@ def to_decimal(val) -> Decimal:
     return Decimal(str(val))
 
 
-def _base_asset(symbol: str) -> str:
-    """
-    Extract base asset from pair.
-    Examples:
-      "BTC/USDT" -> "BTC"
-      "RIVER/USDT" -> "RIVER"
-      "BTCUSDT" -> "BTCUSDT" (fallback)
-    """
-    if not symbol:
-        return ""
-    s = str(symbol).upper()
-    if "/" in s:
-        return s.split("/")[0].strip()
-    return s.strip()
-
-
 class MockExchange(IFuturesExchange):
     """
     Thread-safe mock exchange for backtesting and paper trading.
@@ -137,32 +121,58 @@ class MockExchange(IFuturesExchange):
                 triggered = False
                 fill_price: Optional[Decimal] = None
                 order_type = order.get("type", "limit").upper()
-                trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
+                side = order.get("side", "").upper()
 
-                # SL behavior: SELL and (LIMIT or STOP_LOSS) triggers when low <= trigger
-                if order.get("side") == "SELL" and order_type in ("LIMIT", "STOP_LOSS"):
+                # Check stored trigger/stop price in params or direct fields
+                # CCXT stores these in different places depending on impl, here we check common fields
+                trigger_price = to_decimal(order.get("triggerPrice") or order.get("stopPrice") or order.get("price"))
+
+                # 1. STOP LOSS (Sell trigger when Low <= Price)
+                #    CCXT: params={'stopPrice': ...} usually implies a Stop Market or Stop Limit
+                if side == "SELL" and (order_type in ("STOP_LOSS", "STOP_MARKET") or order.get("params", {}).get("stopPrice")):
+                    # Explicit Stop Loss order type OR implicit via stopPrice param
                     if low_dec <= trigger_price:
                         triggered = True
                         fill_price = trigger_price
-                        order_type = "STOP_LOSS"
+                        # Treat as Stop Loss execution
+                        if order_type not in ("STOP_LOSS", "STOP_MARKET"):
+                             order["type"] = "stop_loss" # internal upgrade for reporting
 
-                # TP behavior: TAKE_PROFIT triggers when high >= trigger
-                elif order_type == "TAKE_PROFIT":
+                # 2. TAKE PROFIT (Sell trigger when High >= Price)
+                elif side == "SELL" and (order_type in ("TAKE_PROFIT", "TAKE_PROFIT_MARKET")):
+                     if high_dec >= trigger_price:
+                        triggered = True
+                        fill_price = trigger_price
+
+                # 3. LIMIT SELL (Sell trigger when High >= Price)
+                #    Standard Limit Sell acts like TP if above price
+                elif side == "SELL" and order_type == "LIMIT":
                     if high_dec >= trigger_price:
+                        triggered = True
+                        fill_price = trigger_price
+
+                # 4. LIMIT BUY (Buy trigger when Low <= Price)
+                elif side == "BUY" and order_type == "LIMIT":
+                    if low_dec <= trigger_price:
                         triggered = True
                         fill_price = trigger_price
 
                 if triggered and fill_price is not None:
                     # Get exit_reason from info dict (CCXT standard)
-                    stored_exit_reason = order.get("info", {}).get("exit_reason") or order_type
+                    stored_exit_reason = order.get("info", {}).get("exit_reason") or order.get("type")
+
+                    # Check reduceOnly constraint if present
+                    is_reduce_only = order.get("params", {}).get("reduceOnly", False) or order.get("reduceOnly", False)
+
                     result = self._execute_order(
                         symbol=order["symbol"],
                         side=order["side"],
                         amount=to_decimal(order["amount"]),
                         exec_price=fill_price,
                         timestamp=timestamp,
-                        order_type=order_type,
+                        order_type=order["type"],
                         exit_reason=stored_exit_reason,
+                        reduce_only=is_reduce_only
                     )
                     if result:
                         executed.append(result)
@@ -223,43 +233,6 @@ class MockExchange(IFuturesExchange):
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         return []  # not used in push-based backtest
 
-    def place_stop_loss(self, symbol: str, amount, trigger_price) -> Dict:
-        """Place a stop loss order. Thread-safe."""
-        with self._lock:
-            order_id = self._next_order_id()
-            order = {
-                "id": order_id,
-                "symbol": symbol,
-                "side": "SELL",
-                "amount": to_decimal(amount),
-                "triggerPrice": to_decimal(trigger_price),
-                "price": to_decimal(trigger_price),
-                "type": "stop_loss",
-                "status": "open",
-                "info": {"exit_reason": "STOP_LOSS"},
-            }
-            self.pending_orders[order_id] = order
-            return order
-
-    def place_take_profit(self, symbol: str, amount, trigger_price, label: str = "TP") -> Dict:
-        """Place a take profit order. Thread-safe."""
-        with self._lock:
-            order_id = self._next_order_id()
-            order = {
-                "id": order_id,
-                "symbol": symbol,
-                "side": "SELL",
-                "amount": to_decimal(amount),
-                "triggerPrice": to_decimal(trigger_price),
-                "price": to_decimal(trigger_price),
-                "type": "take_profit",
-                "status": "open",
-                "info": {"exit_reason": label},
-                "label": label,
-            }
-            self.pending_orders[order_id] = order
-            return order
-
     def cancel_orders_for_symbol(self, symbol: str) -> int:
         """Cancel all pending orders for a symbol. Thread-safe."""
         with self._lock:
@@ -285,16 +258,27 @@ class MockExchange(IFuturesExchange):
             updated = False
 
             for order in self.pending_orders.values():
-                if (
-                    order.get("symbol") == symbol
-                    and order.get("side") == "SELL"
-                    and order.get("type", "").upper() in ("STOP_LOSS", "LIMIT")
-                ):
+                side = order.get("side", "BUY")
+                order_type = order.get("type", "").upper()
+                params = order.get("params", {})
+
+                # Check if it's a SL order (either Type=STOP_LOSS or has stopPrice)
+                is_sl = (side == "SELL") and (
+                    order_type in ("STOP_LOSS", "STOP_MARKET") or
+                    params.get("stopPrice") is not None
+                )
+
+                if order.get("symbol") == symbol and is_sl:
+                    # Update trigger/stop price
+                    if params.get("stopPrice") is not None:
+                        order["params"]["stopPrice"] = float(new_price)
                     order["triggerPrice"] = new_price
-                    order["price"] = new_price
+                    order["price"] = new_price # For limit
+
                     # Update amount if provided
                     if new_amt is not None:
                         order["amount"] = new_amt
+
                     # Update exit_reason if provided
                     if exit_reason:
                         if "info" not in order:
@@ -308,22 +292,6 @@ class MockExchange(IFuturesExchange):
                 print(f"[MockExchange] Updated SL for {symbol} -> price={new_price}{amt_str}{reason_str}")
             return updated
 
-    def update_stop_loss_to_entry(self, symbol: str) -> bool:
-        """
-        Move existing SL order to entry price for this symbol. Thread-safe.
-        Uses stored entry price from self.entry_prices[symbol].
-        Note: This calls update_stop_loss which also acquires the lock (RLock allows this).
-        """
-        with self._lock:
-            entry = self.entry_prices.get(symbol)
-            if entry is None:
-                return False
-
-            ok = self.update_stop_loss(symbol, entry)
-            if ok:
-                print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
-            return ok
-
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel a specific pending order. Thread-safe."""
         with self._lock:
@@ -336,31 +304,29 @@ class MockExchange(IFuturesExchange):
     def create_order(
         self,
         symbol: str,
-        type: str = None,  # CCXT param name
-        side: str = None,
-        amount = None,
-        price = None,
-        params: Dict = None,
-        # Legacy param name (for backward compatibility)
-        order_type: str = None,
-        exit_reason: str = None,
+        type: str,
+        side: str,
+        amount: Decimal,
+        price: Optional[Decimal] = None,
+        params: Optional[Dict] = {}
     ) -> Optional[Dict]:
         """
-        Create an order. Thread-safe.
-        - MARKET executes immediately
-        - LIMIT goes pending (and will be triggered in update_candle via wick checks)
+        Create an order. Thread-safe. CCXT Compatible.
         
-        Uses CCXT param names: type, params.
+        Args:
+            symbol: Pair
+            type: 'market' or 'limit'
+            side: 'buy' or 'sell'
+            amount: Quantity
+            price: Price (required for limit)
+            params: Dict with 'stopPrice', 'triggerPrice', 'reduceOnly', etc.
         """
         with self._lock:
-            # Handle CCXT 'type' vs legacy 'order_type'
-            actual_type = (type or order_type or 'market').upper()
-            
-            # Handle CCXT params dict for exit_reason
-            params = params or {}
-            exit_reason = params.get('exit_reason', exit_reason)
-            
+            type = type.lower()
+            side = side.upper()
             amount = to_decimal(amount)
+            params = params or {}
+            
             current_data = self.current_prices.get(symbol)
             if not current_data:
                 print(f"MockExchange: No price data for {symbol}")
@@ -368,27 +334,47 @@ class MockExchange(IFuturesExchange):
 
             order_id = self._next_order_id()
 
-            # Pending LIMIT
-            if actual_type == "LIMIT" and price is not None:
-                price_dec = to_decimal(price)
-                order = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "side": side.upper() if side else 'BUY',
-                    "amount": amount,
-                    "price": price_dec,
-                    "triggerPrice": price_dec,
-                    "type": "limit",
-                    "status": "open",
-                    "info": {"exit_reason": exit_reason or ""},
-                }
+            # Check if it's a conditional order (Stop Loss / Take Profit)
+            # CCXT usually passes 'stopPrice' or 'triggerPrice' in params
+            stop_price = params.get('stopPrice') or params.get('triggerPrice')
+
+            # Construct internal order object
+            order = {
+                "id": order_id,
+                "symbol": symbol,
+                "side": side,
+                "amount": amount,
+                "price": to_decimal(price) if price else None,
+                "type": type,
+                "status": "open",
+                "params": params, # Store params for later check
+                "info": {"exit_reason": params.get("exit_reason", "")},
+                "reduceOnly": params.get("reduceOnly", False)
+            }
+
+            # If it has a stop price, it's a pending conditional order
+            if stop_price is not None:
+                order["triggerPrice"] = to_decimal(stop_price)
+                # If type is 'market', it's a STOP_MARKET (executes at market when triggered)
+                # If type is 'limit', it's a STOP_LIMIT (places limit when triggered - simplified here to execute)
+                self.pending_orders[order_id] = order
+                return {"id": order_id, "status": "open", "type": type}
+
+            # Pending LIMIT order (standard)
+            if type == "limit" and price is not None:
+                order["triggerPrice"] = to_decimal(price) # Limit triggers at price
                 self.pending_orders[order_id] = order
                 return {"id": order_id, "status": "open", "type": "limit"}
 
-            # MARKET executes
+            # MARKET executes immediately
             exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
             timestamp = current_data["time"]
-            return self._execute_order(symbol, side, amount, exec_price, timestamp, order_type=actual_type, exit_reason=exit_reason)
+            return self._execute_order(
+                symbol, side, amount, exec_price, timestamp,
+                order_type=type,
+                exit_reason=params.get("exit_reason"),
+                reduce_only=params.get("reduceOnly", False)
+            )
 
     def _execute_order(
         self,
@@ -399,20 +385,12 @@ class MockExchange(IFuturesExchange):
         timestamp,
         order_type: str = "MARKET",
         exit_reason: str = None,
+        reduce_only: bool = False
     ) -> Optional[Dict]:
         """
         Execute an order with futures leverage support.
         
         NOTE: This method assumes the lock is already held by the caller (RLock).
-        
-        For BUY:
-          - notional = amount * price
-          - margin = notional / leverage
-          - Deduct margin from balance, not full notional
-          
-        For SELL:
-          - Calculate PnL = (exit_price - entry_price) * amount
-          - Return margin + PnL to balance
         """
         notional = exec_price * amount
         margin = notional / self.leverage
@@ -444,11 +422,15 @@ class MockExchange(IFuturesExchange):
 
             # tolerance for floating rounding
             tolerance = current_pos * Decimal("1.001")
+
+            # If trying to sell more than we have
             if amount > tolerance:
-                # If this is a conditional exit order (SL/TP) triggered by the system,
-                # it might be trying to close more than we have (e.g. if partial TP happened in same candle).
-                # In this case, we just Close All (cap at current_pos) instead of crashing.
-                if order_type in ("STOP_LOSS", "TAKE_PROFIT", "LIMIT"):
+                # If Reduce Only (or implied by context like SL/TP triggering), clamp to position
+                # In this system, any automated SELL execution during backtest is treated as a Close
+                # if it exceeds position (to prevent crashes on double triggers).
+                is_system_exit = exit_reason in ("STOP_LOSS", "TAKE_PROFIT", "TP1", "TP2", "TP3", "SL", "BREAKEVEN")
+
+                if reduce_only or is_system_exit:
                     # Log warning but proceed with max available
                     # print(f"[MockExchange] Warning: Capping exit order for {symbol} from {amount} to {current_pos}")
                     amount = current_pos

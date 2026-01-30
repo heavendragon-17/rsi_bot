@@ -103,23 +103,6 @@ class PortfolioManager:
     ) -> Decimal:
         """
         Calculate position size for futures trading with leverage.
-        
-        Risk-Based Formula (Futures):
-            risk_capital = initial_capital (or current balance)
-            risk_amount = risk_capital * risk_per_trade_pct
-            sl_distance_pct = |entry_price - sl_price| / entry_price
-            position_notional = risk_amount / sl_distance_pct
-            position_size = position_notional / entry_price
-            margin_required = position_notional / leverage
-        
-        The position size represents the notional value of the trade.
-        With leverage, you only need (notional / leverage) as margin.
-        
-        Example (10x leverage, 2% risk, $10k capital, 5% SL):
-            risk_amount = $10,000 * 0.02 = $200
-            position_notional = $200 / 0.05 = $4,000
-            margin_required = $4,000 / 10 = $400
-            position_size = $4,000 / entry_price
         """
         # Determine risk capital (initial capital or current balance)
         if self.use_initial_capital_for_risk:
@@ -201,12 +184,6 @@ class PortfolioManager:
         """
         Move SL to a new price for the remaining position.
         If new_price is None, uses entry price (breakeven).
-        Prefers exchange-native update if available, otherwise cancel+replace LIMIT.
-        
-        Args:
-            symbol: Trading symbol
-            new_price: Optional new SL price (uses entry_price if not provided)
-            new_amount: Optional new amount for the SL order (uses pos.amount if not provided)
         """
         if symbol not in self.positions:
             return False
@@ -222,7 +199,8 @@ class PortfolioManager:
         # Use BREAKEVEN as exit reason for moved SL (profit protection)
         exit_reason = "BREAKEVEN"
 
-        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
+        # 1) Try generic update_stop_loss (MockExchange optimization)
+        # This is kept for backward compat or if exchange impl has optimized route
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
@@ -238,10 +216,10 @@ class PortfolioManager:
                 print(f"[_move_sl_to_entry] update_stop_loss failed for {symbol}: {e}")
                 pass
 
-        # 2) Fallback: cancel existing SL order (but keep TPs!) and re-create LIMIT at target_price
-        logging.info(f"[_move_sl_to_entry] Fallback to Cancel+Replance for {symbol}")
+        # 2) Standard CCXT: Cancel existing SL and Place New SL
+        logging.info(f"[_move_sl_to_entry] Fallback to Cancel+Replace for {symbol}")
 
-        # Only cancel the specific SL order ID, do NOT call cancel_open_orders
+        # Only cancel the specific SL order ID, do NOT call cancel_open_orders (which kills TPs)
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
@@ -250,14 +228,27 @@ class PortfolioManager:
             pos.sl_order_id = None
 
         try:
+            # CCXT Style: Stop Market or Stop Limit?
+            # Usually Stop Market is safer for SL.
+            # Using 'market' type with 'stopPrice' param.
+
+            # Note: create_order(symbol, type, side, amount, price, params)
+            # For Stop Market: price can be None or ignored depending on exchange
+            # For MockExchange: we treat it as Stop Loss logic if params has stopPrice
+
             new_sl_order = self.exchange.create_order(
                 symbol=symbol,
-                type="limit",
-                side="SELL",
+                type="market", # Execute at market once triggered
+                side="sell",
                 amount=amount_to_use,
-                price=target_price,
-                params={"exit_reason": exit_reason},
+                price=target_price, # Some exchanges use price field for stop price too
+                params={
+                    "stopPrice": float(target_price),
+                    "reduceOnly": True,
+                    "exit_reason": exit_reason
+                },
             )
+
             if new_sl_order:
                 pos.sl_order_id = new_sl_order.get("id")
                 logging.info(f"[{symbol}] Moved SL to {target_price}")
@@ -274,11 +265,6 @@ class PortfolioManager:
     def on_signal(self, signal: SignalEvent):
         """
         Process a trading signal.
-        - BUY: open position + place SL limit
-        - SELL:
-            + TP1/TP2/TP3 partial/full close
-            + MOVE_SL_TO_ENTRY: only move SL to entry, do not sell
-            + Otherwise: full close
         """
         # IMPORTANT: always sync first (SL may have closed the position)
         self.sync_from_exchange()
@@ -295,15 +281,12 @@ class PortfolioManager:
             reason = (signal.reason or "").strip().upper()
 
             # --- special SELL: move SL only ---
-            # any of these reason keywords will just move SL (not close position)
             if (
                 "MOVE_SL_TO_ENTRY" in reason
                 or "SL_TO_ENTRY" in reason
                 or "BREAKEVEN" in reason
                 or reason.startswith("MOVE_SL")
             ):
-                # If signal.price is provided, use it as new SL level
-                # Otherwise, move to entry (breakeven)
                 new_sl_price = signal.price if signal.price else None
                 self._move_sl_to_entry(signal.symbol, new_sl_price)
                 return None
@@ -336,7 +319,13 @@ class PortfolioManager:
 
             pos = self.positions[symbol]
             side = order.get("side", "").upper()
-            exit_reason = order.get("info", {}).get("exit_reason", "").upper()
+
+            # Handle exit reason safely
+            info = order.get("info", {})
+            exit_reason = ""
+            if isinstance(info, dict):
+                exit_reason = info.get("exit_reason", "").upper()
+
             amount_filled = to_decimal(order.get("amount", 0))
 
             if side == "SELL":
@@ -393,15 +382,26 @@ class PortfolioManager:
             pos.tp_order_ids.clear()
 
     def _place_tp_order(self, symbol: str, amount: Decimal, price: Decimal, label: str):
-        """Place a TP order on the exchange."""
-        if hasattr(self.exchange, "place_take_profit"):
-            try:
-                order = self.exchange.place_take_profit(symbol, amount, price, label)
-                if order:
-                    if symbol in self.positions:
-                        self.positions[symbol].tp_order_ids[label] = order['id']
-            except Exception as e:
-                logging.error(f"Failed to place {label} for {symbol}: {e}")
+        """Place a TP order on the exchange using CCXT compatible call."""
+        # Use create_order directly with LIMIT SELL
+        try:
+            # Limit Sell acts as Take Profit if price > current price
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type="limit",
+                side="sell",
+                amount=amount,
+                price=price,
+                params={
+                    "reduceOnly": True,
+                    "exit_reason": label
+                }
+            )
+            if order:
+                if symbol in self.positions:
+                    self.positions[symbol].tp_order_ids[label] = order['id']
+        except Exception as e:
+            logging.error(f"Failed to place {label} for {symbol}: {e}")
 
     # -------------------------
     # BUY logic
@@ -423,7 +423,7 @@ class PortfolioManager:
             order = self.exchange.create_order(
                 symbol=signal.symbol,
                 type="market",
-                side="BUY",
+                side="buy",
                 amount=amount,
                 price=price,
             )
@@ -453,13 +453,18 @@ class PortfolioManager:
         # Place hard SL limit order (disaster SL) if provided
         if signal.sl_price is not None:
             try:
+                # Use CCXT standard Stop Market
                 sl_order = self.exchange.create_order(
                     symbol=signal.symbol,
-                    type="limit",
-                    side="SELL",
+                    type="market",
+                    side="sell",
                     amount=amount,
-                    price=signal.sl_price,
-                    params={"exit_reason": "DISASTER_SL"},
+                    price=signal.sl_price, # Ignored for market, but used as fallback logic often
+                    params={
+                        "stopPrice": float(signal.sl_price),
+                        "reduceOnly": True,
+                        "exit_reason": "DISASTER_SL"
+                    }
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
@@ -508,7 +513,7 @@ class PortfolioManager:
             order = self.exchange.create_order(
                 symbol=symbol,
                 type="market",
-                side="SELL",
+                side="sell",
                 amount=pos.amount,
                 price=price,
                 params={"exit_reason": exit_reason},
@@ -525,12 +530,9 @@ class PortfolioManager:
 
     def execute_partial_close(self, symbol: str, tp_level: str, new_sl_price: Optional[Decimal] = None):
         """
-        Execute partial close for TP levels:
-        - TP1: close tp1_close_pct of current amount, then move SL to entry (or new_sl_price) for remaining
-        - TP2: close tp2_close_pct of remaining
-        - TP3: close all remaining
+        Execute partial close for TP levels (Market Override).
         """
-        # Sync with exchange first (to catch any limit fills that happened)
+        # Sync with exchange first
         self.sync_from_exchange()
 
         if symbol not in self.positions:
@@ -548,13 +550,7 @@ class PortfolioManager:
 
         close_amount = Decimal("0")
 
-        # NOTE: If we are using Pending TPs, this method shouldn't be called for those levels
-        # unless we are using a strategy that manages TPs manually (MARKET sells).
-        # We assume if TPs are pending, they will be hit via process_executions.
-        # But if the strategy sends a signal, we respect it (Double protection or manual override).
-
-        # However, if we have pending TPs, we should probably cancel the pending TP for this level
-        # before executing market sell to avoid double selling?
+        # Cancel pending TP order for this level if it exists (since we are market closing)
         if tp_level in pos.tp_order_ids:
              try:
                  self.exchange.cancel_order(pos.tp_order_ids[tp_level], symbol)
@@ -581,7 +577,7 @@ class PortfolioManager:
             order = self.exchange.create_order(
                 symbol=symbol,
                 type="market",
-                side="SELL",
+                side="sell",
                 amount=close_amount,
                 params={"exit_reason": tp_level},
             )
@@ -597,7 +593,6 @@ class PortfolioManager:
         print(f"[DEBUG] exec_partial: updated pos.amount from {old_amount} to {pos.amount}")
 
         # Update SL amount for remaining position (resize SL order)
-        # If new_sl_price is provided, it moves there. If None, it moves to Entry (or stays at Entry).
         if pos.amount > Decimal("0"):
             print(f"[DEBUG] exec_partial: Resizing SL order. new_price={new_sl_price}, pos.amount={pos.amount}")
             self._move_sl_to_entry(symbol, new_price=new_sl_price)
