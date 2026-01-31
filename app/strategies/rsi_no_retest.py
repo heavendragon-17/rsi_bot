@@ -58,7 +58,10 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_tp1_rr": 1.0,            # TP1: 1R (Close 50%)
         "nr_tp2_rr": 2.0,            # TP2: 2R (Close 25%)
         "nr_tp3_rr": 3.0,            # TP3: 3R (Close 25%)
-        
+        "tp1_close_pct": 0.50,
+        "tp2_close_pct": 0.25,
+        "tp3_close_pct": 0.25,
+
         # SL management
         "nr_move_sl_rr": 0.5,        # Trigger: move SL when high reaches 0.5R (halfway to TP1)
         "nr_lock_profit_rr": 0.2,    # New SL level: 0.2R above entry (lock 20% of profit)
@@ -294,10 +297,11 @@ class RsiNoRetestStrategy(BaseStrategy):
             tp2_price = self._to_dec(meta.get("tp2_price"))
             tp3_price = self._to_dec(meta.get("tp3_price"))
             
-            # Target SL (0.2R)
+            # Target SL (0.2R) - use ORIGINAL soft SL, not dynamic sl_price which may be updated
+            original_soft_sl = self._to_dec(meta.get("original_soft_sl")) or sl_price
             lock_profit_price = None
-            if sl_price and entry_price:
-                 lock_profit_price = self._compute_price_at_rr(entry_price, sl_price, self.lock_profit_rr)
+            if original_soft_sl and entry_price:
+                 lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr)
 
             # TP3: Close remaining
             if (not tp3_hit) and tp3_price and high is not None and high >= tp3_price:
@@ -448,6 +452,7 @@ class RsiNoRetestStrategy(BaseStrategy):
                         "entry_price": entry_price,
                         "sl_price": soft_sl_price,  # Used for candle close check
                         "soft_sl_price": soft_sl_price,  # Explicit soft SL
+                        "original_soft_sl": soft_sl_price,  # NEVER MODIFIED - used for lock_profit calc
                         "disaster_sl_price": disaster_sl_price,  # Reference only
                         "tp1_price": tp1_price,
                         "tp2_price": tp2_price,

@@ -69,6 +69,9 @@ class SignalEvent:
     # 2 = acceptable (WMA45 in 30-50 range)
     signal_class: int = 2
 
+    # Lock Profit Level (e.g. 0.2R)
+    lock_profit_price: Optional[Decimal] = None
+
 
 @dataclass
 class OrderEvent:

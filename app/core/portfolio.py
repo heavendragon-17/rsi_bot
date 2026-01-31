@@ -46,6 +46,7 @@ class Position:
     tp2_price: Optional[Decimal] = None
     tp3_price: Optional[Decimal] = None
     sl_price: Optional[Decimal] = None
+    lock_profit_price: Optional[Decimal] = None
 
     # Order tracking
     sl_order_id: Optional[str] = None
@@ -217,22 +218,21 @@ class PortfolioManager:
         target_price = new_price if new_price is not None else pos.entry_price
         # Default to current position amount if no new_amount specified
         amount_to_use = new_amount if new_amount is not None else pos.amount
-        # Use BREAKEVEN as exit reason for moved SL (profit protection)
-        exit_reason = "BREAKEVEN"
-
-        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
-        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
+        
+        # Dynamic exit reason based on price comparison with entry
+        if target_price > pos.entry_price:
+            exit_reason = "LOCK_PROFIT"  # Locking in profit (e.g., 0.2R)
+        elif target_price == pos.entry_price:
+            exit_reason = "BREAKEVEN"  # At entry, no profit/loss
+        else:
+            exit_reason = "TRAILING_SL"  # Tightening SL (still at loss if hit)
+        
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
-                # DEBUG PRINT
-                print(f"[_move_sl_to_entry] Calling update_stop_loss for {symbol}: price={target_price}, amount={amount_to_use}")
                 ok = bool(fn2(symbol, target_price, amount_to_use, exit_reason))
                 if ok:
-                    print(f"[_move_sl_to_entry] update_stop_loss SUCCESS for {symbol}")
                     return True
-                else:
-                    print(f"[_move_sl_to_entry] update_stop_loss returned FALSE for {symbol}")
             except Exception as e:
                 print(f"[_move_sl_to_entry] update_stop_loss failed for {symbol}: {e}")
                 pass
@@ -365,6 +365,7 @@ class PortfolioManager:
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,  # Store disaster SL for reference
+            lock_profit_price=signal.lock_profit_price, # Store lock profit price
         )
 
         # Place hard SL limit order (disaster SL) if provided

@@ -11,3 +11,6 @@ bot.log
 # Backtest data and reports (Ignored, keeping scripts)
 app/backtest/report/
 
+
+# AI Agent Workspaces
+.agent/
