@@ -52,15 +52,16 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
         "sl_buffer_pct": 0.0,            # No buffer (original behavior)
         "disaster_sl_multiplier": 3.0,   # Disaster SL = 2x distance from entry
-        "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
+        "candle_close_slippage_pct": 0,  # 0.1% slippage for candle-close exits
         
         # TP settings
         "nr_tp1_rr": 1.0,            # TP1: 1R (Close 50%)
         "nr_tp2_rr": 2.0,            # TP2: 2R (Close 25%)
         "nr_tp3_rr": 3.0,            # TP3: 3R (Close 25%)
+        "nr_tp_count": 3,            # Number of TPs (1-3)
         "tp1_close_pct": 0.50,
-        "tp2_close_pct": 0.25,
-        "tp3_close_pct": 0.25,
+        "tp2_close_pct": 0.5,
+        "tp3_close_pct": 0,
 
         # SL management
         "nr_move_sl_rr": 0.5,        # Trigger: move SL when high reaches 0.5R (halfway to TP1)
@@ -117,6 +118,10 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.tp1_rr = Decimal(str(cfg.get("nr_tp1_rr", 1.0)))
         self.tp2_rr = Decimal(str(cfg.get("nr_tp2_rr", 2.0)))
         self.tp3_rr = Decimal(str(cfg.get("nr_tp3_rr", 3.0)))
+
+        self.tp_count = int(cfg.get("nr_tp_count", 3))
+        self.tp1_close_pct = float(cfg.get("tp1_close_pct", 0.5))
+        self.tp2_close_pct = float(cfg.get("tp2_close_pct", 0.5))
 
         # NEW: Move SL trigger and lock level
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))       # Trigger at 0.5R
@@ -317,7 +322,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             
             # TP2: Partial Close
             if (not tp2_hit) and tp2_price and high is not None and high >= tp2_price:
-                meta["tp2_hit"] = True
+                # meta["tp2_hit"] = True <-- REMOVED: Prevent Ghost TP
                 # Ensure we maintain the current SL price (e.g. 0.2R) but update amount in Portfolio
                 current_sl = meta.get("sl_price")
                 return SignalEvent(
@@ -331,7 +336,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             # TP1: Partial Close + Move SL to 0.2R
             if (not tp1_hit) and tp1_price and high is not None and high >= tp1_price:
-                meta["tp1_hit"] = True
+                # meta["tp1_hit"] = True  <-- REMOVED: Optimistic update causes Ghost TP if order fails.
                 # Mark SL as moved in meta so we don't try to move it again unnecessarily
                 meta["moved_sl_to_entry"] = True 
                 if lock_profit_price:
@@ -426,6 +431,24 @@ class RsiNoRetestStrategy(BaseStrategy):
             tp2_price = self._compute_price_at_rr(entry_price, sl_price, self.tp2_rr)
             tp3_price = self._compute_price_at_rr(entry_price, sl_price, self.tp3_rr)
             
+            # Dynamic TP Allocations
+            tp_allocations = {}
+            
+            if self.tp_count == 1:
+                tp_allocations["TP1"] = 1.0
+                tp2_price = None
+                tp3_price = None
+            elif self.tp_count == 2:
+                tp_allocations["TP1"] = self.tp1_close_pct
+                tp_allocations["TP2"] = 1.0
+                tp3_price = None
+            else:
+                tp_allocations["TP1"] = self.tp1_close_pct
+                # If doing 3 TPs, TP2 should not be 100% unless intended. 
+                # Assuming standard 3-TP scaling.
+                tp_allocations["TP2"] = self.tp2_close_pct if self.tp2_close_pct < 1.0 else 0.5
+                tp_allocations["TP3"] = 1.0
+
             if tp1_price is None:
                 self.context.transition(key, SCANNING, reason="Invalid TP risk", now_ts=ts)
                 return None
@@ -465,6 +488,7 @@ class RsiNoRetestStrategy(BaseStrategy):
                         "moved_sl_to_entry": False,
                         "move_sl_rr": self.move_sl_rr,
                         "lock_profit_rr": self.lock_profit_rr,
+                        "tp_allocations": tp_allocations,
                     },
                     now_ts=ts,
                 )
@@ -484,6 +508,7 @@ class RsiNoRetestStrategy(BaseStrategy):
                 sl_price=disaster_sl_price,  # Hard limit order on exchange
                 soft_sl_price=soft_sl_price,  # For portfolio reference
                 signal_class=2,
+                tp_allocations=tp_allocations,
             )
 
         self.context.transition(key, SCANNING, reason="Unknown state reset", now_ts=ts)

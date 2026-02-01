@@ -47,6 +47,7 @@ class Position:
     tp3_price: Optional[Decimal] = None
     sl_price: Optional[Decimal] = None
     lock_profit_price: Optional[Decimal] = None
+    tp_allocations: Optional[dict] = None
 
     # Order tracking
     sl_order_id: Optional[str] = None
@@ -366,6 +367,7 @@ class PortfolioManager:
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,  # Store disaster SL for reference
             lock_profit_price=signal.lock_profit_price, # Store lock profit price
+            tp_allocations=signal.tp_allocations,
         )
 
         # Place hard SL limit order (disaster SL) if provided
@@ -442,6 +444,12 @@ class PortfolioManager:
         tp_level = tp_level.upper().strip()
 
         if tp_level == "TP1" and pos.tp1_hit:
+            # If TP1 already hit, we might be receiving a retry signal to move SL
+            if new_sl_price and pos.amount > Decimal("0"):
+                try:
+                    self.exchange.update_stop_loss(symbol, new_sl_price, pos.amount, exit_reason="LOCK_PROFIT")
+                except Exception as e:
+                    logging.warning(f"Failed to retry SL update for {symbol}: {e}")
             return None
         if tp_level == "TP2" and pos.tp2_hit:
             return None
@@ -450,20 +458,26 @@ class PortfolioManager:
 
         close_amount = Decimal("0")
 
+        # Get close % from position allocation or global config
+        allocs = pos.tp_allocations or {}
+        
         if tp_level == "TP1":
-            close_amount = pos.amount * self.tp1_close_pct
+            pct = Decimal(str(allocs.get("TP1", self.tp1_close_pct)))
+            close_amount = pos.amount * pct
             pos.tp1_hit = True
         elif tp_level == "TP2":
-            close_amount = pos.amount * self.tp2_close_pct
+            pct = Decimal(str(allocs.get("TP2", self.tp2_close_pct)))
+            close_amount = pos.amount * pct
             pos.tp2_hit = True
         elif tp_level == "TP3":
-            close_amount = pos.amount
+            # TP3 is usually 100% remaining, but let's allow override if needed
+            # Default behavior for TP3 is closing everything
+            pct = Decimal(str(allocs.get("TP3", "1.0")))
+            close_amount = pos.amount * pct
             pos.tp3_hit = True
 
         if close_amount <= Decimal("0"):
             return None
-
-        print(f"[DEBUG] exec_partial: start pos.amount={pos.amount}, close_amount={close_amount}, level={tp_level}")
 
         try:
             order = self.exchange.create_order(
@@ -474,7 +488,6 @@ class PortfolioManager:
                 params={"exit_reason": tp_level},
             )
             if not order:
-                print("[DEBUG] exec_partial: create_order returned None")
                 return None
         except ccxt.BaseError as e:
             logging.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
@@ -482,12 +495,9 @@ class PortfolioManager:
 
         old_amount = pos.amount
         pos.amount -= close_amount
-        print(f"[DEBUG] exec_partial: updated pos.amount from {old_amount} to {pos.amount}")
-
         # Update SL amount for remaining position (resize SL order)
         # If new_sl_price is provided, it moves there. If None, it moves to Entry (or stays at Entry).
         if pos.amount > Decimal("0"):
-            print(f"[DEBUG] exec_partial: Resizing SL order. new_price={new_sl_price}, pos.amount={pos.amount}")
             self._move_sl_to_entry(symbol, new_price=new_sl_price)
 
         # If fully closed, cleanup

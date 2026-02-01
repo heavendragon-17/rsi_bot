@@ -147,6 +147,8 @@ python app/backtest/download_data.py --symbol BTC/USDT --timeframe 1h --limit 10
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_1h.csv
 ```
 
+python app/backtest/backtest.py --data app/backtest/data/DOGEUSDT_15m.csv
+
 ### 2. Test Multiple Assets
 
 # Batch Analysis (Automated)
