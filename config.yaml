@@ -1,17 +1,38 @@
 bot:
     active: true
     mode: 'paper' # mock | paper | live
+    debug: false # Toggle verbose strategy logging
 
 exchange:
     name: 'binanceusdm' # binanceusdm | lighter | etc.
 
-timeframe: '15m'
+timeframe: '5m'
 symbols:
     - 'BTC/USDT'
     - 'ETH/USDT'
     - 'BNB/USDT'
-    - 'XPL/USDT'
-    - 'RIVER/USDT'
+    - 'SOL/USDT'
+    - 'XRP/USDT'
+    - 'DOGE/USDT'
+    - 'TRX/USDT'
+    - 'ADA/USDT'
+    - 'TON/USDT'
+    - 'AVAX/USDT'
+    - 'DOT/USDT'
+    - 'LINK/USDT'
+    - 'BCH/USDT'
+    - 'NEAR/USDT'
+    - 'HYPE/USDT'
+    - 'SUI/USDT'
+    - 'LTC/USDT'
+    - 'UNI/USDT'
+    - 'APT/USDT'
+    - 'ICP/USDT'
+    - 'POL/USDT'
+    - 'STX/USDT'
+    - 'RENDER/USDT'
+    - 'FIL/USDT'
+
 
 # Strategy selection
 # Available: "rsi_wma_retest", "rsi_no_retest"
