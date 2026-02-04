@@ -16,7 +16,7 @@ import time
 import yaml
 import threading
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from decimal import Decimal
 
@@ -71,7 +71,7 @@ def main():
     # Telegram
     try:
         telegram = TelegramBot()
-        telegram.send_message(f"🚀 RSI Bot Started [{bot_mode.upper()}]")
+        telegram.send_message(f"RSI Bot Started [{bot_mode.upper()}]")
     except Exception as e:
         logger.warning(f"Telegram init failed: {e}")
         telegram = None
@@ -140,7 +140,7 @@ def main():
                         
                         # Notify
                         if telegram:
-                            msg = (f"📢 <b>{signal.signal_type} {symbol}</b>\n"
+                            msg = (f"<b>{signal.signal_type} {symbol}</b>\n"
                                    f"Price: {signal.price}\n"
                                    f"Reason: {signal.reason}")
                             telegram.send_message(msg)
@@ -182,13 +182,51 @@ def main():
                     logger.error(f"[{symbol}] Loop Error: {e}")
                     # time.sleep(1) # prevent rapid error loops
             
-            # Sleep between cycles (e.g. 10s)
-            time.sleep(10)
+            # Match the loop to the timeframe boundary (Sync Mode)
+            # e.g. if timeframe=15m, wait until next 15m mark + small buffer
+            sleep_duration = get_seconds_to_next_candle(timeframe)
+            logger.info(f"Sleeping {sleep_duration:.1f}s until next candle close...")
+            time.sleep(sleep_duration)
 
     except KeyboardInterrupt:
         logger.info("Updates stopped by user.")
         if telegram:
              telegram.send_message("Bot Stopped")
+
+def get_seconds_to_next_candle(timeframe_str: str, buffer_seconds: int = 5) -> float:
+    """
+    Calculates seconds until the next timeframe alignment (e.g. 00, 15, 30, 45 for 15m).
+    """
+    now = datetime.now(timezone.utc)
+    
+    # 1. Parse timeframe to minutes/seconds
+    # Simple parser for common Binance timeframes
+    # 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d
+    tf_val = int(timeframe_str[:-1])
+    tf_unit = timeframe_str[-1].lower()
+    
+    seconds_per_unit = {
+        'm': 60,
+        'h': 3600,
+        'd': 86400,
+        'w': 604800
+    }
+    
+    if tf_unit not in seconds_per_unit:
+        # Fallback to default 10s if unknown
+        return 10.0
+        
+    interval_seconds = tf_val * seconds_per_unit[tf_unit]
+    
+    # 2. Calculate removal
+    timestamp = now.timestamp()
+    remainder = timestamp % interval_seconds
+    wait_time = interval_seconds - remainder
+    
+    # 3. Add buffer (to ensure exchange has processed the candle close)
+    total_wait = wait_time + buffer_seconds
+    
+    return total_wait
 
 if __name__ == "__main__":
     main()

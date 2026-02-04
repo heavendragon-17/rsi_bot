@@ -6,6 +6,8 @@ from typing import Optional
 
 import requests
 
+import logging
+
 from app.utils.logger import setup_logger
 
 
@@ -24,7 +26,8 @@ class TelegramBot:
         self.default_chat_id = os.getenv(chat_id_env)
 
         # Logger (uses your existing logger.py)
-        self.logger = setup_logger()
+        # Fix for duplicate logs: Use the existing 'rsi_bot' logger instead of initializing a new one or using root
+        self.logger = logging.getLogger("rsi_bot")
 
         if not self.token:
             raise RuntimeError(f"Missing {token_env} env var.")
