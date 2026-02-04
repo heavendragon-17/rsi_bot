@@ -69,6 +69,13 @@ class SignalEvent:
     # 2 = acceptable (WMA45 in 30-50 range)
     signal_class: int = 2
 
+    # Lock Profit Level (e.g. 0.2R)
+    lock_profit_price: Optional[Decimal] = None
+
+    # Dynamic TP Allocations (e.g. {"TP1": 0.5, "TP2": 1.0})
+    # If None, PortfolioManager uses default config
+    tp_allocations: Optional[dict] = field(default=None)
+
 
 @dataclass
 class OrderEvent:

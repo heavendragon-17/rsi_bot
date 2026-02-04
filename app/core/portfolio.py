@@ -46,6 +46,8 @@ class Position:
     tp2_price: Optional[Decimal] = None
     tp3_price: Optional[Decimal] = None
     sl_price: Optional[Decimal] = None
+    lock_profit_price: Optional[Decimal] = None
+    tp_allocations: Optional[dict] = None
 
     # Order tracking
     sl_order_id: Optional[str] = None
@@ -88,8 +90,9 @@ class PortfolioManager:
         self.initial_capital = Decimal(str(backtest_cfg.get("initial_balance", 10000)))
 
         # TP percentages (how much to close at each level)
-        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.33)))  # close 1/3
-        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 1/2 of remaining
+        # TP percentages (how much to close at each level)
+        self.tp1_close_pct = Decimal(str(risk_cfg.get("tp1_close_pct", 0.50)))  # close 50%
+        self.tp2_close_pct = Decimal(str(risk_cfg.get("tp2_close_pct", 0.50)))  # close 50% of remaining
         # TP3 closes 100% remaining
 
     # -------------------------
@@ -216,25 +219,32 @@ class PortfolioManager:
         target_price = new_price if new_price is not None else pos.entry_price
         # Default to current position amount if no new_amount specified
         amount_to_use = new_amount if new_amount is not None else pos.amount
-        # Use BREAKEVEN as exit reason for moved SL (profit protection)
-        exit_reason = "BREAKEVEN"
-
-        # 1) Try generic update_stop_loss(symbol, new_price, new_amount, exit_reason)
+        
+        # Dynamic exit reason based on price comparison with entry
+        if target_price > pos.entry_price:
+            exit_reason = "LOCK_PROFIT"  # Locking in profit (e.g., 0.2R)
+        elif target_price == pos.entry_price:
+            exit_reason = "BREAKEVEN"  # At entry, no profit/loss
+        else:
+            exit_reason = "TRAILING_SL"  # Tightening SL (still at loss if hit)
+        
         fn2 = getattr(self.exchange, "update_stop_loss", None)
         if callable(fn2):
             try:
                 ok = bool(fn2(symbol, target_price, amount_to_use, exit_reason))
                 if ok:
                     return True
-            except Exception:
+            except Exception as e:
+                print(f"[_move_sl_to_entry] update_stop_loss failed for {symbol}: {e}")
                 pass
 
         # 2) Fallback: cancel existing SL order and re-create LIMIT at target_price
+        logging.info(f"[_move_sl_to_entry] Fallback to Cancel+Replance for {symbol}")
         if pos.sl_order_id:
             try:
                 self.exchange.cancel_order(pos.sl_order_id, symbol)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning(f"[_move_sl_to_entry] Failed to cancel SL {pos.sl_order_id} for {symbol}: {e}")
             pos.sl_order_id = None
 
         try:
@@ -298,11 +308,11 @@ class PortfolioManager:
 
             # --- TP partial closes ---
             if reason.startswith("TP1"):
-                return self.execute_partial_close(signal.symbol, "TP1")
+                return self.execute_partial_close(signal.symbol, "TP1", new_sl_price=signal.sl_price)
             if reason.startswith("TP2"):
-                return self.execute_partial_close(signal.symbol, "TP2")
+                return self.execute_partial_close(signal.symbol, "TP2", new_sl_price=signal.sl_price)
             if reason.startswith("TP3"):
-                return self.execute_partial_close(signal.symbol, "TP3")
+                return self.execute_partial_close(signal.symbol, "TP3", new_sl_price=signal.sl_price)
 
             # Any other SELL -> close full (pass exit_reason)
             exit_reason = signal.reason or "MANUAL"
@@ -356,6 +366,8 @@ class PortfolioManager:
             tp2_price=signal.tp2_price,
             tp3_price=signal.tp3_price,
             sl_price=signal.sl_price,  # Store disaster SL for reference
+            lock_profit_price=signal.lock_profit_price, # Store lock profit price
+            tp_allocations=signal.tp_allocations,
         )
 
         # Place hard SL limit order (disaster SL) if provided
@@ -416,10 +428,10 @@ class PortfolioManager:
 
         return None
 
-    def execute_partial_close(self, symbol: str, tp_level: str):
+    def execute_partial_close(self, symbol: str, tp_level: str, new_sl_price: Optional[Decimal] = None):
         """
         Execute partial close for TP levels:
-        - TP1: close tp1_close_pct of current amount, then move SL to entry on remaining
+        - TP1: close tp1_close_pct of current amount, then move SL to entry (or new_sl_price) for remaining
         - TP2: close tp2_close_pct of remaining
         - TP3: close all remaining
         """
@@ -432,6 +444,12 @@ class PortfolioManager:
         tp_level = tp_level.upper().strip()
 
         if tp_level == "TP1" and pos.tp1_hit:
+            # If TP1 already hit, we might be receiving a retry signal to move SL
+            if new_sl_price and pos.amount > Decimal("0"):
+                try:
+                    self.exchange.update_stop_loss(symbol, new_sl_price, pos.amount, exit_reason="LOCK_PROFIT")
+                except Exception as e:
+                    logging.warning(f"Failed to retry SL update for {symbol}: {e}")
             return None
         if tp_level == "TP2" and pos.tp2_hit:
             return None
@@ -440,14 +458,22 @@ class PortfolioManager:
 
         close_amount = Decimal("0")
 
+        # Get close % from position allocation or global config
+        allocs = pos.tp_allocations or {}
+        
         if tp_level == "TP1":
-            close_amount = pos.amount * self.tp1_close_pct
+            pct = Decimal(str(allocs.get("TP1", self.tp1_close_pct)))
+            close_amount = pos.amount * pct
             pos.tp1_hit = True
         elif tp_level == "TP2":
-            close_amount = pos.amount * self.tp2_close_pct
+            pct = Decimal(str(allocs.get("TP2", self.tp2_close_pct)))
+            close_amount = pos.amount * pct
             pos.tp2_hit = True
         elif tp_level == "TP3":
-            close_amount = pos.amount
+            # TP3 is usually 100% remaining, but let's allow override if needed
+            # Default behavior for TP3 is closing everything
+            pct = Decimal(str(allocs.get("TP3", "1.0")))
+            close_amount = pos.amount * pct
             pos.tp3_hit = True
 
         if close_amount <= Decimal("0"):
@@ -467,11 +493,12 @@ class PortfolioManager:
             logging.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
             return None
 
+        old_amount = pos.amount
         pos.amount -= close_amount
-
-        # TP1: move SL to entry for remaining
-        if tp_level == "TP1" and pos.amount > Decimal("0"):
-            self._move_sl_to_entry(symbol)
+        # Update SL amount for remaining position (resize SL order)
+        # If new_sl_price is provided, it moves there. If None, it moves to Entry (or stays at Entry).
+        if pos.amount > Decimal("0"):
+            self._move_sl_to_entry(symbol, new_price=new_sl_price)
 
         # If fully closed, cleanup
         if pos.amount <= Decimal("0.00000001"):

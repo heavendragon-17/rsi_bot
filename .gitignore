@@ -8,6 +8,4 @@ backtest_logs.csv
 venv
 bot.log
 
-# Backtest data and reports (Ignored, keeping scripts)
-app/backtest/report/
 

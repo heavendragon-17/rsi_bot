@@ -34,9 +34,5 @@ risk:
   # Futures leverage
   leverage: 10 # 10x leverage for futures
 
-  # TP percentages
-  tp1_close_pct: 0.33 # Close 1/3 at TP1
-  tp2_close_pct: 0.50 # Close 1/2 of remaining at TP2
-
 backtest:
   initial_balance: 10000
