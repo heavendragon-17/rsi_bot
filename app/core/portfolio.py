@@ -135,12 +135,27 @@ class PortfolioManager:
         # Use risk-based sizing if enabled and SL is provided
         if self.use_risk_based_sizing and sl_price is not None and sl_price > Decimal("0"):
             sl_distance = abs(entry_price - sl_price)
-            sl_distance_pct = sl_distance / entry_price
+            sl_distance_pct = sl_distance / entry_price if entry_price > Decimal("0") else Decimal("0")
             
-            # SAFETY: If SL distance is too small, use fallback sizing
+            # EDGE CASE: Zero SL distance (SL = Entry) - reject trade
+            if sl_distance_pct <= Decimal("0"):
+                print(f"  [ERROR] SL distance is zero (SL={sl_price}, Entry={entry_price}). Cannot calculate position size.")
+                return Decimal("0")
+            
+            # SAFETY: If SL distance is too small, still use risk-based sizing
+            # but warn the user. DO NOT default to max_amount (dangerous!)
             if sl_distance_pct < self.min_sl_distance_pct:
-                print(f"  [WARNING] SL distance too small ({sl_distance_pct*100:.2f}% < {self.min_sl_distance_pct*100:.0f}%). Using max position size cap.")
-                return max_amount
+                # Calculate risk-based size anyway (this will be large but still risk-controlled)
+                risk_amount = risk_capital * self.risk_per_trade_pct
+                position_notional = risk_amount / sl_distance_pct
+                position_size = position_notional / entry_price
+                
+                # Cap at max position size
+                capped_size = min(position_size, max_amount)
+                
+                print(f"  [WARNING] SL distance too small ({sl_distance_pct*100:.2f}% < {self.min_sl_distance_pct*100:.0f}%). ")
+                print(f"  [WARNING] Risk-based size={position_size:.4f}, capped to {capped_size:.4f}")
+                return capped_size
             
             if sl_distance_pct > Decimal("0"):
                 # Risk amount in quote currency (based on initial capital)
