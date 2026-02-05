@@ -171,8 +171,27 @@ class MultiSymbolRunner:
                 signal_event = strategy.analyze(symbol, df)
                 
                 if signal_event:
-                    logger.info(f"[{symbol}] Signal: {signal_event.side} @ {signal_event.price}")
+                    logger.info(f"[{symbol}] Signal: {signal_event.signal_type} @ {signal_event.price}")
                     portfolio.on_signal(signal_event)
+                
+                # Sync TP hit status from Portfolio back to Strategy's meta
+                # This prevents Strategy from repeatedly emitting TP signals (Ghost TP bug)
+                if (hasattr(strategy, 'context') and 
+                    strategy.context and 
+                    symbol in portfolio.positions and
+                    symbol in strategy.context.active_trades):
+                    pos = portfolio.positions[symbol]
+                    trade = strategy.context.active_trades[symbol]
+                    if trade.meta:
+                        # Sync all flags that could change during trade management
+                        trade.meta["tp1_hit"] = pos.tp1_hit
+                        trade.meta["tp2_hit"] = pos.tp2_hit
+                        trade.meta["tp3_hit"] = pos.tp3_hit
+                        # Also sync SL if it was moved (e.g., to breakeven)
+                        if pos.sl_price is not None:
+                            trade.meta["sl_price"] = pos.sl_price
+                        if hasattr(pos, 'lock_profit_price') and pos.lock_profit_price is not None:
+                            trade.meta["lock_profit_price"] = pos.lock_profit_price
                 
                 last_processed_ts = current_ts
                 
