@@ -23,6 +23,8 @@ from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data
+from app.utils.logger import setup_logger
+import logging
 
 # Strategy mapping
 STRATEGY_MAP = {
@@ -194,8 +196,8 @@ def export_signals_to_csv(engine, symbol: str, output_dir: str, debug: bool = Fa
             csv_path = os.path.join(output_dir, f"signals_{safe_symbol}.csv")
             df.to_csv(csv_path, index=False)
             
-            print(f"[{symbol}] ✓ Signals exported: {csv_path}")
-            print(f"[{symbol}]   → {len(df)} signals, {len(df.columns)} columns")
+            print(f"[{symbol}] [DONE] Signals exported: {csv_path}")
+            print(f"[{symbol}]   -> {len(df)} signals, {len(df.columns)} columns")
             
             if debug:
                 print(f"\n[{symbol}] Sample data (first 3 rows):")
@@ -205,7 +207,7 @@ def export_signals_to_csv(engine, symbol: str, output_dir: str, debug: bool = Fa
             return csv_path
             
         except Exception as e:
-            print(f"[{symbol}] ✗ Export error: {e}")
+            print(f"[{symbol}] [ERROR] Export error: {e}")
             import traceback
             if debug:
                 traceback.print_exc()
@@ -220,6 +222,9 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
     
     Returns a dict with results or None if failed.
     """
+    # Configure logger for worker process
+    setup_logger(stream=sys.stdout, level=logging.INFO)
+    
     try:
         # Import strategy class here to avoid pickling issues
         from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
@@ -292,7 +297,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         # Export CSVs
         reporter._export_csv(df, round_trips, output_dir=report_dir)
         
-        print(f"[{symbol}] ✓ Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
+        print(f"[{symbol}] [OK] Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
         
         return {
             'symbol': symbol,
@@ -338,7 +343,7 @@ def export_combined_signals(batch_results: list, output_dir: str):
         
         master_path = os.path.join(output_dir, "all_signals_combined.csv")
         combined_df.to_csv(master_path, index=False)
-        print(f"\n✓ Combined signals exported to: {master_path}")
+        print(f"\n[DONE] Combined signals exported to: {master_path}")
         print(f"  Total signals: {len(combined_df)}")
         
         return master_path
@@ -773,6 +778,9 @@ def main():
         print(f"Error: {SYMBOLS_PATH} not found.")
         return
 
+    # Configure global logger for main process
+    setup_logger(stream=sys.stdout, level=logging.INFO)
+
     # Load Config
     config = load_config()
     timeframe = config.get("timeframe", "15m")
@@ -862,7 +870,7 @@ def main():
                     print(f"  [{completed}/{len(symbols)}] {symbol} exception: {e}")
     
     elapsed = time.time() - start_time
-    print(f"\n⏱ Total time: {elapsed:.1f}s ({elapsed/len(symbols):.1f}s per symbol)")
+    print(f"\nTotal time: {elapsed:.1f}s ({elapsed/len(symbols):.1f}s per symbol)")
 
     # **EXPORT COMBINED SIGNALS CSV**
     if batch_results:

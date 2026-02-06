@@ -252,6 +252,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         # prices (Decimals)
         close = self._to_dec(last.get("close"))
         high = self._to_dec(last.get("high"))
+        open_price = self._to_dec(last.get("open"))
         ema21 = self._to_dec(last.get("ema21"))
 
         if close is None or ema21 is None:
@@ -285,7 +286,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl_price = self._to_dec(sl_price) if sl_price is not None else None
             soft_sl = self._to_dec(soft_sl) if soft_sl is not None else sl_price  # Fallback to sl_price
             tp_price = self._to_dec(tp_price) if tp_price is not None else None
-            open_price = self._to_dec(last.get("open"))
 
             if entry_price is None:
                 return None
@@ -373,7 +373,10 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             self.context.transition(key, CONFIRMING, reason="Reclaim EMA21 + pullback ok", now_ts=ts)
             logger.warning(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
-            return None
+            
+            # Refresh state to allow immediate processing in the same tick
+            state = self.context.get_state(key)
+            # Fall through to CONFIRMING logic
 
         if state.phase == CONFIRMING:
             if rsi_ema9 is None or rsi_wma45 is None:
@@ -399,9 +402,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             # Entry logic: Try EMA21 first, but ensure it's above SL
             # Entry logic: Market order at next open (simulated by current close)
-            entry_price = close
-
-
+            entry_price = open_price
 
             tp_price = self._compute_tp_1to1(entry_price, sl_price)
             if tp_price is None:

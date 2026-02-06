@@ -1,7 +1,7 @@
+import sys
 import logging
-import os
 
-def setup_logger(name='rsi_bot', log_file='bot.log', level=logging.INFO):
+def setup_logger(name='rsi_bot', log_file='bot.log', level=logging.INFO, stream=sys.stdout):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.propagate = False # Prevent propagation to root logger (avoid duplicate logs)
@@ -14,7 +14,7 @@ def setup_logger(name='rsi_bot', log_file='bot.log', level=logging.INFO):
         fh.setFormatter(formatter)
         logger.addHandler(fh)
         
-        ch = logging.StreamHandler()
+        ch = logging.StreamHandler(stream)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
         
