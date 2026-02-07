@@ -48,8 +48,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         
         # Entry conditions
         "nr_lookback": 30,           # Candles to check for pullback
-        "nr_max_above_ema21": 1,     # Max candles above EMA21 in lookback (0 = strict)
-        "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
+        "nr_max_above_ema21": 3,     # Max candles above EMA21 in lookback (0 = strict)
+        "nr_rsi_spread_min": 2.5,    # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
         "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"

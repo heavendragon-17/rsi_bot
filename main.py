@@ -1,11 +1,10 @@
 """
-RSI Trading Bot - Main Entry Point
-===================================
-Realtime integration of:
-- RsiNoRetestStrategy (Strategy)
-- BinanceAdapter (Exchange/Paper)
-- BinanceSignalExecutor (Execution)
-- TelegramBot (Notification)
+RSI Trading Bot - Main Entry Point (Signal-Only Mode)
+======================================================
+Telegram signal notifications with:
+- WebSocket streaming for live market data
+- Portfolio-based position sizing
+- NO trade execution (commented out)
 
 Usage:
     python main.py
@@ -24,11 +23,20 @@ from decimal import Decimal
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.utils.logger import setup_logger
-from app.services.execution.cex.binance_adapter import BinanceAdapter
-from app.services.execution.cex.binance_signal_executor import BinanceSignalExecutor
 from app.services.notification.telegram_bot import TelegramBot
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.core.context import StrategyContext, SCANNING
+
+# WebSocket streaming components
+from app.services.market_data.store import MarketDataStore
+from app.services.market_data.stream_manager import BinanceStreamManager
+
+# Portfolio for position sizing (used for signal info, not execution)
+from app.core.portfolio import PortfolioManager
+
+# --- COMMENTED OUT: Binance execution components ---
+# from app.services.execution.cex.binance_adapter import BinanceAdapter
+# from app.services.execution.cex.binance_signal_executor import BinanceSignalExecutor
 
 # Load Env
 load_dotenv()
@@ -44,189 +52,203 @@ def load_config():
         logger.error("config.yaml not found.")
         sys.exit(1)
 
-def run_executor_thread(executor, signal_dict, usdt_amount, symbol):
+def normalize_symbol(symbol: str) -> str:
     """
-    Runs the executor in a separate thread to prevent blocking the main scanning loop.
+    Normalize symbol to base asset for store lookup.
+    E.g., 'BTC/USDT' -> 'BTC', 'BTCUSDT' -> 'BTC'
     """
-    logger.info(f"[{symbol}] Starting Executor Thread...")
-    try:
-        executor.execute(signal_dict, usdt_amount)
-    except Exception as e:
-        logger.exception(f"[{symbol}] Executor Thread Error: {e}")
-    finally:
-        logger.info(f"[{symbol}] Executor Thread Finished.")
+    s = symbol.upper().replace('/', '')
+    for quote in ['USDT', 'USDC', 'BUSD', 'USD']:
+        if s.endswith(quote):
+            return s[:-len(quote)]
+    return s
+
+def format_signal_message(signal, symbol: str, timeframe: str, config: dict) -> str:
+    """
+    Format a detailed Telegram message for a trading signal.
+    """
+    # Calculate position size info (for display only)
+    risk_cfg = config.get("risk", {})
+    leverage = risk_cfg.get("leverage", 10)
+    risk_pct = risk_cfg.get("risk_per_trade_pct", 0.02)
+    initial_capital = config.get("backtest", {}).get("initial_balance", 10000)
+    
+    # Calculate SL distance
+    sl_price = signal.soft_sl_price or signal.sl_price
+    sl_distance_pct = 0
+    if sl_price and signal.price:
+        sl_distance_pct = abs(float(signal.price) - float(sl_price)) / float(signal.price) * 100
+    
+    # Build message
+    msg_lines = [
+        f"🚨 <b>{signal.signal_type} SIGNAL</b>",
+        f"",
+        f"<b>Symbol:</b> {symbol}",
+        f"<b>Timeframe:</b> {timeframe}",
+        f"<b>Entry:</b> ${signal.price:.4f}",
+    ]
+    
+    if signal.sl_price:
+        msg_lines.append(f"<b>SL:</b> ${signal.sl_price:.4f}")
+    if signal.soft_sl_price:
+        msg_lines.append(f"<b>Soft SL:</b> ${signal.soft_sl_price:.4f} ({sl_distance_pct:.2f}%)")
+    
+    if signal.tp1_price:
+        msg_lines.append(f"<b>TP1:</b> ${signal.tp1_price:.4f}")
+    if signal.tp2_price:
+        msg_lines.append(f"<b>TP2:</b> ${signal.tp2_price:.4f}")
+    if signal.tp3_price:
+        msg_lines.append(f"<b>TP3:</b> ${signal.tp3_price:.4f}")
+    
+    msg_lines.extend([
+        f"",
+        f"<b>Reason:</b> {signal.reason}",
+        f"",
+        f"<i>Leverage: {leverage}x | Risk: {float(risk_pct)*100:.1f}%</i>",
+    ])
+    
+    return "\n".join(msg_lines)
 
 def main():
-    logger.info("Starting RSI Bot (Realtime)...")
+    logger.info("Starting RSI Bot (Signal-Only Mode with WebSocket)...")
     
     # 1. Load Config
     config = load_config()
     
-    # Force Paper Mode based on user request/config
     bot_mode = config.get("bot", {}).get("mode", "paper")
-    logger.info(f"Bot Mode: {bot_mode.upper()}")
+    logger.info(f"Bot Mode: {bot_mode.upper()} (SIGNAL-ONLY - No execution)")
     
     # 2. Initialize Components
     
     # Telegram
     try:
         telegram = TelegramBot()
-        telegram.send_message(f"RSI Bot Started [{bot_mode.upper()}]")
+        telegram.send_message(f"🤖 RSI Bot Started [SIGNAL-ONLY]\nMode: {bot_mode.upper()}")
+        logger.info("Telegram bot initialized successfully")
     except Exception as e:
-        logger.warning(f"Telegram init failed: {e}")
+        logger.error(f"Telegram init failed: {e}")
         telegram = None
-
-    # Adapter (Exchange)
-    adapter = BinanceAdapter(config, initial_balance=1000.0)
-    # Ensure mode is set correctly
-    try:
-        adapter.mode = bot_mode
-    except Exception as e:
-        logger.error(f"Failed to set adapter mode: {e}")
-        sys.exit(1)
-
-    # Executor (Trade Monitoring)
-    executor = BinanceSignalExecutor(adapter)
+        sys.exit(1)  # Exit if Telegram fails - it's our main output
     
     # Context (State Machine)
     context = StrategyContext()
     
     # Strategy
-    # We pass the shared context to the strategy so it persists state across loops
     strategy = RsiNoRetestStrategy(config)
-    strategy.context = context # Inject context
+    strategy.context = context
     
     # 3. Setup Symbols & Timeframe
     symbols = config.get("symbols", ["BTC/USDT"])
-    timeframe = config.get("bot", {}).get("timeframe", "15m") 
-    # Check if timeframe is top-level (legacy) or in bot/strategy section
-    if "timeframe" in config and isinstance(config["timeframe"], str):
-         timeframe = config["timeframe"]
-         
-    lookback_candles = 500 # Ensure enough data for strategy
+    timeframe = config.get("timeframe", "15m")
     
     logger.info(f"Monitoring: {symbols} on {timeframe}")
     
-    # 4. Main Realtime Loop
+    # 4. Initialize WebSocket Streaming
+    store = MarketDataStore()
+    stream = BinanceStreamManager(
+        symbols=symbols,
+        timeframe=timeframe,
+        store=store,
+        history_limit=300,
+        enable_history=True
+    )
+    
+    # Start the stream
+    stream.start()
+    logger.info("WebSocket stream started")
+    
+    # Wait for initial data
+    logger.info("Waiting for initial historical data...")
+    time.sleep(5)
+    
+    # 5. Track last processed candle per symbol
+    last_processed = {normalize_symbol(s): None for s in symbols}
+    
+    # 6. Main Loop - Process closed candles
     try:
         while True:
             for symbol in symbols:
                 try:
-                    # Skip if active trade exists (Executor is handling it)
-                    # Note: Strategy check is still useful to update state/logging, 
-                    # but we shouldn't trigger new BUYs.
-                    if context.has_active_trade(symbol):
-                        # Optional: Print status or just skip
-                        continue
-
-                    # A. Fetch Data
-                    # logger.info(f"[{symbol}] Fetching data...")
-                    ohlcv = adapter.fetch_ohlcv(symbol, timeframe, limit=lookback_candles)
-                    if not ohlcv:
-                        logger.warning(f"[{symbol}] No data returned.")
-                        continue
-                        
-                    # Convert to DataFrame
-                    df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
-                    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-                    df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+                    norm_symbol = normalize_symbol(symbol)
                     
-                    # B. Analyze
-                    signal = strategy.analyze(symbol, df)
+                    # Skip if active trade exists
+                    if context.has_active_trade(norm_symbol):
+                        continue
                     
-                    # C. Handle Signal
+                    # Get data from store
+                    df = store.get_dataframe(norm_symbol)
+                    
+                    if df is None or df.empty:
+                        continue
+                    
+                    # Get latest candle timestamp
+                    current_ts = df.index[-1]
+                    
+                    # Skip if already processed
+                    if current_ts == last_processed[norm_symbol]:
+                        continue
+                    
+                    # Only process closed candles
+                    last_row = df.iloc[-1]
+                    if not last_row.get('closed', False):
+                        continue
+                    
+                    # Prepare DataFrame for strategy (needs specific columns)
+                    df_for_strategy = df[['open', 'high', 'low', 'close', 'volume']].copy()
+                    df_for_strategy.reset_index(inplace=True)
+                    df_for_strategy.rename(columns={'index': 'timestamp'}, inplace=True)
+                    
+                    # Analyze
+                    signal = strategy.analyze(norm_symbol, df_for_strategy)
+                    
+                    # Handle Signal
                     if signal:
                         logger.info(f"[{symbol}] SIGNAL: {signal.signal_type} | {signal.reason}")
                         
-                        # Notify
+                        # Send Telegram notification
                         if telegram:
-                            msg = (f"<b>{signal.signal_type} {symbol}</b>\n"
-                                   f"Price: {signal.price}\n"
-                                   f"Reason: {signal.reason}")
-                            telegram.send_message(msg)
-
-                        # Execute (Only BUY/LONG entries are handled by executor in this logic)
-                        if signal.signal_type == "BUY":
-                            # Prepare Signal Dict for Executor
-                            # Executor expects:
-                            # {"Symbol": ..., "Side": "BUY", "SL": ..., "TP 1": ..., "Timeframe": ...}
+                            msg = format_signal_message(signal, symbol, timeframe, config)
                             
-                            sig_dict = {
-                                "Symbol": symbol,
-                                "Side": "BUY",
-                                "SL": signal.sl_price or signal.soft_sl_price, # Use hard or soft SL
-                                "Timeframe": timeframe
-                            }
-                            
-                            # Add TPs
-                            if signal.tp1_price: sig_dict["TP 1"] = signal.tp1_price
-                            if signal.tp2_price: sig_dict["TP 2"] = signal.tp2_price
-                            if signal.tp3_price: sig_dict["TP 3"] = signal.tp3_price
-                            
-                            # Fallback if only single TP in logic (strategy returns tp1_price usually)
-                            
-                            # Determine Position Size
-                            # Simple approach: Fixed USDT amount or % of balance
-                            # For paper mode simplicity: use fixed 100 USDT or similar
-                            invest_amount = Decimal("100") 
-                            
-                            # Launch Thread
-                            t = threading.Thread(
-                                target=run_executor_thread,
-                                args=(executor, sig_dict, invest_amount, symbol),
-                                daemon=True
+                            # Add trade URL button
+                            trade_url = TelegramBot.binance_futures_url(symbol)
+                            telegram.send_message(
+                                msg,
+                                button_text="📈 Open Chart",
+                                button_url=trade_url
                             )
-                            t.start()
-                            
+                            logger.info(f"[{symbol}] Telegram notification sent")
+                        
+                        # --- COMMENTED OUT: Trade execution ---
+                        # if signal.signal_type == "BUY":
+                        #     sig_dict = {
+                        #         "Symbol": symbol,
+                        #         "Side": "BUY",
+                        #         "SL": signal.sl_price or signal.soft_sl_price,
+                        #         "Timeframe": timeframe
+                        #     }
+                        #     if signal.tp1_price: sig_dict["TP 1"] = signal.tp1_price
+                        #     if signal.tp2_price: sig_dict["TP 2"] = signal.tp2_price
+                        #     invest_amount = Decimal("100")
+                        #     t = threading.Thread(
+                        #         target=run_executor_thread,
+                        #         args=(executor, sig_dict, invest_amount, symbol),
+                        #         daemon=True
+                        #     )
+                        #     t.start()
+                    
+                    last_processed[norm_symbol] = current_ts
+                    
                 except Exception as e:
-                    logger.error(f"[{symbol}] Loop Error: {e}")
-                    # time.sleep(1) # prevent rapid error loops
+                    logger.error(f"[{symbol}] Loop Error: {e}", exc_info=True)
             
-            # Match the loop to the timeframe boundary (Sync Mode)
-            # e.g. if timeframe=15m, wait until next 15m mark + small buffer
-            sleep_duration = get_seconds_to_next_candle(timeframe)
-            logger.info(f"Sleeping {sleep_duration:.1f}s until next candle close...")
-            time.sleep(sleep_duration)
+            # Small sleep to prevent CPU spinning
+            time.sleep(0.5)
 
     except KeyboardInterrupt:
-        logger.info("Updates stopped by user.")
+        logger.info("Bot stopped by user.")
         if telegram:
-             telegram.send_message("Bot Stopped")
-
-def get_seconds_to_next_candle(timeframe_str: str, buffer_seconds: int = 5) -> float:
-    """
-    Calculates seconds until the next timeframe alignment (e.g. 00, 15, 30, 45 for 15m).
-    """
-    now = datetime.now(timezone.utc)
-    
-    # 1. Parse timeframe to minutes/seconds
-    # Simple parser for common Binance timeframes
-    # 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d
-    tf_val = int(timeframe_str[:-1])
-    tf_unit = timeframe_str[-1].lower()
-    
-    seconds_per_unit = {
-        'm': 60,
-        'h': 3600,
-        'd': 86400,
-        'w': 604800
-    }
-    
-    if tf_unit not in seconds_per_unit:
-        # Fallback to default 10s if unknown
-        return 10.0
-        
-    interval_seconds = tf_val * seconds_per_unit[tf_unit]
-    
-    # 2. Calculate removal
-    timestamp = now.timestamp()
-    remainder = timestamp % interval_seconds
-    wait_time = interval_seconds - remainder
-    
-    # 3. Add buffer (to ensure exchange has processed the candle close)
-    total_wait = wait_time + buffer_seconds
-    
-    return total_wait
+            telegram.send_message("🛑 RSI Bot Stopped")
+        stream.stop()
 
 if __name__ == "__main__":
     main()

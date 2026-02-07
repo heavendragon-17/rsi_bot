@@ -3,10 +3,9 @@ trades.db
 __pycache__/
 *.pyc
 .DS_Store
-bot.log
-backtest_logs.csv
 venv
-bot.log
+*.log
+*.csv
 
 # Backtest data and reports (Ignored, keeping scripts)
 app/backtest/report/
