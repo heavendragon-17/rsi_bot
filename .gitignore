@@ -7,4 +7,6 @@ venv
 *.log
 *.csv
 
-
+# UI dependencies
+ui/node_modules/
+ui/dist/
