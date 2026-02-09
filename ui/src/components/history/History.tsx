@@ -1,0 +1,20 @@
+import React from 'react';
+import { RunHistoryTable } from './RunHistoryTable';
+import { Filter } from 'lucide-react';
+
+export const History: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-text">Run History</h2>
+
+        <button className="flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-text hover:bg-surface-hover transition-colors">
+          <Filter size={16} />
+          Filters
+        </button>
+      </div>
+
+      <RunHistoryTable />
+    </div>
+  );
+};
