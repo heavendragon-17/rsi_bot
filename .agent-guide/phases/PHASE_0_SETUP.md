@@ -184,6 +184,19 @@ npm install --legacy-peer-deps
 
 **Note:** Use `--legacy-peer-deps` if there are peer dependency conflicts.
 
+### Task 0.8: Update .gitignore
+
+**IMMEDIATELY after npm install**, add `node_modules` to `.gitignore`:
+
+Add these lines to the root `.gitignore` file:
+```
+# UI dependencies
+ui/node_modules/
+ui/dist/
+```
+
+> ⚠️ **IMPORTANT:** Always update .gitignore BEFORE attempting to fix any errors. Do not commit node_modules to git.
+
 ---
 
 ## 🔍 Verification Checkpoint

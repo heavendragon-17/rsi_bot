@@ -19,6 +19,8 @@ I need you to rebuild the Backtest UI for my RSI Bot project.
 - **IF VERIFICATION FAILS:** STOP, report the error, and wait for my instructions.
 - Load knowledge docs only when the phase doc tells you to.
 - The `Designstrategycommandcenter/` folder is Figma-generated UI - copy styles, rewrite logic.
+- **ALWAYS add `node_modules/` to `.gitignore` IMMEDIATELY after `npm install`.**
+- **Before fixing ANY error, ensure `.gitignore` is updated first.**
 
 **Start with Phase 0:**
 Read `.agent-guide/phases/PHASE_0_SETUP.md` and execute it.
