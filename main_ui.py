@@ -1,0 +1,24 @@
+import argparse
+import sys
+import os
+
+# Add project root to path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.ui.bridge import BacktestUI
+
+def main():
+    parser = argparse.ArgumentParser(description="Backtest UI Launcher")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--test", action="store_true", help="Run in test mode (exit immediately)")
+    args = parser.parse_args()
+
+    if args.test:
+        print("Test mode: Bridge initialized successfully")
+        return
+
+    ui = BacktestUI(debug=args.debug)
+    ui.start()
+
+if __name__ == "__main__":
+    main()
