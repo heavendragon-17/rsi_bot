@@ -84,6 +84,19 @@ class BacktestEngine:
 
             if signal:
                 self.portfolio.on_signal(signal)
+                
+                # Sync TP hit status from Portfolio back to Strategy's meta
+                # This prevents Strategy from repeatedly emitting TP signals
+                if (hasattr(self.strategy, 'context') and 
+                    self.strategy.context and 
+                    self.symbol in self.portfolio.positions and
+                    self.symbol in self.strategy.context.active_trades):
+                    pos = self.portfolio.positions[self.symbol]
+                    trade = self.strategy.context.active_trades[self.symbol]
+                    if trade.meta:
+                        trade.meta["tp1_hit"] = pos.tp1_hit
+                        trade.meta["tp2_hit"] = pos.tp2_hit
+                        trade.meta["tp3_hit"] = pos.tp3_hit
 
         # Close any open positions at final price for accurate reporting
         self._close_open_positions()

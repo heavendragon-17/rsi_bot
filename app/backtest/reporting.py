@@ -422,7 +422,7 @@ class BacktestReporter:
         profit_pct = (profit / float(self.initial_balance)) * 100
 
         # Console Report
-        self._print_console_report(metrics, drawdown, risk_metrics, final_balance, profit, profit_pct, round_trips)
+        # self._print_console_report(metrics, drawdown, risk_metrics, final_balance, profit, profit_pct, round_trips)
         
         # HTML Report
         report_path = self._generate_html_report(metrics, drawdown, risk_metrics, monthly_returns, final_balance, profit, profit_pct, round_trips, output_dir=output_dir)

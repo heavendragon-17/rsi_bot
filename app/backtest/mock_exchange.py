@@ -305,7 +305,7 @@ class MockExchange(IFuturesExchange):
             if updated:
                 amt_str = f", amount={new_amt}" if new_amt is not None else ""
                 reason_str = f" (reason={exit_reason})" if exit_reason else ""
-                print(f"[MockExchange] Updated SL for {symbol} -> price={new_price}{amt_str}{reason_str}")
+                # print(f"[MockExchange] Updated SL for {symbol} -> price={new_price}{amt_str}{reason_str}")
             return updated
 
     def update_stop_loss_to_entry(self, symbol: str) -> bool:
@@ -320,8 +320,6 @@ class MockExchange(IFuturesExchange):
                 return False
 
             ok = self.update_stop_loss(symbol, entry)
-            if ok:
-                print(f"[MockExchange] Move SL to ENTRY for {symbol}: new_sl={entry}")
             return ok
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:

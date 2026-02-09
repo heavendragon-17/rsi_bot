@@ -7,6 +7,4 @@ venv
 *.log
 *.csv
 
-# Backtest data and reports (Ignored, keeping scripts)
-app/backtest/report/
 
