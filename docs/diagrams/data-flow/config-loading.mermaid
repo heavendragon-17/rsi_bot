@@ -1,0 +1,81 @@
+sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant Store as ConfigStore
+    participant Bridge as PyWebView Bridge
+    participant API as ConfigAPI
+    participant Loader as Config Loader
+    participant PY as Strategy.py
+    participant JSON as Override JSON
+    participant YAML as config.yaml
+
+    Note over UI: On strategy selector change
+    UI->>Store: dispatch: loadStrategyConfig(name)
+    activate Store
+    
+    Store->>Bridge: window.pywebview.api.get_strategy_config(name)
+    Bridge->>API: ConfigAPI.get_strategy_config(name)
+    activate API
+    
+    API->>Loader: load_strategy_config(name)
+    activate Loader
+    
+    Note over Loader: Step 1: Load DEFAULT_CONFIG
+    Loader->>PY: getattr(StrategyClass, 'DEFAULT_CONFIG')
+    PY-->>Loader: default_config dict
+    
+    Note over Loader: Step 2: Check for override file
+    Loader->>JSON: read config/strategy_overrides/{name}.json
+    alt Override exists
+        JSON-->>Loader: override_config dict
+    else No override
+        Loader->>Loader: override_config = {}
+    end
+    
+    Note over Loader: Step 3: Merge configs
+    Loader->>Loader: merged = {**default, **override}
+    
+    Note over Loader: Step 4: Generate form schema
+    Loader->>Loader: schema = generate_schema(default)
+    
+    Loader-->>API: {default, override, merged, schema}
+    deactivate Loader
+    
+    API-->>Bridge: StrategyConfig
+    deactivate API
+    
+    Bridge-->>Store: Promise resolves
+    Store->>Store: setCurrentConfig(config)
+    Store-->>UI: Re-render ParameterEditor
+    deactivate Store
+    
+    Note over UI: User edits parameters
+    UI->>Store: dispatch: updateParam(key, value)
+    Store->>Store: setStagedChanges({...staged, key: value})
+    
+    Note over UI: User clicks Save
+    UI->>Store: dispatch: saveConfig()
+    activate Store
+    
+    Store->>Bridge: window.pywebview.api.save_strategy_config(name, config)
+    Bridge->>API: ConfigAPI.save_strategy_config(name, config)
+    activate API
+    
+    Note over API: Validate before save
+    API->>API: validate_config(config, schema)
+    
+    alt Validation fails
+        API-->>Bridge: {success: false, errors: [...]}
+        Bridge-->>Store: Error response
+        Store->>Store: setErrors(errors)
+    else Validation passes
+        API->>JSON: write config/strategy_overrides/{name}.json
+        JSON-->>API: Write success
+        API-->>Bridge: {success: true, path: "..."}
+        Bridge-->>Store: Success response
+        Store->>Store: clearStagedChanges()
+        Store->>UI: Show success toast
+    end
+    
+    deactivate API
+    deactivate Store

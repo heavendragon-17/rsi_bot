@@ -1,0 +1,105 @@
+erDiagram
+    STRATEGIES ||--o{ RUNS : "defines"
+    RUNS ||--|| RUN_CONFIGS : "has"
+    RUNS ||--|| RUN_RESULTS : "produces"
+    RUNS ||--o| RUN_TIMESERIES : "stores"
+    RUNS ||--o{ TRADES : "contains"
+    RUNS ||--o{ TAGS : "labeled_by"
+    RUNS ||--o{ COMPARISONS : "compared_as_A"
+    RUNS ||--o{ COMPARISONS : "compared_as_B"
+    THEMES }o--o{ RUNS : "styles"
+    
+    STRATEGIES {
+        int id PK
+        string name UK
+        string description
+        json default_config
+        datetime created_at
+    }
+    
+    RUNS {
+        int id PK
+        int strategy_id FK
+        datetime created_at
+        datetime started_at
+        datetime completed_at
+        string status "pending|running|completed|failed"
+        string git_hash "Audit trail"
+        string version "Semantic version"
+        bool is_grid_search
+        int grid_search_parent_id FK
+    }
+    
+    RUN_CONFIGS {
+        int id PK
+        int run_id FK_UK
+        string symbol
+        string timeframe
+        date start_date
+        date end_date
+        text initial_capital "Decimal precision"
+        int leverage
+        text fee_tier "Simulation cost"
+        text slippage_model "none|fixed|variable"
+        json params "Strategy parameters"
+    }
+    
+    RUN_RESULTS {
+        int id PK
+        int run_id FK_UK
+        text net_profit "Decimal precision"
+        real net_profit_pct
+        real win_rate
+        real profit_factor
+        real max_drawdown_pct
+        real sharpe_ratio
+        real sortino_ratio
+        int total_trades
+        json exit_reasons "TP1/TP2/TP3/SL counts"
+    }
+    
+    RUN_TIMESERIES {
+        int run_id PK_FK
+        blob equity_curve "zlib compressed"
+        blob drawdown_curve "zlib compressed"
+        json monthly_returns
+    }
+    
+    TRADES {
+        int id PK
+        int run_id FK
+        string symbol
+        string side "LONG|SHORT"
+        datetime entry_time
+        datetime exit_time
+        text entry_price "Decimal"
+        text exit_price "Decimal"
+        text pnl "Decimal"
+        real pnl_pct
+        string exit_reason "TP1|TP2|TP3|SL|EOD"
+        text note "User annotation"
+    }
+    
+    TAGS {
+        int id PK
+        int run_id FK
+        string name
+        string color
+    }
+    
+    COMPARISONS {
+        int id PK
+        string name
+        int run_a_id FK
+        int run_b_id FK
+        json diff_summary
+        text notes
+    }
+    
+    THEMES {
+        int id PK
+        string name UK
+        string display_name
+        bool is_dark
+        json css_variables
+    }

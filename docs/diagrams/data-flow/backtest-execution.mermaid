@@ -1,0 +1,68 @@
+sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant Store as Zustand Store
+    participant Bridge as PyWebView Bridge
+    participant API as BacktestAPI
+    participant Engine as BacktestEngine
+    participant Strategy as Strategy Class
+    participant Repo as Repository Layer
+    participant DB as SQLite
+
+    UI->>Store: dispatch: runBacktest(params)
+    activate Store
+    Store->>Store: setIsRunning(true)
+    Store->>Bridge: window.pywebview.api.run_backtest(params)
+    
+    Bridge->>API: BacktestAPI.run_backtest(params)
+    activate API
+    
+    Note over API: Load merged strategy config
+    API->>API: load_strategy_config()
+    
+    Note over API: Create pending run record
+    API->>Repo: runs_repo.create_pending_run()
+    Repo->>DB: INSERT INTO runs (status='pending')
+    DB-->>Repo: run_id
+    Repo-->>API: run_id
+    
+    Note over API: Initialize engine
+    API->>Engine: BacktestEngine(data_path, strategy, config)
+    activate Engine
+    
+    API->>Engine: engine.run()
+    Engine->>Strategy: strategy.process_candle(row)
+    
+    loop For each candle in data
+        Strategy->>Strategy: Check entry/exit conditions
+        Strategy-->>Engine: signal or None
+        Engine->>Engine: Execute trade if signal
+    end
+    
+    Engine-->>API: BacktestResult
+    deactivate Engine
+    
+    Note over API: Persist results to DB
+    API->>Repo: runs_repo.update_run(run_id, 'completed')
+    Repo->>DB: UPDATE runs SET status='completed'
+    
+    API->>Repo: runs_repo.save_results(run_id, metrics)
+    Repo->>DB: INSERT INTO run_results
+    
+    API->>Repo: trades_repo.save_trades(run_id, trades)
+    Repo->>DB: INSERT INTO trades (batch)
+    
+    API->>Repo: timeseries_repo.save_timeseries(run_id, equity)
+    Note over Repo: Compress with zlib
+    Repo->>DB: INSERT INTO run_timeseries (BLOB)
+    
+    API-->>Bridge: {run_id, metrics, equity_preview}
+    deactivate API
+    
+    Bridge-->>Store: Promise resolves
+    Store->>Store: setResults(response)
+    Store->>Store: setIsRunning(false)
+    Store-->>UI: Re-render with results
+    deactivate Store
+    
+    Note over UI: Display metrics cards, charts
