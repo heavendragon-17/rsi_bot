@@ -6,5 +6,5 @@ __pycache__/
 venv
 *.log
 *.csv
-
-
+ui/node_modules/
+ui/dist/
