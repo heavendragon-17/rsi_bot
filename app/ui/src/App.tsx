@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { useUIStore } from './stores/useUIStore';
+import DashboardStats from './components/DashboardStats';
+import RunHistoryTable from './components/RunHistoryTable';
+import StrategyConfigEditor from './components/StrategyConfigEditor';
 
 function App() {
   const { activeTab, setActiveTab, initTheme } = useUIStore();
@@ -43,37 +46,30 @@ function App() {
           </h2>
         </header>
 
-        <div className="bg-[var(--bg-surface)] rounded-lg p-6 shadow-sm border border-[var(--border)]">
+        <div className="space-y-6">
           {activeTab === 'dashboard' && (
-            <div className="space-y-4">
-              <p>Dashboard placeholder. Stats will go here.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-[var(--bg-secondary)] rounded-md border border-[var(--border)]">
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">Win Rate</h3>
-                  <p className="text-2xl font-bold text-[var(--success)]">65.4%</p>
-                </div>
-                <div className="p-4 bg-[var(--bg-secondary)] rounded-md border border-[var(--border)]">
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">Net Profit</h3>
-                  <p className="text-2xl font-bold text-[var(--success)]">+12.5%</p>
-                </div>
-                <div className="p-4 bg-[var(--bg-secondary)] rounded-md border border-[var(--border)]">
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">Trades</h3>
-                  <p className="text-2xl font-bold">142</p>
-                </div>
+            <>
+              <DashboardStats />
+              <div className="bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] shadow-sm overflow-hidden">
+                 <div className="p-4 border-b border-[var(--border)]">
+                    <h3 className="font-bold text-lg">Recent Backtest Runs</h3>
+                 </div>
+                 <RunHistoryTable />
               </div>
-            </div>
+            </>
           )}
 
           {activeTab === 'backtest' && (
-            <div className="text-center py-12 text-[var(--text-muted)]">
-              Backtest Runner Configuration (Coming Sprint 4)
+            <div className="bg-[var(--bg-surface)] rounded-lg p-6 shadow-sm border border-[var(--border)]">
+                <div className="text-center py-12 text-[var(--text-muted)]">
+                  <p>Backtest execution interface coming next sprint.</p>
+                  <p className="mt-2 text-sm">Please use the Settings tab to configure strategies.</p>
+                </div>
             </div>
           )}
 
           {activeTab === 'settings' && (
-            <div className="text-center py-12 text-[var(--text-muted)]">
-              Global Settings & Strategy Configs (Coming Sprint 4)
-            </div>
+            <StrategyConfigEditor />
           )}
         </div>
       </main>

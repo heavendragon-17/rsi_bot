@@ -28,6 +28,25 @@ export interface GlobalConfig {
     };
 }
 
+export interface SchemaItem {
+    key: string;
+    type: 'text' | 'number' | 'boolean' | 'select';
+    label: string;
+    default: any;
+    group: string;
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: string[];
+}
+
+export interface StrategyConfig {
+    default: Record<string, any>;
+    override: Record<string, any>;
+    merged: Record<string, any>;
+    schema: SchemaItem[];
+}
+
 export interface Theme {
     id: number;
     name: string;

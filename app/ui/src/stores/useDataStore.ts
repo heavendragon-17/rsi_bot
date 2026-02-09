@@ -1,16 +1,8 @@
 import { create } from 'zustand';
-import { Trade } from '../types/pywebview';
-
-interface RunHistoryItem {
-    run_id: number;
-    strategy_name: string;
-    symbol: string;
-    net_profit_pct: number;
-    created_at: string;
-}
+import { Trade, RunSummary } from '../types/pywebview';
 
 interface DataState {
-    runs: RunHistoryItem[];
+    runs: RunSummary[];
     currentRun: any | null; // Detailed run
     trades: Trade[];
     timeseries: any | null;
