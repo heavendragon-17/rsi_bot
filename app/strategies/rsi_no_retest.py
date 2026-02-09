@@ -27,6 +27,9 @@ from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent
 from app.core.context import StrategyContext, SCANNING, CONFIRMING
+import logging
+
+logger = logging.getLogger("rsi_bot")
 
 
 class RsiNoRetestStrategy(BaseStrategy):
@@ -45,8 +48,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         
         # Entry conditions
         "nr_lookback": 30,           # Candles to check for pullback
-        "nr_max_above_ema21": 1,     # Max candles above EMA21 in lookback (0 = strict)
-        "nr_rsi_spread_min": 1.5,    # Min RSI_EMA9 - RSI_WMA45 spread
+        "nr_max_above_ema21": 3,     # Max candles above EMA21 in lookback (0 = strict)
+        "nr_rsi_spread_min": 2.5,    # Min RSI_EMA9 - RSI_WMA45 spread
         
         # SL settings
         "nr_sl_mode": "lowest_close",    # "rsi_ema9" or "lowest_wick"
@@ -84,7 +87,10 @@ class RsiNoRetestStrategy(BaseStrategy):
         cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
         bot_cfg = config.get("bot", {})
 
-        self.timeframe = bot_cfg.get("timeframe", "15m")
+        # Try top-level first, then bot-level
+        self.timeframe = config.get("timeframe", "15m")
+        if not self.timeframe:
+            self.timeframe = bot_cfg.get("timeframe", "15m")
 
         self.indicators = Indicators(
             rsi_length=cfg.get("rsi_period", 14),
@@ -127,6 +133,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))       # Trigger at 0.5R
         self.lock_profit_rr = Decimal(str(cfg.get("nr_lock_profit_rr", 0.2))) # Lock 20% profit
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
+        
+        # Debug Toggle
+        self.debug_enabled = bool(bot_cfg.get("debug", False))
 
     # ---------------- helpers ----------------
     def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
@@ -144,17 +153,35 @@ class RsiNoRetestStrategy(BaseStrategy):
         return x if isinstance(x, Decimal) else Decimal(str(x))
 
     def _detect_reclaim(self, df_ind: pd.DataFrame) -> bool:
-        if len(df_ind) < 2:
+        if len(df_ind) < 3:
             return False
-        cur = df_ind.iloc[-1]
-        prev = df_ind.iloc[-2]
-        close = cur.get("close")
-        ema21 = cur.get("ema21")
-        prev_close = prev.get("close")
-        prev_ema21 = prev.get("ema21")
-        if close is None or ema21 is None or prev_close is None or prev_ema21 is None:
+            
+        # We want to check if the PREVIOUS candle (index -2, the one that just closed)
+        # crossed above the EMA.
+        # So we compare -3 (Prior) vs -2 (Confirmed Close).
+        
+        confirmed_close_candle = df_ind.iloc[-2]
+        prior_candle = df_ind.iloc[-3]
+        
+        # Values for Candle -2 (Confirmed Reclaim Candidate)
+        curr_close = confirmed_close_candle.get("close")
+        curr_ema21 = confirmed_close_candle.get("ema21")
+        
+        # Values for Candle -3 (Prior Context)
+        prior_close = prior_candle.get("close")
+        prior_ema21 = prior_candle.get("ema21")
+        
+        if curr_close is None or curr_ema21 is None or prior_close is None or prior_ema21 is None:
             return False
-        return (prev_close <= prev_ema21) and (close > ema21)
+
+        # if self.debug_enabled:
+        ts_prior = prior_candle.name if hasattr(prior_candle, "name") else "N/A"
+        ts_closed = confirmed_close_candle.name if hasattr(confirmed_close_candle, "name") else "N/A"
+        if self.debug_enabled:
+            logger.warning(f"DEBUG RECLAIM: Prior(-3)={prior_close}/{prior_ema21} (TS={ts_prior}) | Closed(-2)={curr_close}/{curr_ema21} (TS={ts_closed})")
+
+        # Logic: Prior (-3) was BELOW/EQUAL, and Confirmed Closed (-2) is ABOVE.
+        return (prior_close <= prior_ema21) and (curr_close > curr_ema21)
 
     def _pullback_filter(self, df_ind: pd.DataFrame) -> bool:
         """
@@ -237,6 +264,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         # prices (Decimals)
         close = self._to_dec(last.get("close"))
         high = self._to_dec(last.get("high"))
+        open_price = self._to_dec(last.get("open"))
         ema21 = self._to_dec(last.get("ema21"))
 
         if close is None or ema21 is None:
@@ -270,7 +298,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl_price = self._to_dec(sl_price) if sl_price is not None else None
             soft_sl = self._to_dec(soft_sl) if soft_sl is not None else sl_price  # Fallback to sl_price
             tp_price = self._to_dec(tp_price) if tp_price is not None else None
-            open_price = self._to_dec(last.get("open"))
 
             if entry_price is None:
                 return None
@@ -392,16 +419,25 @@ class RsiNoRetestStrategy(BaseStrategy):
         # Entry state machine
         # -------------------------
         state = self.context.get_state(key)
+        
+        if self.debug_enabled:
+            logger.warning(f"[{symbol}] DEBUG: State={state.phase}, OHLCV Size={len(df)}")
 
         if state.phase == SCANNING:
             if not self._detect_reclaim(df_ind):
+                logger.warning(f"[{symbol}] DEBUG: Reclaim not detected.")
                 return None
 
             if not self._pullback_filter(df_ind):
+                logger.warning(f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter.")
                 return None
 
             self.context.transition(key, CONFIRMING, reason="Reclaim EMA21 + pullback ok", now_ts=ts)
-            return None
+            logger.warning(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
+            
+            # Refresh state to allow immediate processing in the same tick
+            state = self.context.get_state(key)
+            # Fall through to CONFIRMING logic
 
         if state.phase == CONFIRMING:
             if rsi_ema9 is None or rsi_wma45 is None:
@@ -410,6 +446,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             spread = float(rsi_ema9) - float(rsi_wma45)
             if spread < self.rsi_spread_min:
                 self.context.transition(key, SCANNING, reason="Spread too small", now_ts=ts)
+                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
                 return None
 
             # SL computed
@@ -421,6 +458,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             if sl_price is None:
                 self.context.transition(key, SCANNING, reason="No SL computed", now_ts=ts)
+                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - No SL computed - Reset to SCANNING")
                 return None
 
             # Entry logic: Try EMA21 first, but ensure it's above SL
@@ -451,6 +489,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             if tp1_price is None:
                 self.context.transition(key, SCANNING, reason="Invalid TP risk", now_ts=ts)
+                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Invalid TP - Reset to SCANNING")
                 return None
 
             # -------------------------------------------------
@@ -495,6 +534,8 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             # reset state after emitting BUY
             self.context.transition(key, SCANNING, reason="BUY emitted", now_ts=ts)
+
+            logger.info(f"[{symbol}] DEBUG: BUY SIGNAL GENERATED @ {entry_price} (SL={disaster_sl_price})")
 
             return SignalEvent(
                 symbol=symbol,

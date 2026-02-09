@@ -1,4 +1,3 @@
-
 import os
 import sys
 import yaml
@@ -10,6 +9,7 @@ from decimal import Decimal
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import copy
+
 # Determine paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
@@ -23,6 +23,8 @@ from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data
+from app.utils.logger import setup_logger
+import logging
 
 # Strategy mapping
 STRATEGY_MAP = {
@@ -42,6 +44,177 @@ def load_config():
         return yaml.safe_load(f)
 
 
+def debug_trade_structure(engine, symbol: str):
+    """Debug function to inspect trade history structure."""
+    print(f"\n{'='*60}")
+    print(f"DEBUG: Trade History for {symbol}")
+    print(f"{'='*60}")
+    
+    if hasattr(engine.exchange, 'trade_history'):
+        history = engine.exchange.trade_history
+        print(f"Number of trades: {len(history)}")
+        
+        if history:
+            print(f"\n📋 First trade:")
+            first = history[0]
+            if isinstance(first, dict):
+                for key, value in first.items():
+                    value_str = str(value)[:50]  # Truncate long values
+                    print(f"  {key:20s} = {value_str}")
+            else:
+                print(f"  Type: {type(first)}")
+                print(f"  Value: {first}")
+        else:
+            print("⚠ Trade history is empty")
+    else:
+        print("⚠ No trade_history attribute")
+    
+    print(f"{'='*60}\n")
+
+
+def export_signals_to_csv(engine, symbol: str, output_dir: str, debug: bool = False):
+    """
+    Export signals with robust timestamp handling.
+    
+    Args:
+        engine: BacktestEngine instance
+        symbol: Trading pair symbol
+        output_dir: Output directory
+        debug: Whether to print debug info
+    
+    Returns:
+        str: Path to CSV file, or None if failed
+    """
+    if debug:
+        debug_trade_structure(engine, symbol)
+    
+    signals = []
+    
+    # Method 1: Strategy has signal_history
+    if hasattr(engine.strategy, 'signal_history'):
+        signals = engine.strategy.signal_history
+        if debug:
+            print(f"[{symbol}] Using strategy.signal_history: {len(signals)} signals")
+    
+    # Method 2: Reconstruct from trade history
+    elif hasattr(engine.exchange, 'trade_history'):
+        trade_history = engine.exchange.trade_history
+        
+        if not trade_history:
+            print(f"[{symbol}] ⚠ Trade history is empty")
+            return None
+        
+        # Check what fields are available
+        sample_trade = trade_history[0] if trade_history else {}
+        available_fields = list(sample_trade.keys()) if isinstance(sample_trade, dict) else []
+        
+        if debug:
+            print(f"[{symbol}] Available fields: {available_fields}")
+        
+        # Find timestamp field
+        timestamp_field = None
+        for field in ['timestamp', 'datetime', 'time', 'date', 'created_at', 'entry_time', 'exit_time']:
+            if field in available_fields:
+                timestamp_field = field
+                break
+        
+        if debug and timestamp_field:
+            print(f"[{symbol}] Using timestamp field: '{timestamp_field}'")
+        elif debug:
+            print(f"[{symbol}] ⚠ No timestamp field found!")
+        
+        # Process each trade
+        for idx, trade in enumerate(trade_history):
+            # Extract timestamp
+            if timestamp_field and timestamp_field in trade:
+                timestamp = trade[timestamp_field]
+            elif 'id' in trade:
+                timestamp = f"trade_{trade['id']}"
+            else:
+                timestamp = f"trade_{idx:04d}"
+            
+            # Convert datetime to string
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            elif isinstance(timestamp, pd.Timestamp):
+                timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            elif timestamp is None:
+                timestamp = f"trade_{idx:04d}"
+            
+            # Build signal
+            signal = {
+                'timestamp': timestamp,
+                'symbol': symbol,
+                'trade_index': idx,  # Add index for reference
+                'side': trade.get('side', 'unknown'),
+                'signal_type': 'ENTRY' if trade.get('side') == 'buy' else 'EXIT',
+                'price': float(trade.get('price', 0.0)),
+                'amount': float(trade.get('amount', 0.0)),
+                'order_type': trade.get('type', 'market'),
+                'reason': trade.get('reason', 'unknown'),
+            }
+            
+            # Add all other available fields
+            for key, value in trade.items():
+                if key not in signal and key != timestamp_field:
+                    # Convert Decimal and complex types to string
+                    if isinstance(value, Decimal):
+                        signal[key] = float(value)
+                    elif isinstance(value, (datetime, pd.Timestamp)):
+                        signal[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                    elif isinstance(value, (int, float, str, bool)):
+                        signal[key] = value
+                    else:
+                        signal[key] = str(value)
+            
+            signals.append(signal)
+        
+        if debug:
+            print(f"[{symbol}] Reconstructed {len(signals)} signals")
+    
+    else:
+        print(f"[{symbol}] ⚠ No trade history found")
+        return None
+    
+    # Export to CSV
+    if signals:
+        try:
+            df = pd.DataFrame(signals)
+            
+            # Sort by timestamp or trade_index
+            if 'timestamp' in df.columns:
+                try:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                    df = df.sort_values('timestamp')
+                except:
+                    pass
+            elif 'trade_index' in df.columns:
+                df = df.sort_values('trade_index')
+            
+            # Save to CSV
+            safe_symbol = symbol.replace('/', '_')
+            csv_path = os.path.join(output_dir, f"signals_{safe_symbol}.csv")
+            df.to_csv(csv_path, index=False)
+            
+            print(f"[{symbol}] [DONE] Signals exported: {csv_path}")
+            print(f"[{symbol}]   -> {len(df)} signals, {len(df.columns)} columns")
+            
+            if debug:
+                print(f"\n[{symbol}] Sample data (first 3 rows):")
+                print(df.head(3).to_string(index=False, max_colwidth=40))
+                print()
+            
+            return csv_path
+            
+        except Exception as e:
+            print(f"[{symbol}] [ERROR] Export error: {e}")
+            import traceback
+            if debug:
+                traceback.print_exc()
+            return None
+    
+    return None
+
 def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: float, 
                          strategy_name: str, data_dir: str, report_dir: str) -> dict:
     """
@@ -49,6 +222,9 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
     
     Returns a dict with results or None if failed.
     """
+    # Configure logger for worker process
+    setup_logger(stream=sys.stdout, level=logging.INFO)
+    
     try:
         # Import strategy class here to avoid pickling issues
         from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
@@ -85,6 +261,10 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         engine.exchange.balance = Decimal(str(balance))
         engine.run()
         
+        # **EXPORT SIGNALS TO CSV**
+        export_signals_to_csv(engine, symbol, report_dir, debug=False)
+
+        
         # Generate report data
         reporter = BacktestReporter(
             engine.exchange,
@@ -117,7 +297,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         # Export CSVs
         reporter._export_csv(df, round_trips, output_dir=report_dir)
         
-        print(f"[{symbol}] ✓ Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
+        print(f"[{symbol}] [OK] Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
         
         return {
             'symbol': symbol,
@@ -138,6 +318,40 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         traceback.print_exc()
         return {"symbol": symbol, "error": str(e)}
 
+
+def export_combined_signals(batch_results: list, output_dir: str):
+    """
+    Combine all individual signal CSV files into one master CSV.
+    """
+    all_signals = []
+    
+    for result in batch_results:
+        symbol = result['symbol']
+        safe_symbol = symbol.replace('/', '_')
+        csv_path = os.path.join(output_dir, f"signals_{safe_symbol}.csv")
+        
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            all_signals.append(df)
+    
+    if all_signals:
+        combined_df = pd.concat(all_signals, ignore_index=True)
+        
+        # Sort by timestamp if available
+        if 'timestamp' in combined_df.columns:
+            combined_df = combined_df.sort_values('timestamp')
+        
+        master_path = os.path.join(output_dir, "all_signals_combined.csv")
+        combined_df.to_csv(master_path, index=False)
+        print(f"\n[DONE] Combined signals exported to: {master_path}")
+        print(f"  Total signals: {len(combined_df)}")
+        
+        return master_path
+    
+    return None
+
+
+# ... [Rest of BatchHtmlGenerator class remains the same] ...
 
 class BatchHtmlGenerator:
     def __init__(self, batch_results):
@@ -564,6 +778,9 @@ def main():
         print(f"Error: {SYMBOLS_PATH} not found.")
         return
 
+    # Configure global logger for main process
+    setup_logger(stream=sys.stdout, level=logging.INFO)
+
     # Load Config
     config = load_config()
     timeframe = config.get("timeframe", "15m")
@@ -653,8 +870,12 @@ def main():
                     print(f"  [{completed}/{len(symbols)}] {symbol} exception: {e}")
     
     elapsed = time.time() - start_time
-    print(f"\n⏱ Total time: {elapsed:.1f}s ({elapsed/len(symbols):.1f}s per symbol)")
+    print(f"\nTotal time: {elapsed:.1f}s ({elapsed/len(symbols):.1f}s per symbol)")
 
+    # **EXPORT COMBINED SIGNALS CSV**
+    if batch_results:
+        export_combined_signals(batch_results, REPORT_DIR)
+    
     # Generate Master Report
     if batch_results:
         generator = BatchHtmlGenerator(batch_results)

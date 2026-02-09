@@ -25,7 +25,7 @@ def analyze_trade_durations():
     csv_dir = script_dir.parent / "app" / "backtest" / "report" / "csv"
     
     if not csv_dir.exists():
-        print(f"❌ CSV directory not found: {csv_dir}")
+        print(f"[ERROR] CSV directory not found: {csv_dir}")
         print("   Run a backtest first to generate reports.")
         return
     
@@ -33,10 +33,10 @@ def analyze_trade_durations():
     trade_files = glob.glob(str(csv_dir / "backtest_trades_*.csv"))
     
     if not trade_files:
-        print(f"❌ No trade files found in {csv_dir}")
+        print(f"[ERROR] No trade files found in {csv_dir}")
         return
     
-    print(f"📂 Found {len(trade_files)} trade files in {csv_dir.name}/")
+    print(f"[INFO] Found {len(trade_files)} trade files in {csv_dir.name}/")
     print()
     
     # Combine all trades
@@ -46,16 +46,16 @@ def analyze_trade_durations():
             df = pd.read_csv(f)
             all_trades.append(df)
         except Exception as e:
-            print(f"  ⚠️ Failed to read {Path(f).name}: {e}")
+            print(f"  [WARN] Failed to read {Path(f).name}: {e}")
     
     if not all_trades:
-        print("❌ No trades could be loaded")
+        print("[ERROR] No trades could be loaded")
         return
     
     combined = pd.concat(all_trades, ignore_index=True)
     
     print("=" * 60)
-    print("📊 TRADE DURATION ANALYSIS")
+    print("TRADE DURATION ANALYSIS")
     print("=" * 60)
     print()
     
@@ -73,7 +73,7 @@ def analyze_trade_durations():
     
     # Duration analysis by exit type
     print("-" * 60)
-    print("⏱️  DURATION BY EXIT TYPE")
+    print("DURATION BY EXIT TYPE")
     print("-" * 60)
     
     duration_col = "hold_duration_hours"
@@ -82,7 +82,7 @@ def analyze_trade_durations():
         if "hold_duration_seconds" in combined.columns:
             combined[duration_col] = combined["hold_duration_seconds"] / 3600
         else:
-            print("❌ No duration column found in reports")
+            print("[ERROR] No duration column found in reports")
             return
     
     for reason in exit_reasons.index:
@@ -102,16 +102,16 @@ def analyze_trade_durations():
     # Check for anomalies (>30 days = 720 hours for 15m timeframe)
     print()
     print("-" * 60)
-    print("🚨 ANOMALY DETECTION (trades held >30 days)")
+    print("ANOMALY DETECTION (trades held >30 days)")
     print("-" * 60)
     
     anomaly_threshold = 720  # 30 days in hours
     anomalies = combined[combined[duration_col] > anomaly_threshold]
     
     if anomalies.empty:
-        print("✅ No anomalies detected - all trades closed within 30 days")
+        print("[OK] No anomalies detected - all trades closed within 30 days")
     else:
-        print(f"⚠️  Found {len(anomalies)} trades held longer than 30 days:")
+        print(f"[WARN] Found {len(anomalies)} trades held longer than 30 days:")
         print()
         
         # Show relevant columns
@@ -125,7 +125,7 @@ def analyze_trade_durations():
     # Compare Close by Candle vs Hard SL
     print()
     print("-" * 60)
-    print("📈 CLOSE BY CANDLE vs HARD SL COMPARISON")
+    print("CLOSE BY CANDLE vs HARD SL COMPARISON")
     print("-" * 60)
     
     close_by_candle = combined[combined["exit_reason"] == "CLOSE_BY_CANDLE_SL"]
@@ -160,7 +160,7 @@ def analyze_trade_durations():
     
     print()
     print("=" * 60)
-    print("✅ Analysis complete")
+    print("[DONE] Analysis complete")
     print("=" * 60)
 
 

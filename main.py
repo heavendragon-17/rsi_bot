@@ -1,78 +1,254 @@
 """
-RSI Trading Bot - Main Entry Point
-===================================
-Multi-symbol concurrent trading bot with paper/live mode support.
+RSI Trading Bot - Main Entry Point (Signal-Only Mode)
+======================================================
+Telegram signal notifications with:
+- WebSocket streaming for live market data
+- Portfolio-based position sizing
+- NO trade execution (commented out)
+
+Usage:
+    python main.py
 """
-import yaml
-import sys
 import os
+import sys
+import time
+import yaml
+import threading
+import pandas as pd
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from decimal import Decimal
 
 # Add the current directory to sys.path to allow imports from app
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.utils.logger import setup_logger
-from app.utils.validators import validate_config
-from app.repository.db_connect import init_db
-from app.core.runner import MultiSymbolRunner
-from app.services.execution.exchange_factory import create_exchange
-from app.strategies.loader import load_strategy
+from app.services.notification.telegram_bot import TelegramBot
+from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.core.context import StrategyContext, SCANNING
 
+# WebSocket streaming components
+from app.services.market_data.store import MarketDataStore
+from app.services.market_data.stream_manager import BinanceStreamManager
+
+# Portfolio for position sizing (used for signal info, not execution)
+from app.core.portfolio import PortfolioManager
+
+# --- COMMENTED OUT: Binance execution components ---
+# from app.services.execution.cex.binance_adapter import BinanceAdapter
+# from app.services.execution.cex.binance_signal_executor import BinanceSignalExecutor
+
+# Load Env
+load_dotenv()
+
+# Logger
+logger = setup_logger()
 
 def load_config():
     try:
         with open("config.yaml", "r") as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
-        print("Error: config.yaml not found.")
+        logger.error("config.yaml not found.")
         sys.exit(1)
 
+def normalize_symbol(symbol: str) -> str:
+    """
+    Normalize symbol to base asset for store lookup.
+    E.g., 'BTC/USDT' -> 'BTC', 'BTCUSDT' -> 'BTC'
+    """
+    s = symbol.upper().replace('/', '')
+    for quote in ['USDT', 'USDC', 'BUSD', 'USD']:
+        if s.endswith(quote):
+            return s[:-len(quote)]
+    return s
+
+def format_signal_message(signal, symbol: str, timeframe: str, config: dict) -> str:
+    """
+    Format a detailed Telegram message for a trading signal.
+    """
+    # Calculate position size info (for display only)
+    risk_cfg = config.get("risk", {})
+    leverage = risk_cfg.get("leverage", 10)
+    risk_pct = risk_cfg.get("risk_per_trade_pct", 0.02)
+    initial_capital = config.get("backtest", {}).get("initial_balance", 10000)
+    
+    # Calculate SL distance
+    sl_price = signal.soft_sl_price or signal.sl_price
+    sl_distance_pct = 0
+    if sl_price and signal.price:
+        sl_distance_pct = abs(float(signal.price) - float(sl_price)) / float(signal.price) * 100
+    
+    # Build message
+    msg_lines = [
+        f"🚨 <b>{signal.signal_type} SIGNAL</b>",
+        f"",
+        f"<b>Symbol:</b> {symbol}",
+        f"<b>Timeframe:</b> {timeframe}",
+        f"<b>Entry:</b> ${signal.price:.4f}",
+    ]
+    
+    if signal.sl_price:
+        msg_lines.append(f"<b>SL:</b> ${signal.sl_price:.4f}")
+    if signal.soft_sl_price:
+        msg_lines.append(f"<b>Soft SL:</b> ${signal.soft_sl_price:.4f} ({sl_distance_pct:.2f}%)")
+    
+    if signal.tp1_price:
+        msg_lines.append(f"<b>TP1:</b> ${signal.tp1_price:.4f}")
+    if signal.tp2_price:
+        msg_lines.append(f"<b>TP2:</b> ${signal.tp2_price:.4f}")
+    if signal.tp3_price:
+        msg_lines.append(f"<b>TP3:</b> ${signal.tp3_price:.4f}")
+    
+    msg_lines.extend([
+        f"",
+        f"<b>Reason:</b> {signal.reason}",
+        f"",
+        f"<i>Leverage: {leverage}x | Risk: {float(risk_pct)*100:.1f}%</i>",
+    ])
+    
+    return "\n".join(msg_lines)
 
 def main():
-    logger = setup_logger()
-    logger.info("Starting RSI Bot System...")
+    logger.info("Starting RSI Bot (Signal-Only Mode with WebSocket)...")
     
-    # 1. Load and validate config
+    # 1. Load Config
     config = load_config()
+    
+    bot_mode = config.get("bot", {}).get("mode", "paper")
+    logger.info(f"Bot Mode: {bot_mode.upper()} (SIGNAL-ONLY - No execution)")
+    
+    # 2. Initialize Components
+    
+    # Telegram
     try:
-        validate_config(config)
-    except ValueError as e:
-        logger.error(f"Configuration Error: {e}")
-        sys.exit(1)
+        telegram = TelegramBot()
+        telegram.send_message(f"🤖 RSI Bot Started [SIGNAL-ONLY]\nMode: {bot_mode.upper()}")
+        logger.info("Telegram bot initialized successfully")
+    except Exception as e:
+        logger.error(f"Telegram init failed: {e}")
+        telegram = None
+        sys.exit(1)  # Exit if Telegram fails - it's our main output
     
-    # 2. Initialize database
-    init_db()
-    logger.info("Database initialized (trades.db checked).")
+    # Context (State Machine)
+    context = StrategyContext()
     
-    # 3. Load strategy class
-    try:
-        strategy_class = load_strategy(config)
-        logger.info(f"Strategy loaded: {strategy_class.__name__}")
-    except ValueError as e:
-        logger.error(f"Strategy Error: {e}")
-        sys.exit(1)
+    # Strategy
+    strategy = RsiNoRetestStrategy(config)
+    strategy.context = context
     
-    # 4. Create and start the multi-symbol runner
-    runner = MultiSymbolRunner(
-        config=config,
-        strategy_class=strategy_class,
-        exchange_factory=create_exchange,
+    # 3. Setup Symbols & Timeframe
+    symbols = config.get("symbols", ["BTC/USDT"])
+    timeframe = config.get("timeframe", "15m")
+    
+    logger.info(f"Monitoring: {symbols} on {timeframe}")
+    
+    # 4. Initialize WebSocket Streaming
+    store = MarketDataStore()
+    stream = BinanceStreamManager(
+        symbols=symbols,
+        timeframe=timeframe,
+        store=store,
+        history_limit=300,
+        enable_history=True
     )
     
-    mode = config.get('bot', {}).get('mode', 'paper')
-    symbols = config.get('symbols', [])
-    logger.info(f"Mode: {mode.upper()}")
-    logger.info(f"Symbols: {symbols}")
-    logger.info(f"Exchange: {type(runner.exchange).__name__}")
+    # Start the stream
+    stream.start()
+    logger.info("WebSocket stream started")
     
-    # 5. Start trading
-    runner.start()
+    # Wait for initial data
+    logger.info("Waiting for initial historical data...")
+    time.sleep(5)
     
-    # 6. Wait (blocks until shutdown signal)
-    logger.info("Bot is running. Press Ctrl+C to stop.")
-    runner.wait()
+    # 5. Track last processed candle per symbol
+    last_processed = {normalize_symbol(s): None for s in symbols}
     
-    logger.info("Bot shutdown complete.")
+    # 6. Main Loop - Process closed candles
+    try:
+        while True:
+            for symbol in symbols:
+                try:
+                    norm_symbol = normalize_symbol(symbol)
+                    
+                    # Skip if active trade exists
+                    if context.has_active_trade(norm_symbol):
+                        continue
+                    
+                    # Get data from store
+                    df = store.get_dataframe(norm_symbol)
+                    
+                    if df is None or df.empty:
+                        continue
+                    
+                    # Get latest candle timestamp
+                    current_ts = df.index[-1]
+                    
+                    # Skip if already processed
+                    if current_ts == last_processed[norm_symbol]:
+                        continue
+                    
+                    # Only process closed candles
+                    last_row = df.iloc[-1]
+                    if not last_row.get('closed', False):
+                        continue
+                    
+                    # Prepare DataFrame for strategy (needs specific columns)
+                    df_for_strategy = df[['open', 'high', 'low', 'close', 'volume']].copy()
+                    df_for_strategy.reset_index(inplace=True)
+                    df_for_strategy.rename(columns={'index': 'timestamp'}, inplace=True)
+                    
+                    # Analyze
+                    signal = strategy.analyze(norm_symbol, df_for_strategy)
+                    
+                    # Handle Signal
+                    if signal:
+                        logger.info(f"[{symbol}] SIGNAL: {signal.signal_type} | {signal.reason}")
+                        
+                        # Send Telegram notification
+                        if telegram:
+                            msg = format_signal_message(signal, symbol, timeframe, config)
+                            
+                            # Add trade URL button
+                            trade_url = TelegramBot.binance_futures_url(symbol)
+                            telegram.send_message(
+                                msg,
+                                button_text="📈 Open Chart",
+                                button_url=trade_url
+                            )
+                            logger.info(f"[{symbol}] Telegram notification sent")
+                        
+                        # --- COMMENTED OUT: Trade execution ---
+                        # if signal.signal_type == "BUY":
+                        #     sig_dict = {
+                        #         "Symbol": symbol,
+                        #         "Side": "BUY",
+                        #         "SL": signal.sl_price or signal.soft_sl_price,
+                        #         "Timeframe": timeframe
+                        #     }
+                        #     if signal.tp1_price: sig_dict["TP 1"] = signal.tp1_price
+                        #     if signal.tp2_price: sig_dict["TP 2"] = signal.tp2_price
+                        #     invest_amount = Decimal("100")
+                        #     t = threading.Thread(
+                        #         target=run_executor_thread,
+                        #         args=(executor, sig_dict, invest_amount, symbol),
+                        #         daemon=True
+                        #     )
+                        #     t.start()
+                    
+                    last_processed[norm_symbol] = current_ts
+                    
+                except Exception as e:
+                    logger.error(f"[{symbol}] Loop Error: {e}", exc_info=True)
+            
+            # Small sleep to prevent CPU spinning
+            time.sleep(0.5)
 
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user.")
+        if telegram:
+            telegram.send_message("🛑 RSI Bot Stopped")
+        stream.stop()
 
 if __name__ == "__main__":
     main()

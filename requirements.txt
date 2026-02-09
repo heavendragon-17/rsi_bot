@@ -7,3 +7,5 @@ python-dotenv
 pyyaml
 websocket-client
 pytest
+binance
+binance-futures-connector
