@@ -29,16 +29,16 @@ Build a **desktop application UI** for backtesting trading strategies. The UI wr
 
 ### 2. Phase Execution Rules
 
-**CRITICAL:** Execute ONE phase at a time. After each phase:
+**CRITICAL:** Execute phases sequentially. After each phase:
 1. Complete all tasks in the phase document
 2. Run the verification checkpoint
-3. **STOP and report** to the user
-4. Wait for explicit "proceed" command before next phase
+3. **If verification PASSES:** Report success and **IMMEDIATELY PROCEED** to the next phase.
+4. **If verification FAILS:** STOP, report the error, and wait for instructions.
 
 **DO NOT:**
 - Skip phases
-- Combine multiple phases
-- Auto-proceed without user approval
+- Combine multiple phases without verifying
+- Proceed if verification fails
 
 ### 3. Knowledge Loading (Lazy)
 
