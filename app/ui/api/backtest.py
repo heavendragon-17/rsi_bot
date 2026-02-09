@@ -3,6 +3,10 @@ from app.db.repository import BacktestRepository
 from app.backtest.data import load_csv_data  # Assuming this exists or will be implemented
 import pandas as pd
 import json
+from app.backtest.grid_search import run_grid_search
+from app.backtest.walk_forward import run_walk_forward
+from app.backtest.sensitivity import run_sensitivity
+from app.backtest.comparison import compare_runs
 
 class BacktestAPIMixin:
     """Methods related to running backtests and viewing results."""
@@ -100,7 +104,70 @@ class BacktestAPIMixin:
         repo = BacktestRepository()
         return repo.get_trades(run_id)
 
+    def run_grid_search(self, config: dict) -> list[dict]:
+        """Run grid search analysis."""
+        return run_grid_search(
+            strategy_name=config["strategy_name"],
+            symbol=config["symbol"],
+            data_file=config["data_file"],
+            param_grid=config["param_grid"],
+            base_config=config["base_config"]
+        )
+
+    def run_walk_forward(self, config: dict) -> dict:
+        """Run walk-forward analysis."""
+        return run_walk_forward(
+            strategy_name=config["strategy_name"],
+            symbol=config["symbol"],
+            data_file=config["data_file"],
+            config=config["config"],
+            train_days=config.get("train_days", 90),
+            test_days=config.get("test_days", 30),
+            step_days=config.get("step_days", 30)
+        )
+
+    def run_sensitivity(self, config: dict) -> dict:
+        """Run sensitivity analysis."""
+        return run_sensitivity(
+            strategy_name=config["strategy_name"],
+            symbol=config["symbol"],
+            data_file=config["data_file"],
+            base_config=config["base_config"],
+            param_name=config["param_name"],
+            param_range=config["param_range"],
+            metric=config.get("metric", "profit")
+        )
+
+    def compare_runs(self, run_id_1: int, run_id_2: int) -> dict:
+        """Compare two runs."""
+        return compare_runs(run_id_1, run_id_2)
+
     def export_results(self, run_id: int, format: str) -> dict:
         """Export results to file."""
-        # Implementation depends on requirements
-        return {"success": False, "error": "Not implemented"}
+        repo = BacktestRepository()
+        run = repo.get_run(run_id)
+        if not run:
+            return {"success": False, "error": "Run not found"}
+
+        trades = repo.get_trades(run_id)
+
+        import os
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        export_dir = os.path.join(base_dir, "data", "exports")
+        if not os.path.exists(export_dir):
+            os.makedirs(export_dir)
+
+        filename = f"{run['strategy_name']}_{run['symbol']}_{run_id}.{format}"
+        filepath = os.path.join(export_dir, filename)
+
+        try:
+            if format == "csv":
+                pd.DataFrame(trades).to_csv(filepath, index=False)
+            elif format == "json":
+                pd.DataFrame(trades).to_json(filepath, orient="records", date_format="iso")
+            else:
+                 return {"success": False, "error": "Invalid format"}
+
+            return {"success": True, "file_path": filepath}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
