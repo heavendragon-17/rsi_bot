@@ -13,7 +13,7 @@ The existing Figma UI expects features that don't exist in the current backend. 
 | Feature | Current Status | UI Expects | Priority |
 |---------|----------------|------------|----------|
 | Single Backtest | ✅ Exists | ✅ Works | - |
-| SQLite Storage | ❌ Missing | ✅ Saves runs | P0 |
+| SQLite Storage | ✅ Implemented | ✅ Saves runs | P0 |
 | Grid Search | ❌ Missing | ✅ Heatmap | P1 |
 | Walk-Forward | ❌ Missing | ✅ Charts | P2 |
 | Sensitivity | ❌ Missing | ✅ Charts | P2 |
@@ -24,7 +24,9 @@ The existing Figma UI expects features that don't exist in the current backend. 
 ## Gap 1: SQLite Storage (P0 - Must Have)
 
 ### Current
-- Results printed to console
+- ✅ Implemented in Sprint 2 & 5
+- Saves runs to `data/backtest.db`
+- Stores metrics, trades, and compressed time-series
 - HTML report generated
 - No persistence
 
@@ -367,7 +369,7 @@ VALUES (?, ?, ?, ?);
 
 | Phase | Features | Total Effort |
 |-------|----------|--------------|
-| **MVP** | SQLite Storage | 4-6 hours |
+| **MVP** | SQLite Storage | ✅ COMPLETE |
 | **v1.1** | Grid Search, Comparison | 9-12 hours |
 | **v1.2** | Walk-Forward, Sensitivity | 12-15 hours |
 

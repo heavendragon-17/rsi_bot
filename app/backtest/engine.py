@@ -1,131 +1,164 @@
-"""
-Backtest Engine (Vectorized)
-============================
-Runs strategy on historical data with wick-based SL/TP checking.
-Pre-computes all indicators once for O(n) performance.
-"""
+from datetime import datetime
+from decimal import Decimal
 import pandas as pd
 import numpy as np
-from decimal import Decimal
-from app.core.events import Candle, SignalEvent
-from app.core.portfolio import PortfolioManager
-from app.backtest.mock_exchange import MockExchange
-from app.core.context import SCANNING
-from app.utils.indicators import Indicators
-
+from app.core.events import SignalEvent
 
 class BacktestEngine:
-    def __init__(self, data_path: str, strategy_class, config: dict):
-        self.data = pd.read_csv(data_path)
-        self.data["timestamp"] = pd.to_datetime(self.data["timestamp"])
+    def __init__(self, data_path, strategy_class, config):
+        self.data_path = data_path
+        self.strategy_class = strategy_class
         self.config = config
-        self.symbol = config["symbols"][0]
+        self.symbol = config.get("symbol", "UNKNOWN")
+        self.timeframe = config.get("timeframe", "UNKNOWN")
+        self.initial_balance = Decimal(str(config.get("backtest", {}).get("initial_balance", 10000)))
+        
+        self.trades = []
+        self.equity_curve = []
+        self.drawdown_curve = []
+        self.results = {}
+        self.start_date = None
+        self.end_date = None
 
-        # Get backtest and risk settings
-        initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
-        leverage = config.get("risk", {}).get("leverage", 1)
+    def load_data(self):
+        """Load and preprocess data."""
+        df = pd.read_csv(self.data_path)
+        # Ensure correct types
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            if col in df.columns:
+                df[col] = df[col].astype(float)
         
-        # Initialize exchange with leverage
-        self.exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
-        self.portfolio = PortfolioManager(self.exchange, config)
-        self.strategy = strategy_class(config)
-        
-        # Pre-compute all indicators ONCE
-        self._full_df = self._prepare_dataframe()
-
-    def _prepare_dataframe(self) -> pd.DataFrame:
-        """Pre-process data and compute all indicators once."""
-        df = self.data.copy()
-        df.set_index("timestamp", inplace=True)
-        df["closed"] = True
-        df["ts"] = df.index.astype(np.int64) // 10**6
-        
-        # Pre-compute indicators using strategy's indicator config
-        indicators = self.strategy.indicators
-        df = indicators.compute(df, symbol=self.symbol, timeframe="backtest")
-        
+        # Sort and reset index
+        df = df.sort_values('timestamp').reset_index(drop=True)
         return df
 
-    def run(self) -> None:
-        print(f"Starting backtest on {self.symbol} with {len(self.data)} candles...")
-        initial_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
-        print(f"Initial balance: {initial_bal}")
-        print(f"Leverage: {self.exchange.leverage}x")
+    def run(self):
+        """Execute the backtest (Event-Driven)."""
+        df = self.load_data()
+        if not df.empty:
+            self.start_date = df['timestamp'].iloc[0].to_pydatetime()
+            self.end_date = df['timestamp'].iloc[-1].to_pydatetime()
+            
+        strategy = self.strategy_class(self.config)
+        
+        balance = self.initial_balance
+        position = None
+        entry_price = Decimal('0')
+        entry_time = None
+        quantity = Decimal('0')
+        trade_meta = {}
+        
+        # Start from a sufficient index to allow indicators to warm up
+        # Strategy checks for 220 rows
+        start_index = 250 
+        if len(df) <= start_index:
+             # Just run on what we have, strategy handles the check
+             start_index = 10 
 
-        warmup_period = 220
-        n_rows = len(self._full_df)
-
-        for i in range(warmup_period, n_rows):
-            row = self._full_df.iloc[i]
-            ts = self._full_df.index[i]
-            o, h, l, c = row["open"], row["high"], row["low"], row["close"]
-
-            # Update exchange with full OHLC (checks pending SL/TP against wicks)
-            executed_orders = self.exchange.update_candle(
-                self.symbol, float(o), float(h), float(l), float(c), ts
-            )
-
-            # Handle executed SL orders
-            for order in executed_orders:
-                if order.get('type', '').upper() == 'STOP_LOSS':
-                    if self.symbol in self.portfolio.positions:
-                        del self.portfolio.positions[self.symbol]
-                    if hasattr(self.strategy, 'context') and self.strategy.context:
-                        self.strategy.context.close_trade(self.symbol)
-                        tf = getattr(self.strategy, 'timeframe', '')
-                        key = f"{self.symbol}:{tf}"
-                        self.strategy.context.transition(key, SCANNING, reason="SL hit", now_ts=ts)
-
-            self.portfolio.sync_from_exchange()
-
-            # Pass pre-computed slice (indicators already calculated)
-            df_slice = self._full_df.iloc[:i+1]
-            signal = self.strategy.analyze(self.symbol, df_slice)
-
+        for i in range(start_index, len(df) + 1):
+            # Window of data up to current point
+            window = df.iloc[:i].copy() # Copy to avoid SettingWithCopy warnings
+            
+            # Current candle (last one in window)
+            current_row = window.iloc[-1]
+            timestamp = current_row['timestamp']
+            current_price = Decimal(str(current_row['close']))
+            
+            # Analyze
+            signal = strategy.analyze(self.symbol, window)
+            
+            # Process Signal
             if signal:
-                self.portfolio.on_signal(signal)
-                
-                # Sync TP hit status from Portfolio back to Strategy's meta
-                # This prevents Strategy from repeatedly emitting TP signals
-                if (hasattr(self.strategy, 'context') and 
-                    self.strategy.context and 
-                    self.symbol in self.portfolio.positions and
-                    self.symbol in self.strategy.context.active_trades):
-                    pos = self.portfolio.positions[self.symbol]
-                    trade = self.strategy.context.active_trades[self.symbol]
-                    if trade.meta:
-                        trade.meta["tp1_hit"] = pos.tp1_hit
-                        trade.meta["tp2_hit"] = pos.tp2_hit
-                        trade.meta["tp3_hit"] = pos.tp3_hit
+                # ENTRY
+                if signal.signal_type == "BUY" and not position:
+                    position = 'LONG'
+                    entry_price = signal.price
+                    entry_time = timestamp
+                    quantity = balance / entry_price
+                    trade_meta = {
+                        "tp1": signal.tp1_price,
+                        "tp2": signal.tp2_price,
+                        "tp3": signal.tp3_price,
+                        "sl": signal.sl_price
+                    }
 
-        # Close any open positions at final price for accurate reporting
-        self._close_open_positions()
+                # EXIT
+                elif signal.signal_type == "SELL" and position == 'LONG':
+                    exit_price = signal.price
+                    pnl = (exit_price - entry_price) * quantity
+                    balance += pnl
+                    
+                    self.trades.append({
+                        "symbol": self.symbol,
+                        "side": position,
+                        "entry_time": entry_time,
+                        "exit_time": timestamp,
+                        "entry_price": float(entry_price),
+                        "exit_price": float(exit_price),
+                        "quantity": float(quantity),
+                        "pnl": float(pnl),
+                        "pnl_pct": float((pnl / (entry_price * quantity)) * 100),
+                        "exit_reason": signal.reason,
+                        "hold_time_hours": (timestamp - entry_time).total_seconds() / 3600
+                    })
+                    
+                    position = None
+                    quantity = Decimal('0')
+            
+            # Update Equity Curve
+            # If in position, mark-to-market
+            current_equity = balance
+            if position:
+                current_pnl = (current_price - entry_price) * quantity
+                current_equity += current_pnl
+            
+            self.equity_curve.append({
+                "timestamp": timestamp.isoformat(),
+                "equity": float(current_equity)
+            })
 
-        print("\nBacktest complete!")
-        final_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
-        print(f"Final balance: {final_bal}")
-        print(f"Open positions: {dict(self.exchange.positions)}")
-        print(f"Total trades: {len(self.exchange.trade_history)}")
+        self.calculate_metrics()
 
-    def _close_open_positions(self) -> None:
-        """Close all open positions at the last available price for accurate final reporting."""
-        if not self.exchange.positions:
-            return
+    def calculate_metrics(self):
+        """Calculate performance metrics."""
+        if not self.trades:
+            self.results = {
+                "net_profit": 0,
+                "net_profit_pct": 0,
+                "win_rate": 0,
+                "profit_factor": 0,
+                "sharpe_ratio": 0,
+                "max_drawdown_pct": 0,
+                "total_trades": 0
+            }
+            return self.results
+
+        df_trades = pd.DataFrame(self.trades)
+        net_profit = df_trades['pnl'].sum()
+        wins = df_trades[df_trades['pnl'] > 0]
+        losses = df_trades[df_trades['pnl'] <= 0]
         
-        last_row = self._full_df.iloc[-1]
-        final_ts = self._full_df.index[-1]
-        final_price = float(last_row["close"])
+        win_rate = len(wins) / len(df_trades)
+        profit_factor = abs(wins['pnl'].sum() / losses['pnl'].sum()) if len(losses) > 0 else float('inf')
         
-        positions_to_close = list(self.exchange.positions.items())
-        for symbol, amount in positions_to_close:
-            if amount > 0:
-                print(f"Closing open position: {symbol} {amount} @ {final_price} (EOD)")
-                self.exchange.create_order(
-                    symbol=symbol,
-                    type='market',
-                    side='SELL',
-                    amount=float(amount),
-                    price=final_price,
-                    params={'exit_reason': 'EOD'}  # End of Data
-                )
+        # Drawdown calculation
+        equity_vals = [x['equity'] for x in self.equity_curve]
+        if not equity_vals:
+             max_drawdown = 0
+        else:
+            equity_series = pd.Series(equity_vals)
+            rolling_max = equity_series.cummax()
+            drawdown = (equity_series - rolling_max) / rolling_max
+            max_drawdown = drawdown.min() * 100 # percentage
 
+        self.results = {
+            "net_profit": float(net_profit),
+            "net_profit_pct": float((net_profit / self.initial_balance) * 100),
+            "win_rate": float(win_rate),
+            "profit_factor": float(profit_factor),
+            "sharpe_ratio": 0.0,
+            "max_drawdown_pct": float(max_drawdown),
+            "total_trades": len(df_trades)
+        }
+        return self.results

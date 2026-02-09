@@ -3,6 +3,7 @@ import { useUIStore } from './stores/useUIStore';
 import DashboardStats from './components/DashboardStats';
 import RunHistoryTable from './components/RunHistoryTable';
 import StrategyConfigEditor from './components/StrategyConfigEditor';
+import BacktestRunner from './components/BacktestRunner';
 
 function App() {
   const { activeTab, setActiveTab, initTheme } = useUIStore();
@@ -60,12 +61,7 @@ function App() {
           )}
 
           {activeTab === 'backtest' && (
-            <div className="bg-[var(--bg-surface)] rounded-lg p-6 shadow-sm border border-[var(--border)]">
-                <div className="text-center py-12 text-[var(--text-muted)]">
-                  <p>Backtest execution interface coming next sprint.</p>
-                  <p className="mt-2 text-sm">Please use the Settings tab to configure strategies.</p>
-                </div>
-            </div>
+            <BacktestRunner />
           )}
 
           {activeTab === 'settings' && (

@@ -129,6 +129,15 @@ declare global {
                 // BacktestAPI (for future use)
                 get_data_files(): Promise<{ success: boolean; data: DataFile[]; error?: string }>;
                 run_backtest(params: any): Promise<{ success: boolean; data: any; error?: string }>;
+
+                // Advanced Analysis & Config
+                read_file(filename: string): Promise<{ success: boolean; data: string; error?: string }>;
+                save_file(filename: string, content: string): Promise<{ success: boolean; error?: string }>;
+                run_grid_search(params: any): Promise<{ success: boolean; data: any; error?: string }>;
+                compare_runs(run_ids: number[]): Promise<{ success: boolean; data: any; error?: string }>;
+                run_walk_forward(params: any): Promise<{ success: boolean; data: any; error?: string }>;
+                run_sensitivity(params: any): Promise<{ success: boolean; data: any; error?: string }>;
+                export_run(run_id: number, format?: string): Promise<{ success: boolean; data: any; error?: string }>;
             };
         };
     }

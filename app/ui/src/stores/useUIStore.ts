@@ -3,12 +3,13 @@ import { ThemeDetails } from '../types/pywebview';
 
 interface UIState {
     theme: ThemeDetails | null;
-    activeTab: 'dashboard' | 'backtest' | 'settings';
+    activeTab: 'dashboard' | 'backtest' | 'history' | 'settings';
     sidebarOpen: boolean;
 
     setTheme: (theme: ThemeDetails) => void;
-    setActiveTab: (tab: 'dashboard' | 'backtest' | 'settings') => void;
+    setActiveTab: (tab: 'dashboard' | 'backtest' | 'history' | 'settings') => void;
     toggleSidebar: () => void;
+    toggleTheme: () => void;
     initTheme: () => Promise<void>;
 }
 
@@ -34,6 +35,11 @@ export const useUIStore = create<UIState>((set) => ({
 
     setActiveTab: (tab) => set({ activeTab: tab }),
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    toggleTheme: () => set((state) => {
+        const isDark = state.theme?.is_dark ?? true;
+        document.documentElement.classList.toggle('dark', !isDark);
+        return { theme: state.theme ? { ...state.theme, is_dark: !isDark } : null };
+    }),
 
     initTheme: async () => {
         try {

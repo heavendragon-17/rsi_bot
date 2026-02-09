@@ -14,7 +14,12 @@ def main():
     args = parser.parse_args()
 
     if args.test:
-        print("Test mode: Bridge initialized successfully")
+        try:
+            ui = BacktestUI(debug=args.debug)
+            print("Test mode: BacktestUI initialized successfully")
+        except Exception as e:
+            print(f"Test mode: BacktestUI initialization failed: {e}")
+            sys.exit(1)
         return
 
     ui = BacktestUI(debug=args.debug)
