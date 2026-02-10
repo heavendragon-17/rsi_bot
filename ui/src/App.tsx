@@ -3,7 +3,8 @@ import { Layout } from './components/layout/Layout'
 import { EmptyState } from './components/common/EmptyState'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { History } from './components/history/History'
-import { Zap, Settings } from 'lucide-react'
+import { OptimizationDashboard } from './components/analysis/OptimizationDashboard'
+import { Settings as SettingsIcon } from 'lucide-react'
 
 export default function App() {
   const activeTab = useUIStore((state) => state.activeTab)
@@ -15,17 +16,11 @@ export default function App() {
       case 'history':
         return <History />
       case 'optimization':
-        return (
-          <EmptyState
-            icon={Zap}
-            title="Optimization"
-            description="Grid search and Walk-forward analysis tools (Phase 7)."
-          />
-        )
+        return <OptimizationDashboard />
       case 'settings':
         return (
           <EmptyState
-            icon={Settings}
+            icon={SettingsIcon}
             title="Settings"
             description="Configure global application settings (Phase 8)."
           />
