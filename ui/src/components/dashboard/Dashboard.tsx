@@ -43,8 +43,32 @@ export const Dashboard: React.FC = () => {
 
   const pieData = Object.entries(exitCounts).map(([name, value]) => ({ name, value }));
 
+  const handleExport = async () => {
+    if (activeRun) {
+      try {
+        const res = await window.pywebview.api.export_results(activeRun.run.id, 'json');
+        if (res.success) {
+          // Ideally show a toast here, but for now just console
+          console.log(`Exported to ${res.file_path}`);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        {activeRun && (
+          <button
+            onClick={handleExport}
+            className="text-sm text-primary hover:text-primary-hover font-medium"
+          >
+            Export Results (JSON)
+          </button>
+        )}
+      </div>
       <DashboardStats stats={displayStats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

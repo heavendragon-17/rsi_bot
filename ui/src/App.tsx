@@ -1,10 +1,9 @@
 import { useUIStore } from './stores/useUIStore'
 import { Layout } from './components/layout/Layout'
-import { EmptyState } from './components/common/EmptyState'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { History } from './components/history/History'
 import { OptimizationDashboard } from './components/analysis/OptimizationDashboard'
-import { Settings as SettingsIcon } from 'lucide-react'
+import { Settings } from './components/settings/Settings'
 
 export default function App() {
   const activeTab = useUIStore((state) => state.activeTab)
@@ -18,13 +17,7 @@ export default function App() {
       case 'optimization':
         return <OptimizationDashboard />
       case 'settings':
-        return (
-          <EmptyState
-            icon={SettingsIcon}
-            title="Settings"
-            description="Configure global application settings (Phase 8)."
-          />
-        )
+        return <Settings />
       default:
         return <div>Not found</div>
     }
