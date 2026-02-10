@@ -26,7 +26,7 @@ export interface BacktestState {
   loadConfig: (config: BacktestConfig) => void;
 
   // Configuration State
-  mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity";
+  mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "settings";
   symbol: string;
   strategy: string;
   timeframe: string;
@@ -58,7 +58,7 @@ export interface BacktestState {
   isRunning: boolean;
 
   // Actions
-  setMode: (mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity") => void;
+  setMode: (mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "settings") => void;
   setSymbol: (symbol: string) => void;
   setStrategy: (strategy: string) => void;
   setTimeframe: (tf: string) => void;

@@ -39,7 +39,7 @@ export const getRandomFact = (symbol?: string, isError: boolean = false): string
     const facts = CONTEXT_FACTS["ERROR"];
     return facts[Math.floor(Math.random() * facts.length)];
   }
-  
+
   const base = symbol ? symbol.split("/")[0] : "DEFAULT";
   const facts = CONTEXT_FACTS[base] || CONTEXT_FACTS["DEFAULT"];
   return facts[Math.floor(Math.random() * facts.length)];
@@ -47,34 +47,34 @@ export const getRandomFact = (symbol?: string, isError: boolean = false): string
 
 // Simulated Data Check
 export const checkDataStatus = async (
-    symbols: string[], 
-    timeframe: string,
-    startDate: string,
-    endDate: string
+  symbols: string[],
+  timeframe: string,
+  startDate: Date | null,
+  endDate: Date | null
 ): Promise<{ allFresh: boolean, symbolStatuses: SymbolDataStatus[] }> => {
-    // Simulate network delay (random between 100ms and 800ms to test grace period)
-    // We'll control this via a deterministic random or just randomness for the demo
-    const delay = Math.random() * 800 + 100; 
-    await new Promise(resolve => setTimeout(resolve, delay));
+  // Simulate network delay (random between 100ms and 800ms to test grace period)
+  // We'll control this via a deterministic random or just randomness for the demo
+  const delay = Math.random() * 800 + 100;
+  await new Promise(resolve => setTimeout(resolve, delay));
 
-    const symbolStatuses: SymbolDataStatus[] = symbols.map(sym => {
-        // Simulate random status
-        const rand = Math.random();
-        let status: SymbolDataStatus["status"] = "fresh";
-        let size = 1.2 * 1024 * 1024; // 1.2 MB
-        
-        if (rand > 0.8) status = "missing";
-        else if (rand > 0.6) status = "outdated";
+  const symbolStatuses: SymbolDataStatus[] = symbols.map(sym => {
+    // Simulate random status
+    const rand = Math.random();
+    let status: SymbolDataStatus["status"] = "fresh";
+    let size = 1.2 * 1024 * 1024; // 1.2 MB
 
-        return {
-            symbol: sym,
-            status,
-            sizeBytes: status === "missing" ? null : size,
-            downloadedBytes: status === "fresh" ? size : 0,
-            lastUpdated: status === "fresh" ? Date.now() : Date.now() - 1000 * 60 * 60 * 24 * 10, // 10 days ago
-        };
-    });
+    if (rand > 0.8) status = "missing";
+    else if (rand > 0.6) status = "outdated";
 
-    const allFresh = symbolStatuses.every(s => s.status === "fresh");
-    return { allFresh, symbolStatuses };
+    return {
+      symbol: sym,
+      status,
+      sizeBytes: status === "missing" ? null : size,
+      downloadedBytes: status === "fresh" ? size : 0,
+      lastUpdated: status === "fresh" ? Date.now() : Date.now() - 1000 * 60 * 60 * 24 * 10, // 10 days ago
+    };
+  });
+
+  const allFresh = symbolStatuses.every(s => s.status === "fresh");
+  return { allFresh, symbolStatuses };
 };

@@ -40,6 +40,8 @@ export interface ResultsState {
   maxDrawdownPct: number;
   maxDrawdownValue: number;
   sharpeRatio: number;
+  sortinoRatio: number;
+  calmarRatio: number;
 
   // Metrics Grid
   grossWin: number;
@@ -86,6 +88,8 @@ export const useResultsStore = create<ResultsState>()(
       maxDrawdownPct: 0,
       maxDrawdownValue: 0,
       sharpeRatio: 0,
+      sortinoRatio: 0,
+      calmarRatio: 0,
 
       grossWin: 0,
       grossLoss: 0,
@@ -225,6 +229,8 @@ export const useResultsStore = create<ResultsState>()(
           maxDrawdownPct: maxDD,
           maxDrawdownValue: maxDDVal,
           sharpeRatio: 1.2, // Fake
+          sortinoRatio: 1.5, // Fake
+          calmarRatio: 0.8, // Fake
 
           grossWin,
           grossLoss,

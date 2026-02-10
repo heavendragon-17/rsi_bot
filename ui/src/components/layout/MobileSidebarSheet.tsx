@@ -15,12 +15,28 @@ import { ValidatedInput } from "../ui/ValidatedInput";
 import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
-import { ThemeSettings } from "../theme/ThemeSettings";
+
 import { useDataPrepStore } from "../../stores/dataPrepStore";
 import { useResultsStore } from "../../stores/resultsStore";
 import { useBatchResultsStore } from "../../stores/batchResultsStore";
 import { useHistoryStore } from "../../stores/historyStore";
 import { checkDataStatus } from "../../lib/data-utils";
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = React.useState(false);
+
+  React.useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [matches, query]);
+
+  return matches;
+}
 
 /**
  * Mobile Sidebar Sheet
@@ -152,9 +168,7 @@ export const MobileSidebarSheet: React.FC = () => {
       : [symbol];
 
     try {
-      const sDate = startDate ? startDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      const eDate = endDate ? endDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      const { allFresh, symbolStatuses } = await checkDataStatus(symbolsToCheck, timeframe, sDate, eDate);
+      const { allFresh, symbolStatuses } = await checkDataStatus(symbolsToCheck, timeframe, startDate, endDate);
       
       const elapsedTime = Date.now() - startTime;
       setSymbols(symbolStatuses);
@@ -173,8 +187,11 @@ export const MobileSidebarSheet: React.FC = () => {
     }
   };
 
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isOpen = isSidebarOpen && !isDesktop;
+
   return (
-    <Sheet open={isSidebarOpen} onOpenChange={setSidebarOpen}>
+    <Sheet open={isOpen} onOpenChange={setSidebarOpen}>
       <SheetContent side="bottom" className="h-[85vh] p-0 lg:hidden">
         <SheetHeader className="p-4 border-b border-border-main">
           <SheetTitle>Configuration</SheetTitle>
@@ -316,32 +333,32 @@ export const MobileSidebarSheet: React.FC = () => {
                     label="RSI Period" 
                     paramKey="rsi_period" 
                     value={params.rsi_period.toString()} 
-                    onChangeValue={(v) => setParam("rsi_period", parseFloat(v))} 
+                    onChangeValue={(v) => setParam("rsi_period", parseInt(v, 10) || 0)} 
                   />
                   <ValidatedInput 
                     label="EMA Fast" 
                     paramKey="ema_fast" 
                     value={params.ema_fast.toString()} 
-                    onChangeValue={(v) => setParam("ema_fast", parseFloat(v))} 
+                    onChangeValue={(v) => setParam("ema_fast", parseInt(v, 10) || 0)} 
                   />
                   <ValidatedInput 
                     label="EMA Slow" 
                     paramKey="ema_slow" 
                     value={params.ema_slow.toString()} 
-                    onChangeValue={(v) => setParam("ema_slow", parseFloat(v))} 
+                    onChangeValue={(v) => setParam("ema_slow", parseInt(v, 10) || 0)} 
                   />
                   <ValidatedInput 
                     label="TP1 Risk Ratio" 
                     paramKey="tp1_rr" 
                     value={params.tp1_rr.toString()} 
-                    onChangeValue={(v) => setParam("tp1_rr", parseFloat(v))}
+                    onChangeValue={(v) => setParam("tp1_rr", parseFloat(v) || 0)}
                     suffix="R"
                   />
-                  <ValidatedInput 
+                   <ValidatedInput 
                     label="SL Buffer" 
                     paramKey="sl_buffer_pct" 
                     value={params.sl_buffer_pct.toString()} 
-                    onChangeValue={(v) => setParam("sl_buffer_pct", parseFloat(v))}
+                    onChangeValue={(v) => setParam("sl_buffer_pct", parseFloat(v) || 0)}
                     suffix="%"
                   />
                 </div>
@@ -386,10 +403,7 @@ export const MobileSidebarSheet: React.FC = () => {
             </div>
           )}
 
-          {/* Settings Section */}
-          <CollapsibleSection title="Settings">
-            <ThemeSettings />
-          </CollapsibleSection>
+
         </div>
 
         {/* Sticky Footer with Run Button */}

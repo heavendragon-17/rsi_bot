@@ -13,6 +13,8 @@ import { useResultsStore } from './stores/resultsStore';
 import { useBatchResultsStore } from './stores/batchResultsStore';
 import { useBacktestStore } from './stores/backtestStore';
 import { useThemeStore } from './stores/themeStore';
+import { DevTools } from './components/dev/DevTools';
+import { SettingsPage } from './components/settings/SettingsPage';
 
 // Main App Component
 function App() {
@@ -34,6 +36,7 @@ function App() {
   const showGridSearch = mode === "grid-search";
   const showWalkForward = mode === "walk-forward";
   const showSensitivity = mode === "sensitivity";
+  const showSettings = mode === "settings";
 
   return (
     <Layout>
@@ -44,10 +47,12 @@ function App() {
       {showGridSearch && <GridSearch />}
       {showWalkForward && <WalkForward />}
       {showSensitivity && <SensitivityAnalysis />}
+      {showSettings && <SettingsPage />}
       
-      {!showSingle && !showBatch && !showPine && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
+      {!showSingle && !showBatch && !showPine && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && !showSettings && <EmptyState />}
       
       <DataPrepModal />
+      <DevTools />
     </Layout>
   );
 }

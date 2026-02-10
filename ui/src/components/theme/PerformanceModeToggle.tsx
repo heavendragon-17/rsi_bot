@@ -6,33 +6,33 @@ export const PerformanceModeToggle: React.FC = () => {
   const { performanceMode, togglePerformanceMode } = useThemeStore();
 
   return (
-    <div className="space-y-2">
-      <label className="mb-2 block text-xs font-medium text-text-secondary">
+    <div className="space-y-4">
+      <label className="mb-4 block text-sm font-semibold uppercase tracking-wider text-text-muted">
         Performance Mode
       </label>
 
       {/* Toggle Switch */}
-      <div className="flex items-center justify-between rounded-lg border border-border-main bg-bg-elevated/50 p-3">
-        <div className="flex-1">
-          <p className="text-xs text-text-primary">
+      <div className="flex items-center justify-between rounded-2xl border border-border-main bg-bg-elevated/50 p-6 sm:p-8">
+        <div className="flex-1 pr-4">
+          <p className="text-base font-medium text-text-primary">
             Reduce animations for large datasets
           </p>
-          <p className="mt-1 text-[10px] text-text-muted">
-            Disables chart animations and simplifies transitions
+          <p className="mt-2 text-sm text-text-secondary leading-relaxed">
+            Disables chart animations and simplifies transitions to improve performance on low-end devices or during heavy computation.
           </p>
         </div>
 
         <button
           onClick={togglePerformanceMode}
           className={cn(
-            "relative ml-3 h-6 w-11 rounded-full transition-colors",
-            performanceMode ? "bg-accent-main" : "bg-border-color"
+            "relative shrink-0 h-7 w-12 rounded-full transition-all duration-300",
+            performanceMode ? "bg-accent-main ring-4 ring-accent-main/20" : "bg-bg-secondary border border-border-main"
           )}
         >
           <span
             className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform",
-              performanceMode ? "left-[22px]" : "left-0.5"
+              "absolute top-1 h-5 w-5 rounded-full shadow-lg transition-all duration-300",
+              performanceMode ? "left-[22px] bg-white" : "left-1 bg-text-muted"
             )}
           />
         </button>
@@ -40,23 +40,21 @@ export const PerformanceModeToggle: React.FC = () => {
 
       {/* Feature List (when enabled) */}
       {performanceMode && (
-        <div className="rounded-lg border border-border-main bg-bg-elevated/30 p-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+        <div className="rounded-2xl border border-border-main bg-bg-elevated/30 p-6 sm:p-8 animate-in zoom-in-95 duration-300">
+          <p className="mb-4 text-sm font-bold uppercase tracking-wider text-text-primary">
             Active Optimizations
           </p>
-          <ul className="space-y-1 text-[10px] text-text-secondary">
-            <li className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-accent-main" />
-              Chart animations disabled
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-accent-main" />
-              Hover effects simplified
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-accent-main" />
-              Backdrop blur reduced
-            </li>
+          <ul className="space-y-3">
+            {[
+              "Chart animations disabled",
+              "Hover effects simplified",
+              "Backdrop blur reduced"
+            ].map((text) => (
+              <li key={text} className="flex items-center gap-3 text-sm text-text-secondary">
+                <div className="h-2 w-2 rounded-full bg-accent-main shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" />
+                {text}
+              </li>
+            ))}
           </ul>
         </div>
       )}

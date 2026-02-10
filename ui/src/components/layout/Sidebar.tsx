@@ -25,10 +25,9 @@ import { ValidatedInput } from "../ui/ValidatedInput";
 import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
-import { ThemeSettings } from "../theme/ThemeSettings";
+
 
 export const Sidebar: React.FC = () => {
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const { 
     isSidebarOpen, 
@@ -374,33 +373,33 @@ export const Sidebar: React.FC = () => {
                                 <ValidatedInput 
                                     label="RSI Period" 
                                     paramKey="rsi_period" 
-                                    value={params.rsi_period} 
-                                    onChangeValue={(v) => setParam("rsi_period", v)} 
+                                    value={params.rsi_period.toString()} 
+                                    onChangeValue={(v) => setParam("rsi_period", parseInt(v, 10) || 0)} 
                                 />
                                 <ValidatedInput 
                                     label="EMA Fast" 
                                     paramKey="ema_fast" 
-                                    value={params.ema_fast} 
-                                    onChangeValue={(v) => setParam("ema_fast", v)} 
+                                    value={params.ema_fast.toString()} 
+                                    onChangeValue={(v) => setParam("ema_fast", parseInt(v, 10) || 0)} 
                                 />
                                 <ValidatedInput 
                                     label="EMA Slow" 
                                     paramKey="ema_slow" 
-                                    value={params.ema_slow} 
-                                    onChangeValue={(v) => setParam("ema_slow", v)} 
+                                    value={params.ema_slow.toString()} 
+                                    onChangeValue={(v) => setParam("ema_slow", parseInt(v, 10) || 0)} 
                                 />
                                 <ValidatedInput 
                                     label="TP1 Risk Ratio" 
                                     paramKey="tp1_rr" 
-                                    value={params.tp1_rr} 
-                                    onChangeValue={(v) => setParam("tp1_rr", v)}
+                                    value={params.tp1_rr.toString()} 
+                                    onChangeValue={(v) => setParam("tp1_rr", parseFloat(v) || 0)} 
                                     suffix="R"
                                 />
                                  <ValidatedInput 
                                     label="SL Buffer" 
                                     paramKey="sl_buffer_pct" 
-                                    value={params.sl_buffer_pct} 
-                                    onChangeValue={(v) => setParam("sl_buffer_pct", v)}
+                                    value={params.sl_buffer_pct.toString()} 
+                                    onChangeValue={(v) => setParam("sl_buffer_pct", parseFloat(v) || 0)}
                                     suffix="%"
                                 />
                             </div>
@@ -446,14 +445,6 @@ export const Sidebar: React.FC = () => {
                          </div>
                     )}
 
-                    {/* Settings Section */}
-                    <CollapsibleSection 
-                        title="Settings" 
-                        defaultOpen={settingsOpen}
-                        onToggle={(isOpen) => setSettingsOpen(isOpen)}
-                    >
-                        <ThemeSettings />
-                    </CollapsibleSection>
                 </div>
             </div>
 
@@ -475,16 +466,6 @@ export const Sidebar: React.FC = () => {
                     <div className="group relative flex justify-center w-full">
                          <Code size={20} className="text-text-secondary group-hover:text-text-primary transition-colors cursor-pointer" />
                     </div>
-
-                    <button 
-                        onClick={() => {
-                            setSidebarOpen(true);
-                            setSettingsOpen(true);
-                        }}
-                        className="group relative flex justify-center w-full"
-                    >
-                         <Settings size={20} className="text-text-secondary group-hover:text-text-primary transition-colors cursor-pointer" />
-                    </button>
                 </div>
             )}
             

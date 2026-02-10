@@ -3,6 +3,7 @@ import { Zap, Moon, Sun, Settings, History, GitCompare, Palette, Flame, Trending
 import { cn } from "../../lib/utils";
 import { useThemeStore } from "../../stores/themeStore";
 import { useBacktestStore } from "../../stores/backtestStore";
+import { SettingsDialog } from "../settings/SettingsDialog";
 
 export const Navbar: React.FC = () => {
   const { currentTheme, themes, setTheme, performanceMode, togglePerformanceMode } = useThemeStore();
@@ -121,7 +122,16 @@ export const Navbar: React.FC = () => {
             {currentTheme?.isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
-        <button className="hidden sm:flex p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors items-center justify-center">
+        <button 
+            onClick={() => setMode("settings")}
+            className={cn(
+                "hidden sm:flex p-2 rounded-md transition-colors items-center justify-center",
+                mode === "settings"
+                    ? "text-accent-main bg-accent-main/10"
+                    : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+            )}
+            title="Settings"
+        >
             <Settings size={18} />
         </button>
       </div>

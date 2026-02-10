@@ -7,6 +7,7 @@ export interface Theme {
   isDarkMode: boolean;
   variables: Record<string, string>;
   contrastValidated: boolean;
+  effect?: string; // Special effect identifier (e.g., 'neon-glow', 'cyber-grid', 'retro-scanline')
   createdAt: string;
 }
 
@@ -262,7 +263,7 @@ export const useThemeStore = create<ThemeState>()(
 
         // Also update shadcn-compatible variables for consistency
         const vars = theme.variables;
-        
+
         // Map theme variables to shadcn base variables
         if (vars["bg-primary"]) root.style.setProperty("--background", vars["bg-primary"]);
         if (vars["text-primary"]) root.style.setProperty("--foreground", vars["text-primary"]);

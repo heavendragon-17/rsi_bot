@@ -14,61 +14,50 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
   isSelected,
   onSelect,
 }) => {
+  const vars = theme.variables;
+
   return (
     <button
       onClick={() => onSelect(theme)}
       className={cn(
-        "group relative w-full rounded-lg border-2 p-3 transition-all hover:scale-[1.02]",
+        "group relative w-full overflow-hidden rounded-2xl border transition-all text-left bg-bg-surface p-4 flex flex-col gap-4",
         isSelected
-          ? "border-accent-main shadow-lg"
-          : "border-border-main hover:border-text-muted"
+          ? "border-accent-main ring-1 ring-accent-main/50 scale-[1.02] z-10 shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] bg-bg-elevated/40"
+          : "border-border-main hover:border-text-muted hover:bg-bg-elevated/50"
       )}
+      style={{
+        boxShadow: isSelected ? `0 0 20px -5px ${vars["accent-color"]}40, 0 8px 20px -10px rgba(0,0,0,0.5)` : undefined
+      }}
     >
-      {/* Theme Name */}
-      <div className="mb-2 text-left">
-        <h3 className="text-xs font-semibold text-text-primary">
+      {/* Theme Header Info */}
+      <div className="flex flex-col">
+        <span className="text-base font-bold text-text-primary">
           {theme.name}
-        </h3>
-        <p className="text-[10px] text-text-muted">
+        </span>
+        <span className="text-sm text-text-muted">
           {theme.isDarkMode ? "Dark" : "Light"}
-        </p>
+        </span>
       </div>
 
-      {/* Color Swatch Preview */}
-      <div className="mb-2 grid grid-cols-2 gap-1 overflow-hidden rounded">
-        <div
-          className="h-8"
-          style={{ backgroundColor: theme.variables["bg-primary"] }}
-          title="Background Primary"
+      {/* 4-Color Grid - Matches reference image */}
+      <div className="grid grid-cols-2 gap-2 w-full h-24">
+        <div 
+          className="h-full w-full rounded-lg ring-1 ring-black/5 dark:ring-white/5" 
+          style={{ backgroundColor: vars["bg-primary"] }} 
         />
-        <div
-          className="h-8"
-          style={{ backgroundColor: theme.variables["bg-secondary"] }}
-          title="Background Secondary"
+        <div 
+          className="h-full w-full rounded-lg ring-1 ring-black/5 dark:ring-white/5" 
+          style={{ backgroundColor: vars["bg-secondary"] }} 
         />
-        <div
-          className="h-8"
-          style={{ backgroundColor: theme.variables["accent-color"] }}
-          title="Accent"
+        <div 
+          className="h-full w-full rounded-lg ring-1 ring-black/5 dark:ring-white/5" 
+          style={{ backgroundColor: vars["accent-color"] }} 
         />
-        <div
-          className="h-8"
-          style={{ backgroundColor: theme.variables["success"] }}
-          title="Success"
+        <div 
+          className="h-full w-full rounded-lg ring-1 ring-black/5 dark:ring-white/5" 
+          style={{ backgroundColor: vars["bg-elevated"] }} 
         />
       </div>
-
-      {/* Selected Indicator */}
-      {isSelected && (
-        <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-accent-main shadow-md">
-          <Check size={14} className="text-white" />
-        </div>
-      )}
-
-      {/* Hover State Indicator */}
-      {!isSelected && (
-        <div className="absolute inset-0 rounded-lg bg-accent-main/0 transition-colors group-hover:bg-accent-main/5" />
-      )}
     </button>
   );
 };

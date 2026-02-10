@@ -116,6 +116,8 @@ const SingleResultHydrator: React.FC<{ data: any }> = ({ data }) => {
                 maxDrawdownPct: data.maxDrawdownPct,
                 maxDrawdownValue: 1000, // Mock
                 sharpeRatio: data.sharpe,
+                sortinoRatio: 1.5, // Mock for drill-down
+                calmarRatio: 0.8, // Mock for drill-down
                 equityCurve: data.equityCurve,
                 benchmarkCurve: data.equityCurve.map((x: any) => ({ ...x, value: x.value * 0.9 })), // Mock bench
                 underwaterCurve: data.equityCurve.map((x: any) => ({ ...x, value: -Math.random()*5 })), // Mock underwater

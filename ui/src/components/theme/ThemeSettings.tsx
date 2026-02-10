@@ -21,12 +21,9 @@ export const ThemeSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Appearance Section */}
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-          Appearance
-        </h3>
         <ThemeSelector />
       </div>
 
@@ -37,17 +34,17 @@ export const ThemeSettings: React.FC = () => {
 
       {/* Danger Zone */}
       <div className="border-t border-border-main pt-6">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-danger">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-danger">
           Danger Zone
         </h3>
         <button
           onClick={handleResetSettings}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={16} />
           Reset All Settings
         </button>
-        <p className="mt-2 text-[10px] text-text-muted">
+        <p className="mt-2 text-xs text-text-muted">
           This will reset theme and performance settings to defaults
         </p>
       </div>

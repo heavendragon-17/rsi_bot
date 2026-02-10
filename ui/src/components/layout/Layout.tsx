@@ -13,37 +13,30 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isSidebarOpen, mode } = useBacktestStore();
   
-  // Hide sidebar in history, grid-search, and walk-forward modes
-  const showSidebar = mode !== "history" && mode !== "grid-search" && mode !== "walk-forward";
-
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary font-sans selection:bg-accent-main/30">
       <Navbar />
       
       <div className="pt-20 px-2 sm:px-4 pb-20 lg:pb-4 flex gap-2 sm:gap-4 h-[calc(100vh)]">
         {/* Spacer for fixed sidebar - hidden on mobile */}
-        {showSidebar && (
-          <div 
-            className={cn(
-              "shrink-0 transition-all duration-300 ease-in-out hidden lg:block", 
-              isSidebarOpen ? "w-[320px]" : "w-[60px]"
-            )} 
-          />
-        )}
+        <div 
+          className={cn(
+            "shrink-0 transition-all duration-300 ease-in-out hidden lg:block", 
+            isSidebarOpen ? "w-[320px]" : "w-[60px]"
+          )} 
+        />
         
         {/* Desktop Sidebar - hidden on mobile */}
-        {showSidebar && (
-          <div className="hidden lg:block">
-            <Sidebar />
-          </div>
-        )}
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
         
         {/* Mobile Sidebar Sheet */}
-        {showSidebar && <MobileSidebarSheet />}
+        <MobileSidebarSheet />
         
         <main className={cn(
-          "flex-1 rounded-xl border border-border-main bg-bg-surface/40 backdrop-blur-sm overflow-hidden relative transition-all duration-300",
-          !showSidebar && "ml-0"
+          "flex-1 rounded-xl border border-border-main bg-bg-surface/40 backdrop-blur-sm relative transition-all duration-300",
+          mode === "settings" ? "overflow-y-auto custom-scrollbar" : "overflow-hidden"
         )}>
           {children}
         </main>
