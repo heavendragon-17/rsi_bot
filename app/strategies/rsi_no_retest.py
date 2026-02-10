@@ -61,14 +61,14 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_tp1_rr": 1.0,            # TP1: 1R (Close 50%)
         "nr_tp2_rr": 2.0,            # TP2: 2R (Close 25%)
         "nr_tp3_rr": 3.0,            # TP3: 3R (Close 25%)
-        "nr_tp_count": 3,            # Number of TPs (1-3)
-        "tp1_close_pct": 0.50,
-        "tp2_close_pct": 0.5,
+        "nr_tp_count": 1,            # Number of TPs (1-3)
+        "tp1_close_pct": 1,
+        "tp2_close_pct": 0,
         "tp3_close_pct": 0,
 
         # SL management
         "nr_move_sl_rr": 0.5,        # Trigger: move SL when high reaches 0.5R (halfway to TP1)
-        "nr_lock_profit_rr": 0.2,    # New SL level: 0.2R above entry (lock 20% of profit)
+        "nr_lock_profit_rr": 0.1,    # New SL level: 0.2R above entry (lock 20% of profit)
 
         # Trade management
         "use_active_trades": True,
