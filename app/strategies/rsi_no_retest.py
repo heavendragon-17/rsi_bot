@@ -156,18 +156,18 @@ class RsiNoRetestStrategy(BaseStrategy):
         if len(df_ind) < 3:
             return False
             
-        # We want to check if the PREVIOUS candle (index -2, the one that just closed)
+        # We want to check if the PREVIOUS candle (index -1, the one that just closed)
         # crossed above the EMA.
-        # So we compare -3 (Prior) vs -2 (Confirmed Close).
+        # So we compare -2 (Prior) vs -1 (Confirmed Close).
         
-        confirmed_close_candle = df_ind.iloc[-2]
-        prior_candle = df_ind.iloc[-3]
+        confirmed_close_candle = df_ind.iloc[-1]
+        prior_candle = df_ind.iloc[-2]
         
-        # Values for Candle -2 (Confirmed Reclaim Candidate)
+        # Values for Candle -1 (Confirmed Reclaim Candidate)
         curr_close = confirmed_close_candle.get("close")
         curr_ema21 = confirmed_close_candle.get("ema21")
         
-        # Values for Candle -3 (Prior Context)
+        # Values for Candle -2 (Prior Context)
         prior_close = prior_candle.get("close")
         prior_ema21 = prior_candle.get("ema21")
         
@@ -175,13 +175,13 @@ class RsiNoRetestStrategy(BaseStrategy):
             return False
 
         # if self.debug_enabled:
-        ts_prior = prior_candle.name if hasattr(prior_candle, "name") else "N/A"
-        ts_closed = confirmed_close_candle.name if hasattr(confirmed_close_candle, "name") else "N/A"
+        ts_prior = (prior_candle.name + pd.Timedelta(hours=7)) if hasattr(prior_candle, "name") else "N/A"
+        ts_closed = (confirmed_close_candle.name + pd.Timedelta(hours=7)) if hasattr(confirmed_close_candle, "name") else "N/A"
         if self.debug_enabled:
-            logger.warning(f"DEBUG RECLAIM: Prior(-3)={prior_close}/{prior_ema21} (TS={ts_prior}) | Closed(-2)={curr_close}/{curr_ema21} (TS={ts_closed})")
+            logger.warning(f"DEBUG RECLAIM: Prior(-2)={prior_close}/{prior_ema21} (TS={ts_prior} UTC+7) | Closed(-1)={curr_close}/{curr_ema21} (TS={ts_closed} UTC+7)")
 
         # Logic: Prior (-3) was BELOW/EQUAL, and Confirmed Closed (-2) is ABOVE.
-        return (prior_close <= prior_ema21) and (curr_close > curr_ema21)
+        return (curr_close > curr_ema21)
 
     def _pullback_filter(self, df_ind: pd.DataFrame) -> bool:
         """
@@ -440,13 +440,22 @@ class RsiNoRetestStrategy(BaseStrategy):
             # Fall through to CONFIRMING logic
 
         if state.phase == CONFIRMING:
-            if rsi_ema9 is None or rsi_wma45 is None:
+            # User request: Spread based on closed candle (-2)
+            if len(df_ind) < 2:
+                return None
+            
+            closed_candle = df_ind.iloc[-1]
+            cc_rsi_ema9 = closed_candle.get("rsi_ema9")
+            cc_rsi_wma45 = closed_candle.get("rsi_wma45")
+
+            if cc_rsi_ema9 is None or cc_rsi_wma45 is None:
                 return None
 
-            spread = float(rsi_ema9) - float(rsi_wma45)
+            spread = float(cc_rsi_ema9) - float(cc_rsi_wma45)
+            
             if spread < self.rsi_spread_min:
                 self.context.transition(key, SCANNING, reason="Spread too small", now_ts=ts)
-                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
+                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} (based on closed candle -1) - Reset to SCANNING")
                 return None
 
             # SL computed

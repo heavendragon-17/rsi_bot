@@ -63,6 +63,7 @@ class TelegramBot:
         payload = {
             "chat_id": target_chat_id,
             "text": message,
+            "parse_mode": "HTML",
             "disable_web_page_preview": bool(disable_web_preview),
         }
 

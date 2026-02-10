@@ -6,7 +6,7 @@ bot:
 exchange:
     name: 'binanceusdm' # binanceusdm | lighter | etc.
 
-timeframe: '15m'
+timeframe: '5m'
 symbols:
     - 'ZIL/USDT'
     - 'FIL/USDT'

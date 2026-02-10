@@ -63,6 +63,18 @@ def normalize_symbol(symbol: str) -> str:
             return s[:-len(quote)]
     return s
 
+def parse_timeframe_to_seconds(tf: str) -> int:
+    """Helper to convert timeframe string to seconds."""
+    if tf.endswith('m'):
+        return int(tf[:-1]) * 60
+    elif tf.endswith('h'):
+        return int(tf[:-1]) * 3600
+    elif tf.endswith('d'):
+        return int(tf[:-1]) * 86400
+    elif tf.endswith('w'):
+        return int(tf[:-1]) * 604800
+    return 60  # Default 1m
+
 def format_signal_message(signal, symbol: str, timeframe: str, config: dict) -> str:
     """
     Format a detailed Telegram message for a trading signal.
@@ -79,32 +91,64 @@ def format_signal_message(signal, symbol: str, timeframe: str, config: dict) -> 
     if sl_price and signal.price:
         sl_distance_pct = abs(float(signal.price) - float(sl_price)) / float(signal.price) * 100
     
+    # Get current time for scan timestamp (UTC+7)
+    scan_time = datetime.now(timezone.utc) + pd.Timedelta(hours=7)
+    scan_time_str = scan_time.strftime('%Y-%m-%d %H:%M:%S')
+
+    # Convert signal timestamp (candle open) to UTC+7
+    candle_ts = signal.timestamp
+    if isinstance(candle_ts, (int, float)):
+        candle_ts = datetime.fromtimestamp(candle_ts, tz=timezone.utc)
+    
+    # Check if candle_ts is naive, if so assume UTC (since normalizer is now UTC)
+    if candle_ts.tzinfo is None:
+        candle_ts = candle_ts.replace(tzinfo=timezone.utc)
+        
+    candle_ts_str = (candle_ts + pd.Timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S')
+
+    # Build message
+    tp_allocations = getattr(signal, "tp_allocations", None)
+    
     # Build message
     msg_lines = [
         f"🚨 <b>{signal.signal_type} SIGNAL</b>",
-        f"",
-        f"<b>Symbol:</b> {symbol}",
+        f"--------------------------",
+        f"<b>Scan Time:</b> {scan_time_str}",
+        f"<b>Candle Time:</b> {candle_ts_str}",
+        f"<b>Symbol:</b> #{symbol.replace('/', '')}",
         f"<b>Timeframe:</b> {timeframe}",
-        f"<b>Entry:</b> ${signal.price:.4f}",
+        f"<b>Entry:</b> ${signal.price:.6f}",
     ]
     
     if signal.sl_price:
-        msg_lines.append(f"<b>SL:</b> ${signal.sl_price:.4f}")
+        msg_lines.append(f"<b>SL:</b> ${signal.sl_price:.6f} (Disaster)")
     if signal.soft_sl_price:
-        msg_lines.append(f"<b>Soft SL:</b> ${signal.soft_sl_price:.4f} ({sl_distance_pct:.2f}%)")
+        msg_lines.append(f"<b>Soft SL:</b> ${signal.soft_sl_price:.6f} ({sl_distance_pct:.2f}%)")
     
     if signal.tp1_price:
-        msg_lines.append(f"<b>TP1:</b> ${signal.tp1_price:.4f}")
+        tp_str = f"<b>TP1:</b> ${signal.tp1_price:.6f}"
+        if tp_allocations and "TP1" in tp_allocations:
+            tp_str += f" ({tp_allocations['TP1']*100:.0f}%)"
+        msg_lines.append(tp_str)
+
     if signal.tp2_price:
-        msg_lines.append(f"<b>TP2:</b> ${signal.tp2_price:.4f}")
+        tp_str = f"<b>TP2:</b> ${signal.tp2_price:.6f}"
+        if tp_allocations and "TP2" in tp_allocations:
+             tp_str += f" ({tp_allocations['TP2']*100:.0f}%)"
+        msg_lines.append(tp_str)
+
     if signal.tp3_price:
-        msg_lines.append(f"<b>TP3:</b> ${signal.tp3_price:.4f}")
+        tp_str = f"<b>TP3:</b> ${signal.tp3_price:.6f}"
+        if tp_allocations and "TP3" in tp_allocations:
+             tp_str += f" ({tp_allocations['TP3']*100:.0f}%)"
+        msg_lines.append(tp_str)
     
     msg_lines.extend([
         f"",
-        f"<b>Reason:</b> {signal.reason}",
+        f"<b>Trigger:</b> {signal.reason}",
         f"",
         f"<i>Leverage: {leverage}x | Risk: {float(risk_pct)*100:.1f}%</i>",
+        f"--------------------------",
     ])
     
     return "\n".join(msg_lines)
@@ -165,6 +209,8 @@ def main():
     last_processed = {normalize_symbol(s): None for s in symbols}
     
     # 6. Main Loop - Process closed candles
+    tf_secs = parse_timeframe_to_seconds(timeframe)
+    
     try:
         while True:
             for symbol in symbols:
@@ -181,20 +227,50 @@ def main():
                     if df is None or df.empty:
                         continue
                     
-                    # Get latest candle timestamp
-                    current_ts = df.index[-1]
+                    # Only process closed candles
+                    # Logic: If df.iloc[-1] is closed, use it.
+                    # If df.iloc[-1] is open (new candle started), check df.iloc[-2] (previous closed).
+                    
+                    candidate_row = df.iloc[-1]
+                    if not candidate_row.get('closed', False):
+                        if len(df) >= 2:
+                            candidate_row = df.iloc[-2]
+                            if not candidate_row.get('closed', False):
+                                continue # Both last and second-last not closed? Wait.
+                        else:
+                            continue # Not enough data
+                    
+                    current_ts = candidate_row.name # Timestamp is the index
                     
                     # Skip if already processed
                     if current_ts == last_processed[norm_symbol]:
                         continue
+
+                    # Precise timing check: Scan at XX:XX:01
+                    # Timestamp from normalizer is now UTC (removed +7h)
+                    candle_open_ts = current_ts.timestamp()
+                    target_scan_ts = candle_open_ts + tf_secs + 1
+                    now_ts = datetime.now(timezone.utc).timestamp()
                     
-                    # Only process closed candles
-                    last_row = df.iloc[-1]
-                    if not last_row.get('closed', False):
+                    if now_ts < target_scan_ts:
+                        # Wait for next loop iteration
                         continue
                     
                     # Prepare DataFrame for strategy (needs specific columns)
-                    df_for_strategy = df[['open', 'high', 'low', 'close', 'volume']].copy()
+                    # We need to slice UP TO the candidate row to ensure backtest/live consistency
+                    # If we use df directly, it might include the open candle at the end.
+                    # Best to slice: df[:candidate_index+1]
+                    
+                    # Find integer index of candidate_row (it's either -1 or -2)
+                    # We can simply filter or slice based on timestamp, but slicing by position is faster if we know it.
+                    # If candidate was -2, we exclude -1.
+                    
+                    if candidate_row.name == df.iloc[-1].name:
+                         df_slice = df.copy()
+                    else:
+                         df_slice = df.iloc[:-1].copy()
+
+                    df_for_strategy = df_slice[['open', 'high', 'low', 'close', 'volume']].copy()
                     df_for_strategy.reset_index(inplace=True)
                     df_for_strategy.rename(columns={'index': 'timestamp'}, inplace=True)
                     
