@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "PLAN-backtest-ui-impl.md",
+                "file": "PLAN-backtest-scaling.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "PLAN-backtest-ui-impl"
+              "title": "PLAN-backtest-scaling"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "PLAN-backtest-ui-impl.md",
+                "file": "PLAN-backtest-scaling.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for PLAN-backtest-ui-impl"
+              "title": "Backlinks for PLAN-backtest-scaling"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "PLAN-backtest-ui-impl.md",
+                "file": "PLAN-backtest-scaling.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from PLAN-backtest-ui-impl"
+              "title": "Outgoing links from PLAN-backtest-scaling"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "PLAN-backtest-ui-impl.md",
+                "file": "PLAN-backtest-scaling.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of PLAN-backtest-ui-impl"
+              "title": "Outline of PLAN-backtest-scaling"
             }
           }
         ]
@@ -185,7 +185,7 @@
   },
   "active": "32926bff3eb26555",
   "lastOpenFiles": [
-    "PLAN-backtest-scaling.md",
-    "PLAN-backtest-ui-impl.md"
+    "PLAN-backtest-ui-impl.md",
+    "PLAN-backtest-scaling.md"
   ]
 }

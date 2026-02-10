@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "STARTER_PROMPT.md",
+                "file": "HOTFIX_STARTER_PROMPT.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "STARTER_PROMPT"
+              "title": "HOTFIX_STARTER_PROMPT"
             }
           }
         ]
@@ -182,6 +182,7 @@
   },
   "active": "8c7eda352be5f107",
   "lastOpenFiles": [
+    "MASTER_PROMPT.md",
     "HOTFIX_STARTER_PROMPT.md",
     "knowledge/API_REFERENCE.md",
     "knowledge/BACKTEST_ENGINE.md",
