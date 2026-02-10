@@ -3,8 +3,10 @@ import { useConfigStore } from '../../stores/useConfigStore';
 import { useDataStore } from '../../stores/useDataStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { DynamicForm } from '../common/DynamicForm';
-import { Play, Calendar, FileText } from 'lucide-react';
+import { Play, Settings2, Info } from 'lucide-react';
 import { BacktestConfig } from '../../types/pywebview';
+import { Select } from '../common/Select';
+import { cn } from '../../lib/utils';
 
 export const BacktestRunner: React.FC = () => {
   const {
@@ -15,7 +17,7 @@ export const BacktestRunner: React.FC = () => {
     saveStrategyConfig
   } = useConfigStore();
 
-  const { dataFiles, fetchDataFiles, fetchRunHistory } = useDataStore();
+  const { dataFiles, fetchRunHistory } = useDataStore();
   const { addToast, setLoading, isLoading } = useUIStore();
 
   const [config, setConfig] = useState<Partial<BacktestConfig> & { start_date?: string; end_date?: string }>({
@@ -28,12 +30,7 @@ export const BacktestRunner: React.FC = () => {
   const [params, setParams] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    fetchDataFiles();
-  }, [fetchDataFiles]);
-
-  useEffect(() => {
     if (strategyConfig) {
-      // Initialize params from merged config
       setParams(strategyConfig.merged);
     }
   }, [strategyConfig]);
@@ -46,10 +43,8 @@ export const BacktestRunner: React.FC = () => {
 
     setLoading(true);
     try {
-      // 1. Save current params override
       await saveStrategyConfig(params);
 
-      // 2. Run backtest
       const result = await window.pywebview.api.run_backtest({
         strategy_name: selectedStrategy,
         data_file: config.data_file,
@@ -85,101 +80,165 @@ export const BacktestRunner: React.FC = () => {
     }
   };
 
+  const strategyOptions = strategies.map(s => ({
+    value: s.name,
+    label: s.display_name
+  }));
+
+  const dataFileOptions = dataFiles.map(f => ({
+    value: f.name,
+    label: `${f.symbol} ${f.timeframe} (${f.size_mb} MB)`
+  }));
+
+  const activeStrategyDesc = strategies.find(s => s.name === selectedStrategy)?.description;
+
   return (
-    <div className="bg-surface border border-border rounded-xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-text">Backtest Configuration</h2>
+    <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
+      {/* Header Section */}
+      <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-hover/30">
+        <div>
+          <h2 className="text-xl font-bold text-text flex items-center gap-2">
+            <Settings2 className="text-primary" size={24} />
+            Backtest Configuration
+          </h2>
+          <p className="text-text-muted text-sm mt-1">
+            Configure strategy parameters and execution settings
+          </p>
+        </div>
         <button
           onClick={handleRun}
-          disabled={isLoading}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-        >
-          {isLoading ? 'Running...' : (
-            <>
-              <Play size={18} />
-              Run Backtest
-            </>
+          disabled={isLoading || !selectedStrategy}
+          className={cn(
+            "flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white shadow-lg shadow-primary/20 transition-all active:scale-95",
+            isLoading || !selectedStrategy
+              ? "bg-text-muted/20 text-text-muted cursor-not-allowed shadow-none"
+              : "bg-primary hover:bg-primary-hover hover:shadow-primary/40"
           )}
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Play size={18} fill="currentColor" />
+          )}
+          {isLoading ? 'Running...' : 'Run Backtest'}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: General Settings */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Setup</h3>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-border">
+        {/* Left Column: General Settings (4 cols) */}
+        <div className="lg:col-span-4 p-6 space-y-6 bg-surface-hover/10">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-primary font-medium text-sm uppercase tracking-wider mb-2">
+              <span className="w-1 h-4 bg-primary rounded-full"></span>
+              Setup
+            </div>
 
-          <div className="flex flex-col space-y-1">
-            <label className="text-sm font-medium text-text">Strategy</label>
-            <select
+            <Select
+              label="Strategy"
+              options={strategyOptions}
               value={selectedStrategy || ''}
               onChange={(e) => selectStrategy(e.target.value)}
-              className="bg-surface border border-border rounded-md px-3 py-2 text-text focus:ring-1 focus:ring-primary outline-none"
-            >
-              <option value="" disabled>Select Strategy</option>
-              {strategies.map(s => (
-                <option key={s.name} value={s.name}>{s.display_name}</option>
-              ))}
-            </select>
+              placeholder="Select Strategy"
+            />
+
+            {activeStrategyDesc && (
+              <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 flex gap-3 text-xs text-text-muted">
+                <Info className="text-primary shrink-0" size={16} />
+                {activeStrategyDesc}
+              </div>
+            )}
+
+            <Select
+              label="Data File"
+              options={dataFileOptions}
+              value={config.data_file || ''}
+              onChange={(e) => handleDataFileChange(e.target.value)}
+              placeholder="Select CSV Data"
+            />
           </div>
 
-          <div className="flex flex-col space-y-1">
-            <label className="text-sm font-medium text-text">Data File</label>
-            <div className="relative">
-              <FileText size={16} className="absolute left-3 top-3 text-text-muted" />
-              <select
-                value={config.data_file || ''}
-                onChange={(e) => handleDataFileChange(e.target.value)}
-                className="w-full bg-surface border border-border rounded-md pl-10 pr-3 py-2 text-text focus:ring-1 focus:ring-primary outline-none appearance-none"
-              >
-                <option value="" disabled>Select CSV Data</option>
-                {dataFiles.map(f => (
-                  <option key={f.name} value={f.name}>{f.name} ({f.size_mb} MB)</option>
-                ))}
-              </select>
+          <div className="pt-4 border-t border-border space-y-4">
+            <div className="flex items-center gap-2 text-primary font-medium text-sm uppercase tracking-wider mb-2">
+              <span className="w-1 h-4 bg-primary rounded-full"></span>
+              Environment
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col space-y-1">
-              <label className="text-sm font-medium text-text">Start Date</label>
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-3 text-text-muted" />
-                <input
-                  type="date"
-                  value={config.start_date || ''}
-                  onChange={(e) => setConfig(p => ({ ...p, start_date: e.target.value }))}
-                  className="w-full bg-surface border border-border rounded-md pl-10 pr-3 py-2 text-text focus:ring-1 focus:ring-primary outline-none"
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Start Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={config.start_date || ''}
+                    onChange={(e) => setConfig(p => ({ ...p, start_date: e.target.value }))}
+                    className="w-full bg-surface border border-border rounded-lg pl-3 pr-3 py-2 text-sm text-text focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">End Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={config.end_date || ''}
+                    onChange={(e) => setConfig(p => ({ ...p, end_date: e.target.value }))}
+                    className="w-full bg-surface border border-border rounded-lg pl-3 pr-3 py-2 text-sm text-text focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex flex-col space-y-1">
-              <label className="text-sm font-medium text-text">End Date</label>
-              <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-3 text-text-muted" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Balance</label>
                 <input
-                  type="date"
-                  value={config.end_date || ''}
-                  onChange={(e) => setConfig(p => ({ ...p, end_date: e.target.value }))}
-                  className="w-full bg-surface border border-border rounded-md pl-10 pr-3 py-2 text-text focus:ring-1 focus:ring-primary outline-none"
+                  type="number"
+                  value={config.initial_balance}
+                  onChange={(e) => setConfig(p => ({ ...p, initial_balance: parseFloat(e.target.value) }))}
+                  className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:ring-2 focus:ring-primary outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Leverage</label>
+                <input
+                  type="number"
+                  value={config.leverage}
+                  onChange={(e) => setConfig(p => ({ ...p, leverage: parseFloat(e.target.value) }))}
+                  className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:ring-2 focus:ring-primary outline-none transition-all"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Strategy Params */}
-        <div className="lg:col-span-2 border-l border-border pl-8">
-          {strategyConfig ? (
-            <DynamicForm
-              schema={strategyConfig.schema}
-              values={params}
-              onChange={(k, v) => setParams(p => ({ ...p, [k]: v }))}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-text-muted">
-              Select a strategy to configure parameters
-            </div>
-          )}
+        {/* Right Column: Strategy Params (8 cols) */}
+        <div className="lg:col-span-8 p-6 bg-surface">
+          <div className="flex items-center justify-between mb-6">
+             <div className="flex items-center gap-2 text-primary font-medium text-sm uppercase tracking-wider">
+               <span className="w-1 h-4 bg-primary rounded-full"></span>
+               Parameters
+             </div>
+             {strategyConfig && (
+               <span className="text-xs text-text-muted bg-surface-hover px-2 py-1 rounded border border-border">
+                 {Object.keys(params).length} parameters configured
+               </span>
+             )}
+          </div>
+
+          <div className="h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {strategyConfig ? (
+              <DynamicForm
+                schema={strategyConfig.schema}
+                values={params}
+                onChange={(k, v) => setParams(p => ({ ...p, [k]: v }))}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-text-muted space-y-4 opacity-50">
+                <Settings2 size={48} strokeWidth={1} />
+                <p>Select a strategy to configure parameters</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

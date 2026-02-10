@@ -2,7 +2,6 @@ import os
 import json
 import yaml
 from app.db.repository import BacktestRepository
-from app.strategies.loader import load_strategy
 
 class ConfigAPIMixin:
     """Methods related to configuration and themes."""
@@ -11,19 +10,10 @@ class ConfigAPIMixin:
         """Get strategy config (defaults + overrides)."""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-        # 1. Load DEFAULT_CONFIG from Strategy Class
-        default_config = {}
-        try:
-            # We create a dummy config with the strategy name to use the loader
-            dummy_config = {"strategy": strategy_name}
-            strategy_class = load_strategy(dummy_config)
-            if hasattr(strategy_class, "DEFAULT_CONFIG"):
-                default_config = strategy_class.DEFAULT_CONFIG
-        except Exception as e:
-            print(f"Error loading default config for {strategy_name}: {e}")
-
-        # 2. Load Overrides from JSON
+        # This would ideally load DEFAULT_CONFIG from the strategy python file
+        # For now, we return empty or try to find a JSON override
         override_path = os.path.join(base_dir, "config", "strategy_overrides", f"{strategy_name}.json")
+
         override = {}
         if os.path.exists(override_path):
             try:
@@ -32,15 +22,13 @@ class ConfigAPIMixin:
             except Exception as e:
                 print(f"Error loading strategy override: {e}")
 
-        # 3. Merge Configs (Override > Default)
-        merged = default_config.copy()
-        merged.update(override)
-
+        # In a real scenario, we'd merge with defaults
+        # For now, just return what we have
         return {
-            "default": default_config,
+            "default": {},
             "override": override,
-            "merged": merged,
-            "schema": [] # TODO: Generate schema from dataclass if available
+            "merged": override,  # In real implementation: merge(default, override)
+            "schema": []         # TODO: Generate schema from dataclass
         }
 
     def save_strategy_config(self, strategy_name: str, config: dict) -> dict:

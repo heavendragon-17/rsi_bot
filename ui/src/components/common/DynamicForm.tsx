@@ -1,5 +1,6 @@
 import React from 'react';
 import { ParameterSchema } from '../../types/pywebview';
+import { Select } from './Select';
 
 interface DynamicFormProps {
   schema: ParameterSchema[];
@@ -22,18 +23,31 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   }, {} as Record<string, ParameterSchema[]>);
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`space-y-8 ${className}`}>
       {Object.entries(groupedSchema).map(([group, fields]) => (
         <div key={group} className="space-y-4">
-          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">
-            {group}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border/50">
+            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">
+              {group} Settings
+            </h3>
+            <span className="text-xs text-text-muted bg-surface-hover px-2 rounded-full">
+              {fields.length}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
             {fields.map((field) => (
-              <div key={field.key} className="flex flex-col space-y-1">
-                <label className="text-sm font-medium text-text">
-                  {field.label}
-                </label>
+              <div key={field.key} className="flex flex-col space-y-1.5 group relative">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-text group-hover:text-primary transition-colors">
+                    {field.label}
+                  </label>
+                  {field.type === 'number' && (
+                    <span className="text-[10px] text-text-muted font-mono bg-surface-hover px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                      {field.min} - {field.max}
+                    </span>
+                  )}
+                </div>
 
                 {field.type === 'number' && (
                   <input
@@ -43,35 +57,37 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     max={field.max}
                     step={field.step || 'any'}
                     onChange={(e) => onChange(field.key, parseFloat(e.target.value))}
-                    className="bg-surface border border-border rounded-md px-3 py-2 text-text focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                    className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all hover:border-primary/50"
                   />
                 )}
 
                 {field.type === 'select' && (
-                  <select
+                  <Select
+                    options={field.options?.map(opt => ({ value: opt, label: opt })) || []}
                     value={values[field.key] ?? ''}
                     onChange={(e) => onChange(field.key, e.target.value)}
-                    className="bg-surface border border-border rounded-md px-3 py-2 text-text focus:ring-1 focus:ring-primary focus:border-primary outline-none appearance-none"
-                  >
-                    {field.options?.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                    className="w-full"
+                  />
                 )}
 
                 {field.type === 'boolean' && (
-                  <div className="flex items-center h-10">
+                  <label className="flex items-center gap-3 cursor-pointer h-10 p-2 border border-border rounded-lg hover:border-primary/50 transition-colors bg-surface">
                     <input
                       type="checkbox"
                       checked={!!values[field.key]}
                       onChange={(e) => onChange(field.key, e.target.checked)}
-                      className="w-5 h-5 rounded border-border bg-surface text-primary focus:ring-primary"
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
                     />
-                  </div>
+                    <span className="text-sm text-text-muted select-none">
+                      {values[field.key] ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </label>
                 )}
 
                 {field.description && (
-                  <p className="text-xs text-text-muted">{field.description}</p>
+                  <p className="text-xs text-text-muted mt-1 leading-relaxed opacity-80 group-focus-within:opacity-100 group-hover:opacity-100 transition-opacity">
+                    {field.description}
+                  </p>
                 )}
               </div>
             ))}
