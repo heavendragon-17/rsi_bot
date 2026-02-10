@@ -3,10 +3,11 @@ from app.db.repository import BacktestRepository
 from app.backtest.data import load_csv_data  # Assuming this exists or will be implemented
 import pandas as pd
 import json
+import os
 from app.backtest.grid_search import run_grid_search
 from app.backtest.walk_forward import run_walk_forward
 from app.backtest.sensitivity import run_sensitivity
-from app.backtest.comparison import compare_runs
+from app.backtest.compare import compare_runs
 
 class BacktestAPIMixin:
     """Methods related to running backtests and viewing results."""
@@ -109,9 +110,9 @@ class BacktestAPIMixin:
         return run_grid_search(
             strategy_name=config["strategy_name"],
             symbol=config["symbol"],
-            data_file=config["data_file"],
+            data_file=self._resolve_data_path(config["data_file"]),
             param_grid=config["param_grid"],
-            base_config=config["base_config"]
+            base_config=config.get("base_config", {})
         )
 
     def run_walk_forward(self, config: dict) -> dict:
@@ -119,8 +120,8 @@ class BacktestAPIMixin:
         return run_walk_forward(
             strategy_name=config["strategy_name"],
             symbol=config["symbol"],
-            data_file=config["data_file"],
-            config=config["config"],
+            data_file=self._resolve_data_path(config["data_file"]),
+            config_overrides=config.get("config", {}),
             train_days=config.get("train_days", 90),
             test_days=config.get("test_days", 30),
             step_days=config.get("step_days", 30)
@@ -131,8 +132,8 @@ class BacktestAPIMixin:
         return run_sensitivity(
             strategy_name=config["strategy_name"],
             symbol=config["symbol"],
-            data_file=config["data_file"],
-            base_config=config["base_config"],
+            data_file=self._resolve_data_path(config["data_file"]),
+            base_config=config.get("base_config", {}),
             param_name=config["param_name"],
             param_range=config["param_range"],
             metric=config.get("metric", "profit")
@@ -140,7 +141,9 @@ class BacktestAPIMixin:
 
     def compare_runs(self, run_id_1: int, run_id_2: int) -> dict:
         """Compare two runs."""
-        return compare_runs(run_id_1, run_id_2)
+        run1 = self._get_run_data(run_id_1)
+        run2 = self._get_run_data(run_id_2)
+        return compare_runs(run1, run2)
 
     def export_results(self, run_id: int, format: str) -> dict:
         """Export results to file."""
@@ -171,3 +174,39 @@ class BacktestAPIMixin:
             return {"success": True, "file_path": filepath}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def _resolve_data_path(self, filename: str) -> str:
+        """Convert data file name to absolute path."""
+        import os
+        if os.path.isabs(filename):
+            return filename
+
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        return os.path.join(project_root, "app", "backtest", "data", filename)
+
+    def _get_run_data(self, run_id: int) -> dict:
+        repo = BacktestRepository()
+        run = repo.get_run(run_id)
+        results = repo.get_run_results(run_id)
+
+        if not run or not results:
+            return {}
+
+        data = {
+            "id": run["id"],
+            "strategy_name": run["strategy_name"],
+            "symbol": run["symbol"],
+            "timeframe": run["timeframe"],
+            **results
+        }
+
+        # Map keys for compare.py
+        data["profit"] = float(data.get("total_profit", 0))
+        # Metrics json might hold more details
+        metrics_json = data.get("metrics_json", {})
+        if "profit_pct" in metrics_json:
+             data["profit_pct"] = metrics_json["profit_pct"]
+        elif "net_profit_pct" in metrics_json:
+             data["profit_pct"] = metrics_json["net_profit_pct"]
+
+        return data
