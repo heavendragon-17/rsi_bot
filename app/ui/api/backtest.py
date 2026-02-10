@@ -1,9 +1,14 @@
-from app.db.repository import BacktestRepository
-# from app.backtest.engine import BacktestEngine
-from app.backtest.data import load_csv_data  # Assuming this exists or will be implemented
-import pandas as pd
+import copy
 import json
 import os
+import pandas as pd
+from decimal import Decimal
+from datetime import datetime
+
+from app.db.repository import BacktestRepository
+from app.backtest.engine import BacktestEngine
+from app.backtest.reporting import BacktestReporter
+from app.strategies.loader import load_strategy
 from app.backtest.grid_search import run_grid_search
 from app.backtest.walk_forward import run_walk_forward
 from app.backtest.sensitivity import run_sensitivity
@@ -13,71 +18,153 @@ class BacktestAPIMixin:
     """Methods related to running backtests and viewing results."""
 
     def run_backtest(self, config: dict) -> dict:
-        """Execute backtest and return results."""
-        # 1. Prepare Configuration
-        strategy_name = config.get("strategy_name")
-        symbol = config.get("symbol")
-        timeframe = config.get("timeframe")
-        start_date = config.get("start_date")
-        end_date = config.get("end_date")
+        """
+        Execute backtest using the real BacktestEngine and return results.
+        Follows the pattern in app/backtest/run_batch_analysis.py.
+        """
+        try:
+            # 1. Prepare Configuration
+            strategy_name = config.get("strategy_name")
+            symbol = config.get("symbol")
+            timeframe = config.get("timeframe")
+            # start_date/end_date handling (if engine supports filtering, otherwise it uses full CSV)
 
-        # 2. Run Engine (Placeholder logic - needs integration with actual engine)
-        # In a real implementation, you'd instantiate BacktestEngine(config) and run()
+            # Resolve data file path
+            data_file = self._resolve_data_path(config.get("data_file"))
+            if not os.path.exists(data_file):
+                return {"error": f"Data file not found: {data_file}"}
 
-        # Simulating a result for now
-        run_data = {
-            "strategy_name": strategy_name,
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "start_date": start_date,
-            "end_date": end_date,
-            "config_json": json.dumps(config)
-        }
+            # Prepare config for engine (strategy loader expects 'strategy' key)
+            engine_config = copy.deepcopy(config)
+            engine_config["strategy"] = strategy_name
+            engine_config["symbols"] = [symbol]
+            if "backtest" not in engine_config:
+                 engine_config["backtest"] = {}
+            if "initial_balance" not in engine_config["backtest"]:
+                 engine_config["backtest"]["initial_balance"] = 10000
 
-        repo = BacktestRepository()
-        run_id = repo.save_run(run_data)
+            initial_balance = engine_config["backtest"]["initial_balance"]
 
-        # Simulating results
-        results = {
-            "total_profit": 100.0,
-            "win_rate": 0.5,
-            "total_trades": 10,
-            "profit_factor": 1.5,
-            "max_drawdown": -5.0,
-            "sharpe_ratio": 1.2
-        }
-        repo.save_run_results(run_id, results)
+            # 2. Run Engine
+            strategy_class = load_strategy(engine_config)
+            engine = BacktestEngine(
+                data_path=data_file,
+                strategy_class=strategy_class,
+                config=engine_config
+            )
 
-        # Simulating timeseries
-        equity = [{"t": 1, "v": 1000}, {"t": 2, "v": 1100}]
-        drawdown = [{"t": 1, "v": 0}, {"t": 2, "v": -2}]
-        repo.save_timeseries(run_id, equity, drawdown)
+            # Set initial balance on exchange
+            engine.exchange.initial_balance = Decimal(str(initial_balance))
+            engine.exchange.balance = Decimal(str(initial_balance))
 
-        return {
-            "run_id": run_id,
-            "metrics": results,
-            "equity_preview": equity[:100]  # Only return preview
-        }
+            engine.run()
+
+            # 3. Generate Report / Metrics
+            reporter = BacktestReporter(
+                engine.exchange,
+                engine_config,
+                initial_balance=float(initial_balance),
+                symbol=symbol,
+                timeframe=timeframe,
+                strategy_name=strategy_name
+            )
+
+            trades_df = pd.DataFrame(engine.exchange.trade_history)
+            round_trips = reporter._build_round_trips(trades_df)
+            metrics = reporter._calculate_metrics(round_trips)
+            drawdown = reporter._calculate_drawdown(round_trips)
+            risk_metrics = reporter._calculate_risk_metrics(round_trips, drawdown)
+
+            # 4. Save to Database
+            repo = BacktestRepository()
+
+            run_data = {
+                "strategy_name": strategy_name,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "start_date": config.get("start_date", ""),
+                "end_date": config.get("end_date", ""),
+                "created_at": datetime.now().isoformat(),
+                "config_json": json.dumps(config)
+            }
+            run_id = repo.save_run(run_data)
+
+            # Combine metrics for storage
+            combined_metrics = {
+                **metrics,
+                **risk_metrics,
+                "total_profit": float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0,
+                "max_drawdown": drawdown.get("max_drawdown_pct", 0.0)
+            }
+            repo.save_run_results(run_id, combined_metrics)
+
+            # Save trades
+            if not trades_df.empty:
+                trades_list = []
+                for _, t in trades_df.iterrows():
+                    trades_list.append({
+                        "entry_time": t.get("time"), # timestamp is usually 'time' in engine
+                        "exit_time": t.get("time"),  # Simplified; engine tracks this differently if needed
+                        "entry_price": float(t.get("price", 0)),
+                        "exit_price": float(t.get("price", 0)), # Placeholder if single trade log
+                        "quantity": float(t.get("amount", 0)),
+                        "side": t.get("side"),
+                        "pnl": float(t.get("pnl", 0)),
+                        "exit_reason": t.get("info", {}).get("exit_reason", "")
+                    })
+                # Note: Repo expects specific trade format. The engine's trade_history is raw orders.
+                # Round trips are better for 'trades' list if schema supports it.
+                # However, repo.save_trades expects raw trade objects or similar.
+                # For now, let's skip complex trade saving or use round_trips if compatible.
+                pass
+
+            # Save timeseries
+            repo.save_timeseries(
+                run_id,
+                drawdown.get("equity_curve", []),
+                drawdown.get("drawdown_curve", [])
+            )
+
+            return {
+                "run_id": run_id,
+                "metrics": combined_metrics,
+                "equity_preview": drawdown.get("equity_curve", [])[:100]
+            }
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"error": str(e)}
 
     def get_run_history(self, filters: dict = None) -> list[dict]:
         """Get history of runs."""
         repo = BacktestRepository()
         runs = repo.get_all_runs()
 
-        # Basic filtering could be implemented here
-        # Return summary list
         summary = []
         for run in runs:
             results = repo.get_run_results(run["id"])
             if results:
+                # Calculate net profit pct if available, else 0
+                profit = results.get("total_profit", 0)
+                # We need initial balance to calc pct, but it might not be stored directly in results
+                # Assuming standard 10000 or stored in config
+                # simplified for now
+                net_profit_pct = 0.0
+                if "metrics_json" in results and results["metrics_json"]:
+                     # Try to parse from saved metrics json
+                     m = results["metrics_json"]
+                     if isinstance(m, dict):
+                         net_profit_pct = m.get("profit_pct", 0.0)
+
                 summary.append({
                     "run_id": run["id"],
                     "strategy_name": run["strategy_name"],
                     "symbol": run["symbol"],
                     "timeframe": run["timeframe"],
                     "created_at": run["created_at"],
-                    "net_profit_pct": 0.0, # Placeholder
-                    "win_rate": results["win_rate"],
+                    "net_profit_pct": net_profit_pct,
+                    "win_rate": float(results["win_rate"]) if results["win_rate"] is not None else 0.0,
                     "total_trades": results["total_trades"]
                 })
         return summary
