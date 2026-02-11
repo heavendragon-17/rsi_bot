@@ -65,7 +65,7 @@ export const WalkForward: React.FC = () => {
   const hasResults = windows.length > 0;
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto custom-scrollbar">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -74,9 +74,12 @@ export const WalkForward: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-accent-main" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-text-primary">Walk-Forward Optimization</h1>
+              <h1 className="text-xl font-bold text-text-primary">
+                Walk-Forward Optimization
+              </h1>
               <p className="text-sm text-text-secondary">
-                Validate strategy robustness with rolling in-sample/out-of-sample windows
+                Validate strategy robustness with rolling
+                in-sample/out-of-sample windows
               </p>
             </div>
           </div>
@@ -113,7 +116,7 @@ export const WalkForward: React.FC = () => {
             <WindowConfig />
             <div className="space-y-4">
               <ParamOptimizeConfig />
-              
+
               <Separator />
 
               {/* Run Button */}
@@ -181,18 +184,27 @@ export const WalkForward: React.FC = () => {
                   Ready to Test Robustness
                 </h3>
                 <p className="text-sm text-text-secondary mb-4">
-                  Configure your walk-forward windows and parameter range above, then click 
-                  "Run Walk-Forward" to validate that your strategy isn't overfit to historical data.
+                  Configure your walk-forward windows and parameter range above,
+                  then click "Run Walk-Forward" to validate that your strategy
+                  isn't overfit to historical data.
                 </p>
                 <div className="inline-block p-4 bg-bg-surface rounded-lg border border-border-main text-left">
                   <div className="text-xs font-semibold text-text-primary mb-2">
                     💡 What is Walk-Forward?
                   </div>
                   <ul className="text-xs text-text-secondary space-y-1">
-                    <li>• Optimize on <strong>In-Sample</strong> data (training)</li>
-                    <li>• Validate on <strong>Out-of-Sample</strong> data (testing)</li>
+                    <li>
+                      • Optimize on <strong>In-Sample</strong> data (training)
+                    </li>
+                    <li>
+                      • Validate on <strong>Out-of-Sample</strong> data
+                      (testing)
+                    </li>
                     <li>• Roll forward and repeat</li>
-                    <li>• A robust strategy performs well on <strong>unseen</strong> data</li>
+                    <li>
+                      • A robust strategy performs well on{" "}
+                      <strong>unseen</strong> data
+                    </li>
                   </ul>
                 </div>
               </div>

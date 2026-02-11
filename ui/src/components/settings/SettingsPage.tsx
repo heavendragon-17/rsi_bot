@@ -8,7 +8,7 @@ export const SettingsPage: React.FC = () => {
   const { setMode } = useBacktestStore();
 
   return (
-    <div className="flex flex-col bg-bg-surface animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col bg-bg-surface animate-in fade-in slide-in-from-bottom-4 duration-500 h-full overflow-y-auto custom-scrollbar">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-bg-surface/80 backdrop-blur-xl border-b border-border-main/50 px-4 sm:px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -18,7 +18,9 @@ export const SettingsPage: React.FC = () => {
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold text-text-primary tracking-tight">Settings</h1>
+          <h1 className="text-xl font-bold text-text-primary tracking-tight">
+            Settings
+          </h1>
         </div>
       </div>
 
@@ -28,20 +30,22 @@ export const SettingsPage: React.FC = () => {
           <section>
             <div className="flex items-center gap-3 mb-8">
               <div className="w-1 h-6 bg-accent-main rounded-full" />
-              <h2 className="text-xl font-bold text-text-primary tracking-tight">Appearance</h2>
+              <h2 className="text-xl font-bold text-text-primary tracking-tight">
+                Appearance
+              </h2>
             </div>
-            
+
             <div className="bg-bg-elevated/30 rounded-[2rem] border border-border-main/50 p-8 sm:p-12 shadow-sm">
-                <ThemeSettings />
+              <ThemeSettings />
             </div>
           </section>
 
           {/* You can add more sections here like Account, API Keys, etc. */}
-          
+
           <section className="pt-8 border-t border-border-main/50 opacity-60">
-             <p className="text-xs text-text-muted text-center italic">
-                RSI Bot v1.2.4 • Strategy Command Terminal
-             </p>
+            <p className="text-xs text-text-muted text-center italic">
+              RSI Bot v1.2.4 • Strategy Command Terminal
+            </p>
           </section>
         </div>
       </div>

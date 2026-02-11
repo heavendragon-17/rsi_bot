@@ -1,20 +1,20 @@
-import React, { useEffect } from 'react';
-import { Layout } from './components/layout/Layout';
-import { EmptyState } from './components/dashboard/EmptyState';
-import { DataPrepModal } from './components/data-modal/DataPrepModal';
-import { ResultsDashboard } from './components/results/ResultsDashboard';
-import { BatchResultsDashboard } from './components/results/batch/BatchResultsDashboard';
-import { PineTranslator } from './components/pine/PineTranslator';
-import { RunHistory } from './components/history/RunHistory';
-import { GridSearch } from './components/GridSearch';
-import { WalkForward } from './components/WalkForward';
-import { SensitivityAnalysis } from './components/Sensitivity';
-import { useResultsStore } from './stores/resultsStore';
-import { useBatchResultsStore } from './stores/batchResultsStore';
-import { useBacktestStore } from './stores/backtestStore';
-import { useThemeStore } from './stores/themeStore';
-import { DevTools } from './components/dev/DevTools';
-import { SettingsPage } from './components/settings/SettingsPage';
+import React, { useEffect } from "react";
+import { Layout } from "./components/layout/Layout";
+import { EmptyState } from "./components/dashboard/EmptyState";
+import { DataPrepModal } from "./components/data-modal/DataPrepModal";
+import { ResultsDashboard } from "./components/results/ResultsDashboard";
+import { BatchResultsDashboard } from "./components/results/batch/BatchResultsDashboard";
+import { PineTranslator } from "./components/pine/PineTranslator";
+import { RunHistory } from "./components/history/RunHistory";
+import { GridSearch } from "./components/GridSearch";
+import { WalkForward } from "./components/WalkForward";
+import { SensitivityAnalysis } from "./components/Sensitivity";
+import { useResultsStore } from "./stores/resultsStore";
+import { useBatchResultsStore } from "./stores/batchResultsStore";
+import { useBacktestStore } from "./stores/backtestStore";
+import { useThemeStore } from "./stores/themeStore";
+
+import { SettingsPage } from "./components/settings/SettingsPage";
 
 // Main App Component
 function App() {
@@ -48,11 +48,17 @@ function App() {
       {showWalkForward && <WalkForward />}
       {showSensitivity && <SensitivityAnalysis />}
       {showSettings && <SettingsPage />}
-      
-      {!showSingle && !showBatch && !showPine && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && !showSettings && <EmptyState />}
-      
+
+      {!showSingle &&
+        !showBatch &&
+        !showPine &&
+        !showHistory &&
+        !showGridSearch &&
+        !showWalkForward &&
+        !showSensitivity &&
+        !showSettings && <EmptyState />}
+
       <DataPrepModal />
-      <DevTools />
     </Layout>
   );
 }

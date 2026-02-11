@@ -5,7 +5,8 @@ import { RotateCcw } from "lucide-react";
 import { useThemeStore } from "../../stores/themeStore";
 
 export const ThemeSettings: React.FC = () => {
-  const { themes, setTheme, performanceMode, togglePerformanceMode } = useThemeStore();
+  const { themes, setTheme, performanceMode, togglePerformanceMode } =
+    useThemeStore();
 
   const handleResetSettings = () => {
     // Reset to default theme (Cyberpunk Neon)
@@ -13,7 +14,7 @@ export const ThemeSettings: React.FC = () => {
     if (defaultTheme) {
       setTheme(defaultTheme);
     }
-    
+
     // Reset performance mode to off if it's on
     if (performanceMode) {
       togglePerformanceMode();
@@ -28,12 +29,12 @@ export const ThemeSettings: React.FC = () => {
       </div>
 
       {/* Performance Section */}
-      <div>
+      <div className="pt-8">
         <PerformanceModeToggle />
       </div>
 
       {/* Danger Zone */}
-      <div className="border-t border-border-main pt-6">
+      <div className="pt-6">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-danger">
           Danger Zone
         </h3>

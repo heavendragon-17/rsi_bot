@@ -1,6 +1,7 @@
 import React from "react";
 import { useThemeStore } from "../../stores/themeStore";
 import { cn } from "../../lib/utils";
+import { PremiumToggle } from "../ui/PremiumToggle";
 
 export const PerformanceModeToggle: React.FC = () => {
   const { performanceMode, togglePerformanceMode } = useThemeStore();
@@ -18,24 +19,15 @@ export const PerformanceModeToggle: React.FC = () => {
             Reduce animations for large datasets
           </p>
           <p className="mt-2 text-sm text-text-secondary leading-relaxed">
-            Disables chart animations and simplifies transitions to improve performance on low-end devices or during heavy computation.
+            Disables chart animations and simplifies transitions to improve
+            performance on low-end devices or during heavy computation.
           </p>
         </div>
 
-        <button
-          onClick={togglePerformanceMode}
-          className={cn(
-            "relative shrink-0 h-7 w-12 rounded-full transition-all duration-300",
-            performanceMode ? "bg-accent-main ring-4 ring-accent-main/20" : "bg-bg-secondary border border-border-main"
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-1 h-5 w-5 rounded-full shadow-lg transition-all duration-300",
-              performanceMode ? "left-[22px] bg-white" : "left-1 bg-text-muted"
-            )}
-          />
-        </button>
+        <PremiumToggle
+          checked={performanceMode}
+          onCheckedChange={togglePerformanceMode}
+        />
       </div>
 
       {/* Feature List (when enabled) */}
@@ -48,9 +40,12 @@ export const PerformanceModeToggle: React.FC = () => {
             {[
               "Chart animations disabled",
               "Hover effects simplified",
-              "Backdrop blur reduced"
+              "Backdrop blur reduced",
             ].map((text) => (
-              <li key={text} className="flex items-center gap-3 text-sm text-text-secondary">
+              <li
+                key={text}
+                className="flex items-center gap-3 text-sm text-text-secondary"
+              >
                 <div className="h-2 w-2 rounded-full bg-accent-main shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" />
                 {text}
               </li>
