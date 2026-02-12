@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-// Trigger IDE re-analysis after type updates
 
 export interface BacktestConfig {
   id: string;
@@ -13,7 +12,43 @@ export interface BacktestConfig {
   params: any;
   startDate: Date | null;
   endDate: Date | null;
+  batchSymbols: string[];
 }
+
+const getDefaultDates = () => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 30);
+  return { start, end };
+};
+
+export const DEFAULT_CONFIG = {
+  mode: "single" as const,
+  symbol: "BTC/USDT",
+  batchSymbols: [
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT", "XRP/USDT",
+    "DOGE/USDT", "DOT/USDT", "MATIC/USDT", "LTC/USDT", "UNI/USDT", "LINK/USDT"
+  ],
+  strategy: "rsi_no_retest",
+  timeframe: "1h",
+  params: {
+    rsi_period: 14,
+    ema_fast: 9,
+    ema_slow: 21,
+    tp1_rr: 1.5,
+    tp2_rr: 3.0,
+    sl_buffer_pct: 1.0,
+    overbought: 70,
+    oversold: 30,
+  },
+  capital: "10000",
+  leverage: "1",
+  riskPercent: "1",
+  lookbackValue: 30,
+  lookbackUnit: "days" as const,
+  dateMode: "relative" as const,
+  timezone: "UTC",
+};
 
 export interface BacktestState {
   // Navigation State
@@ -28,15 +63,18 @@ export interface BacktestState {
   // Configuration State
   mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "settings";
   symbol: string;
+  batchSymbols: string[];
   strategy: string;
   timeframe: string;
   startDate: Date | null;
   endDate: Date | null;
   lookbackValue: number;
   lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months";
-  datePreset: string | null;  // For PresetPills
+  datePreset: string | null;
+  dateMode: "relative" | "absolute";
+  timezone: string;
 
-  // Strategy Parameters (Generic map for now)
+  // Strategy Parameters
   params: {
     rsi_period: number;
     ema_fast: number;
@@ -50,7 +88,7 @@ export interface BacktestState {
   };
 
   // Risk Management
-  capital: string; // string to handle input field easier
+  capital: string;
   leverage: string;
   riskPercent: string;
 
@@ -58,8 +96,9 @@ export interface BacktestState {
   isRunning: boolean;
 
   // Actions
-  setMode: (mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "settings") => void;
+  setMode: (mode: BacktestState["mode"]) => void;
   setSymbol: (symbol: string) => void;
+  setBatchSymbols: (symbols: string[]) => void;
   setStrategy: (strategy: string) => void;
   setTimeframe: (tf: string) => void;
   setParam: (key: string, value: number) => void;
@@ -68,11 +107,14 @@ export interface BacktestState {
   setRiskPercent: (val: string) => void;
   setDateRange: (start: Date | null, end: Date | null) => void;
   setLookbackValue: (val: number) => void;
-  setLookbackUnit: (unit: "bars" | "hours" | "days" | "weeks" | "months") => void;
+  setLookbackUnit: (unit: BacktestState["lookbackUnit"]) => void;
   setDatePreset: (preset: string | null) => void;
+  setDateMode: (mode: BacktestState["dateMode"]) => void;
+  setTimezone: (tz: string) => void;
 
   runBacktest: () => Promise<void>;
   resetParams: () => void;
+  resetToDefaults: () => void;
   getEstimatedBars: () => number;
   getDaysDuration: () => number;
 }
@@ -84,34 +126,10 @@ export const useBacktestStore = create<BacktestState>()(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
 
-      recentConfigs: [
-        {
-          id: "1",
-          symbol: "BTC/USDT",
-          strategy: "rsi_no_retest",
-          timeframe: "4h",
-          capital: "10000",
-          leverage: "1",
-          riskPercent: "1",
-          params: { rsi_period: 14, ema_fast: 9, ema_slow: 21 },
-          startDate: new Date("2024-01-01"),
-          endDate: new Date("2024-03-01")
-        },
-        {
-          id: "2",
-          symbol: "ETH/USDT",
-          strategy: "ema_crossover",
-          timeframe: "1h",
-          capital: "5000",
-          leverage: "2",
-          riskPercent: "2",
-          params: { ema_fast: 12, ema_slow: 26 },
-          startDate: new Date("2024-02-01"),
-          endDate: new Date("2024-03-01")
-        }
-      ],
+      recentConfigs: [],
       loadConfig: (config) => set({
         symbol: config.symbol,
+        batchSymbols: config.batchSymbols || DEFAULT_CONFIG.batchSymbols,
         strategy: config.strategy,
         timeframe: config.timeframe,
         capital: config.capital,
@@ -122,35 +140,29 @@ export const useBacktestStore = create<BacktestState>()(
         endDate: config.endDate
       }),
 
-      mode: "single",
-      symbol: "BTC/USDT",
-      strategy: "rsi_no_retest",
-      timeframe: "1h",
-      startDate: new Date("2024-01-01"),
-      endDate: new Date("2024-12-31"),
-      lookbackValue: 30,
-      lookbackUnit: "days",
+      mode: DEFAULT_CONFIG.mode,
+      symbol: DEFAULT_CONFIG.symbol,
+      batchSymbols: DEFAULT_CONFIG.batchSymbols,
+      strategy: DEFAULT_CONFIG.strategy,
+      timeframe: DEFAULT_CONFIG.timeframe,
+      startDate: getDefaultDates().start,
+      endDate: getDefaultDates().end,
+      lookbackValue: DEFAULT_CONFIG.lookbackValue,
+      lookbackUnit: DEFAULT_CONFIG.lookbackUnit,
       datePreset: null,
+      dateMode: DEFAULT_CONFIG.dateMode,
+      timezone: DEFAULT_CONFIG.timezone,
 
-      params: {
-        rsi_period: 14,
-        ema_fast: 9,
-        ema_slow: 21,
-        tp1_rr: 1.5,
-        tp2_rr: 3.0,
-        sl_buffer_pct: 1.0,
-        overbought: 70,
-        oversold: 30,
-      },
-
-      capital: "10000",
-      leverage: "1",
-      riskPercent: "1",
+      params: { ...DEFAULT_CONFIG.params },
+      capital: DEFAULT_CONFIG.capital,
+      leverage: DEFAULT_CONFIG.leverage,
+      riskPercent: DEFAULT_CONFIG.riskPercent,
 
       isRunning: false,
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
+      setBatchSymbols: (symbols) => set({ batchSymbols: symbols }),
       setStrategy: (strategy) => set({ strategy }),
       setTimeframe: (timeframe) => set({ timeframe }),
       setParam: (key, value) =>
@@ -163,34 +175,47 @@ export const useBacktestStore = create<BacktestState>()(
       setLookbackValue: (lookbackValue) => set({ lookbackValue }),
       setLookbackUnit: (unit) => set({ lookbackUnit: unit }),
       setDatePreset: (preset) => set({ datePreset: preset }),
+      setDateMode: (mode) => set({ dateMode: mode }),
+      setTimezone: (tz) => set({ timezone: tz }),
 
       runBacktest: async () => {
         set({ isRunning: true });
-        // Simulate API delay
         await new Promise((resolve) => setTimeout(resolve, 800));
         set({ isRunning: false });
       },
 
       resetParams: () => set({
-        params: {
-          rsi_period: 14,
-          ema_fast: 9,
-          ema_slow: 21,
-          tp1_rr: 1.5,
-          tp2_rr: 3.0,
-          sl_buffer_pct: 1.0,
-          overbought: 70,
-          oversold: 30,
-        },
-        capital: "10000",
-        leverage: "1",
-        riskPercent: "1"
+        params: { ...DEFAULT_CONFIG.params },
+        capital: DEFAULT_CONFIG.capital,
+        leverage: DEFAULT_CONFIG.leverage,
+        riskPercent: DEFAULT_CONFIG.riskPercent
       }),
+
+      resetToDefaults: () => {
+        const { start, end } = getDefaultDates();
+        set({
+          mode: DEFAULT_CONFIG.mode,
+          symbol: DEFAULT_CONFIG.symbol,
+          batchSymbols: DEFAULT_CONFIG.batchSymbols,
+          strategy: DEFAULT_CONFIG.strategy,
+          timeframe: DEFAULT_CONFIG.timeframe,
+          params: { ...DEFAULT_CONFIG.params },
+          capital: DEFAULT_CONFIG.capital,
+          leverage: DEFAULT_CONFIG.leverage,
+          riskPercent: DEFAULT_CONFIG.riskPercent,
+          startDate: start,
+          endDate: end,
+          lookbackValue: DEFAULT_CONFIG.lookbackValue,
+          lookbackUnit: DEFAULT_CONFIG.lookbackUnit,
+          dateMode: DEFAULT_CONFIG.dateMode,
+          datePreset: null,
+          timezone: DEFAULT_CONFIG.timezone,
+        });
+      },
 
       getDaysDuration: () => {
         const { startDate, endDate } = get();
         if (!startDate || !endDate) return 0;
-        // Handle potential string hydration from JSON
         const start = new Date(startDate);
         const end = new Date(endDate);
         const diff = end.getTime() - start.getTime();
@@ -216,6 +241,7 @@ export const useBacktestStore = create<BacktestState>()(
       partialize: (state) => ({
         mode: state.mode,
         symbol: state.symbol,
+        batchSymbols: state.batchSymbols,
         strategy: state.strategy,
         timeframe: state.timeframe,
         params: state.params,
@@ -224,6 +250,8 @@ export const useBacktestStore = create<BacktestState>()(
         riskPercent: state.riskPercent,
         startDate: state.startDate,
         endDate: state.endDate,
+        dateMode: state.dateMode,
+        timezone: state.timezone,
         recentConfigs: state.recentConfigs
       }),
     }

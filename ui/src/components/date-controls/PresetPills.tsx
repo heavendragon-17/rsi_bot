@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { cn } from "../../lib/utils";
 
+import { motion } from "motion/react";
+
 const PRESETS = ["1D", "1W", "1M", "3M", "YTD", "1Y", "All"];
 
 export const PresetPills: React.FC = () => {
@@ -10,7 +12,14 @@ export const PresetPills: React.FC = () => {
   // Keyboard shortcut 'P' to cycle presets
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target instanceof HTMLElement && e.target.tagName !== 'INPUT') {
+      if (
+        e.key.toLowerCase() === "p" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.target instanceof HTMLElement &&
+        e.target.tagName !== "INPUT"
+      ) {
         e.preventDefault();
         const currentIndex = datePreset ? PRESETS.indexOf(datePreset) : -1;
         const nextIndex = (currentIndex + 1) % PRESETS.length;
@@ -24,18 +33,20 @@ export const PresetPills: React.FC = () => {
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {PRESETS.map((p) => (
-        <button
+        <motion.button
           key={p}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => setDatePreset(p)}
           className={cn(
-            "px-2 py-1 rounded text-[10px] font-medium border transition-all",
+            "px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all duration-300",
             datePreset === p
-              ? "bg-accent-main border-accent-main text-white shadow-sm shadow-accent-main/20"
-              : "bg-transparent border-border-main text-text-secondary hover:border-text-muted hover:text-text-primary"
+              ? "bg-accent-main/20 border-accent-main text-accent-main shadow-[0_0_15px_rgba(var(--color-accent-main-rgb),0.1)]"
+              : "bg-white/5 backdrop-blur-md border-white/10 text-text-secondary hover:border-white/30 hover:text-text-primary hover:bg-white/10"
           )}
         >
           {p}
-        </button>
+        </motion.button>
       ))}
     </div>
   );

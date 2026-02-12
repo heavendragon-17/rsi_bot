@@ -14,7 +14,7 @@ import {
 import { cn } from "../../lib/utils";
 import { useThemeStore } from "../../stores/themeStore";
 import { useBacktestStore } from "../../stores/backtestStore";
-import { SettingsDialog } from "../settings/SettingsDialog";
+
 import { DevTools } from "../dev/DevTools";
 
 export const Navbar: React.FC = () => {
