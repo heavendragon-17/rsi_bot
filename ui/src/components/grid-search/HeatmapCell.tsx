@@ -1,6 +1,6 @@
 import React from "react";
 import { Star } from "lucide-react";
-import { GridSearchResult, useGridSearchStore } from "../../stores/gridSearchStore";
+import { GridSearchResult, useGridSearchStore, AVAILABLE_PARAMETERS } from "../../stores/gridSearchStore";
 import {
   Tooltip,
   TooltipContent,
@@ -84,8 +84,7 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
   };
 
   const getParamLabel = (paramValue: string) => {
-    const AVAILABLE_PARAMETERS = require("../../stores/gridSearchStore").AVAILABLE_PARAMETERS;
-    const param = AVAILABLE_PARAMETERS.find((p: any) => p.value === paramValue);
+    const param = AVAILABLE_PARAMETERS.find((p) => p.value === paramValue);
     return param?.label || paramValue;
   };
 

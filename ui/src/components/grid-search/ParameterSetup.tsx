@@ -45,7 +45,10 @@ export const ParameterSetup: React.FC = () => {
   };
 
   const handleRun = () => {
+    console.log("[ParameterSetup] Run button clicked!");
+    console.log("[ParameterSetup] Calling runGridSearch...");
     runGridSearch();
+    console.log("[ParameterSetup] runGridSearch called (async, will execute in background)");
   };
 
   const isHighCombinationCount = totalCombinations > 100;
@@ -61,18 +64,21 @@ export const ParameterSetup: React.FC = () => {
       <div className="space-y-3">
         <Label className="text-sm font-medium text-text-primary">X-Axis Parameter</Label>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Select value={xAxisParam} onValueChange={handleXParamChange} disabled={isRunning}>
-            <SelectTrigger className="bg-bg-secondary border-border-main">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AVAILABLE_PARAMETERS.map((param) => (
-                <SelectItem key={param.value} value={param.value}>
-                  {param.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-text-secondary">Parameter</Label>
+            <Select value={xAxisParam} onValueChange={handleXParamChange} disabled={isRunning}>
+              <SelectTrigger className="bg-bg-secondary border-border-main">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_PARAMETERS.map((param) => (
+                  <SelectItem key={param.value} value={param.value}>
+                    {param.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-text-secondary">Min</Label>
@@ -114,18 +120,21 @@ export const ParameterSetup: React.FC = () => {
       <div className="space-y-3">
         <Label className="text-sm font-medium text-text-primary">Y-Axis Parameter</Label>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Select value={yAxisParam} onValueChange={handleYParamChange} disabled={isRunning}>
-            <SelectTrigger className="bg-bg-secondary border-border-main">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AVAILABLE_PARAMETERS.map((param) => (
-                <SelectItem key={param.value} value={param.value}>
-                  {param.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-text-secondary">Parameter</Label>
+            <Select value={yAxisParam} onValueChange={handleYParamChange} disabled={isRunning}>
+              <SelectTrigger className="bg-bg-secondary border-border-main">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_PARAMETERS.map((param) => (
+                  <SelectItem key={param.value} value={param.value}>
+                    {param.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-text-secondary">Min</Label>

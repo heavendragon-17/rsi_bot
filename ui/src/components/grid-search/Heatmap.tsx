@@ -1,5 +1,5 @@
 import React from "react";
-import { useGridSearchStore } from "../../stores/gridSearchStore";
+import { useGridSearchStore, AVAILABLE_PARAMETERS } from "../../stores/gridSearchStore";
 import { HeatmapCell } from "./HeatmapCell";
 import { HeatmapColorScale } from "./HeatmapColorScale";
 
@@ -67,8 +67,8 @@ export const Heatmap: React.FC = () => {
   });
 
   const getParamLabel = (paramValue: string) => {
-    const param = require("../../stores/gridSearchStore").AVAILABLE_PARAMETERS.find(
-      (p: any) => p.value === paramValue
+    const param = AVAILABLE_PARAMETERS.find(
+      (p) => p.value === paramValue
     );
     return param?.label || paramValue;
   };

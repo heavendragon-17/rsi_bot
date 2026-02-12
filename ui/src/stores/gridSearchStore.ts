@@ -67,7 +67,7 @@ export interface GridSearchState {
   setSymbol: (symbol: string) => void;
   setViewMode: (mode: "2d" | "3d") => void;
   setHoveredCell: (cell: { x: number; y: number } | null) => void;
-  
+
   calculateCombinations: () => void;
   runGridSearch: () => Promise<void>;
   cancelSearch: () => void;
@@ -106,17 +106,23 @@ const generateMockResult = (xValue: number, yValue: number, metric: GridMetric):
   const baseProfit = (random(0.5, 1.5) + sweetSpotMultiplier) * 1000;
   const netPnL = baseProfit - 500; // Can be negative
   const netPnLPct = (netPnL / 10000) * 100;
+  const sharpe = Math.round((random(0.5, 2.5) + sweetSpotMultiplier * 0.5) * 100) / 100;
+  const maxDrawdownPct = Math.round((random(2, 15) - sweetSpotMultiplier * 3) * 100) / 100;
 
   return {
     xValue,
     yValue,
     netPnL: Math.round(netPnL * 100) / 100,
     netPnLPct: Math.round(netPnLPct * 100) / 100,
-    sharpe: Math.round((random(0.5, 2.5) + sweetSpotMultiplier * 0.5) * 100) / 100,
+    sharpe,
     profitFactor: Math.round((random(0.8, 2.2) + sweetSpotMultiplier * 0.3) * 100) / 100,
     winRate: Math.round((random(40, 75) + sweetSpotMultiplier * 10) * 100) / 100,
-    maxDrawdownPct: Math.round((random(2, 15) - sweetSpotMultiplier * 3) * 100) / 100,
+    maxDrawdownPct,
     tradeCount: Math.floor(random(10, 50)),
+    // Calmar Ratio = Annual Return / Max Drawdown (using netPnLPct as proxy for return)
+    calmar: maxDrawdownPct > 0 ? Math.round((Math.abs(netPnLPct) / maxDrawdownPct) * 100) / 100 : 0,
+    // Sortino Ratio = similar to Sharpe but uses downside deviation (using sharpe * 1.2 as approximation)
+    sortino: Math.round(sharpe * 1.2 * 100) / 100,
   };
 };
 
@@ -193,7 +199,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
   calculateCombinations: () => {
     const { xAxisMin, xAxisMax, xAxisStep, yAxisMin, yAxisMax, yAxisStep } = get();
-    
+
     const xSteps = Math.floor((xAxisMax - xAxisMin) / xAxisStep) + 1;
     const ySteps = Math.floor((yAxisMax - yAxisMin) / yAxisStep) + 1;
     const total = xSteps * ySteps;
@@ -208,11 +214,18 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
   },
 
   runGridSearch: async () => {
-    const { 
-      xAxisMin, xAxisMax, xAxisStep, 
+    console.log("[GridSearch] Starting grid search...");
+    const {
+      xAxisMin, xAxisMax, xAxisStep,
       yAxisMin, yAxisMax, yAxisStep,
       metric
     } = get();
+
+    console.log("[GridSearch] Configuration:", {
+      xAxisMin, xAxisMax, xAxisStep,
+      yAxisMin, yAxisMax, yAxisStep,
+      metric
+    });
 
     set({ isRunning: true, progress: 0, elapsedSeconds: 0, results: null, bestResult: null });
 
@@ -228,6 +241,10 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
     }
 
     const totalCombinations = xValues.length * yValues.length;
+    console.log("[GridSearch] Total combinations:", totalCombinations);
+    console.log("[GridSearch] X values:", xValues);
+    console.log("[GridSearch] Y values:", yValues);
+
     const results: GridSearchResult[][] = [];
     let bestResult: BestResult | null = null;
     let completed = 0;
@@ -240,13 +257,15 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
     }, 1000);
 
     try {
+      console.log("[GridSearch] Starting combination loop...");
       // Simulate running each combination
       for (let yIdx = 0; yIdx < yValues.length; yIdx++) {
         const row: GridSearchResult[] = [];
-        
+
         for (let xIdx = 0; xIdx < xValues.length; xIdx++) {
           // Check if cancelled
           if (!get().isRunning) {
+            console.log("[GridSearch] Search cancelled by user");
             clearInterval(timerInterval);
             return;
           }
@@ -254,16 +273,20 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
           const xValue = xValues[xIdx];
           const yValue = yValues[yIdx];
 
+          console.log(`[GridSearch] Processing combination [${xIdx}, ${yIdx}]: x=${xValue}, y=${yValue}`);
           set({ currentCombination: { x: xIdx, y: yIdx } });
 
           // Simulate API call
           await new Promise(resolve => setTimeout(resolve, 100));
 
+          console.log(`[GridSearch] Generating mock result for x=${xValue}, y=${yValue}, metric=${metric}`);
           const result = generateMockResult(xValue, yValue, metric);
+          console.log(`[GridSearch] Result generated:`, result);
           row.push(result);
 
           // Track best result based on metric
           let metricValue: number;
+          console.log(`[GridSearch] Calculating metric value for metric: ${metric}`);
           switch (metric) {
             case "net_pnl":
               metricValue = result.netPnL;
@@ -280,11 +303,21 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
             case "max_dd":
               metricValue = -result.maxDrawdownPct; // Lower is better
               break;
+            case "calmar":
+              metricValue = result.calmar || 0;
+              console.log(`[GridSearch] Calmar value: ${result.calmar}`);
+              break;
+            case "sortino":
+              metricValue = result.sortino || 0;
+              console.log(`[GridSearch] Sortino value: ${result.sortino}`);
+              break;
             default:
               metricValue = result.netPnL;
           }
+          console.log(`[GridSearch] Metric value calculated: ${metricValue}`);
 
           if (!bestResult || metricValue > bestResult.metricValue) {
+            console.log(`[GridSearch] New best result found! Metric value: ${metricValue}`);
             bestResult = {
               x: xIdx,
               y: yIdx,
@@ -296,17 +329,26 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
           }
 
           completed++;
-          set({ progress: Math.round((completed / totalCombinations) * 100) });
+          const progressPct = Math.round((completed / totalCombinations) * 100);
+          console.log(`[GridSearch] Progress: ${completed}/${totalCombinations} (${progressPct}%)`);
+          set({ progress: progressPct });
         }
 
+        console.log(`[GridSearch] Completed row ${yIdx}, adding to results`);
         results.push(row);
       }
 
+      console.log("[GridSearch] All combinations completed!");
+      console.log("[GridSearch] Best result:", bestResult);
+      console.log("[GridSearch] Setting final state...");
       set({ results, bestResult, isRunning: false, currentCombination: null });
+      console.log("[GridSearch] Grid search completed successfully!");
     } catch (error) {
-      console.error("Grid search error:", error);
+      console.error("[GridSearch] ERROR during grid search:", error);
+      console.error("[GridSearch] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       set({ isRunning: false, currentCombination: null });
     } finally {
+      console.log("[GridSearch] Cleaning up timer interval");
       clearInterval(timerInterval);
     }
   },
@@ -322,7 +364,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
     // Import the backtest store and apply settings
     const { useBacktestStore } = require("./backtestStore");
     const setParam = useBacktestStore.getState().setParam;
-    
+
     setParam(xAxisParam, bestResult.xValue);
     setParam(yAxisParam, bestResult.yValue);
 
@@ -338,7 +380,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
     // Generate CSV
     let csv = `${xAxisParam},${yAxisParam},Net PnL,Net PnL %,Sharpe,Profit Factor,Win Rate %,Max DD %,Trades\n`;
-    
+
     results.forEach((row, yIdx) => {
       row.forEach((result, xIdx) => {
         csv += `${result.xValue},${result.yValue},${result.netPnL},${result.netPnLPct},${result.sharpe},${result.profitFactor},${result.winRate},${result.maxDrawdownPct},${result.tradeCount}\n`;
