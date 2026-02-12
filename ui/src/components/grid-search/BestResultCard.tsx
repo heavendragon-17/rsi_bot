@@ -136,9 +136,8 @@ export const BestResultCard: React.FC = () => {
           
           <Button
             variant="outline"
-            className="gap-2"
+            className="gap-2 opacity-60 cursor-not-allowed"
             onClick={() => {
-              // In a real app, this would navigate to a detailed report
               toast.info("Feature Coming Soon", {
                 description: "Detailed report view will be available in the next update.",
               });
@@ -146,6 +145,7 @@ export const BestResultCard: React.FC = () => {
           >
             <FileText className="w-4 h-4" />
             View Full Report
+            <span className="text-xs text-text-secondary/70 ml-1">(Soon)</span>
           </Button>
         </div>
       </div>

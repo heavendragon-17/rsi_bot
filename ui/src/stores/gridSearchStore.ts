@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useBacktestStore } from "./backtestStore";
 
 export interface GridSearchResult {
   xValue: number;
@@ -365,8 +366,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
     const { bestResult, xAxisParam, yAxisParam } = get();
     if (!bestResult) return;
 
-    // Import the backtest store and apply settings
-    const { useBacktestStore } = require("./backtestStore");
+    // Get the backtest store and apply settings
     const setParam = useBacktestStore.getState().setParam;
 
     setParam(xAxisParam, bestResult.xValue);
