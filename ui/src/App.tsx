@@ -7,6 +7,7 @@ import { BatchResultsDashboard } from "./components/results/batch/BatchResultsDa
 import { PineTranslator } from "./components/pine/PineTranslator";
 import { RunHistory } from "./components/history/RunHistory";
 import { GridSearch } from "./components/GridSearch";
+import { GridSearchResults } from "./components/GridSearchResults";
 import { WalkForward } from "./components/WalkForward";
 import { SensitivityAnalysis } from "./components/Sensitivity";
 import { useResultsStore } from "./stores/resultsStore";
@@ -34,6 +35,7 @@ function App() {
   const showPine = mode === "pine";
   const showHistory = mode === "history";
   const showGridSearch = mode === "grid-search";
+  const showGridSearchResults = mode === "grid-search-results";
   const showWalkForward = mode === "walk-forward";
   const showSensitivity = mode === "sensitivity";
   const showSettings = mode === "settings";
@@ -45,6 +47,7 @@ function App() {
       {showPine && <PineTranslator />}
       {showHistory && <RunHistory />}
       {showGridSearch && <GridSearch />}
+      {showGridSearchResults && <GridSearchResults />}
       {showWalkForward && <WalkForward />}
       {showSensitivity && <SensitivityAnalysis />}
       {showSettings && <SettingsPage />}
@@ -54,6 +57,7 @@ function App() {
         !showPine &&
         !showHistory &&
         !showGridSearch &&
+        !showGridSearchResults &&
         !showWalkForward &&
         !showSensitivity &&
         !showSettings && <EmptyState />}

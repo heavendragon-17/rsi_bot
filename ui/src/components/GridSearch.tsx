@@ -12,13 +12,13 @@ import { BestResultCard } from "./grid-search/BestResultCard";
 export const GridSearch: React.FC = () => {
   const {
     results,
-    bestResult,
     isRunning,
     calculateCombinations,
-    exportResults,
     setSymbol,
+    shouldAutoNavigate,
+    setShouldAutoNavigate,
   } = useGridSearchStore();
-  const { symbol: backtestSymbol } = useBacktestStore();
+  const { symbol: backtestSymbol, setMode } = useBacktestStore();
 
   useEffect(() => {
     // Calculate combinations on mount
@@ -27,10 +27,17 @@ export const GridSearch: React.FC = () => {
     setSymbol(backtestSymbol);
   }, [calculateCombinations, backtestSymbol, setSymbol]);
 
-  const handleExport = () => {
-    if (!results) return;
-    exportResults();
-  };
+  // Auto-navigate to results page when search completes (only if flag is set)
+  useEffect(() => {
+    console.log("[GridSearch] Auto-nav check:", { results: !!results, isRunning, shouldAutoNavigate });
+    if (results && !isRunning && shouldAutoNavigate) {
+      console.log("[GridSearch] Auto-navigating to results");
+      setShouldAutoNavigate(false); // Reset flag after navigating
+      setMode("grid-search-results");
+    }
+  }, [results, isRunning, shouldAutoNavigate, setShouldAutoNavigate, setMode]);
+
+
 
   return (
     <div className="h-full overflow-auto custom-scrollbar">
@@ -51,12 +58,6 @@ export const GridSearch: React.FC = () => {
             </div>
           </div>
 
-          {results && (
-            <Button onClick={handleExport} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Export Results
-            </Button>
-          )}
         </div>
 
         {/* Parameter Setup */}
@@ -71,15 +72,7 @@ export const GridSearch: React.FC = () => {
           </Card>
         )}
 
-        {/* Best Result Card (shown when results available) */}
-        {bestResult && !isRunning && <BestResultCard />}
 
-        {/* Heatmap */}
-        {results && !isRunning && (
-          <Card className="p-6 bg-card border-border-main">
-            <Heatmap />
-          </Card>
-        )}
 
         {/* Empty State */}
         {!results && !isRunning && (

@@ -15,6 +15,7 @@ interface HeatmapCellProps {
   minValue: number;
   maxValue: number;
   isBest: boolean;
+  gridSize: number; // NEW: for responsive sizing
 }
 
 export const HeatmapCell: React.FC<HeatmapCellProps> = ({
@@ -24,6 +25,7 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
   minValue,
   maxValue,
   isBest,
+  gridSize, // NEW
 }) => {
   const { metric, setHoveredCell, xAxisParam, yAxisParam } = useGridSearchStore();
 
@@ -88,14 +90,21 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
     return param?.label || paramValue;
   };
 
+  // Responsive sizing based on grid density
+  const getCellClasses = () => {
+    if (gridSize <= 6) return 'h-20 text-sm'; // Large cells for small grids
+    if (gridSize <= 10) return 'h-16 text-xs'; // Medium cells for medium grids
+    return 'h-12 text-[10px]'; // Small cells for large grids
+  };
+
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div
             className={`
-              flex-1 min-w-[80px] h-16 relative
-              flex items-center justify-center
+              ${getCellClasses()}
+              relative flex items-center justify-center
               ${getColor()} ${getTextColor()}
               border border-border-main/30
               transition-all duration-150

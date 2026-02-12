@@ -29,6 +29,9 @@ export const Heatmap: React.FC = () => {
     if (row[0]) yValues.push(row[0].yValue);
   });
 
+  // Calculate grid size for responsive cell sizing
+  const gridSize = Math.max(xValues.length, yValues.length);
+
   // Find min/max values for color scaling
   let minValue = Infinity;
   let maxValue = -Infinity;
@@ -53,10 +56,10 @@ export const Heatmap: React.FC = () => {
           value = -cell.maxDrawdownPct;
           break;
         case "calmar":
-          value = cell.calmar || cell.sharpe; // Fallback to sharpe if not available
+          value = cell.calmar || cell.sharpe;
           break;
         case "sortino":
-          value = cell.sortino || cell.sharpe; // Fallback to sharpe if not available
+          value = cell.sortino || cell.sharpe;
           break;
         default:
           value = cell.netPnL;
@@ -73,78 +76,83 @@ export const Heatmap: React.FC = () => {
     return param?.label || paramValue;
   };
 
+  const metricLabel = 
+    metric === "net_pnl" ? "Net PnL" : 
+    metric === "sharpe" ? "Sharpe Ratio" : 
+    metric === "profit_factor" ? "Profit Factor" : 
+    metric === "win_rate" ? "Win Rate %" : 
+    metric === "max_dd" ? "Max Drawdown %" : 
+    metric === "calmar" ? "Calmar Ratio" :
+    metric === "sortino" ? "Sortino Ratio" : metric;
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h3 className="text-lg font-semibold text-text-primary mb-1">
-          Heatmap: {metric === "net_pnl" ? "Net PnL" : 
-                    metric === "sharpe" ? "Sharpe Ratio" : 
-                    metric === "profit_factor" ? "Profit Factor" : 
-                    metric === "win_rate" ? "Win Rate %" : 
-                    metric === "max_dd" ? "Max Drawdown %" : 
-                    metric === "calmar" ? "Calmar Ratio" :
-                    metric === "sortino" ? "Sortino Ratio" : metric}
+          Heatmap: {metricLabel}
         </h3>
         <p className="text-sm text-text-secondary">
           {getParamLabel(xAxisParam)} vs {getParamLabel(yAxisParam)} · Hover over cells for detailed metrics
         </p>
       </div>
 
-      <div className="h-px bg-border-main" />
-
-      {/* Heatmap Grid */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          <div className="flex">
-            {/* Y-axis label (vertical) */}
-            <div className="flex items-center justify-center pr-4 min-w-[60px]">
-              <div className="transform -rotate-90 whitespace-nowrap text-sm font-medium text-text-secondary">
-                {getParamLabel(yAxisParam)}
-              </div>
+      {/* Responsive Grid Layout */}
+      <div className="w-full">
+        <div className="grid grid-cols-[auto_1fr] gap-4">
+          {/* Y-axis label (vertical) */}
+          <div className="flex items-center justify-center w-12">
+            <div className="transform -rotate-90 whitespace-nowrap text-sm font-medium text-text-secondary">
+              {getParamLabel(yAxisParam)}
             </div>
+          </div>
 
-            {/* Grid container */}
-            <div className="flex-1">
-              {/* X-axis labels */}
-              <div className="flex mb-2">
-                <div className="w-24" /> {/* Spacer for Y-axis values */}
-                {xValues.map((xValue, xIdx) => (
-                  <div
-                    key={xIdx}
-                    className="flex-1 min-w-[80px] text-center text-xs font-medium text-text-secondary"
-                  >
-                    {xValue.toFixed(xValue % 1 === 0 ? 0 : 1)}
-                  </div>
-                ))}
-              </div>
-
-              {/* Grid rows */}
-              {results.map((row, yIdx) => (
-                <div key={yIdx} className="flex mb-1">
-                  {/* Y-axis value */}
-                  <div className="w-24 flex items-center justify-end pr-3 text-xs font-medium text-text-secondary">
-                    {yValues[yIdx].toFixed(yValues[yIdx] % 1 === 0 ? 0 : 1)}
-                  </div>
-
-                  {/* Cells */}
-                  {row.map((cell, xIdx) => (
-                    <HeatmapCell
-                      key={`${xIdx}-${yIdx}`}
-                      result={cell}
-                      x={xIdx}
-                      y={yIdx}
-                      minValue={minValue}
-                      maxValue={maxValue}
-                      isBest={bestResult?.x === xIdx && bestResult?.y === yIdx}
-                    />
-                  ))}
+          {/* Main grid */}
+          <div className="space-y-1">
+            {/* X-axis labels */}
+            <div 
+              className="grid gap-1 mb-2" 
+              style={{gridTemplateColumns: `4rem repeat(${xValues.length}, minmax(0, 1fr))`}}
+            >
+              <div /> {/* Spacer for Y-axis values */}
+              {xValues.map((xValue, idx) => (
+                <div key={idx} className="text-center text-xs font-medium text-text-secondary">
+                  {xValue.toFixed(xValue % 1 === 0 ? 0 : 1)}
                 </div>
               ))}
+            </div>
 
-              {/* X-axis label */}
-              <div className="text-center text-sm font-medium text-text-secondary mt-3">
-                {getParamLabel(xAxisParam)}
+            {/* Grid rows */}
+            {results.map((row, yIdx) => (
+              <div 
+                key={yIdx}
+                className="grid gap-1"
+                style={{gridTemplateColumns: `4rem repeat(${xValues.length}, minmax(0, 1fr))`}}
+              >
+                {/* Y-axis value */}
+                <div className="flex items-center justify-end pr-2 text-xs font-medium text-text-secondary">
+                  {yValues[yIdx].toFixed(yValues[yIdx] % 1 === 0 ? 0 : 1)}
+                </div>
+
+                {/* Cells */}
+                {row.map((cell, xIdx) => (
+                  <HeatmapCell
+                    key={`${xIdx}-${yIdx}`}
+                    result={cell}
+                    x={xIdx}
+                    y={yIdx}
+                    minValue={minValue}
+                    maxValue={maxValue}
+                    isBest={bestResult?.x === xIdx && bestResult?.y === yIdx}
+                    gridSize={gridSize}
+                  />
+                ))}
               </div>
+            ))}
+
+            {/* X-axis label */}
+            <div className="text-center text-sm font-medium text-text-secondary mt-2">
+              {getParamLabel(xAxisParam)}
             </div>
           </div>
         </div>

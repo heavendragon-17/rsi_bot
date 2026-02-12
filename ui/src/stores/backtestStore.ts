@@ -61,7 +61,7 @@ export interface BacktestState {
   loadConfig: (config: BacktestConfig) => void;
 
   // Configuration State
-  mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "settings";
+  mode: "single" | "batch" | "pine" | "history" | "grid-search" | "grid-search-results" | "walk-forward" | "sensitivity" | "settings";
   symbol: string;
   batchSymbols: string[];
   strategy: string;

@@ -55,7 +55,7 @@ export const HeatmapColorScale: React.FC<HeatmapColorScaleProps> = ({
         ))}
       </div>
 
-      <div className="flex justify-between text-xs text-text-secondary">
+      <div className="flex justify-between text-xs text-text-secondary/70 italic mt-1">
         <span>← Worse</span>
         <span>Better →</span>
       </div>

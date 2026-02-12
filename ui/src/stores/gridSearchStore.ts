@@ -53,6 +53,7 @@ export interface GridSearchState {
   // Results
   results: GridSearchResult[][] | null; // 2D array [y][x]
   bestResult: BestResult | null;
+  shouldAutoNavigate: boolean; // Track if we should auto-navigate to results
 
   // View
   viewMode: "2d" | "3d";
@@ -73,6 +74,7 @@ export interface GridSearchState {
   cancelSearch: () => void;
   applyBestSettings: () => void;
   exportResults: () => void;
+  setShouldAutoNavigate: (should: boolean) => void; // NEW
   reset: () => void;
 }
 
@@ -151,6 +153,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
   results: null,
   bestResult: null,
+  shouldAutoNavigate: false, // NEW: Initialize to false
 
   viewMode: "2d",
   hoveredCell: null,
@@ -196,6 +199,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
   setSymbol: (symbol) => set({ symbol }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setHoveredCell: (cell) => set({ hoveredCell: cell }),
+  setShouldAutoNavigate: (should) => set({ shouldAutoNavigate: should }), // NEW
 
   calculateCombinations: () => {
     const { xAxisMin, xAxisMax, xAxisStep, yAxisMin, yAxisMax, yAxisStep } = get();
@@ -341,7 +345,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
       console.log("[GridSearch] All combinations completed!");
       console.log("[GridSearch] Best result:", bestResult);
       console.log("[GridSearch] Setting final state...");
-      set({ results, bestResult, isRunning: false, currentCombination: null });
+      set({ results, bestResult, isRunning: false, currentCombination: null, shouldAutoNavigate: true });
       console.log("[GridSearch] Grid search completed successfully!");
     } catch (error) {
       console.error("[GridSearch] ERROR during grid search:", error);
