@@ -354,16 +354,36 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
 
   applyBestParam: () => {
     const { summary, paramToOptimize } = get();
-    if (!summary) return;
+    if (!summary) {
+      console.error("No summary available to apply best param");
+      return;
+    }
 
-    const { useBacktestStore } = require("./backtestStore");
-    const setParam = useBacktestStore.getState().setParam;
+    try {
+      const { useBacktestStore } = require("./backtestStore");
+      const setParam = useBacktestStore.getState().setParam;
 
-    setParam(paramToOptimize, summary.mostCommonParam.value);
+      if (typeof setParam !== 'function') {
+        console.error("setParam is not a function");
+        return;
+      }
 
-    console.log("Applied most common best param:", {
-      [paramToOptimize]: summary.mostCommonParam.value,
-    });
+      setParam(paramToOptimize, summary.mostCommonParam.value);
+
+      console.log("Applied most common best param:", {
+        [paramToOptimize]: summary.mostCommonParam.value,
+      });
+
+      // Import toast dynamically
+      import("sonner").then(({ toast }) => {
+        toast.success(`Applied ${paramToOptimize} = ${summary.mostCommonParam.value}`);
+      });
+    } catch (error) {
+      console.error("Error applying best param:", error);
+      import("sonner").then(({ toast }) => {
+        toast.error("Failed to apply parameter");
+      });
+    }
   },
 
   exportResults: () => {

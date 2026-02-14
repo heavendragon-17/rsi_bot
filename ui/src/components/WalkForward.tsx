@@ -112,7 +112,7 @@ export const WalkForward: React.FC = () => {
 
         {/* Configuration Section */}
         <Card className="p-6 bg-bg-surface border-border-main">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             <WindowConfig />
             <div className="space-y-4">
               <ParamOptimizeConfig />

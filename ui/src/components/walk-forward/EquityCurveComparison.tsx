@@ -49,11 +49,11 @@ export const EquityCurveComparison: React.FC = () => {
       // IS point (at end of IS period)
       const isDate = new Date(window.isEndDate);
       const isTime = Math.floor(isDate.getTime() / 1000) as any;
-      
+
       // Assume IS generates similar return as OOS (but slightly better since optimized)
       const isReturn = window.oosReturnPct * 1.2; // IS typically performs better
-      isCumulative *= (1 + isReturn / 100);
-      
+      isCumulative *= 1 + isReturn / 100;
+
       isData.push({
         time: isTime,
         value: isCumulative,
@@ -62,9 +62,9 @@ export const EquityCurveComparison: React.FC = () => {
       // OOS point (at end of OOS period)
       const oosDate = new Date(window.oosEndDate);
       const oosTime = Math.floor(oosDate.getTime() / 1000) as any;
-      
-      oosCumulative *= (1 + window.oosReturnPct / 100);
-      
+
+      oosCumulative *= 1 + window.oosReturnPct / 100;
+
       oosData.push({
         time: oosTime,
         value: oosCumulative,
@@ -72,21 +72,25 @@ export const EquityCurveComparison: React.FC = () => {
     });
 
     // Add IS line (solid)
-    const isSeries = chart.addLineSeries({
-      color: currentTheme?.variables["accent-color"] || "#3b82f6",
-      lineWidth: 2,
-      title: "IS (In-Sample)",
-    });
-    isSeries.setData(isData);
+    if (typeof chart.addLineSeries === "function") {
+      const isSeries = chart.addLineSeries({
+        color: currentTheme?.variables["accent-color"] || "#3b82f6",
+        lineWidth: 2,
+        title: "IS (In-Sample)",
+      });
+      isSeries.setData(isData);
 
-    // Add OOS line (dashed - approximate with area)
-    const oosSeries = chart.addLineSeries({
-      color: currentTheme?.variables["success"] || "#22c55e",
-      lineWidth: 2,
-      lineStyle: 2, // Dashed
-      title: "OOS (Out-of-Sample)",
-    });
-    oosSeries.setData(oosData);
+      // Add OOS line (dashed - approximate with area)
+      const oosSeries = chart.addLineSeries({
+        color: currentTheme?.variables["success"] || "#22c55e",
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        title: "OOS (Out-of-Sample)",
+      });
+      oosSeries.setData(oosData);
+    } else {
+      console.error("addLineSeries is not available on chart object");
+    }
 
     chart.timeScale().fitContent();
 
@@ -116,7 +120,9 @@ export const EquityCurveComparison: React.FC = () => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">Equity Comparison: IS vs OOS</h3>
+        <h3 className="text-sm font-semibold text-text-primary">
+          Equity Comparison: IS vs OOS
+        </h3>
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="w-8 h-0.5 bg-accent-main" />
@@ -129,16 +135,17 @@ export const EquityCurveComparison: React.FC = () => {
         </div>
       </div>
 
-      <div 
-        ref={chartContainerRef} 
+      <div
+        ref={chartContainerRef}
         className="rounded-lg border border-border-main overflow-hidden bg-bg-elevated"
       />
 
       <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
         <p className="text-xs text-warning">
-          <strong>⚠️ Interpretation:</strong> If OOS equity consistently underperforms IS equity, 
-          the strategy may be overfit to historical data. A robust strategy shows similar performance 
-          in both IS and OOS periods.
+          <strong>⚠️ Interpretation:</strong> If OOS equity consistently
+          underperforms IS equity, the strategy may be overfit to historical
+          data. A robust strategy shows similar performance in both IS and OOS
+          periods.
         </p>
       </div>
     </div>

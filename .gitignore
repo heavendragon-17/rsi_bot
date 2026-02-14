@@ -10,3 +10,4 @@ venv
 
 /.agent-guide/.obsidian
 /ui/node_modules
+/.obsidian

@@ -179,9 +179,51 @@ export const useBacktestStore = create<BacktestState>()(
       setTimezone: (tz) => set({ timezone: tz }),
 
       runBacktest: async () => {
+        const state = get();
         set({ isRunning: true });
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        set({ isRunning: false });
+
+        try {
+          // Lazy import to avoid circular deps
+          const { useSessionStore } = await import("./sessionStore");
+          const { useEngineStore } = await import("./engineStore");
+
+          const sessionStore = useSessionStore.getState();
+          const engineStore = useEngineStore.getState();
+
+          // Auto-create session if none active
+          let sessionId = sessionStore.activeSessionId;
+          if (!sessionId) {
+            const configSnapshot = {
+              symbol: state.symbol,
+              strategy: state.strategy,
+              timeframe: state.timeframe,
+              params: state.params,
+            };
+            sessionId = await sessionStore.createSession(
+              state.mode === "batch" ? "batch" : "single",
+              configSnapshot
+            );
+          }
+
+          // Build config for API
+          const config = {
+            symbol: state.symbol,
+            timeframe: state.timeframe,
+            strategy: state.strategy,
+            capital: state.capital,
+            leverage: state.leverage,
+            riskPercent: state.riskPercent,
+            startDate: state.startDate?.toISOString() ?? null,
+            endDate: state.endDate?.toISOString() ?? null,
+            params: state.params,
+          };
+
+          await engineStore.runBacktest(sessionId, config);
+        } catch {
+          // Error is stored in engineStore; just ensure isRunning is cleared
+        } finally {
+          set({ isRunning: false });
+        }
       },
 
       resetParams: () => set({

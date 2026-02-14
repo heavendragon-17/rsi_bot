@@ -22,14 +22,19 @@ export const WindowConfig: React.FC = () => {
   const isRecommendedRatio = isWindowDays >= oosWindowDays * 3;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pr-8 lg:pr-12 lg:border-r lg:border-border-main">
       <div>
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Window Configuration</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">
+          Window Configuration
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="is-window" className="text-xs text-text-secondary">
-              In-Sample (IS) Window
+            <Label
+              htmlFor="is-window"
+              className="text-xs text-text-secondary min-h-[2.5rem] flex items-end pb-1"
+            >
+              IS Window
             </Label>
             <div className="flex items-center gap-2">
               <Input
@@ -41,14 +46,19 @@ export const WindowConfig: React.FC = () => {
                 min={10}
                 max={365}
               />
-              <span className="text-xs text-text-secondary whitespace-nowrap">days</span>
+              <span className="text-xs text-text-secondary whitespace-nowrap">
+                days
+              </span>
             </div>
-            <p className="text-xs text-text-tertiary">Training period</p>
+            <p className="text-xs text-text-tertiary">In-sample training</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="oos-window" className="text-xs text-text-secondary">
-              Out-of-Sample (OOS) Window
+            <Label
+              htmlFor="oos-window"
+              className="text-xs text-text-secondary min-h-[2.5rem] flex items-end pb-1"
+            >
+              OOS Window
             </Label>
             <div className="flex items-center gap-2">
               <Input
@@ -60,13 +70,20 @@ export const WindowConfig: React.FC = () => {
                 min={5}
                 max={180}
               />
-              <span className="text-xs text-text-secondary whitespace-nowrap">days</span>
+              <span className="text-xs text-text-secondary whitespace-nowrap">
+                days
+              </span>
             </div>
-            <p className="text-xs text-text-tertiary">Validation period</p>
+            <p className="text-xs text-text-tertiary">
+              Out-of-sample validation
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="step-size" className="text-xs text-text-secondary">
+            <Label
+              htmlFor="step-size"
+              className="text-xs text-text-secondary min-h-[2.5rem] flex items-end pb-1"
+            >
               Step Size (Walk Forward)
             </Label>
             <div className="flex items-center gap-2">
@@ -79,7 +96,9 @@ export const WindowConfig: React.FC = () => {
                 min={1}
                 max={180}
               />
-              <span className="text-xs text-text-secondary whitespace-nowrap">days</span>
+              <span className="text-xs text-text-secondary whitespace-nowrap">
+                days
+              </span>
             </div>
             <p className="text-xs text-text-tertiary">How far to advance</p>
           </div>
@@ -88,7 +107,7 @@ export const WindowConfig: React.FC = () => {
 
       <div className="h-px bg-border-main" />
 
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-2 gap-6 text-sm">
         <div>
           <span className="text-text-secondary">Total Data Range:</span>
           <span className="ml-2 text-text-primary font-medium">
@@ -97,7 +116,9 @@ export const WindowConfig: React.FC = () => {
         </div>
         <div>
           <span className="text-text-secondary">Windows Generated:</span>
-          <span className="ml-2 text-text-primary font-medium">{totalWindows}</span>
+          <span className="ml-2 text-text-primary font-medium">
+            {totalWindows}
+          </span>
         </div>
       </div>
 
@@ -105,8 +126,9 @@ export const WindowConfig: React.FC = () => {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30">
           <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
           <div className="text-xs text-warning">
-            <strong>Recommendation:</strong> IS window should be ≥ 3× OOS window for stable optimization.
-            Current ratio: {(isWindowDays / oosWindowDays).toFixed(1)}×
+            <strong>Recommendation:</strong> IS window should be ≥ 3× OOS window
+            for stable optimization. Current ratio:{" "}
+            {(isWindowDays / oosWindowDays).toFixed(1)}×
           </div>
         </div>
       )}
