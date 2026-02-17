@@ -100,21 +100,26 @@ class IExchange(ABC):
 
     @abstractmethod
     def create_order(
-        self, 
-        symbol: str, 
-        order_type: str, 
-        side: str, 
-        amount: Decimal, 
-        price: Optional[Decimal] = None
+        self,
+        symbol: str,
+        order_type: str,  # normalized: market, limit, stop_market, stop_limit, trailing_stop
+        side: str,
+        amount: Decimal,
+        price: Optional[Decimal] = None,
+        params: Optional[Dict[str, Any]] = None,  # stopPrice, reduceOnly, callbackRate, etc.
     ) -> Optional[Dict[str, Any]]:
         """
-        Execute an order.
+        Create an order using normalized order types.
+        Adapter translates to exchange-native format.
         Returns order details (dict) on success, None on failure.
         """
         pass
 
+    @abstractmethod
+    def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+        """Fetch order status by ID."""
+        pass
 
-    
     @abstractmethod
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel an open order."""
@@ -137,6 +142,16 @@ class IFuturesExchange(IExchange):
     @abstractmethod
     def fetch_balance(self, params: Dict = {}) -> Dict:
         """Fetch balance in CCXT format."""
+        pass
+
+    @abstractmethod
+    def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch all open/pending orders for a symbol."""
+        pass
+
+    @abstractmethod
+    def cancel_all_orders(self, symbol: str) -> int:
+        """Cancel all open orders for a symbol. Returns count cancelled."""
         pass
 
 

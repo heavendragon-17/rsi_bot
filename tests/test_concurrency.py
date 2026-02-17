@@ -44,7 +44,7 @@ class TestMockExchangeThreadSafety:
                     amount = random.uniform(0.1, 1.0)
                     order = exchange.create_order(
                         symbol=symbol,
-                        type="market",
+                        order_type="market",
                         side="BUY",
                         amount=amount,
                         price=price
@@ -59,7 +59,7 @@ class TestMockExchangeThreadSafety:
                         sell_amt = min(float(pos), amount * 0.5)
                         sell_order = exchange.create_order(
                             symbol=symbol,
-                            type="market",
+                            order_type="market",
                             side="SELL",
                             amount=sell_amt,
                             price=price
@@ -101,8 +101,11 @@ class TestMockExchangeThreadSafety:
         
         # Setup position
         exchange.update_candle(symbol, 50000, 50100, 49900, 50000, None)
-        exchange.create_order(symbol, type="market", side="BUY", amount=0.1, price=50000)
-        exchange.place_stop_loss(symbol, 0.1, 49000)
+        exchange.create_order(symbol, order_type="market", side="BUY", amount=0.1, price=50000)
+        exchange.create_order(
+            symbol, order_type="stop_market", side="SELL", amount=Decimal("0.1"),
+            params={"stopPrice": Decimal("49000"), "reduceOnly": True},
+        )
         
         errors = []
         

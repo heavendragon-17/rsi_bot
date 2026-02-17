@@ -22,8 +22,6 @@ import logging
 import importlib
 from typing import Any, Dict
 
-import ccxt
-
 from app.core.interfaces import IFuturesExchange
 from app.backtest.mock_exchange import MockExchange
 
@@ -115,46 +113,19 @@ def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
         return MockExchange(initial_balance=initial_balance, leverage=leverage)
     
     # ===== 2. CCXT Exchanges (Binance, etc.) =====
+    # Return BinanceAdapter (wraps CCXT, implements IFuturesExchange)
+    # instead of raw CCXT — ensures normalized order type translation
     if exchange_name in EXCHANGE_CONFIG:
-        ex_cfg = EXCHANGE_CONFIG[exchange_name]
-        ccxt_class_name = ex_cfg['ccxt_class']
-        env_prefix = ex_cfg['env_prefix']
-        
-        api_key, secret = _get_credentials(env_prefix, mode)
-        
-        if not api_key or not secret:
-            raise ValueError(
-                f"Missing API credentials for '{mode}' mode. "
-                f"Set {env_prefix}_{'TESTNET_' if mode == 'paper' else ''}API_KEY and "
-                f"{env_prefix}_{'TESTNET_' if mode == 'paper' else ''}SECRET_KEY in .env"
-            )
-        
-        exchange_class = getattr(ccxt, ccxt_class_name, None)
-        if exchange_class is None:
-            raise ValueError(f"CCXT does not support exchange: {ccxt_class_name}")
-        
-        exchange = exchange_class({
-            'apiKey': api_key,
-            'secret': secret,
-            'enableRateLimit': True,
-            'options': {'defaultType': 'future'}
-        })
-        
-        # Configure mode
-        if mode == "paper":
-            exchange.set_sandbox_mode(True)
-            exchange.load_markets()
-            logger.info(f"Factory: Created {ccxt_class_name} in PAPER (Testnet) mode.")
-        elif mode == "live":
-            exchange.set_sandbox_mode(False)
-            exchange.load_markets()
+        from app.services.execution.cex.binance_adapter import BinanceAdapter
+
+        if mode == "live":
             logger.warning("=" * 60)
             logger.warning("WARNING: RUNNING IN LIVE TRADING MODE - REAL MONEY AT RISK")
             logger.warning("=" * 60)
-        else:
-            raise ValueError(f"Unknown mode: '{mode}'. Use 'mock', 'paper', or 'live'.")
-        
-        return exchange
+
+        adapter = BinanceAdapter(config)
+        logger.info(f"Factory: Created BinanceAdapter in {mode.upper()} mode.")
+        return adapter
     
     # ===== 3. Custom DEX Adapters (Lighter, Hyperliquid, etc.) =====
     adapter = _load_custom_adapter(exchange_name, config)

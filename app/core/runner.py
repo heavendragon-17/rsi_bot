@@ -15,9 +15,9 @@ import logging
 import signal
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
-from app.core.interfaces import IExchange, IStrategy
+from app.core.interfaces import IFuturesExchange, IStrategy
 from app.core.portfolio import PortfolioManager
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
@@ -28,34 +28,42 @@ logger = logging.getLogger(__name__)
 class MultiSymbolRunner:
     """
     Multi-symbol concurrent trading runner.
-    
+
     Spawns a separate thread for each symbol, sharing a single
     thread-safe exchange instance. Each thread has its own
     Strategy and PortfolioManager instances.
+
+    Startup sequence:
+    1. Set leverage for all symbols
+    2. Close orphan positions from previous run
+    3. Start stream and threads
     """
-    
+
     def __init__(
         self,
         config: Dict[str, Any],
         strategy_class: Type[IStrategy],
-        exchange_factory: Callable[[Dict], IExchange],
+        exchange: IFuturesExchange,
+        telegram=None,
     ):
         """
         Initialize the multi-symbol runner.
-        
+
         Args:
             config: Application configuration dict
             strategy_class: Strategy class to instantiate per symbol
-            exchange_factory: Factory function to create exchange instance
+            exchange: Shared IFuturesExchange instance (already created by factory)
+            telegram: Optional TelegramBot for notifications
         """
         self.config = config
         self.strategy_class = strategy_class
         self.symbols = config.get('symbols', [])
         self.timeframe = config.get('timeframe', '15m')
-        
-        # Create shared exchange (thread-safe)
-        self.exchange = exchange_factory(config)
-        logger.info(f"Created shared exchange: {type(self.exchange).__name__}")
+
+        # Shared exchange (thread-safe)
+        self.exchange = exchange
+        self.telegram = telegram
+        logger.info(f"Using shared exchange: {type(self.exchange).__name__}")
         
         # Market data store (already thread-safe)
         self.store = MarketDataStore()
@@ -86,16 +94,27 @@ class MultiSymbolRunner:
         if not self.symbols:
             logger.warning("No symbols configured, nothing to run")
             return
-        
+
         logger.info(f"Starting multi-symbol runner for {len(self.symbols)} symbols: {self.symbols}")
-        
-        # Start market data stream
+
+        # 1. Set leverage for all symbols
+        leverage = self.config.get("risk", {}).get("leverage", 1)
+        for symbol in self.symbols:
+            try:
+                self.exchange.set_leverage(leverage, symbol)
+            except Exception as e:
+                logger.warning(f"Failed to set leverage for {symbol}: {e}")
+
+        # 2. Close orphan positions from previous run
+        self._cleanup_on_startup()
+
+        # 3. Start market data stream
         self._start_stream()
-        
+
         # Wait for initial data
         time.sleep(2)
-        
-        # Spawn a thread for each symbol
+
+        # 4. Spawn a thread for each symbol
         for symbol in self.symbols:
             thread = threading.Thread(
                 target=self._run_symbol_loop,
@@ -120,7 +139,55 @@ class MultiSymbolRunner:
         )
         self.stream.start()
         logger.info(f"Market data stream started for {self.symbols}")
-    
+
+    def _cleanup_on_startup(self) -> None:
+        """Close all open positions and cancel all orders from previous run."""
+        try:
+            positions = self.exchange.fetch_positions()
+        except Exception as e:
+            logger.error(f"Failed to fetch positions on startup: {e}")
+            return
+
+        if not positions:
+            logger.info("No orphan positions found on startup.")
+            return
+
+        logger.warning(f"Found {len(positions)} orphan positions. Closing all...")
+
+        from decimal import Decimal
+        for pos in positions:
+            symbol = pos["symbol"]
+            amount = Decimal(str(pos.get("contracts", 0)))
+            side = "SELL" if pos.get("side") == "long" else "BUY"
+
+            # Cancel all orders first
+            try:
+                self.exchange.cancel_all_orders(symbol)
+            except Exception as e:
+                logger.error(f"Failed to cancel orders for {symbol}: {e}")
+
+            # Market close with reduceOnly
+            try:
+                self.exchange.create_order(
+                    symbol=symbol,
+                    order_type="market",
+                    side=side,
+                    amount=amount,
+                    params={"reduceOnly": True},
+                )
+                logger.info(f"Closed orphan position: {symbol} {side} {amount}")
+            except Exception as e:
+                logger.error(f"Failed to close orphan position {symbol}: {e}")
+
+        # Telegram alert
+        if self.telegram:
+            try:
+                self.telegram.send_message(
+                    f"⚠️ Bot restarted. Closed {len(positions)} orphan positions."
+                )
+            except Exception:
+                pass
+
     def _run_symbol_loop(self, symbol: str) -> None:
         """
         Main trading loop for a single symbol.
@@ -173,7 +240,11 @@ class MultiSymbolRunner:
                 if signal_event:
                     logger.info(f"[{symbol}] Signal: {signal_event.signal_type} @ {signal_event.price}")
                     portfolio.on_signal(signal_event)
-                
+
+                # After processing candle, sync TP fills from exchange
+                if symbol in portfolio.positions:
+                    portfolio.sync_tp_fills(symbol)
+
                 # Sync TP hit status from Portfolio back to Strategy's meta
                 # This prevents Strategy from repeatedly emitting TP signals (Ghost TP bug)
                 if (hasattr(strategy, 'context') and 
