@@ -111,6 +111,23 @@ class MultiSymbolRunner:
         # 3. Start market data stream
         self._start_stream()
 
+        # 3b. Sim mode: start aggTrade tick stream + funding scheduler
+        self._paper_stream = None
+        self._funding_scheduler = None
+        if self.config.get("bot", {}).get("mode") == "sim":
+            from app.paper.stream_manager import PaperTradeStreamManager
+            from app.paper.funding import PaperFundingScheduler
+            self._paper_stream = PaperTradeStreamManager(
+                symbols=self.symbols,
+                paper_exchange=self.exchange,
+            )
+            self._paper_stream.start()
+            self._funding_scheduler = PaperFundingScheduler(
+                state=self.exchange.state,
+                notifier=self.exchange.notifier,
+            )
+            self._funding_scheduler.start()
+
         # Wait for initial data
         time.sleep(2)
 
@@ -233,7 +250,13 @@ class MultiSymbolRunner:
                 if not last_row.get('closed', False):
                     time.sleep(0.5)
                     continue
-                
+
+                # Sim mode: forward new candle open to PaperExchange so pending_open
+                # entry orders fill at realistic open price (not signal time price).
+                if self.config.get("bot", {}).get("mode") == "sim" and hasattr(self.exchange, "on_kline_open"):
+                    from decimal import Decimal as _Decimal
+                    self.exchange.on_kline_open(symbol, _Decimal(str(last_row.get("open", 0))))
+
                 # Analyze and generate signal
                 signal_event = strategy.analyze(symbol, df)
                 
@@ -304,6 +327,12 @@ class MultiSymbolRunner:
         # Stop market data stream
         if self.stream:
             self.stream.stop()
+
+        # Stop sim-mode paper infrastructure
+        if getattr(self, "_paper_stream", None):
+            self._paper_stream.stop()
+        if getattr(self, "_funding_scheduler", None):
+            self._funding_scheduler.stop()
         
         # Wait for threads to finish
         for thread in self.threads:

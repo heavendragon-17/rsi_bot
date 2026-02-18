@@ -1,8 +1,9 @@
 """
 Exchange Factory - Environment Mode Separation
 ===============================================
-Implements three distinct modes:
-  - mock:  MockExchange (in-memory, no network calls)
+Implements four distinct modes:
+  - mock:  MockExchange (in-memory, no network calls, historical data)
+  - sim:   PaperExchange (local order simulation against live Binance aggTrade data)
   - paper: Real exchange connected to Testnet
   - live:  Real exchange connected to Mainnet
 
@@ -94,7 +95,7 @@ def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
     Args:
         config: Configuration dict with structure:
             bot:
-              mode: "mock" | "paper" | "live"
+              mode: "mock" | "sim" | "paper" | "live"
             exchange:
               name: "binanceusdm" | "lighter" | etc.
     
@@ -105,6 +106,13 @@ def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
     exchange_name = config.get("exchange", {}).get("name", "binanceusdm").lower()
     
     # ===== 1. Mock Mode =====
+    if mode == "sim":
+        from app.paper.exchange import PaperExchange
+        paper_cfg = config.get("paper_sim", {})
+        initial_balance = paper_cfg.get("initial_balance", 10000)
+        logger.info(f"Factory: Created PaperExchange (sim mode, balance={initial_balance})")
+        return PaperExchange(config)
+
     if mode == "mock":
         backtest_cfg = config.get("backtest", {})
         initial_balance = backtest_cfg.get("initial_balance", 10000.0)
