@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { startSensitivity, streamQuantProgress } from "../api/quant";
 
 export type SensitivityMetric = "net_pnl" | "sharpe" | "profit_factor" | "win_rate";
 
@@ -21,6 +22,8 @@ export interface SensitivityResult {
   highImpactPct: number; // (high - base) / base * 100
   totalImpact: number; // |lowImpact| + |highImpact|
   sensitivity: "high" | "medium" | "low";
+  status?: "success" | "failed";
+  error?: string;
 }
 
 export interface SensitivityState {
@@ -33,6 +36,7 @@ export interface SensitivityState {
   isRunning: boolean;
   progress: number;
   currentParam: string;
+  _sseCleanup: (() => void) | null;
 
   // Results
   results: SensitivityResult[];
@@ -50,63 +54,7 @@ export interface SensitivityState {
   reset: () => void;
 }
 
-// Helper: Generate mock backtest result for a parameter set
-const generateMockResult = (
-  paramName: string,
-  paramValue: number,
-  metric: SensitivityMetric,
-  baseValue: number
-): number => {
-  // Create semi-realistic sensitivity patterns
-  const seed = paramValue * 100;
-  const random = (min: number, max: number) => {
-    const x = Math.sin(seed) * 10000;
-    return min + (x - Math.floor(x)) * (max - min);
-  };
 
-  // Different parameters have different sensitivity profiles
-  let sensitivityFactor = 1.0;
-  
-  if (paramName === "rsi_period") {
-    // High sensitivity - large impact on results
-    sensitivityFactor = 1.5;
-  } else if (paramName === "ema_fast" || paramName === "ema_slow") {
-    // Medium sensitivity
-    sensitivityFactor = 1.2;
-  } else if (paramName === "tp1_rr" || paramName === "tp2_rr") {
-    // Medium sensitivity
-    sensitivityFactor = 1.15;
-  } else if (paramName === "sl_buffer_pct") {
-    // Medium-high sensitivity
-    sensitivityFactor = 1.3;
-  } else if (paramName === "overbought" || paramName === "oversold") {
-    // Low sensitivity - stable parameters
-    sensitivityFactor = 0.6;
-  }
-
-  // Calculate deviation from base value
-  const deviation = (paramValue - baseValue) / baseValue;
-  
-  // Apply non-linear effect
-  const impact = deviation * sensitivityFactor * random(0.8, 1.2);
-
-  // Base values for different metrics
-  let baseMetricValue = 0;
-  if (metric === "net_pnl") {
-    baseMetricValue = 1330;
-  } else if (metric === "sharpe") {
-    baseMetricValue = 1.8;
-  } else if (metric === "profit_factor") {
-    baseMetricValue = 1.6;
-  } else if (metric === "win_rate") {
-    baseMetricValue = 65;
-  }
-
-  // Calculate result with impact
-  const result = baseMetricValue * (1 + impact);
-  
-  return Math.round(result * 100) / 100;
-};
 
 // Calculate sensitivity category
 const calculateSensitivity = (totalImpact: number): "high" | "medium" | "low" => {
@@ -177,6 +125,7 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
   isRunning: false,
   progress: 0,
   currentParam: "",
+  _sseCleanup: null,
 
   results: [],
   insights: [],
@@ -190,96 +139,102 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
   setMetric: (metric) => set({ metric }),
 
   runSensitivityAnalysis: async () => {
-    const { variationPercent, metric } = get();
+    const { variationPercent, customVariation, metric } = get();
     set({ isRunning: true, progress: 0, results: [], insights: [], currentParam: "" });
 
-    try {
-      // Get current strategy parameters from backtest store
-      const { useBacktestStore } = require("./backtestStore");
-      const { params } = useBacktestStore.getState();
+    const { useBacktestStore } = await import("./backtestStore");
+    const { params, symbol, timeframe, strategy, startDate, endDate } = useBacktestStore.getState();
 
-      // Import parameter definitions
-      const { AVAILABLE_PARAMETERS } = require("./gridSearchStore");
+    const { AVAILABLE_PARAMETERS } = await import("./gridSearchStore");
+    const actualVariation = customVariation ? parseFloat(customVariation) : variationPercent;
 
-      // Get base metric value
-      const baseMetricValue = generateMockResult("base", 0, metric, 0);
-      set({ baseMetricValue });
-
-      const results: SensitivityResult[] = [];
-      const paramCount = AVAILABLE_PARAMETERS.length;
-
-      // Test each parameter
-      for (let i = 0; i < AVAILABLE_PARAMETERS.length; i++) {
-        const paramDef = AVAILABLE_PARAMETERS[i];
-        const paramName = paramDef.value;
-        const baseValue = params[paramName] || paramDef.defaultMin;
-
-        set({ currentParam: paramDef.label, progress: Math.round((i / paramCount) * 100) });
-
-        // Calculate test values
-        const variation = variationPercent / 100;
+    // Calculate parameter variations to test
+    const variationsToTest: Record<string, number[]> = {};
+    AVAILABLE_PARAMETERS.forEach((paramDef: any) => {
+        const baseValue = params[paramDef.value] || paramDef.defaultMin;
+        const variation = actualVariation / 100;
         const lowValue = paramDef.type === "int" 
           ? Math.round(baseValue * (1 - variation))
           : Math.round(baseValue * (1 - variation) * 100) / 100;
         const highValue = paramDef.type === "int"
           ? Math.round(baseValue * (1 + variation))
           : Math.round(baseValue * (1 + variation) * 100) / 100;
+        
+        variationsToTest[paramDef.value] = [lowValue, baseValue, highValue];
+    });
 
-        // Run mock backtests
-        const lowMetric = generateMockResult(paramName, lowValue, metric, baseValue);
-        const baseMetric = generateMockResult(paramName, baseValue, metric, baseValue);
-        const highMetric = generateMockResult(paramName, highValue, metric, baseValue);
-
-        // Calculate impacts
-        const lowImpactPct = baseMetric !== 0 ? ((lowMetric - baseMetric) / baseMetric) * 100 : 0;
-        const highImpactPct = baseMetric !== 0 ? ((highMetric - baseMetric) / baseMetric) * 100 : 0;
-        const totalImpact = Math.abs(lowImpactPct) + Math.abs(highImpactPct);
-
-        const result: SensitivityResult = {
-          paramName,
-          paramDisplayName: paramDef.label,
-          lowValue,
-          baseValue,
-          highValue,
-          lowMetric,
-          baseMetric,
-          highMetric,
-          lowImpactPct: Math.round(lowImpactPct * 100) / 100,
-          highImpactPct: Math.round(highImpactPct * 100) / 100,
-          totalImpact: Math.round(totalImpact * 100) / 100,
-          sensitivity: calculateSensitivity(totalImpact),
-        };
-
-        results.push(result);
-
-        // Simulate processing time
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        // Check if cancelled
-        if (!get().isRunning) return;
-      }
-
-      // Sort by total impact (descending)
-      results.sort((a, b) => b.totalImpact - a.totalImpact);
-
-      // Generate insights
-      const insights = generateInsights(results);
-
-      set({
-        results,
-        insights,
-        isRunning: false,
-        progress: 100,
-        currentParam: "",
+    try {
+      const response = await startSensitivity({
+        symbol,
+        timeframe,
+        strategy,
+        start_date: startDate?.toISOString(),
+        end_date: endDate?.toISOString(),
+        base_params: params,
+        variations: variationsToTest,
+        metric
       });
+
+      const cleanup = streamQuantProgress(
+        response.run_id,
+        (pct, currentParam) => {
+          set({ progress: pct, currentParam: currentParam || "" });
+        },
+        (data) => {
+          let results: SensitivityResult[] = [];
+          if (data && Array.isArray(data.results)) {
+            results = data.results.map((r: any) => ({
+              paramName: r.param_name,
+              paramDisplayName: AVAILABLE_PARAMETERS.find((p: any) => p.value === r.param_name)?.label || r.param_name,
+              lowValue: r.low_value,
+              baseValue: r.base_value,
+              highValue: r.high_value,
+              lowMetric: r.low_metric || 0,
+              baseMetric: r.base_metric || 0,
+              highMetric: r.high_metric || 0,
+              lowImpactPct: r.low_impact_pct || 0,
+              highImpactPct: r.high_impact_pct || 0,
+              totalImpact: r.total_impact || 0,
+              sensitivity: r.sensitivity || "low",
+              status: r.status || "success",
+              error: r.error
+            }));
+          }
+
+          // Sort by total impact (descending)
+          results.sort((a, b) => b.totalImpact - a.totalImpact);
+
+          // Generate insights
+          const insights = generateInsights(results);
+
+          set({
+            results,
+            insights,
+            isRunning: false,
+            progress: 100,
+            currentParam: "",
+            _sseCleanup: null,
+            baseMetricValue: results.length > 0 ? results[0].baseMetric : 0
+          });
+        },
+        (errorMsg) => {
+          console.error("Sensitivity analysis error:", errorMsg);
+          set({ isRunning: false, progress: 0, currentParam: "", _sseCleanup: null });
+        }
+      );
+
+      set({ _sseCleanup: cleanup });
+
     } catch (error) {
       console.error("Sensitivity analysis error:", error);
-      set({ isRunning: false, progress: 0, currentParam: "" });
+      set({ isRunning: false, progress: 0, currentParam: "", _sseCleanup: null });
     }
   },
 
   cancelRun: () => {
-    set({ isRunning: false, progress: 0, currentParam: "" });
+    const { _sseCleanup } = get();
+    if (_sseCleanup) _sseCleanup();
+    set({ isRunning: false, progress: 0, currentParam: "", _sseCleanup: null });
   },
 
   exportResults: () => {
@@ -318,6 +273,7 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
       progress: 0,
       currentParam: "",
       baseMetricValue: 0,
+      _sseCleanup: null,
     });
   },
 }));

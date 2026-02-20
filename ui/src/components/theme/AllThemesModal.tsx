@@ -2,6 +2,13 @@ import React from "react";
 import { X } from "lucide-react";
 import { useThemeStore } from "../../stores/themeStore";
 import { ThemeCard } from "./ThemeCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
 
 interface AllThemesModalProps {
   isOpen: boolean;
@@ -17,17 +24,24 @@ export const AllThemesModal: React.FC<AllThemesModalProps> = ({
   const darkThemes = themes.filter((t) => t.isDarkMode);
   const lightThemes = themes.filter((t) => !t.isDarkMode);
 
-  const handleSelectTheme = (theme: typeof themes[0]) => {
+  const handleSelectTheme = (theme: (typeof themes)[0]) => {
     setTheme(theme);
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative max-h-[80vh] w-full max-w-3xl overflow-hidden rounded-xl border border-border-main bg-bg-secondary shadow-2xl">
-        {/* Header */}
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        hideClose
+        className="max-h-[80vh] w-full max-w-3xl flex-col flex overflow-hidden border-border-main bg-bg-secondary p-0 shadow-2xl sm:max-w-3xl"
+      >
+        {/* Screen reader only header for accessibility */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>All Themes</DialogTitle>
+          <DialogDescription>Browse and select a theme</DialogDescription>
+        </DialogHeader>
+
+        {/* Custom Header */}
         <div className="flex items-center justify-between border-b border-border-main p-4">
           <div>
             <h2 className="text-sm font-semibold text-text-primary">
@@ -53,7 +67,7 @@ export const AllThemesModal: React.FC<AllThemesModalProps> = ({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Dark Themes
               </h3>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 p-1 -m-1">
                 {darkThemes.map((theme) => (
                   <ThemeCard
                     key={theme.id}
@@ -72,7 +86,7 @@ export const AllThemesModal: React.FC<AllThemesModalProps> = ({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Light Themes
               </h3>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 p-1 -m-1">
                 {lightThemes.map((theme) => (
                   <ThemeCard
                     key={theme.id}
@@ -85,7 +99,7 @@ export const AllThemesModal: React.FC<AllThemesModalProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

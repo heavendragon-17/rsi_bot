@@ -1,12 +1,16 @@
 import React from "react";
 import { Star, Check, FileText } from "lucide-react";
-import { useGridSearchStore, AVAILABLE_PARAMETERS } from "../../stores/gridSearchStore";
+import {
+  useGridSearchStore,
+  AVAILABLE_PARAMETERS,
+} from "../../stores/gridSearchStore";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { toast } from "sonner";
 
 export const BestResultCard: React.FC = () => {
-  const { bestResult, xAxisParam, yAxisParam, metric, applyBestSettings } = useGridSearchStore();
+  const { bestResult, xAxisParam, yAxisParam, metric, applyBestSettings } =
+    useGridSearchStore();
 
   if (!bestResult) return null;
 
@@ -39,7 +43,11 @@ export const BestResultCard: React.FC = () => {
   const handleApplySettings = () => {
     applyBestSettings();
     toast.success("Settings Applied", {
-      description: `Parameters updated: ${getParamLabel(xAxisParam)} = ${bestResult.xValue.toFixed(2)}, ${getParamLabel(yAxisParam)} = ${bestResult.yValue.toFixed(2)}`,
+      description: `Parameters updated: ${getParamLabel(
+        xAxisParam
+      )} = ${bestResult.xValue.toFixed(2)}, ${getParamLabel(
+        yAxisParam
+      )} = ${bestResult.yValue.toFixed(2)}`,
     });
   };
 
@@ -54,7 +62,9 @@ export const BestResultCard: React.FC = () => {
             <Star className="w-5 h-5 text-gray-900 fill-gray-900" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-text-primary">Optimal Parameters Found</h3>
+            <h3 className="text-lg font-bold text-text-primary">
+              Optimal Parameters Found
+            </h3>
             <p className="text-sm text-text-secondary">
               Best result based on {getMetricLabel()}
             </p>
@@ -85,41 +95,59 @@ export const BestResultCard: React.FC = () => {
 
         {/* Results Grid */}
         <div className="rounded-lg bg-bg-secondary border border-border-main p-4">
-          <p className="text-sm font-semibold text-text-primary mb-3">Performance Metrics</p>
+          <p className="text-sm font-semibold text-text-primary mb-3">
+            Performance Metrics
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-text-secondary mb-1">Net PnL</p>
-              <p className={`text-lg font-bold ${result.netPnL >= 0 ? "text-success" : "text-danger"}`}>
-                ${result.netPnL >= 0 ? "+" : ""}{result.netPnL.toFixed(2)}
+              <p
+                className={`text-lg font-bold ${
+                  result.netPnL >= 0 ? "text-success" : "text-danger"
+                }`}
+              >
+                ${result.netPnL >= 0 ? "+" : ""}
+                {result.netPnL.toFixed(2)}
               </p>
               <p className="text-xs text-text-secondary">
-                ({result.netPnLPct >= 0 ? "+" : ""}{result.netPnLPct.toFixed(2)}%)
+                ({result.netPnLPct >= 0 ? "+" : ""}
+                {result.netPnLPct.toFixed(2)}%)
               </p>
             </div>
 
             <div>
               <p className="text-xs text-text-secondary mb-1">Sharpe Ratio</p>
-              <p className="text-lg font-bold text-text-primary">{result.sharpe.toFixed(2)}</p>
+              <p className="text-lg font-bold text-text-primary">
+                {result.sharpe.toFixed(2)}
+              </p>
             </div>
 
             <div>
               <p className="text-xs text-text-secondary mb-1">Win Rate</p>
-              <p className="text-lg font-bold text-text-primary">{result.winRate.toFixed(1)}%</p>
+              <p className="text-lg font-bold text-text-primary">
+                {result.winRate.toFixed(1)}%
+              </p>
             </div>
 
             <div>
               <p className="text-xs text-text-secondary mb-1">Profit Factor</p>
-              <p className="text-lg font-bold text-text-primary">{result.profitFactor.toFixed(2)}</p>
+              <p className="text-lg font-bold text-text-primary">
+                {result.profitFactor.toFixed(2)}
+              </p>
             </div>
 
             <div>
               <p className="text-xs text-text-secondary mb-1">Max Drawdown</p>
-              <p className="text-lg font-bold text-danger">{result.maxDrawdownPct.toFixed(2)}%</p>
+              <p className="text-lg font-bold text-danger">
+                {result.maxDrawdownPct.toFixed(2)}%
+              </p>
             </div>
 
             <div>
               <p className="text-xs text-text-secondary mb-1">Total Trades</p>
-              <p className="text-lg font-bold text-text-primary">{result.tradeCount}</p>
+              <p className="text-lg font-bold text-text-primary">
+                {result.tradeCount}
+              </p>
             </div>
           </div>
         </div>
@@ -133,19 +161,24 @@ export const BestResultCard: React.FC = () => {
             <Check className="w-4 h-4" />
             Apply These Settings
           </Button>
-          
+
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => {
-              // In a real app, this would navigate to a detailed report
-              toast.info("Feature Coming Soon", {
-                description: "Detailed report view will be available in the next update.",
+            onClick={async () => {
+              applyBestSettings();
+              const { useBacktestStore } = await import(
+                "../../stores/backtestStore"
+              );
+              useBacktestStore.getState().setMode("single");
+              toast.success("Ready for Detailed Backtest", {
+                description:
+                  "Settings applied. Click Run to generate full deep-dive logs and charts.",
               });
             }}
           >
             <FileText className="w-4 h-4" />
-            View Full Report
+            Run Detailed Backtest
           </Button>
         </div>
       </div>

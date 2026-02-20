@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { startWalkForward, streamQuantProgress } from "../api/quant";
 
 export interface WalkForwardWindow {
   index: number;
@@ -15,6 +16,9 @@ export interface WalkForwardWindow {
   oosReturn: number;
   oosReturnPct: number;
   isPositive: boolean;
+
+  status?: "success" | "skipped" | "failed";
+  error?: string;
 }
 
 export interface WalkForwardSummary {
@@ -53,6 +57,7 @@ export interface WalkForwardState {
   isRunning: boolean;
   currentWindow: number;
   progress: number;
+  _sseCleanup: (() => void) | null;
 
   // Results
   windows: WalkForwardWindow[];
@@ -112,43 +117,7 @@ const generateDateRanges = (
   return ranges;
 };
 
-// Mock result generation
-const generateWindowResult = (
-  windowIndex: number,
-  paramMin: number,
-  paramMax: number,
-  paramStep: number,
-  metric: WalkForwardMetric
-): { bestParam: number; isMetricValue: number; oosReturnPct: number } => {
-  // Simulate optimization finding best param in IS
-  const possibleParams = [];
-  for (let p = paramMin; p <= paramMax; p += paramStep) {
-    possibleParams.push(Math.round(p * 100) / 100);
-  }
-  
-  // Pick "best" param with some variance
-  const seed = windowIndex * 12345;
-  const random = (min: number, max: number) => {
-    const x = Math.sin(seed + windowIndex) * 10000;
-    return min + (x - Math.floor(x)) * (max - min);
-  };
-  
-  const bestParamIdx = Math.floor(random(0, possibleParams.length));
-  const bestParam = possibleParams[bestParamIdx];
-  
-  // IS metric value
-  const isMetricValue = random(0.8, 2.2);
-  
-  // OOS return - with some degradation from IS
-  // Most windows should be positive (70-80%) for a robust strategy
-  const oosReturnPct = random(-3, 7) * (0.7 + random(0, 0.3));
-  
-  return {
-    bestParam,
-    isMetricValue: Math.round(isMetricValue * 100) / 100,
-    oosReturnPct: Math.round(oosReturnPct * 100) / 100,
-  };
-};
+
 
 // Calculate summary statistics
 const calculateSummary = (windows: WalkForwardWindow[]): WalkForwardSummary => {
@@ -235,6 +204,7 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
   isRunning: false,
   currentWindow: 0,
   progress: 0,
+  _sseCleanup: null,
 
   windows: [],
   summary: null,
@@ -297,6 +267,7 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
       isWindowDays,
       oosWindowDays,
       stepSizeDays,
+      paramToOptimize,
       paramMin,
       paramMax,
       paramStep,
@@ -305,51 +276,82 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
 
     set({ isRunning: true, progress: 0, currentWindow: 0, windows: [], summary: null });
 
-    const totalDataDays = 365;
-    const ranges = generateDateRanges(totalDataDays, isWindowDays, oosWindowDays, stepSizeDays);
-    const totalWindows = ranges.length;
-    const windows: WalkForwardWindow[] = [];
+    const { useBacktestStore } = await import("./backtestStore");
+    const baseParams = useBacktestStore.getState().params;
+    const timeframe = useBacktestStore.getState().timeframe;
+    const strategy = useBacktestStore.getState().strategy;
+    const symbol = useBacktestStore.getState().symbol;
+    const startDate = useBacktestStore.getState().startDate;
+    const endDate = useBacktestStore.getState().endDate;
 
     try {
-      for (let i = 0; i < ranges.length; i++) {
-        // Check if cancelled
-        if (!get().isRunning) return;
+      const response = await startWalkForward({
+        symbol,
+        timeframe,
+        strategy,
+        start_date: startDate?.toISOString(),
+        end_date: endDate?.toISOString(),
+        params: baseParams,
+        walk_forward_params: {
+          is_window_days: isWindowDays,
+          oos_window_days: oosWindowDays,
+          step_size_days: stepSizeDays,
+          param_to_optimize: paramToOptimize,
+          param_min: paramMin,
+          param_max: paramMax,
+          param_step: paramStep,
+          optimize_metric: optimizeMetric
+        }
+      });
 
-        set({ currentWindow: i + 1 });
+      const cleanup = streamQuantProgress(
+        response.run_id,
+        (pct, currentBest) => {
+          set({ progress: pct });
+        },
+        (data) => {
+          let finalWindows: WalkForwardWindow[] = [];
+          if (data && Array.isArray(data.windows)) {
+            finalWindows = data.windows.map((w: any, i: number) => ({
+              index: i + 1,
+              isStartDate: w.is_start_date || "",
+              isEndDate: w.is_end_date || "",
+              oosStartDate: w.oos_start_date || "",
+              oosEndDate: w.oos_end_date || "",
+              bestParam: w.best_param || 0,
+              isMetricValue: w.is_metric_value || 0,
+              oosReturn: w.oos_return || 0,
+              oosReturnPct: w.oos_return_pct || 0,
+              isPositive: (w.oos_return_pct || 0) > 0,
+              status: w.status || "success",
+              error: w.error
+            }));
+          }
+          
+          let summary = null;
+          if (finalWindows.length > 0) {
+            summary = calculateSummary(finalWindows);
+          }
+          
+          set({ windows: finalWindows, summary, isRunning: false, currentWindow: 0, progress: 100, _sseCleanup: null });
+        },
+        (errorMsg) => {
+          console.error("Walk-forward error:", errorMsg);
+          set({ isRunning: false, currentWindow: 0, _sseCleanup: null });
+        }
+      );
 
-        const range = ranges[i];
-        const result = generateWindowResult(i, paramMin, paramMax, paramStep, optimizeMetric);
-
-        const window: WalkForwardWindow = {
-          index: i + 1,
-          isStartDate: range.isStart.toISOString().split("T")[0],
-          isEndDate: range.isEnd.toISOString().split("T")[0],
-          oosStartDate: range.oosStart.toISOString().split("T")[0],
-          oosEndDate: range.oosEnd.toISOString().split("T")[0],
-          bestParam: result.bestParam,
-          isMetricValue: result.isMetricValue,
-          oosReturn: result.oosReturnPct * 100, // Store as actual currency value (mock)
-          oosReturnPct: result.oosReturnPct,
-          isPositive: result.oosReturnPct > 0,
-        };
-
-        windows.push(window);
-        set({ windows: [...windows], progress: Math.round(((i + 1) / totalWindows) * 100) });
-
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-
-      const summary = calculateSummary(windows);
-      set({ summary, isRunning: false, currentWindow: 0 });
+      set({ _sseCleanup: cleanup });
     } catch (error) {
       console.error("Walk-forward error:", error);
-      set({ isRunning: false, currentWindow: 0 });
+      set({ isRunning: false, currentWindow: 0, _sseCleanup: null });
     }
   },
 
   cancelRun: () => {
-    set({ isRunning: false, currentWindow: 0 });
+    const { _sseCleanup } = get();
+    if (_sseCleanup) _sseCleanup();
+    set({ isRunning: false, currentWindow: 0, _sseCleanup: null });
   },
 
   applyBestParam: () => {
@@ -401,6 +403,7 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
       isRunning: false,
       currentWindow: 0,
       progress: 0,
+      _sseCleanup: null,
     });
   },
 }));

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { startGridSearch, streamQuantProgress } from "../api/quant";
 
 export interface GridSearchResult {
   xValue: number;
@@ -12,7 +13,11 @@ export interface GridSearchResult {
   tradeCount: number;
   calmar?: number;
   sortino?: number;
+  status?: "success" | "failed";
+  error?: string;
+  config?: Record<string, any>;
 }
+
 
 export interface BestResult {
   x: number;
@@ -49,6 +54,7 @@ export interface GridSearchState {
   progress: number; // 0-100
   currentCombination: { x: number; y: number } | null;
   elapsedSeconds: number;
+  _sseCleanup: (() => void) | null;
 
   // Results
   results: GridSearchResult[][] | null; // 2D array [y][x]
@@ -88,37 +94,7 @@ export const AVAILABLE_PARAMETERS = [
   { value: "oversold", label: "Oversold", type: "int", defaultMin: 20, defaultMax: 35, defaultStep: 5 },
 ];
 
-// Generate mock results for a single combination
-const generateMockResult = (xValue: number, yValue: number, metric: GridMetric): GridSearchResult => {
-  // Generate somewhat realistic looking results with some variance
-  const seed = xValue * 1000 + yValue;
-  const random = (min: number, max: number) => {
-    const x = Math.sin(seed) * 10000;
-    return min + (x - Math.floor(x)) * (max - min);
-  };
 
-  // Create a "sweet spot" around middle values
-  const xNormalized = xValue / 100; // Normalize to 0-1 range roughly
-  const yNormalized = yValue / 100;
-  const distanceFromCenter = Math.sqrt(Math.pow(xNormalized - 0.5, 2) + Math.pow(yNormalized - 0.5, 2));
-  const sweetSpotMultiplier = Math.max(0, 1 - distanceFromCenter * 2);
-
-  const baseProfit = (random(0.5, 1.5) + sweetSpotMultiplier) * 1000;
-  const netPnL = baseProfit - 500; // Can be negative
-  const netPnLPct = (netPnL / 10000) * 100;
-
-  return {
-    xValue,
-    yValue,
-    netPnL: Math.round(netPnL * 100) / 100,
-    netPnLPct: Math.round(netPnLPct * 100) / 100,
-    sharpe: Math.round((random(0.5, 2.5) + sweetSpotMultiplier * 0.5) * 100) / 100,
-    profitFactor: Math.round((random(0.8, 2.2) + sweetSpotMultiplier * 0.3) * 100) / 100,
-    winRate: Math.round((random(40, 75) + sweetSpotMultiplier * 10) * 100) / 100,
-    maxDrawdownPct: Math.round((random(2, 15) - sweetSpotMultiplier * 3) * 100) / 100,
-    tradeCount: Math.floor(random(10, 50)),
-  };
-};
 
 export const useGridSearchStore = create<GridSearchState>((set, get) => ({
   // Initial Configuration
@@ -142,6 +118,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
   progress: 0,
   currentCombination: null,
   elapsedSeconds: 0,
+  _sseCleanup: null,
 
   results: null,
   bestResult: null,
@@ -209,28 +186,12 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
   runGridSearch: async () => {
     const { 
-      xAxisMin, xAxisMax, xAxisStep, 
-      yAxisMin, yAxisMax, yAxisStep,
-      metric
+      xAxisParam, xAxisMin, xAxisMax, xAxisStep, 
+      yAxisParam, yAxisMin, yAxisMax, yAxisStep,
+      symbol, metric
     } = get();
 
     set({ isRunning: true, progress: 0, elapsedSeconds: 0, results: null, bestResult: null });
-
-    // Generate X and Y value arrays
-    const xValues: number[] = [];
-    for (let x = xAxisMin; x <= xAxisMax; x += xAxisStep) {
-      xValues.push(Math.round(x * 100) / 100);
-    }
-
-    const yValues: number[] = [];
-    for (let y = yAxisMin; y <= yAxisMax; y += yAxisStep) {
-      yValues.push(Math.round(y * 100) / 100);
-    }
-
-    const totalCombinations = xValues.length * yValues.length;
-    const results: GridSearchResult[][] = [];
-    let bestResult: BestResult | null = null;
-    let completed = 0;
 
     // Track elapsed time
     const startTime = Date.now();
@@ -239,80 +200,115 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
       set({ elapsedSeconds: elapsed });
     }, 1000);
 
+    const { useBacktestStore } = await import("./backtestStore");
+    const baseParams = useBacktestStore.getState().params;
+    const timeframe = useBacktestStore.getState().timeframe;
+    const strategy = useBacktestStore.getState().strategy;
+    const startDate = useBacktestStore.getState().startDate;
+    const endDate = useBacktestStore.getState().endDate;
+
+    const xValues: number[] = [];
+    for (let x = xAxisMin; x <= xAxisMax; x += xAxisStep) {
+      xValues.push(Math.round(x * 100) / 100);
+    }
+    const yValues: number[] = [];
+    for (let y = yAxisMin; y <= yAxisMax; y += yAxisStep) {
+      yValues.push(Math.round(y * 100) / 100);
+    }
+
     try {
-      // Simulate running each combination
-      for (let yIdx = 0; yIdx < yValues.length; yIdx++) {
-        const row: GridSearchResult[] = [];
-        
-        for (let xIdx = 0; xIdx < xValues.length; xIdx++) {
-          // Check if cancelled
-          if (!get().isRunning) {
-            clearInterval(timerInterval);
-            return;
-          }
-
-          const xValue = xValues[xIdx];
-          const yValue = yValues[yIdx];
-
-          set({ currentCombination: { x: xIdx, y: yIdx } });
-
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          const result = generateMockResult(xValue, yValue, metric);
-          row.push(result);
-
-          // Track best result based on metric
-          let metricValue: number;
-          switch (metric) {
-            case "net_pnl":
-              metricValue = result.netPnL;
-              break;
-            case "sharpe":
-              metricValue = result.sharpe;
-              break;
-            case "profit_factor":
-              metricValue = result.profitFactor;
-              break;
-            case "win_rate":
-              metricValue = result.winRate;
-              break;
-            case "max_dd":
-              metricValue = -result.maxDrawdownPct; // Lower is better
-              break;
-            default:
-              metricValue = result.netPnL;
-          }
-
-          if (!bestResult || metricValue > bestResult.metricValue) {
-            bestResult = {
-              x: xIdx,
-              y: yIdx,
-              xValue,
-              yValue,
-              metricValue,
-              fullResults: result,
-            };
-          }
-
-          completed++;
-          set({ progress: Math.round((completed / totalCombinations) * 100) });
+      const response = await startGridSearch({
+        symbol,
+        timeframe,
+        strategy,
+        start_date: startDate?.toISOString(),
+        end_date: endDate?.toISOString(),
+        params: baseParams,
+        grid_params: {
+          [xAxisParam]: xValues,
+          [yAxisParam]: yValues
         }
+      });
 
-        results.push(row);
-      }
+      const cleanup = streamQuantProgress(
+        response.run_id,
+        (pct, currentBest) => {
+          set({ progress: pct });
+        },
+        (data) => {
+          const results2D: GridSearchResult[][] = Array.from({ length: yValues.length }, () => 
+            Array(xValues.length).fill(null)
+          );
+          
+          let finalBest: BestResult | null = null;
 
-      set({ results, bestResult, isRunning: false, currentCombination: null });
+          if (data && Array.isArray(data.results)) {
+            data.results.forEach((res: any) => {
+              const xIdx = xValues.findIndex(v => Math.abs(v - res.config[xAxisParam]) < 0.0001);
+              const yIdx = yValues.findIndex(v => Math.abs(v - res.config[yAxisParam]) < 0.0001);
+              
+              if (xIdx !== -1 && yIdx !== -1) {
+                const node: GridSearchResult = {
+                  xValue: res.config[xAxisParam],
+                  yValue: res.config[yAxisParam],
+                  netPnL: res.net_profit || 0,
+                  netPnLPct: res.net_profit_pct || 0,
+                  sharpe: res.sharpe_ratio || 0,
+                  profitFactor: res.profit_factor || 0,
+                  winRate: res.win_rate || 0,
+                  maxDrawdownPct: res.max_drawdown_pct || 0,
+                  tradeCount: res.total_trades || 0,
+                  status: res.status,
+                  error: res.error,
+                  config: res.config
+                };
+                results2D[yIdx][xIdx] = node;
+
+                if (node.status !== "failed") {
+                  let metricValue = 0;
+                  switch (metric) {
+                    case "net_pnl": metricValue = node.netPnL; break;
+                    case "sharpe": metricValue = node.sharpe; break;
+                    case "profit_factor": metricValue = node.profitFactor; break;
+                    case "win_rate": metricValue = node.winRate; break;
+                    case "max_dd": metricValue = -node.maxDrawdownPct; break;
+                    default: metricValue = node.netPnL;
+                  }
+                  if (!finalBest || metricValue > finalBest.metricValue) {
+                    finalBest = {
+                      x: xIdx, y: yIdx,
+                      xValue: node.xValue, yValue: node.yValue,
+                      metricValue, fullResults: node
+                    };
+                  }
+                }
+              }
+            });
+          }
+          
+          clearInterval(timerInterval);
+          set({ results: results2D, bestResult: finalBest, isRunning: false, currentCombination: null, progress: 100, _sseCleanup: null });
+        },
+        (errorMsg) => {
+          console.error("SSE Error:", errorMsg);
+          clearInterval(timerInterval);
+          set({ isRunning: false, currentCombination: null, _sseCleanup: null });
+        }
+      );
+
+      set({ _sseCleanup: cleanup });
+
     } catch (error) {
       console.error("Grid search error:", error);
-      set({ isRunning: false, currentCombination: null });
-    } finally {
       clearInterval(timerInterval);
+      set({ isRunning: false, currentCombination: null, _sseCleanup: null });
     }
   },
 
   cancelSearch: () => {
-    set({ isRunning: false, currentCombination: null });
+    const { _sseCleanup } = get();
+    if (_sseCleanup) _sseCleanup();
+    set({ isRunning: false, currentCombination: null, _sseCleanup: null });
   },
 
   applyBestSettings: () => {
@@ -364,6 +360,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
       currentCombination: null,
       elapsedSeconds: 0,
       hoveredCell: null,
+      _sseCleanup: null,
     });
   },
 }));

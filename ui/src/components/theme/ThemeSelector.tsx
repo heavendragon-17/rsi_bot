@@ -18,7 +18,7 @@ export const ThemeSelector: React.FC = () => {
         <label className="mb-2 block text-xs font-medium text-text-secondary">
           Theme
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 p-1 -m-1">
           {displayedThemes.map((theme) => (
             <ThemeCard
               key={theme.id}

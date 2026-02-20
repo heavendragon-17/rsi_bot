@@ -24,6 +24,7 @@ export interface BacktestState {
   timeframe: string;
   startDate: Date | null;
   endDate: Date | null;
+  dateMode: "absolute" | "relative";
 
   // Strategy Parameters
   params: {
@@ -47,6 +48,7 @@ export interface BacktestState {
   isRunning: boolean;
   runProgress: number;        // 0-100
   currentRunId: number | null;
+  recentConfigs: any[];
 
   // Actions
   setMode: (mode: BacktestState["mode"]) => void;
@@ -58,6 +60,8 @@ export interface BacktestState {
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
   setDateRange: (start: Date | null, end: Date | null) => void;
+  setDateMode: (mode: "absolute" | "relative") => void;
+  loadConfig: (config: any) => void;
 
   runBacktest: () => Promise<void>;
   cancelBacktest: () => Promise<void>;
@@ -90,6 +94,7 @@ export const useBacktestStore = create<BacktestState>()(
       timeframe: "1h",
       startDate: new Date("2024-01-01"),
       endDate: new Date("2024-12-31"),
+      dateMode: "relative",
 
       params: { ...DEFAULT_PARAMS },
 
@@ -100,6 +105,7 @@ export const useBacktestStore = create<BacktestState>()(
       isRunning: false,
       runProgress: 0,
       currentRunId: null,
+      recentConfigs: [],
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
@@ -111,6 +117,8 @@ export const useBacktestStore = create<BacktestState>()(
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end }),
+      setDateMode: (dateMode) => set({ dateMode }),
+      loadConfig: (config) => set((state) => ({ ...state, ...config })),
 
       // ── Real API + SSE ────────────────────────────────────────────────────
 
@@ -239,6 +247,8 @@ export const useBacktestStore = create<BacktestState>()(
         riskPercent: state.riskPercent,
         startDate: state.startDate,
         endDate: state.endDate,
+        dateMode: state.dateMode,
+        recentConfigs: state.recentConfigs,
       }),
     },
   ),

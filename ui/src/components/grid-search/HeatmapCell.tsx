@@ -1,6 +1,9 @@
 import React from "react";
 import { Star } from "lucide-react";
-import { GridSearchResult, useGridSearchStore } from "../../stores/gridSearchStore";
+import {
+  GridSearchResult,
+  useGridSearchStore,
+} from "../../stores/gridSearchStore";
 import {
   Tooltip,
   TooltipContent,
@@ -25,12 +28,13 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
   maxValue,
   isBest,
 }) => {
-  const { metric, setHoveredCell, xAxisParam, yAxisParam } = useGridSearchStore();
+  const { metric, setHoveredCell, xAxisParam, yAxisParam } =
+    useGridSearchStore();
 
   // Get the value based on current metric
   let value: number;
   let displayValue: string;
-  
+
   switch (metric) {
     case "net_pnl":
       value = result.netPnL;
@@ -67,6 +71,7 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
 
   // Calculate color based on value range
   const getColor = () => {
+    if (result.status === "failed") return "bg-slate-900 border-rose-500/50";
     if (maxValue === minValue) return "bg-yellow-500/50";
 
     const normalized = (value - minValue) / (maxValue - minValue);
@@ -79,12 +84,16 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
   };
 
   const getTextColor = () => {
+    if (result.status === "failed") return "text-rose-500";
     const normalized = (value - minValue) / (maxValue - minValue);
-    return normalized < 0.3 || normalized > 0.7 ? "text-white" : "text-gray-900";
+    return normalized < 0.3 || normalized > 0.7
+      ? "text-white"
+      : "text-gray-900";
   };
 
   const getParamLabel = (paramValue: string) => {
-    const AVAILABLE_PARAMETERS = require("../../stores/gridSearchStore").AVAILABLE_PARAMETERS;
+    const AVAILABLE_PARAMETERS =
+      require("../../stores/gridSearchStore").AVAILABLE_PARAMETERS;
     const param = AVAILABLE_PARAMETERS.find((p: any) => p.value === paramValue);
     return param?.label || paramValue;
   };
@@ -104,6 +113,12 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
               cursor-pointer
               ${isBest ? "ring-4 ring-yellow-400 shadow-xl z-20" : ""}
             `}
+            style={{
+              backgroundImage:
+                result.status === "failed"
+                  ? "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(244,63,94,0.1) 10px, rgba(244,63,94,0.1) 20px)"
+                  : undefined,
+            }}
             onMouseEnter={() => setHoveredCell({ x, y })}
             onMouseLeave={() => setHoveredCell(null)}
           >
@@ -113,13 +128,15 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
                   <Star className="w-3 h-3 text-gray-900 fill-gray-900" />
                 </div>
               )}
-              <div className="text-xs font-semibold leading-tight">
-                {displayValue}
+              <div className="text-xs font-semibold leading-tight flex items-center justify-center">
+                {result.status === "failed" ? (
+                  <span className="opacity-70 text-lg">⚠️</span>
+                ) : (
+                  displayValue
+                )}
               </div>
               {isBest && (
-                <div className="text-[10px] font-bold mt-0.5">
-                  BEST
-                </div>
+                <div className="text-[10px] font-bold mt-0.5">BEST</div>
               )}
             </div>
           </div>
@@ -133,40 +150,69 @@ export const HeatmapCell: React.FC<HeatmapCellProps> = ({
               Parameter Values
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-text-secondary">{getParamLabel(xAxisParam)}:</div>
+              <div className="text-text-secondary">
+                {getParamLabel(xAxisParam)}:
+              </div>
               <div className="font-mono font-semibold text-text-primary">
                 {result.xValue.toFixed(result.xValue % 1 === 0 ? 0 : 2)}
               </div>
-              <div className="text-text-secondary">{getParamLabel(yAxisParam)}:</div>
+              <div className="text-text-secondary">
+                {getParamLabel(yAxisParam)}:
+              </div>
               <div className="font-mono font-semibold text-text-primary">
                 {result.yValue.toFixed(result.yValue % 1 === 0 ? 0 : 2)}
               </div>
             </div>
 
-            <div className="font-semibold text-text-primary border-b border-t border-border-main py-2">
-              Performance Metrics
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-text-secondary">Net PnL:</div>
-              <div className={`font-semibold ${result.netPnL >= 0 ? "text-success" : "text-danger"}`}>
-                ${result.netPnL >= 0 ? "+" : ""}{result.netPnL.toFixed(2)} ({result.netPnLPct >= 0 ? "+" : ""}{result.netPnLPct.toFixed(2)}%)
+            {result.status === "failed" ? (
+              <div className="pt-2 mt-2 border-t border-border-main text-rose-500 text-sm font-medium">
+                Run Failed: {result.error || "Unknown error occurred"}
               </div>
+            ) : (
+              <>
+                <div className="font-semibold text-text-primary border-b border-t border-border-main py-2">
+                  Performance Metrics
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-text-secondary">Net PnL:</div>
+                  <div
+                    className={`font-semibold ${
+                      result.netPnL >= 0 ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    ${result.netPnL >= 0 ? "+" : ""}
+                    {result.netPnL.toFixed(2)} (
+                    {result.netPnLPct >= 0 ? "+" : ""}
+                    {result.netPnLPct.toFixed(2)}%)
+                  </div>
 
-              <div className="text-text-secondary">Sharpe:</div>
-              <div className="font-semibold text-text-primary">{result.sharpe.toFixed(2)}</div>
+                  <div className="text-text-secondary">Sharpe:</div>
+                  <div className="font-semibold text-text-primary">
+                    {result.sharpe.toFixed(2)}
+                  </div>
 
-              <div className="text-text-secondary">Win Rate:</div>
-              <div className="font-semibold text-text-primary">{result.winRate.toFixed(1)}%</div>
+                  <div className="text-text-secondary">Win Rate:</div>
+                  <div className="font-semibold text-text-primary">
+                    {result.winRate.toFixed(1)}%
+                  </div>
 
-              <div className="text-text-secondary">Profit Factor:</div>
-              <div className="font-semibold text-text-primary">{result.profitFactor.toFixed(2)}</div>
+                  <div className="text-text-secondary">Profit Factor:</div>
+                  <div className="font-semibold text-text-primary">
+                    {result.profitFactor.toFixed(2)}
+                  </div>
 
-              <div className="text-text-secondary">Max DD:</div>
-              <div className="font-semibold text-danger">{result.maxDrawdownPct.toFixed(2)}%</div>
+                  <div className="text-text-secondary">Max DD:</div>
+                  <div className="font-semibold text-danger">
+                    {result.maxDrawdownPct.toFixed(2)}%
+                  </div>
 
-              <div className="text-text-secondary">Trades:</div>
-              <div className="font-semibold text-text-primary">{result.tradeCount}</div>
-            </div>
+                  <div className="text-text-secondary">Trades:</div>
+                  <div className="font-semibold text-text-primary">
+                    {result.tradeCount}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>
