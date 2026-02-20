@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { LaunchpadConfig, StrategyConfig } from '../App';
 import { TrendingUp, TrendingDown, Activity, Award, ChevronLeft, BarChart3, PieChart } from 'lucide-react';

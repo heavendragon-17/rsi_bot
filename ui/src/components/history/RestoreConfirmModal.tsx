@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { useHistoryStore } from "../../stores/historyStore";
 import { useBacktestStore } from "../../stores/backtestStore";

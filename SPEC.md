@@ -17,24 +17,25 @@ Each phase has a **checklist** at the end. You MUST run every verification comma
 
 The following mock/placeholder code MUST be **deleted entirely** — not commented out, not wrapped in `if`, not left as dead code. After each removal, run the grep verification to prove it's gone.
 
-| What to delete | File | Why |
-|----------------|------|-----|
-| `generateMockResults()` method (lines 123-247) | `ui/src/stores/resultsStore.ts` | Generates fake random data instead of real backtest results |
-| `generateMockResults` in interface (line 73) | `ui/src/stores/resultsStore.ts` | Type definition for the mock method |
-| `generateMockResults()` call (line 77) | `ui/src/components/layout/Sidebar.tsx` | Sidebar calls mock after run |
-| `generateMockResults()` call (line 114) | `ui/src/components/data-modal/DataPrepModal.tsx` | DataPrepModal calls mock after run |
-| `generateMockResults()` call (line 73) | `ui/src/components/layout/MobileSidebarSheet.tsx` | Mobile sidebar calls mock after run |
-| `generateMockBatchResults()` calls | `Sidebar.tsx`, `DataPrepModal.tsx`, `MobileSidebarSheet.tsx` | Batch mock data (out of MVP but remove the calls) |
-| `persist` middleware wrapping `resultsStore` | `ui/src/stores/resultsStore.ts` (lines 77, 249-253) | Results come from API, not localStorage |
-| `persist` middleware wrapping `historyStore` | `ui/src/stores/historyStore.ts` (lines 89, 273-286) | History comes from API, not localStorage |
-| `addRun()` local method | `ui/src/stores/historyStore.ts` (lines 113-122) | Runs are created server-side, not client-side |
-| `getFilteredRuns()` local method | `ui/src/stores/historyStore.ts` (lines 205-257) | Filtering is server-side |
-| `getPaginatedRuns()` local method | `ui/src/stores/historyStore.ts` (lines 259-265) | Pagination is server-side |
-| `setTimeout(800ms)` placeholder in `runBacktest` | `ui/src/stores/backtestStore.ts` (lines 102-107) | Fake delay instead of real API call |
-| Fake download simulation (`setInterval` + `progress += 5`) | `ui/src/components/data-modal/DataPrepModal.tsx` (lines 53-92) | Simulates download with CSS timer instead of real SSE |
-| `addRun()` calls in `Sidebar.tsx` and `DataPrepModal.tsx` | `Sidebar.tsx` (lines 83-99), `DataPrepModal.tsx` | Local history insertion — server handles this now |
+| What to delete                                             | File                                                           | Why                                                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| `generateMockResults()` method (lines 123-247)             | `ui/src/stores/resultsStore.ts`                                | Generates fake random data instead of real backtest results |
+| `generateMockResults` in interface (line 73)               | `ui/src/stores/resultsStore.ts`                                | Type definition for the mock method                         |
+| `generateMockResults()` call (line 77)                     | `ui/src/components/layout/Sidebar.tsx`                         | Sidebar calls mock after run                                |
+| `generateMockResults()` call (line 114)                    | `ui/src/components/data-modal/DataPrepModal.tsx`               | DataPrepModal calls mock after run                          |
+| `generateMockResults()` call (line 73)                     | `ui/src/components/layout/MobileSidebarSheet.tsx`              | Mobile sidebar calls mock after run                         |
+| `generateMockBatchResults()` calls                         | `Sidebar.tsx`, `DataPrepModal.tsx`, `MobileSidebarSheet.tsx`   | Batch mock data (out of MVP but remove the calls)           |
+| `persist` middleware wrapping `resultsStore`               | `ui/src/stores/resultsStore.ts` (lines 77, 249-253)            | Results come from API, not localStorage                     |
+| `persist` middleware wrapping `historyStore`               | `ui/src/stores/historyStore.ts` (lines 89, 273-286)            | History comes from API, not localStorage                    |
+| `addRun()` local method                                    | `ui/src/stores/historyStore.ts` (lines 113-122)                | Runs are created server-side, not client-side               |
+| `getFilteredRuns()` local method                           | `ui/src/stores/historyStore.ts` (lines 205-257)                | Filtering is server-side                                    |
+| `getPaginatedRuns()` local method                          | `ui/src/stores/historyStore.ts` (lines 259-265)                | Pagination is server-side                                   |
+| `setTimeout(800ms)` placeholder in `runBacktest`           | `ui/src/stores/backtestStore.ts` (lines 102-107)               | Fake delay instead of real API call                         |
+| Fake download simulation (`setInterval` + `progress += 5`) | `ui/src/components/data-modal/DataPrepModal.tsx` (lines 53-92) | Simulates download with CSS timer instead of real SSE       |
+| `addRun()` calls in `Sidebar.tsx` and `DataPrepModal.tsx`  | `Sidebar.tsx` (lines 83-99), `DataPrepModal.tsx`               | Local history insertion — server handles this now           |
 
 **Grep verifications** (run after Phase 5):
+
 ```bash
 # All must return 0 results
 grep -r "generateMockResults" ui/src/
@@ -55,6 +56,7 @@ grep -r "progress += 5" ui/src/components/
 ### SSE Lifecycle Contract
 
 **The store owns the SSE connection, not components.**
+
 - `backtestStore` creates/destroys `EventSource` instances
 - Navigation does NOT kill the SSE connection
 - Components read `runProgress`/`isRunning` from store — they never create EventSource
@@ -65,6 +67,7 @@ grep -r "progress += 5" ui/src/components/
 ### Config Builder Contract
 
 **One function builds the config dict**, used by both CLI and API:
+
 - Create `app/backtest/config_builder.py` with `build_backtest_config(symbol, timeframe, strategy_name, balance, leverage, risk_pct, params, ...)` → returns the config dict that `BacktestEngine.__init__()` expects
 - `app/backtest/backtest.py` (CLI) calls this function
 - `app/api/routes/backtest.py` (API) calls this function
@@ -73,6 +76,7 @@ grep -r "progress += 5" ui/src/components/
 ### Data Validation Contract
 
 **Fail fast at API level.** Before creating a `Run` row or submitting to the executor:
+
 1. Check data file exists: `app/backtest/data/{SYMBOL}_{timeframe}.csv`
 2. If not: return HTTP 400 with `{"error": "Data file not found: BTCUSDT_1h.csv. Download data first."}`
 3. NO orphaned `Run` rows with `status="failed"` due to missing files
@@ -110,30 +114,31 @@ grep -r "progress += 5" ui/src/components/
 
 ### Key Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| API location | `app/api/` | Inside `app/` package, follows existing 3-layer architecture |
-| Frontend API pattern | Thin service layer (`ui/src/api/`) | Typed fetch wrappers. No React Query (overkill for write-once-read-many) |
-| Progress streaming | SSE (Server-Sent Events) | Unidirectional progress. Already in CLAUDE.md |
-| Concurrency | `ThreadPoolExecutor(max_workers=2)` | GIL released during pandas/numpy. Simpler than ProcessPool for MVP |
-| Database | SQLAlchemy ORM | Type-safe, migration-ready. Matches `app/repository/` |
-| Dev workflow | Separate processes + CORS | Vite `:3000` + FastAPI `:8000` |
-| Job cancellation | `{run_id: Future}` + cancel endpoint | Prevents orphaned jobs |
-| History storage | DB only | Single source of truth |
-| Themes | Frontend only | No DB for cosmetic feature |
-| Auth | None | Single-user local tool |
-| Config construction | Shared `build_backtest_config()` | One source of truth for CLI + API |
-| Metric computation | Engine owns it (not Reporter) | Reporter becomes thin HTML/CSV formatter |
-| Stdout | Replace `print()` with `logging` | Clean server logs |
-| Type safety | Pydantic → JSON Schema → TypeScript auto-gen | Zero drift between API and frontend |
-| SSE lifecycle | Store owns EventSource, not components | Survives navigation |
-| Equity curve format | Engine returns `[{date, balance}]` | Ready for DB and chart rendering |
+| Decision             | Choice                                       | Rationale                                                                |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| API location         | `app/api/`                                   | Inside `app/` package, follows existing 3-layer architecture             |
+| Frontend API pattern | Thin service layer (`ui/src/api/`)           | Typed fetch wrappers. No React Query (overkill for write-once-read-many) |
+| Progress streaming   | SSE (Server-Sent Events)                     | Unidirectional progress. Already in CLAUDE.md                            |
+| Concurrency          | `ThreadPoolExecutor(max_workers=2)`          | GIL released during pandas/numpy. Simpler than ProcessPool for MVP       |
+| Database             | SQLAlchemy ORM                               | Type-safe, migration-ready. Matches `app/repository/`                    |
+| Dev workflow         | Separate processes + CORS                    | Vite `:3000` + FastAPI `:8000`                                           |
+| Job cancellation     | `{run_id: Future}` + cancel endpoint         | Prevents orphaned jobs                                                   |
+| History storage      | DB only                                      | Single source of truth                                                   |
+| Themes               | Frontend only                                | No DB for cosmetic feature                                               |
+| Auth                 | None                                         | Single-user local tool                                                   |
+| Config construction  | Shared `build_backtest_config()`             | One source of truth for CLI + API                                        |
+| Metric computation   | Engine owns it (not Reporter)                | Reporter becomes thin HTML/CSV formatter                                 |
+| Stdout               | Replace `print()` with `logging`             | Clean server logs                                                        |
+| Type safety          | Pydantic → JSON Schema → TypeScript auto-gen | Zero drift between API and frontend                                      |
+| SSE lifecycle        | Store owns EventSource, not components       | Survives navigation                                                      |
+| Equity curve format  | Engine returns `[{date, balance}]`           | Ready for DB and chart rendering                                         |
 
 ---
 
 ## 2. Database Layer
 
 ### Location
+
 - `app/repository/backtest/__init__.py`
 - `app/repository/backtest/database.py` — engine, SessionLocal, `init_db()`
 - `app/repository/backtest/models.py` — ORM models
@@ -258,6 +263,7 @@ class Tag(Base):
 ```
 
 ### Indexes
+
 ```sql
 idx_runs_strategy     ON runs(strategy_id)
 idx_runs_created      ON runs(created_at DESC)
@@ -269,16 +275,17 @@ idx_tags_name         ON tags(name)
 ```
 
 ### Database Setup
+
 - SQLite with `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON`
 - `init_db()` calls `Base.metadata.create_all()`
 - `seed_strategies()` inserts `rsi_no_retest` with default_config from `docs/DATABASE.md` line 58-77
 
 ### Phase 1 Checklist
 
-- [ ] `python -c "from app.repository.backtest.database import init_db; init_db()"` completes without error
-- [ ] `data/backtest.db` exists and contains 7 tables (strategies, runs, run_configs, run_results, run_timeseries, trades, tags)
-- [ ] `python -c "from app.repository.backtest.database import SessionLocal; from app.repository.backtest.models import Strategy; db=SessionLocal(); print(db.query(Strategy).first().name)"` prints `rsi_no_retest`
-- [ ] `python -m pytest tests/ -v` — all previously passing tests still pass
+- [x] `python -c "from app.repository.backtest.database import init_db; init_db()"` completes without error
+- [x] `data/backtest.db` exists and contains 7 tables (strategies, runs, run_configs, run_results, run_timeseries, trades, tags)
+- [x] `python -c "from app.repository.backtest.database import SessionLocal; from app.repository.backtest.models import Strategy; db=SessionLocal(); print(db.query(Strategy).first().name)"` prints `rsi_no_retest`
+- [x] `python -m pytest tests/ -v` — all previously passing tests still pass
 
 ---
 
@@ -291,18 +298,22 @@ The engine gains a `compute_results()` method that calls the computation logic d
 ### File: `app/backtest/engine.py`
 
 **Replace `print()` with `logging`:**
+
 ```python
 import logging
 logger = logging.getLogger(__name__)
 ```
+
 All `print(...)` → `logger.info(...)`.
 
 **Change `run()` signature:**
+
 ```python
 def run(self, on_progress=None) -> dict:
 ```
 
 **Add progress callback in candle loop:**
+
 ```python
 total_steps = n_rows - warmup_period
 last_pct = -1
@@ -319,12 +330,14 @@ for i in range(warmup_period, n_rows):
 **Add `compute_results()` method to `BacktestEngine`:**
 
 Move the computation logic from `BacktestReporter._build_round_trips`, `_calculate_metrics`, `_calculate_drawdown`, `_calculate_risk_metrics`, `_calculate_monthly_returns` into a new method on `BacktestEngine`. This method:
+
 1. Builds round trips from `self.exchange.trade_history`
 2. Computes all metrics, drawdown, risk metrics, monthly returns
 3. Builds date-annotated equity curve: `[{"date": "2024-01-15", "balance": "10250.50"}, ...]` by pairing each equity point with the corresponding trade's `exit_time`
 4. Returns a complete results dict
 
 **Return results at end of `run()`:**
+
 ```python
 self._close_open_positions()
 
@@ -335,6 +348,7 @@ return self.compute_results()
 ```
 
 **`compute_results()` returns:**
+
 ```python
 {
     "metrics": {
@@ -406,6 +420,7 @@ return self.compute_results()
 ### File: `app/backtest/reporting.py`
 
 **Reporter becomes a thin formatter.** It receives a results dict and formats HTML/CSV:
+
 ```python
 class BacktestReporter:
     def __init__(self, results: dict, symbol: str, timeframe: str, strategy_name: str):
@@ -420,6 +435,7 @@ class BacktestReporter:
 ### File: `app/backtest/backtest.py`
 
 Update CLI caller to use new signatures:
+
 ```python
 engine = BacktestEngine(data_path, strategy_class, config)
 results = engine.run()
@@ -452,13 +468,13 @@ def build_backtest_config(
 
 ### Phase 2 Checklist
 
-- [ ] `python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000` produces HTML report and CSV (backward compat)
-- [ ] `python -c "from app.backtest.engine import BacktestEngine; ..."` — engine.run() returns a dict with all keys listed above
-- [ ] `python -c "from app.backtest.config_builder import build_backtest_config; c = build_backtest_config('BTC/USDT', '5m', 'rsi_no_retest'); print(c['symbols'])"` prints `['BTC/USDT']`
-- [ ] `grep -r "print(" app/backtest/engine.py` returns 0 results (all converted to logger)
-- [ ] Return dict `equity_curve` contains objects with `date` and `balance` keys (not plain floats)
-- [ ] `python -m pytest tests/ -v` — existing tests updated to assert on return dict structure
-- [ ] New test: `tests/test_engine_results.py` verifies return dict has all required keys and correct types
+- [x] `python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000` produces HTML report and CSV (backward compat)
+- [x] `python -c "from app.backtest.engine import BacktestEngine; ..."` — engine.run() returns a dict with all keys listed above
+- [x] `python -c "from app.backtest.config_builder import build_backtest_config; c = build_backtest_config('BTC/USDT', '5m', 'rsi_no_retest'); print(c['symbols'])"` prints `['BTC/USDT']`
+- [x] `grep -r "print(" app/backtest/engine.py` returns 0 results (all converted to logger)
+- [x] Return dict `equity_curve` contains objects with `date` and `balance` keys (not plain floats)
+- [x] `python -m pytest tests/ -v` — existing tests updated to assert on return dict structure
+- [x] New test: `tests/test_engine_results.py` verifies return dict has all required keys and correct types
 
 ---
 
@@ -480,6 +496,7 @@ Startup: `init_db()` + `seed_strategies()`
 All response models defined here. These generate the JSON Schema that TypeScript types are built from.
 
 **Request:**
+
 ```python
 class BacktestRequest(BaseModel):
     symbol: str
@@ -497,6 +514,7 @@ class BacktestRequest(BaseModel):
 ```
 
 **Responses:**
+
 ```python
 class BacktestStartResponse(BaseModel):
     run_id: int
@@ -563,6 +581,7 @@ class StrategyInfo(BaseModel):
 ### JSON Schema export script
 
 Add `app/api/export_schema.py`:
+
 ```python
 """Export Pydantic schemas as JSON Schema for TypeScript codegen."""
 import json
@@ -578,6 +597,7 @@ with open("ui/src/types/api-schema.json", "w") as f:
 ```
 
 Add to `ui/package.json`:
+
 ```json
 "scripts": {
     "generate-types": "cd .. && python app/api/export_schema.py && cd ui && npx json-schema-to-typescript -i src/types/api-schema.json -o src/types/api-types.ts"
@@ -594,6 +614,7 @@ Add to `ui/package.json`:
 **Response:** `201 BacktestStartResponse`
 
 **Flow:**
+
 1. Validate data file exists → 400 if missing (fail fast)
 2. Insert `Run` (status="running") + `RunConfig` into DB
 3. Build config via `build_backtest_config()`
@@ -609,6 +630,7 @@ Add to `ui/package.json`:
 ### `GET /api/backtest/{run_id}/progress` — SSE stream
 
 **Response:** `text/event-stream`
+
 ```
 event: progress
 data: {"pct": 45, "candle": 2500, "total": 5500}
@@ -664,18 +686,18 @@ Same SSE format as backtest progress.
 
 ### Phase 3 Checklist
 
-- [ ] `python -m app.api.main` starts without error, logs "Uvicorn running on http://0.0.0.0:8000"
-- [ ] `curl http://localhost:8000/api/strategies` returns JSON array with `rsi_no_retest`
-- [ ] `curl http://localhost:8000/api/data/status?symbol=BTC/USDT&timeframe=5m` returns `{"available": true, ...}` (assuming CSV exists)
-- [ ] `curl -X POST http://localhost:8000/api/backtest/run -H "Content-Type: application/json" -d '{"symbol":"BTC/USDT","timeframe":"5m","strategy":"rsi_no_retest","start_date":"2024-01-01","end_date":"2024-12-31"}'` returns `{"run_id": 1, "status": "running"}`
-- [ ] `curl http://localhost:8000/api/backtest/1/progress` streams SSE events ending in `event: complete`
-- [ ] `curl http://localhost:8000/api/backtest/1` returns `RunDetail` with real metrics (NOT zeros, NOT hardcoded)
-- [ ] `curl http://localhost:8000/api/backtest/1/timeseries` returns decompressed equity curve with `date` and `balance` keys
-- [ ] `curl http://localhost:8000/api/history` returns the run in history list
-- [ ] `curl -X DELETE http://localhost:8000/api/history/1` deletes it; subsequent GET returns empty list
-- [ ] `curl -X POST ... -d '{"symbol":"FAKE/COIN",...}'` returns HTTP 400 (fail fast on missing data)
-- [ ] New test: `tests/test_api.py` tests each endpoint with real engine execution
-- [ ] `python -m pytest tests/ -v` — all tests pass
+- [x] `python -m app.api.main` starts without error, logs "Uvicorn running on http://0.0.0.0:8000"
+- [x] `curl http://localhost:8000/api/strategies` returns JSON array with `rsi_no_retest`
+- [x] `curl http://localhost:8000/api/data/status?symbol=BTC/USDT&timeframe=5m` returns `{"available": true, ...}` (assuming CSV exists)
+- [x] `curl -X POST http://localhost:8000/api/backtest/run -H "Content-Type: application/json" -d '{"symbol":"BTC/USDT","timeframe":"5m","strategy":"rsi_no_retest","start_date":"2024-01-01","end_date":"2024-12-31"}'` returns `{"run_id": 1, "status": "running"}`
+- [x] `curl http://localhost:8000/api/backtest/1/progress` streams SSE events ending in `event: complete`
+- [x] `curl http://localhost:8000/api/backtest/1` returns `RunDetail` with real metrics (NOT zeros, NOT hardcoded)
+- [x] `curl http://localhost:8000/api/backtest/1/timeseries` returns decompressed equity curve with `date` and `balance` keys
+- [x] `curl http://localhost:8000/api/history` returns the run in history list
+- [x] `curl -X DELETE http://localhost:8000/api/history/1` deletes it; subsequent GET returns empty list
+- [x] `curl -X POST ... -d '{"symbol":"FAKE/COIN",...}'` returns HTTP 400 (fail fast on missing data)
+- [x] New test: `tests/test_api.py` tests each endpoint with real engine execution
+- [x] `python -m pytest tests/ -v` — all tests pass
 
 ---
 
@@ -710,62 +732,81 @@ def make_progress_callback(run_id: int, loop: asyncio.AbstractEventLoop):
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export class ApiError extends Error {
-    constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string) {
+    super(message);
+  }
 }
 
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T>
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T>;
 // Throws ApiError on non-2xx
 
 export function apiSSE(
-    path: string,
-    onMessage: (event: string, data: any) => void,
-    onError?: (err: Event) => void
-): () => void
+  path: string,
+  onMessage: (event: string, data: any) => void,
+  onError?: (err: Event) => void
+): () => void;
 // Returns cleanup function that closes EventSource
 ```
 
 ### `ui/src/api/backtest.ts`
 
 ```typescript
-export async function startBacktest(params: BacktestRequest): Promise<BacktestStartResponse>
-export function streamProgress(runId: number, onProgress, onComplete, onError): () => void
-export async function cancelBacktest(runId: number): Promise<void>
-export async function getRunDetail(runId: number): Promise<RunDetail>
-export async function getTimeseries(runId: number): Promise<TimeseriesResponse>
+export async function startBacktest(
+  params: BacktestRequest
+): Promise<BacktestStartResponse>;
+export function streamProgress(
+  runId: number,
+  onProgress,
+  onComplete,
+  onError
+): () => void;
+export async function cancelBacktest(runId: number): Promise<void>;
+export async function getRunDetail(runId: number): Promise<RunDetail>;
+export async function getTimeseries(runId: number): Promise<TimeseriesResponse>;
 ```
 
 ### `ui/src/api/history.ts`
 
 ```typescript
-export async function fetchHistory(filters): Promise<HistoryResponse>
-export async function deleteRun(runId: number): Promise<void>
+export async function fetchHistory(filters): Promise<HistoryResponse>;
+export async function deleteRun(runId: number): Promise<void>;
 ```
 
 ### `ui/src/api/strategies.ts`
 
 ```typescript
-export async function fetchStrategies(): Promise<StrategyInfo[]>
+export async function fetchStrategies(): Promise<StrategyInfo[]>;
 ```
 
 ### `ui/src/api/data.ts`
 
 ```typescript
-export async function checkDataStatus(symbol: string, timeframe: string): Promise<DataStatusResponse>
-export async function startDownload(symbol, timeframe, limit): Promise<{job_id: string}>
-export function streamDownload(jobId, onProgress, onComplete): () => void
+export async function checkDataStatus(
+  symbol: string,
+  timeframe: string
+): Promise<DataStatusResponse>;
+export async function startDownload(
+  symbol,
+  timeframe,
+  limit
+): Promise<{ job_id: string }>;
+export function streamDownload(jobId, onProgress, onComplete): () => void;
 ```
 
 ### Phase 4 Checklist
 
-- [ ] `ui/src/api/client.ts` exports `apiFetch`, `apiSSE`, `ApiError`
-- [ ] `ui/src/api/backtest.ts` exports all 5 functions listed above
-- [ ] `ui/src/api/history.ts` exports `fetchHistory`, `deleteRun`
-- [ ] `ui/src/api/strategies.ts` exports `fetchStrategies`
-- [ ] `ui/src/api/data.ts` exports `checkDataStatus`, `startDownload`, `streamDownload`
-- [ ] `ui/src/api/index.ts` re-exports everything
-- [ ] `npm run generate-types` produces `ui/src/types/api-types.ts` from Pydantic schemas
-- [ ] All API functions use generated types (not hand-written interfaces)
-- [ ] `cd ui && npx tsc --noEmit` — zero TypeScript errors
+- [x] `ui/src/api/client.ts` exports `apiFetch`, `apiSSE`, `ApiError`
+- [x] `ui/src/api/backtest.ts` exports all 5 functions listed above
+- [x] `ui/src/api/history.ts` exports `fetchHistory`, `deleteRun`
+- [x] `ui/src/api/strategies.ts` exports `fetchStrategies`
+- [x] `ui/src/api/data.ts` exports `checkDataStatus`, `startDownload`, `streamDownload`
+- [x] `ui/src/api/index.ts` re-exports everything
+- [x] `npm run generate-types` produces `ui/src/types/api-types.ts` from Pydantic schemas
+- [x] All API functions use generated types (not hand-written interfaces)
+- [x] `cd ui && npx tsc --noEmit` — zero TypeScript errors
 
 ---
 
@@ -774,17 +815,20 @@ export function streamDownload(jobId, onProgress, onComplete): () => void
 ### `backtestStore.ts` — Component Contract
 
 **Add state:**
+
 ```typescript
-runProgress: number;         // 0-100, drives RunButton progress bar
+runProgress: number; // 0-100, drives RunButton progress bar
 currentRunId: number | null; // active backtest run ID
 ```
 
 **Add action:**
+
 ```typescript
-cancelBacktest: () => Promise<void>;  // Calls API DELETE, resets state
+cancelBacktest: () => Promise<void>; // Calls API DELETE, resets state
 ```
 
 **Replace `runBacktest()`** — the store owns the full SSE lifecycle:
+
 ```typescript
 runBacktest: async () => {
     const state = get();
@@ -835,6 +879,7 @@ runBacktest: async () => {
 ```
 
 **`RunButton.tsx` already reads these fields** — no component changes needed. The button at `ui/src/components/layout/RunButton.tsx` already:
+
 - Shows progress bar driven by `runProgress` (line 26-28)
 - Shows cancel button calling `cancelBacktest()` (line 37-39)
 - This works because `RunButton` reads from store, and the store now has real values.
@@ -842,62 +887,69 @@ runBacktest: async () => {
 ### `resultsStore.ts` — Component Contract
 
 **Delete entirely:**
+
 - `generateMockResults()` method (lines 123-247)
 - `generateMockResults` in interface (line 73)
 - `persist` middleware wrapper (lines 77, 249-253)
 
 **Add `mapApiToResults()` function:**
+
 ```typescript
-export function mapApiToResults(detail: RunDetail, timeseries: TimeseriesResponse): Partial<ResultsState> {
-    const r = detail.results;
-    if (!r) return { hasResults: false };
-    return {
-        hasResults: true,
-        netProfit: parseFloat(r.net_profit),           // STRING → number
-        netProfitPct: r.net_profit_pct,                // already float
-        profitFactor: r.profit_factor,
-        maxDrawdownPct: r.max_drawdown_pct,
-        maxDrawdownValue: parseFloat(r.max_drawdown_value),
-        sharpeRatio: r.sharpe_ratio,
-        sortinoRatio: r.sortino_ratio,
-        calmarRatio: r.calmar_ratio,
-        volatility: r.volatility,
-        expectancy: parseFloat(r.expectancy),
-        maxConsecWins: r.max_consecutive_wins,
-        winRate: r.win_rate,
-        winCount: r.winning_trades,
-        lossCount: r.losing_trades,
-        avgWin: parseFloat(r.avg_win),
-        avgLoss: parseFloat(r.avg_loss),
-        bestTrade: parseFloat(r.largest_win),
-        worstTrade: parseFloat(r.largest_loss),
-        exitReasons: r.exit_reasons ?? {},
-        // Timeseries (loaded eagerly on complete for MVP)
-        equityCurve: timeseries.equity_curve.map(p => ({
-            time: p.date,
-            value: typeof p.balance === "string" ? parseFloat(p.balance) : p.balance
-        })),
-        underwaterCurve: timeseries.drawdown_curve.map(p => ({
-            time: p.date,
-            value: -(typeof p.drawdown === "number" ? p.drawdown : parseFloat(p.drawdown))
-        })),
-        // Map trades
-        trades: (detail.trades ?? []).map((t, i) => ({
-            id: i + 1,
-            entryTime: t.entry_time,
-            exitTime: t.exit_time ?? "",
-            symbol: t.symbol,
-            side: "LONG" as const,   // engine only does LONG for now
-            entryPrice: parseFloat(t.entry_price),
-            exitPrice: parseFloat(t.exit_price ?? "0"),
-            size: parseFloat(t.size_usd ?? "0"),
-            pnl: parseFloat(t.pnl ?? "0"),
-            pnlPct: t.pnl_pct ?? 0,
-            exitReason: t.exit_reason as any,
-            fees: 0,
-        })),
-        filteredTrades: [],  // will be set by setFilter
-    };
+export function mapApiToResults(
+  detail: RunDetail,
+  timeseries: TimeseriesResponse
+): Partial<ResultsState> {
+  const r = detail.results;
+  if (!r) return { hasResults: false };
+  return {
+    hasResults: true,
+    netProfit: parseFloat(r.net_profit), // STRING → number
+    netProfitPct: r.net_profit_pct, // already float
+    profitFactor: r.profit_factor,
+    maxDrawdownPct: r.max_drawdown_pct,
+    maxDrawdownValue: parseFloat(r.max_drawdown_value),
+    sharpeRatio: r.sharpe_ratio,
+    sortinoRatio: r.sortino_ratio,
+    calmarRatio: r.calmar_ratio,
+    volatility: r.volatility,
+    expectancy: parseFloat(r.expectancy),
+    maxConsecWins: r.max_consecutive_wins,
+    winRate: r.win_rate,
+    winCount: r.winning_trades,
+    lossCount: r.losing_trades,
+    avgWin: parseFloat(r.avg_win),
+    avgLoss: parseFloat(r.avg_loss),
+    bestTrade: parseFloat(r.largest_win),
+    worstTrade: parseFloat(r.largest_loss),
+    exitReasons: r.exit_reasons ?? {},
+    // Timeseries (loaded eagerly on complete for MVP)
+    equityCurve: timeseries.equity_curve.map((p) => ({
+      time: p.date,
+      value: typeof p.balance === "string" ? parseFloat(p.balance) : p.balance,
+    })),
+    underwaterCurve: timeseries.drawdown_curve.map((p) => ({
+      time: p.date,
+      value: -(typeof p.drawdown === "number"
+        ? p.drawdown
+        : parseFloat(p.drawdown)),
+    })),
+    // Map trades
+    trades: (detail.trades ?? []).map((t, i) => ({
+      id: i + 1,
+      entryTime: t.entry_time,
+      exitTime: t.exit_time ?? "",
+      symbol: t.symbol,
+      side: "LONG" as const, // engine only does LONG for now
+      entryPrice: parseFloat(t.entry_price),
+      exitPrice: parseFloat(t.exit_price ?? "0"),
+      size: parseFloat(t.size_usd ?? "0"),
+      pnl: parseFloat(t.pnl ?? "0"),
+      pnlPct: t.pnl_pct ?? 0,
+      exitReason: t.exit_reason as any,
+      fees: 0,
+    })),
+    filteredTrades: [], // will be set by setFilter
+  };
 }
 ```
 
@@ -906,6 +958,7 @@ Every `parseFloat()` call is explicit — no silent `NaN` from string fields.
 ### `historyStore.ts` — Component Contract
 
 **Delete entirely:**
+
 - `persist` middleware wrapper (lines 89, 273-286)
 - `addRun()` method (lines 113-122) — server creates runs
 - `getFilteredRuns()` method (lines 205-257) — server filters
@@ -914,6 +967,7 @@ Every `parseFloat()` call is explicit — no silent `NaN` from string fields.
 - `clearAllHistory()` method (line 190-192) — not in MVP
 
 **Add API-backed actions:**
+
 ```typescript
 fetchRuns: async (filters?) => {
     set({ isLoading: true });
@@ -950,6 +1004,7 @@ deleteRuns: async (ids: number[]) => {
 ```
 
 **Add state:**
+
 ```typescript
 totalPages: number;
 totalCount: number;
@@ -960,42 +1015,46 @@ totalCount: number;
 ### Sidebar.tsx, DataPrepModal.tsx, MobileSidebarSheet.tsx
 
 **Remove all mock orchestration logic.** These components currently:
+
 1. Call `runBacktest()` (placeholder)
 2. Then call `generateMockResults()` (fake data)
 3. Then call `addRun()` (local history)
 
 After rewiring:
+
 1. Call `runBacktest()` only — the store handles everything (API call → SSE → results → history is server-side)
 2. Delete the `generateMockResults()` and `addRun()` calls
 3. Delete the fake download simulation in DataPrepModal (lines 53-92)
 
 ### Phase 5 Checklist
 
-- [ ] `grep -r "generateMockResults" ui/src/` returns 0 results
-- [ ] `grep -r "generateMockBatchResults" ui/src/` returns 0 results
-- [ ] `grep -r "setTimeout.*800" ui/src/stores/` returns 0 results
-- [ ] `grep -r "progress += 5" ui/src/components/` returns 0 results
-- [ ] `grep -r "addRun(" ui/src/components/` returns 0 results (history is server-side)
-- [ ] `grep -rn "persist" ui/src/stores/resultsStore.ts` returns 0 results
-- [ ] `grep -rn "persist" ui/src/stores/historyStore.ts` returns 0 results
-- [ ] `cd ui && npx tsc --noEmit` — zero TypeScript errors
-- [ ] Start both servers. Open UI. Click Run with valid data. See REAL progress bar (not CSS animation). See REAL results (numbers match CLI output). See run in History page. Delete it. It's gone.
-- [ ] Run with missing data symbol → toast error "No data for X. Download first."
-- [ ] Start backtest → click Cancel → progress stops, status shows cancelled
-- [ ] Start backtest → navigate away → navigate back → progress bar shows current state (SSE survived navigation)
-- [ ] Refresh page mid-run → on reload, progress bar is gone (SSE is not persistent across page loads — this is expected)
+- [x] `grep -r "generateMockResults" ui/src/` returns 0 results
+- [x] `grep -r "generateMockBatchResults" ui/src/` returns 0 results
+- [x] `grep -r "setTimeout.*800" ui/src/stores/` returns 0 results
+- [x] `grep -r "progress += 5" ui/src/components/` returns 0 results
+- [x] `grep -r "addRun(" ui/src/components/` returns 0 results (history is server-side)
+- [x] `grep -rn "persist" ui/src/stores/resultsStore.ts` returns 0 results
+- [x] `grep -rn "persist" ui/src/stores/historyStore.ts` returns 0 results
+- [x] `cd ui && npx tsc --noEmit` — zero TypeScript errors
+- [x] Start both servers. Open UI. Click Run with valid data. See REAL progress bar (not CSS animation). See REAL results (numbers match CLI output). See run in History page. Delete it. It's gone.
+- [x] Run with missing data symbol → toast error "No data for X. Download first."
+- [x] Start backtest → click Cancel → progress stops, status shows cancelled
+- [x] Start backtest → navigate away → navigate back → progress bar shows current state (SSE survived navigation)
+- [x] Refresh page mid-run → on reload, progress bar is gone (SSE is not persistent across page loads — this is expected)
 
 ---
 
 ## 9. Error Handling
 
 ### Frontend
+
 - Install `sonner` package
 - Wrap `<App />` in `<Toaster />`
 - Every `catch` block in stores calls `toast.error(message)`
 - API layer throws `ApiError` with status and message
 
 ### Backend
+
 - FastAPI exception handler returns `{"error": "message"}` for all non-2xx
 - Engine exceptions caught in executor done_callback → `Run.status="failed"` + SSE error event
 - Data validation before job submission (fail fast)
@@ -1006,45 +1065,45 @@ After rewiring:
 
 ### Create (22 files)
 
-| File | Purpose |
-|------|---------|
-| `app/repository/backtest/__init__.py` | Package |
-| `app/repository/backtest/database.py` | Engine, SessionLocal, init_db() |
-| `app/repository/backtest/models.py` | 7 ORM models |
-| `app/repository/backtest/seed.py` | Seed strategies |
-| `app/backtest/config_builder.py` | Shared config builder for CLI + API |
-| `app/api/__init__.py` | Package |
-| `app/api/main.py` | FastAPI app |
-| `app/api/schemas.py` | Pydantic models (source of truth for types) |
-| `app/api/executor.py` | ThreadPool + SSE queues |
-| `app/api/export_schema.py` | Pydantic → JSON Schema for TS codegen |
-| `app/api/routes/__init__.py` | Package |
-| `app/api/routes/backtest.py` | Run, progress SSE, cancel, detail, timeseries |
-| `app/api/routes/history.py` | List, delete |
-| `app/api/routes/strategies.py` | List |
-| `app/api/routes/data.py` | Status, download |
-| `ui/src/api/client.ts` | apiFetch, apiSSE, ApiError |
-| `ui/src/api/backtest.ts` | 5 functions |
-| `ui/src/api/history.ts` | fetchHistory, deleteRun |
-| `ui/src/api/strategies.ts` | fetchStrategies |
-| `ui/src/api/data.ts` | checkDataStatus, startDownload, streamDownload |
-| `ui/src/api/index.ts` | Barrel export |
-| `tests/test_engine_results.py` | Verify engine.run() return dict |
+| File                                  | Purpose                                        |
+| ------------------------------------- | ---------------------------------------------- |
+| `app/repository/backtest/__init__.py` | Package                                        |
+| `app/repository/backtest/database.py` | Engine, SessionLocal, init_db()                |
+| `app/repository/backtest/models.py`   | 7 ORM models                                   |
+| `app/repository/backtest/seed.py`     | Seed strategies                                |
+| `app/backtest/config_builder.py`      | Shared config builder for CLI + API            |
+| `app/api/__init__.py`                 | Package                                        |
+| `app/api/main.py`                     | FastAPI app                                    |
+| `app/api/schemas.py`                  | Pydantic models (source of truth for types)    |
+| `app/api/executor.py`                 | ThreadPool + SSE queues                        |
+| `app/api/export_schema.py`            | Pydantic → JSON Schema for TS codegen          |
+| `app/api/routes/__init__.py`          | Package                                        |
+| `app/api/routes/backtest.py`          | Run, progress SSE, cancel, detail, timeseries  |
+| `app/api/routes/history.py`           | List, delete                                   |
+| `app/api/routes/strategies.py`        | List                                           |
+| `app/api/routes/data.py`              | Status, download                               |
+| `ui/src/api/client.ts`                | apiFetch, apiSSE, ApiError                     |
+| `ui/src/api/backtest.ts`              | 5 functions                                    |
+| `ui/src/api/history.ts`               | fetchHistory, deleteRun                        |
+| `ui/src/api/strategies.ts`            | fetchStrategies                                |
+| `ui/src/api/data.ts`                  | checkDataStatus, startDownload, streamDownload |
+| `ui/src/api/index.ts`                 | Barrel export                                  |
+| `tests/test_engine_results.py`        | Verify engine.run() return dict                |
 
 ### Modify (8 files)
 
-| File | Change |
-|------|--------|
-| `requirements.txt` | Add fastapi, uvicorn[standard], pydantic, sse-starlette |
-| `app/backtest/engine.py` | Add on_progress, compute_results(), return dict, print→logging |
-| `app/backtest/reporting.py` | Refactor to receive results dict, formatting only |
-| `app/backtest/backtest.py` | Use config_builder, pass results dict to reporter |
-| `ui/src/stores/backtestStore.ts` | Real API+SSE, add runProgress/currentRunId/cancelBacktest |
-| `ui/src/stores/resultsStore.ts` | Delete mock, add mapApiToResults(), remove persist |
-| `ui/src/stores/historyStore.ts` | Delete local logic, add API calls, remove persist |
-| `ui/src/components/layout/Sidebar.tsx` | Remove mock orchestration (generateMockResults, addRun calls) |
-| `ui/src/components/data-modal/DataPrepModal.tsx` | Remove fake download sim + mock calls |
-| `ui/src/components/layout/MobileSidebarSheet.tsx` | Remove mock calls |
+| File                                              | Change                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| `requirements.txt`                                | Add fastapi, uvicorn[standard], pydantic, sse-starlette        |
+| `app/backtest/engine.py`                          | Add on_progress, compute_results(), return dict, print→logging |
+| `app/backtest/reporting.py`                       | Refactor to receive results dict, formatting only              |
+| `app/backtest/backtest.py`                        | Use config_builder, pass results dict to reporter              |
+| `ui/src/stores/backtestStore.ts`                  | Real API+SSE, add runProgress/currentRunId/cancelBacktest      |
+| `ui/src/stores/resultsStore.ts`                   | Delete mock, add mapApiToResults(), remove persist             |
+| `ui/src/stores/historyStore.ts`                   | Delete local logic, add API calls, remove persist              |
+| `ui/src/components/layout/Sidebar.tsx`            | Remove mock orchestration (generateMockResults, addRun calls)  |
+| `ui/src/components/data-modal/DataPrepModal.tsx`  | Remove fake download sim + mock calls                          |
+| `ui/src/components/layout/MobileSidebarSheet.tsx` | Remove mock calls                                              |
 
 ---
 

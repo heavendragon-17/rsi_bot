@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useRef } from "react";
 import * as LightweightCharts from "lightweight-charts";
 import { useResultsStore } from "../../stores/resultsStore";

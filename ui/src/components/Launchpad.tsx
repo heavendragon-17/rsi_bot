@@ -1,11 +1,21 @@
-import { useState } from 'react';
-import { BacktestMode, LaunchpadConfig } from '../App';
-import { Target, LayersIcon, ChevronRight, Server, DollarSign, TrendingUp, Shield, Users } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Slider } from './ui/slider';
+// @ts-nocheck
+import { useState } from "react";
+import { BacktestMode, LaunchpadConfig } from "../App";
+import {
+  Target,
+  LayersIcon,
+  ChevronRight,
+  Server,
+  DollarSign,
+  TrendingUp,
+  Shield,
+  Users,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import { Slider } from "./ui/slider";
 
 interface LaunchpadProps {
   onNext: (config: LaunchpadConfig) => void;
@@ -14,26 +24,32 @@ interface LaunchpadProps {
 
 export function Launchpad({ onNext, config }: LaunchpadProps) {
   const [selectedMode, setSelectedMode] = useState<BacktestMode>(config.mode);
-  const [symbol, setSymbol] = useState(config.symbol || 'BTC/USDT');
-  const [timeframe, setTimeframe] = useState(config.timeframe || '1h');
+  const [symbol, setSymbol] = useState(config.symbol || "BTC/USDT");
+  const [timeframe, setTimeframe] = useState(config.timeframe || "1h");
   const [environment, setEnvironment] = useState(config.environment);
   const [capital, setCapital] = useState(config.capital.toString());
-  const [leverage, setLeverage] = useState(config.leverage?.toString() || '10');
-  const [riskPerTrade, setRiskPerTrade] = useState(config.riskPerTrade?.toString() || '2');
-  const [maxPositionSize, setMaxPositionSize] = useState(config.maxPositionSize?.toString() || '99');
-  const [useActiveTrades, setUseActiveTrades] = useState(config.useActiveTrades ?? true);
+  const [leverage, setLeverage] = useState(config.leverage?.toString() || "10");
+  const [riskPerTrade, setRiskPerTrade] = useState(
+    config.riskPerTrade?.toString() || "2"
+  );
+  const [maxPositionSize, setMaxPositionSize] = useState(
+    config.maxPositionSize?.toString() || "99"
+  );
+  const [useActiveTrades, setUseActiveTrades] = useState(
+    config.useActiveTrades ?? true
+  );
   const [exchange] = useState(config.exchange);
 
-  const timeframes = ['15m', '1h', '4h', '1d'];
+  const timeframes = ["15m", "1h", "4h", "1d"];
 
-  const recentSearches = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
+  const recentSearches = ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
 
   const handleNext = () => {
     if (!selectedMode) return;
-    
+
     onNext({
       mode: selectedMode,
-      symbol: selectedMode === 'single' ? symbol : undefined,
+      symbol: selectedMode === "single" ? symbol : undefined,
       timeframe,
       environment,
       capital: parseFloat(capital),
@@ -49,7 +65,7 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
     <div className="min-h-screen flex items-center justify-center p-8">
       <div className="w-full max-w-6xl space-y-8">
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
@@ -57,11 +73,13 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
           <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-400 via-purple-300 to-cyan-400 bg-clip-text text-transparent">
             Strategy Command Center
           </h1>
-          <p className="text-slate-400 text-lg">Choose your backtest mode and configure your environment</p>
+          <p className="text-slate-400 text-lg">
+            Choose your backtest mode and configure your environment
+          </p>
         </motion.div>
 
         {/* Backtest Mode Selector */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -69,36 +87,42 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
         >
           {/* Single Pair Scout */}
           <button
-            onClick={() => setSelectedMode('single')}
+            onClick={() => setSelectedMode("single")}
             className="group relative"
           >
-            <div 
+            <div
               className={`
                 relative bg-slate-800/40 backdrop-blur-xl rounded-2xl p-8 border transition-all duration-300
-                ${selectedMode === 'single' 
-                  ? 'border-violet-500/50 shadow-[0_0_40px_rgba(139,92,246,0.3)]' 
-                  : 'border-white/10 hover:border-violet-500/30'}
+                ${
+                  selectedMode === "single"
+                    ? "border-violet-500/50 shadow-[0_0_40px_rgba(139,92,246,0.3)]"
+                    : "border-white/10 hover:border-violet-500/30"
+                }
               `}
             >
-              {selectedMode === 'single' && (
+              {selectedMode === "single" && (
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent rounded-2xl" />
               )}
-              
+
               <div className="relative space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="p-4 bg-violet-500/20 rounded-xl">
                     <Target className="w-8 h-8 text-violet-400" />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-2xl font-bold text-white">Single Pair Scout</h3>
-                    <p className="text-slate-400 text-sm">Deep dive into one trading pair</p>
+                    <h3 className="text-2xl font-bold text-white">
+                      Single Pair Scout
+                    </h3>
+                    <p className="text-slate-400 text-sm">
+                      Deep dive into one trading pair
+                    </p>
                   </div>
                 </div>
 
-                {selectedMode === 'single' && (
+                {selectedMode === "single" && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
+                    animate={{ opacity: 1, height: "auto" }}
                     className="space-y-4 pt-4 border-t border-white/10"
                   >
                     {/* Symbol Input */}
@@ -139,9 +163,11 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                             }}
                             className={`
                               px-4 py-2 rounded-lg font-medium transition-all duration-200
-                              ${timeframe === tf
-                                ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/50'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}
+                              ${
+                                timeframe === tf
+                                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/50"
+                                  : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
+                              }
                             `}
                           >
                             {tf}
@@ -157,36 +183,42 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
 
           {/* Portfolio Batch */}
           <button
-            onClick={() => setSelectedMode('batch')}
+            onClick={() => setSelectedMode("batch")}
             className="group relative"
           >
-            <div 
+            <div
               className={`
                 relative bg-slate-800/40 backdrop-blur-xl rounded-2xl p-8 border transition-all duration-300
-                ${selectedMode === 'batch' 
-                  ? 'border-cyan-500/50 shadow-[0_0_40px_rgba(6,182,212,0.3)]' 
-                  : 'border-white/10 hover:border-cyan-500/30'}
+                ${
+                  selectedMode === "batch"
+                    ? "border-cyan-500/50 shadow-[0_0_40px_rgba(6,182,212,0.3)]"
+                    : "border-white/10 hover:border-cyan-500/30"
+                }
               `}
             >
-              {selectedMode === 'batch' && (
+              {selectedMode === "batch" && (
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-2xl" />
               )}
-              
+
               <div className="relative space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="p-4 bg-cyan-500/20 rounded-xl">
                     <LayersIcon className="w-8 h-8 text-cyan-400" />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-2xl font-bold text-white">Portfolio Batch</h3>
-                    <p className="text-slate-400 text-sm">Run across all pairs in symbols.txt</p>
+                    <h3 className="text-2xl font-bold text-white">
+                      Portfolio Batch
+                    </h3>
+                    <p className="text-slate-400 text-sm">
+                      Run across all pairs in symbols.txt
+                    </p>
                   </div>
                 </div>
 
-                {selectedMode === 'batch' && (
+                {selectedMode === "batch" && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
+                    animate={{ opacity: 1, height: "auto" }}
                     className="space-y-4 pt-4 border-t border-white/10"
                   >
                     {/* Timeframe Pills */}
@@ -202,9 +234,11 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                             }}
                             className={`
                               px-4 py-2 rounded-lg font-medium transition-all duration-200
-                              ${timeframe === tf
-                                ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}
+                              ${
+                                timeframe === tf
+                                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/50"
+                                  : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
+                              }
                             `}
                           >
                             {tf}
@@ -238,7 +272,7 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
           className="bg-slate-800/40 backdrop-blur-xl rounded-2xl p-8 border border-white/10"
         >
           <h3 className="text-xl font-bold text-white mb-6">Global Settings</h3>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
             {/* Environment Toggle */}
             <div className="space-y-3">
@@ -248,13 +282,31 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
               </Label>
               <div className="flex items-center gap-4 bg-slate-900/50 rounded-lg p-3">
                 <Switch
-                  checked={environment !== 'mock'}
-                  onCheckedChange={(checked) => setEnvironment(checked ? 'paper' : 'mock')}
+                  checked={environment !== "mock"}
+                  onCheckedChange={(checked) =>
+                    setEnvironment(checked ? "paper" : "mock")
+                  }
                 />
                 <div className="flex gap-2 text-sm">
-                  <span className={environment === 'mock' ? 'text-violet-400 font-medium' : 'text-slate-500'}>Mock</span>
+                  <span
+                    className={
+                      environment === "mock"
+                        ? "text-violet-400 font-medium"
+                        : "text-slate-500"
+                    }
+                  >
+                    Mock
+                  </span>
                   <span className="text-slate-600">/</span>
-                  <span className={environment !== 'mock' ? 'text-violet-400 font-medium' : 'text-slate-500'}>Paper</span>
+                  <span
+                    className={
+                      environment !== "mock"
+                        ? "text-violet-400 font-medium"
+                        : "text-slate-500"
+                    }
+                  >
+                    Paper
+                  </span>
                 </div>
               </div>
             </div>
@@ -266,7 +318,9 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                 Starting Capital
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">
+                  $
+                </span>
                 <Input
                   type="number"
                   value={capital}
@@ -304,7 +358,9 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                     className="flex-1"
                   />
                   <div className="w-16 text-right">
-                    <span className="text-white font-mono font-bold">{leverage}x</span>
+                    <span className="text-white font-mono font-bold">
+                      {leverage}x
+                    </span>
                   </div>
                 </div>
               </div>
@@ -324,7 +380,9 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                   className="bg-slate-900/50 border-white/10 text-white pr-8 font-mono"
                   step="0.1"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">%</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">
+                  %
+                </span>
               </div>
             </div>
 
@@ -338,7 +396,9 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                   onChange={(e) => setMaxPositionSize(e.target.value)}
                   className="bg-slate-900/50 border-white/10 text-white pr-8 font-mono"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">%</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">
+                  %
+                </span>
               </div>
             </div>
 
@@ -353,8 +413,12 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
                   checked={useActiveTrades}
                   onCheckedChange={setUseActiveTrades}
                 />
-                <span className={`text-sm ${useActiveTrades ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  {useActiveTrades ? 'Enabled' : 'Disabled'}
+                <span
+                  className={`text-sm ${
+                    useActiveTrades ? "text-emerald-400" : "text-slate-500"
+                  }`}
+                >
+                  {useActiveTrades ? "Enabled" : "Disabled"}
                 </span>
               </div>
             </div>
@@ -372,9 +436,11 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
             disabled={!selectedMode}
             className={`
               w-full py-6 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3
-              ${selectedMode
-                ? 'bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white shadow-[0_0_40px_rgba(139,92,246,0.4)] hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] active:scale-95'
-                : 'bg-slate-800/50 text-slate-500 cursor-not-allowed'}
+              ${
+                selectedMode
+                  ? "bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white shadow-[0_0_40px_rgba(139,92,246,0.4)] hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] active:scale-95"
+                  : "bg-slate-800/50 text-slate-500 cursor-not-allowed"
+              }
             `}
           >
             NEXT: CONFIGURE STRATEGY

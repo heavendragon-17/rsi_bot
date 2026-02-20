@@ -3,7 +3,7 @@ import { Star, Check, FileText } from "lucide-react";
 import { useGridSearchStore, AVAILABLE_PARAMETERS } from "../../stores/gridSearchStore";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export const BestResultCard: React.FC = () => {
   const { bestResult, xAxisParam, yAxisParam, metric, applyBestSettings } = useGridSearchStore();

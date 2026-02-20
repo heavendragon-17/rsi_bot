@@ -1,16 +1,23 @@
 import React, { useEffect } from "react";
 import { Flame, Download } from "lucide-react";
-import { useGridSearchStore } from "../../stores/gridSearchStore";
-import { useBacktestStore } from "../../stores/backtestStore";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { ParameterSetup } from "../grid-search/ParameterSetup";
-import { GridProgressBar } from "../grid-search/GridProgressBar";
-import { Heatmap } from "../grid-search/Heatmap";
-import { BestResultCard } from "../grid-search/BestResultCard";
+import { useGridSearchStore } from "../stores/gridSearchStore";
+import { useBacktestStore } from "../stores/backtestStore";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { ParameterSetup } from "./grid-search/ParameterSetup";
+import { GridProgressBar } from "./grid-search/GridProgressBar";
+import { Heatmap } from "./grid-search/Heatmap";
+import { BestResultCard } from "./grid-search/BestResultCard";
 
 export const GridSearch: React.FC = () => {
-  const { results, bestResult, isRunning, calculateCombinations, exportResults, setSymbol } = useGridSearchStore();
+  const {
+    results,
+    bestResult,
+    isRunning,
+    calculateCombinations,
+    exportResults,
+    setSymbol,
+  } = useGridSearchStore();
   const { symbol: backtestSymbol } = useBacktestStore();
 
   useEffect(() => {
@@ -35,17 +42,17 @@ export const GridSearch: React.FC = () => {
               <Flame className="w-6 h-6 text-accent-main" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-text-primary">Grid Search</h1>
-              <p className="text-sm text-text-secondary">Find optimal parameters with heatmap analysis</p>
+              <h1 className="text-2xl font-bold text-text-primary">
+                Grid Search
+              </h1>
+              <p className="text-sm text-text-secondary">
+                Find optimal parameters with heatmap analysis
+              </p>
             </div>
           </div>
-          
+
           {results && (
-            <Button
-              onClick={handleExport}
-              variant="outline"
-              className="gap-2"
-            >
+            <Button onClick={handleExport} variant="outline" className="gap-2">
               <Download className="w-4 h-4" />
               Export Results
             </Button>
@@ -65,9 +72,7 @@ export const GridSearch: React.FC = () => {
         )}
 
         {/* Best Result Card (shown when results available) */}
-        {bestResult && !isRunning && (
-          <BestResultCard />
-        )}
+        {bestResult && !isRunning && <BestResultCard />}
 
         {/* Heatmap */}
         {results && !isRunning && (
@@ -88,8 +93,8 @@ export const GridSearch: React.FC = () => {
                   Configure Parameters & Run Grid Search
                 </h3>
                 <p className="text-sm text-text-secondary max-w-md mx-auto">
-                  Select two parameters to test across a range of values. The heatmap will show which
-                  combinations perform best.
+                  Select two parameters to test across a range of values. The
+                  heatmap will show which combinations perform best.
                 </p>
               </div>
             </div>

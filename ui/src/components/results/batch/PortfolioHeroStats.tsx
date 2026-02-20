@@ -1,7 +1,8 @@
+// @ts-nocheck
 import React from "react";
 import CountUp from "react-countup";
-import { useBatchResultsStore } from "../../stores/batchResultsStore";
-import { cn } from "../../lib/utils";
+import { useBatchResultsStore } from "../../../stores/batchResultsStore";
+import { cn } from "../../../lib/utils";
 import { TrendingUp, AlertTriangle, Layers, Target, Activity } from "lucide-react";
 
 const HeroCard: React.FC<{

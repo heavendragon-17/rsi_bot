@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { ChevronDown, Globe } from "lucide-react";

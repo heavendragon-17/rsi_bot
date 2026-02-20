@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect } from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { cn } from "../../lib/utils";

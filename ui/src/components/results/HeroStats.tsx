@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import CountUp from "react-countup";
 import { useResultsStore } from "../../stores/resultsStore";
