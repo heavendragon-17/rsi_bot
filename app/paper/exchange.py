@@ -29,16 +29,17 @@ Lock-profit:
 """
 from __future__ import annotations
 
-import logging
 import time
+import structlog
 import uuid
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 
+from app.core.exceptions import OrderRejectedError
 from app.core.interfaces import IFuturesExchange
 from app.paper.state import ClosedTrade, PaperOrder, PaperPosition, PaperTradeState
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 TAKER_FEE = Decimal("0.0005")   # 0.05%
 MAKER_FEE = Decimal("0.0002")   # 0.02%
@@ -64,7 +65,10 @@ class PaperExchange(IFuturesExchange):
         self._last_prices: Dict[str, Decimal] = {}   # latest tick price per symbol
 
         from app.paper.notifier import PaperTelegramNotifier
+        from app.services.notification.notification_worker import NotificationWorker
         self.notifier = PaperTelegramNotifier(config)
+        self._notification_worker = NotificationWorker(self.notifier)
+        self._notification_worker.start()
 
         logger.info(f"PaperExchange initialised — balance={initial_balance} USDT")
 
@@ -76,7 +80,7 @@ class PaperExchange(IFuturesExchange):
         logger.info(f"[PaperExchange] set_leverage({leverage}, {symbol}) — no-op in sim mode")
         return True
 
-    def fetch_balance(self, params: Dict = {}) -> Dict:
+    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         with self.state.lock:
             bal = float(self.state.balance)
         return {
@@ -177,8 +181,9 @@ class PaperExchange(IFuturesExchange):
         if order_type == "market" and reduce_only:
             last_price = self._last_prices.get(symbol, Decimal("0"))
             if last_price <= 0:
-                logger.warning(f"[PaperExchange] No tick price for {symbol}; cannot fill market reduceOnly order")
-                return None
+                raise OrderRejectedError(
+                    f"[PaperExchange] No tick price for {symbol}; cannot fill market reduceOnly order"
+                )
             order.status = "pending"
             self.state.add_order(order)
             self._execute_fill(order, last_price)
@@ -336,7 +341,7 @@ class PaperExchange(IFuturesExchange):
                 self.state.closed_trades.append(trade)
 
         # Emit notification outside lock
-        self.notifier.on_fill(order, closed_position, trade, self.state)
+        self._notification_worker.enqueue("on_fill", order, closed_position, trade, self.state)
 
     def _open_position_locked(
         self, order: PaperOrder, fill_price: Decimal, entry_fee: Decimal
@@ -362,14 +367,8 @@ class PaperExchange(IFuturesExchange):
         logger.info(
             f"[PaperExchange] Position opened — {order.symbol} {order.amount} @ {fill_price}"
         )
-        # Notify entry (outside lock would be better — we call after lock exits)
-        # Schedule notification via a short-lived thread to avoid deadlock
-        import threading
-        threading.Thread(
-            target=self.notifier.on_entry,
-            args=(order, pos, self.state),
-            daemon=True,
-        ).start()
+        # Emit notification via worker (non-blocking, avoids lock re-entry)
+        self._notification_worker.enqueue("on_entry", order, pos, self.state)
 
     def _post_fill_hook(self, order: PaperOrder) -> None:
         """

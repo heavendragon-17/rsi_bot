@@ -32,6 +32,15 @@ except ImportError:
 import pytest
 from app.services.execution.cex.binance_adapter import BinanceAdapter
 
+# Skip the entire module unless explicitly opted in.
+# These are live-network integration tests that require testnet credentials and
+# must not run automatically in CI or during normal development test runs.
+# To run: RUN_INTEGRATION_TESTS=1 pytest tests/test_binance_adapter.py -v
+pytestmark = pytest.mark.skipif(
+    not os.getenv("RUN_INTEGRATION_TESTS"),
+    reason="Set RUN_INTEGRATION_TESTS=1 to run live exchange integration tests",
+)
+
 
 class TestBinancePaperTrading:
     """Test paper trading with simulated execution."""

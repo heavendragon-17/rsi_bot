@@ -16,10 +16,13 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from decimal import Decimal
-import logging
-import ccxt
 from datetime import datetime
 
+import structlog
+
+from app.core.exceptions import ExchangeError, InsufficientFundsError
+
+logger = structlog.get_logger()
 from app.core.interfaces import IFuturesExchange
 from app.core.events import SignalEvent
 from .utils import to_decimal
@@ -126,7 +129,7 @@ class PortfolioManager:
 
             # EDGE CASE: Zero SL distance (SL = Entry) - reject trade
             if sl_distance_pct <= Decimal("0"):
-                logging.error(f"SL distance is zero (SL={sl_price}, Entry={entry_price}). Cannot calculate position size.")
+                logger.error(f"SL distance is zero (SL={sl_price}, Entry={entry_price}). Cannot calculate position size.")
                 return Decimal("0")
 
             # SAFETY: If SL distance is too small, still use risk-based sizing
@@ -135,7 +138,7 @@ class PortfolioManager:
                 position_notional = risk_amount / sl_distance_pct
                 position_size = position_notional / entry_price
                 capped_size = min(position_size, max_amount)
-                logging.warning(
+                logger.warning(
                     f"SL distance too small ({sl_distance_pct*100:.2f}% < {self.min_sl_distance_pct*100:.0f}%). "
                     f"Risk-based size={position_size:.4f}, capped to {capped_size:.4f}"
                 )
@@ -150,7 +153,7 @@ class PortfolioManager:
                 final_size = min(position_size, max_amount)
                 was_capped = position_size > max_amount
 
-                logging.info(
+                logger.info(
                     f"[SIZING] Entry=${entry_price:.4f}, SL=${sl_price:.4f}, "
                     f"Dist={sl_distance_pct*100:.2f}%, Risk=${risk_amount:.2f}, "
                     f"Notional=${position_notional:.2f}, Size={final_size:.6f}"
@@ -159,7 +162,7 @@ class PortfolioManager:
                 if was_capped:
                     actual_notional = final_size * entry_price
                     actual_risk = actual_notional * sl_distance_pct
-                    logging.info(
+                    logger.info(
                         f"[CAPPED] Position capped! Target risk: ${risk_amount:.2f}, "
                         f"Actual risk: ${actual_risk:.2f} ({(actual_risk/risk_capital)*100:.2f}%)"
                     )
@@ -181,6 +184,37 @@ class PortfolioManager:
 
     def get_position(self, symbol: str) -> Optional[Position]:
         return self.positions.get(symbol)
+
+    def get_position_snapshot(self, symbol: str):
+        """Return a read-only PositionSnapshot for the strategy. None if no position."""
+        from app.core.snapshots import PositionSnapshot
+        if symbol not in self.positions:
+            return PositionSnapshot(has_position=False, symbol=symbol)
+        pos = self.positions[symbol]
+        lock_profit_triggered = (
+            pos.sl_price is not None
+            and pos.entry_price is not None
+            and pos.sl_price > pos.entry_price
+        )
+        return PositionSnapshot(
+            has_position=True,
+            symbol=symbol,
+            side=pos.side,
+            entry_price=pos.entry_price,
+            current_sl=pos.sl_price if pos.sl_price is not None else Decimal("0"),
+            tp1_hit=pos.tp1_hit,
+            tp2_hit=pos.tp2_hit,
+            tp3_hit=pos.tp3_hit,
+            lock_profit_triggered=lock_profit_triggered,
+        )
+
+    def close_position(self, symbol: str, _percentage: Decimal = Decimal("1.0"), price: Decimal = None, reason: str = "MANUAL") -> None:
+        """Close position (full exit). _percentage reserved for future partial-close support."""
+        self._handle_full_sell(symbol, price=price, exit_reason=reason)
+
+    def move_stop_loss(self, symbol: str, new_sl_price: Decimal) -> bool:
+        """Move the stop loss order to a new price level."""
+        return self._move_sl_to_entry(symbol, new_sl_price)
 
     def sync_from_exchange(self) -> None:
         """
@@ -216,13 +250,13 @@ class PortfolioManager:
                     setattr(pos, f"{tp_level.lower()}_hit", True)
                     del pos.tp_order_ids[tp_level]
 
-                    logging.info(f"[{symbol}] {tp_level} filled: {filled_amount}, remaining: {pos.amount}")
+                    logger.info(f"[{symbol}] {tp_level} filled: {filled_amount}, remaining: {pos.amount}")
 
                     # Move SL to breakeven after TP1
                     if tp_level == "TP1" and pos.amount > Decimal("0"):
                         self._move_sl_to_entry(symbol)
             except Exception as e:
-                logging.warning(f"Failed to check {tp_level} order {order_id}: {e}")
+                logger.warning(f"Failed to check {tp_level} order {order_id}: {e}")
 
         # Cleanup if fully closed
         if pos.amount <= Decimal("1e-8"):
@@ -292,10 +326,10 @@ class PortfolioManager:
             )
             if sl_order:
                 pos.sl_order_id = sl_order.get("id")
-                logging.info(f"[{symbol}] SL moved to {target_price} (stop_market, reduceOnly)")
+                logger.info(f"[{symbol}] SL moved to {target_price} (stop_market, reduceOnly)")
                 return True
         except Exception as e:
-            logging.error(f"Failed to place SL for {symbol}: {e}")
+            logger.error(f"Failed to place SL for {symbol}: {e}")
 
         return False
 
@@ -345,7 +379,7 @@ class PortfolioManager:
                 if order and order.get("id"):
                     tp_order_ids[label] = order["id"]
             except Exception as e:
-                logging.error(f"Failed to place {label} order for {signal.symbol}: {e}")
+                logger.error(f"Failed to place {label} order for {signal.symbol}: {e}")
 
             remaining -= close_amount
 
@@ -433,11 +467,11 @@ class PortfolioManager:
             )
             if not order:
                 return None
-        except ccxt.InsufficientFunds as e:
-            logging.warning(f"Insufficient funds for {signal.symbol}: {e}")
+        except InsufficientFundsError as e:
+            logger.warning(f"Insufficient funds for {signal.symbol}: {e}")
             return None
-        except ccxt.BaseError as e:
-            logging.error(f"Failed to execute buy for {signal.symbol}: {e}")
+        except ExchangeError as e:
+            logger.error(f"Failed to execute buy for {signal.symbol}: {e}")
             return None
 
         # Create position record
@@ -472,7 +506,7 @@ class PortfolioManager:
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")
             except Exception as e:
-                logging.error(f"Failed to place SL order for {signal.symbol}: {e}")
+                logger.error(f"Failed to place SL order for {signal.symbol}: {e}")
 
         # 3. Place TP limit orders (reduceOnly)
         tp_orders = self._place_tp_orders(signal, amount)
@@ -494,12 +528,12 @@ class PortfolioManager:
                 abs(float(p.get("contracts", 0))) > 0 for p in positions
             )
         except Exception as e:
-            logging.warning(f"Failed to fetch positions for {symbol}: {e}")
+            logger.warning(f"Failed to fetch positions for {symbol}: {e}")
             has_exchange_position = True  # Assume position exists, try to close
 
         if not has_exchange_position:
             # Hard SL already fired — just cleanup local state
-            logging.info(f"[{symbol}] Soft SL: no exchange position (hard SL already fired)")
+            logger.info(f"[{symbol}] Soft SL: no exchange position (hard SL already fired)")
             self._cleanup_position(symbol)
             return None
 
@@ -528,7 +562,7 @@ class PortfolioManager:
                 for order_id in pos.tp_order_ids.values():
                     self.exchange.cancel_order(order_id, symbol)
         except Exception as e:
-            logging.warning(f"Failed to cancel orders for {symbol}: {e}")
+            logger.warning(f"Failed to cancel orders for {symbol}: {e}")
 
         try:
             order = self.exchange.create_order(
@@ -543,8 +577,8 @@ class PortfolioManager:
             if order:
                 self.positions.pop(symbol, None)
                 return order
-        except ccxt.BaseError as e:
-            logging.error(f"Failed to execute full sell for {symbol}: {e}")
+        except ExchangeError as e:
+            logger.error(f"Failed to execute full sell for {symbol}: {e}")
             return None
 
         return None
@@ -609,8 +643,8 @@ class PortfolioManager:
             )
             if not order:
                 return None
-        except ccxt.BaseError as e:
-            logging.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
+        except ExchangeError as e:
+            logger.error(f"Failed to execute partial close {tp_level} for {symbol}: {e}")
             return None
 
         pos.amount -= close_amount

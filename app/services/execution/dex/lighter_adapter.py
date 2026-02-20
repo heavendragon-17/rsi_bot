@@ -21,8 +21,7 @@ import asyncio
 from typing import Any, Dict, List, Optional
 from decimal import Decimal
 
-import ccxt
-
+from app.core.exceptions import ExchangeError
 from app.core.interfaces import IFuturesExchange
 
 logger = logging.getLogger(__name__)
@@ -218,7 +217,7 @@ class LighterAdapter(IFuturesExchange):
                 
             except Exception as e:
                 logger.error(f"fetch_balance failed: {e}")
-                raise ccxt.ExchangeError(f"Lighter fetch_balance error: {e}")
+                raise ExchangeError(f"Lighter fetch_balance error: {e}")
             finally:
                 await self._cleanup_client(client)
                 
@@ -284,7 +283,7 @@ class LighterAdapter(IFuturesExchange):
             return self._run_async(_create())
         except Exception as e:
              # Map exceptions
-             raise ccxt.ExchangeError(f"Lighter create_order error: {e}")
+             raise ExchangeError(f"Lighter create_order error: {e}")
 
     def cancel_order(self, order_id: str, symbol: str = None, params: Dict = {}) -> bool:
         """Cancel order."""

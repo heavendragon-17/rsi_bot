@@ -13,24 +13,15 @@ Simulates a futures exchange for backtesting with:
 
 from __future__ import annotations
 
-import logging
 import threading
+import structlog
 from typing import Dict, List, Optional, Any, Sequence
 from decimal import Decimal
-import ccxt
-
+from app.core.exceptions import InsufficientFundsError, OrderNotFoundError
 from app.core.interfaces import IFuturesExchange
+from app.core.utils import to_decimal
 
-logger = logging.getLogger(__name__)
-
-
-def to_decimal(val) -> Decimal:
-    """Convert any numeric to Decimal."""
-    if val is None:
-        return Decimal("0")
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val))
+logger = structlog.get_logger()
 
 
 def _base_asset(symbol: str) -> str:
@@ -93,7 +84,7 @@ class MockExchange(IFuturesExchange):
     # IExchange required balance methods
     # ============================================================
 
-    def fetch_balance(self, params: Dict = {}) -> Dict:
+    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """
         CCXT-compliant balance fetch. Thread-safe.
         Returns: {'free': {}, 'used': {}, 'total': {}, 'USDT': {...}}
@@ -465,7 +456,7 @@ class MockExchange(IFuturesExchange):
             if order_id in self.pending_orders:
                 self.pending_orders.pop(order_id, None)
                 return True
-            return False
+            raise OrderNotFoundError(f"Order {order_id} not found")
 
     def cancel_all_orders(self, symbol: str) -> int:
         """Cancel all pending orders for a symbol. Thread-safe."""
@@ -596,7 +587,7 @@ class MockExchange(IFuturesExchange):
 
         if side == "BUY":
             if margin > self.balance:
-                raise ccxt.InsufficientFunds(
+                raise InsufficientFundsError(
                     f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
                 )
 
@@ -613,7 +604,7 @@ class MockExchange(IFuturesExchange):
             # tolerance for floating rounding
             tolerance = current_pos * Decimal("1.001")
             if amount > tolerance:
-                raise ccxt.InsufficientFunds(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
+                raise InsufficientFundsError(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
 
             amount = min(amount, current_pos)
 

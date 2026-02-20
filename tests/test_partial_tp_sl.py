@@ -9,11 +9,12 @@ from datetime import datetime
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.core.context import StrategyContext
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
 from app.core.portfolio import PortfolioManager, Position
-from app.core.events import SignalEvent
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
+from app.core.actions import PartialClose
+from app.utils.indicators import Indicators
 
 class TestPartialTPSL(unittest.TestCase):
     def setUp(self):
@@ -36,24 +37,21 @@ class TestPartialTPSL(unittest.TestCase):
         self.exchange = MockExchange()
         self.portfolio = PortfolioManager(self.exchange, self.config)
         self.strategy = RsiNoRetestStrategy(self.config)
-        self.strategy.context.trades = {} # Reset trades
 
     def test_partial_tp_and_sl_move(self):
         symbol = "BTC/USDT"
-        
+
         # 1. Setup a fake trade with Entry @ 100, SL @ 90
-        # Risk = 10. R = 10. 
+        # Risk = 10. R = 10.
         # TP1 (1R) = 110. Lock Profit (0.2R) = 100 + (10*0.2) = 102.
         entry_price = Decimal("100")
-        sl_price = Decimal("90") 
+        sl_price = Decimal("90")
         soft_sl = Decimal("90")
-        
-        # Mock Context State
-        self.strategy.context.open_trade(
-            symbol=symbol,
-            timeframe="1h",
-            side="LONG",
-            entry_price=float(entry_price),
+
+        # Build ContextSnapshot carrying trade metadata (new stateless API)
+        ctx = ContextSnapshot(
+            state="SCANNING",
+            soft_sl_price=soft_sl,
             meta={
                 "entry_price": entry_price,
                 "sl_price": soft_sl,
@@ -62,15 +60,25 @@ class TestPartialTPSL(unittest.TestCase):
                 "tp1_price": Decimal("110"),
                 "tp2_price": Decimal("120"),
                 "tp3_price": Decimal("130"),
-                "tp1_hit": False,
-                "tp2_hit": False,
-                "tp3_hit": False,
                 "moved_sl_to_entry": False,
+                "pending_candle_sl": False,
             },
-            now_ts=datetime.now()
         )
-        
-        # Mock Portfolio Position
+
+        # Build PositionSnapshot (tp_hit flags come from portfolio, not context)
+        position = PositionSnapshot(
+            has_position=True,
+            symbol=symbol,
+            side="BUY",
+            entry_price=entry_price,
+            current_sl=sl_price,
+            soft_sl=soft_sl,
+            tp1_hit=False,
+            tp2_hit=False,
+            tp3_hit=False,
+        )
+
+        # Mock Portfolio Position (for the execution phase)
         initial_amount = Decimal("2")
         self.portfolio.positions[symbol] = Position(
             symbol=symbol,
@@ -81,7 +89,7 @@ class TestPartialTPSL(unittest.TestCase):
             sl_price=sl_price,
             sl_order_id='mock_sl_id',
         )
-        
+
         # Mock Exchange State
         self.exchange.positions[symbol] = initial_amount
         self.exchange.orders = {
@@ -95,12 +103,12 @@ class TestPartialTPSL(unittest.TestCase):
                 'status': 'open'
             }
         }
-        
+
         # 2. Simulate Candle hitting TP1 (High = 111 > 110)
         # We need at least 220 rows to pass strategy validation (len check)
         timestamps = [pd.Timestamp.now() - pd.Timedelta(hours=i) for i in range(220)]
         timestamps.reverse()
-        
+
         data = []
         # Add 219 dummy rows
         for i in range(219):
@@ -110,7 +118,7 @@ class TestPartialTPSL(unittest.TestCase):
                 "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
                 "ema21": 100.0, "ema200": 90.0, "closed": True
             })
-            
+
         # Add the trigger row (Index -1)
         data.append({
             "date": timestamps[-1],
@@ -118,30 +126,36 @@ class TestPartialTPSL(unittest.TestCase):
             "rsi": 60.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
             "ema21": 100.0, "ema200": 90.0, "closed": True
         })
-        
+
         df_mock = pd.DataFrame(data, index=timestamps)
-        
-        # Mock indicators
+
+        # Mock indicators (also patch Indicators.last to avoid global state pollution
+        # from test_dynamic_tp.py which patches it with high=105.0)
+        last_vals = {
+            "close": 108.0, "high": 111.0, "low": 105.0, "open": 105.0,
+            "ema21": 100.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
+        }
         self.strategy.indicators.compute = lambda df, **ks: df_mock
-        
-        # 3. Analyze - Should trigger TP1 Signal
-        signal = self.strategy.analyze(symbol, df_mock)
-        
-        print("\nGenerated Signal:", signal)
-        
-        # Verify Signal
-        self.assertIsNotNone(signal)
-        self.assertEqual(signal.signal_type, "SELL")
-        self.assertTrue(signal.reason.startswith("TP1"))
-        
-        # KEY CHECK: Does signal start with correct SL Price?
+        Indicators.last = lambda df: last_vals
+
+        # 3. Analyze - Should return PartialClose(TP1) action
+        result = self.strategy.analyze(symbol, df_mock, position=position, context=ctx)
+
+        print("\nGenerated Result:", result)
+
+        # Verify action is PartialClose for TP1
+        tp1_action = next((a for a in result.actions if isinstance(a, PartialClose) and a.tp_level == "TP1"), None)
+        self.assertIsNotNone(tp1_action, "Should have generated a PartialClose(TP1) action")
+        self.assertTrue(tp1_action.reason.startswith("TP1"))
+
+        # KEY CHECK: Does action carry correct new SL (lock profit)?
         # Lock Profit = 100 + (10 * 0.2) = 102
         expected_sl = Decimal("102")
-        self.assertAlmostEqual(float(signal.sl_price), float(expected_sl), places=2)
-        
-        # 4. Simulate Portfolio Handling
-        # We manually call on_signal because backtest loop usually does this
-        
+        self.assertIsNotNone(tp1_action.new_sl_price)
+        self.assertAlmostEqual(float(tp1_action.new_sl_price), float(expected_sl), places=2)
+
+        # 4. Simulate Portfolio Handling via execute_partial_close (new runner flow)
+
         # Mock create_order to track calls
         executed_orders = []
         def mock_create_order(symbol, order_type=None, side=None, amount=None, price=None, params=None):
@@ -161,8 +175,8 @@ class TestPartialTPSL(unittest.TestCase):
         self.exchange.cancel_order = lambda oid, sym: True
         self.exchange.create_order = mock_create_order
 
-        # Run portfolio logic
-        self.portfolio.on_signal(signal)
+        # Run portfolio logic using new execute_partial_close path
+        self.portfolio.execute_partial_close(symbol, tp1_action.tp_level, new_sl_price=tp1_action.new_sl_price)
 
         # 5. Verify Portfolio Actions
         # Should have 2 actions:

@@ -17,19 +17,57 @@ No cooldown / no waiting / no SL lock
 
 from __future__ import annotations
 
+from dataclasses import dataclass, fields as dc_fields
 from decimal import Decimal
 from typing import Optional, Any
 
 import pandas as pd
+import structlog
 
 from app.strategies.base import BaseStrategy
 from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
-from app.core.events import SignalEvent
-from app.core.context import StrategyContext, SCANNING, CONFIRMING
-import logging
+from app.core.context import SCANNING, CONFIRMING
+from app.core.snapshots import PositionSnapshot, ContextSnapshot
+from app.core.analysis_result import AnalysisResult
+from app.core.actions import OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing
 
-logger = logging.getLogger("rsi_bot")
+logger = structlog.get_logger()
+
+
+@dataclass(frozen=True)
+class RsiNoRetestConfig:
+    """Typed config for RsiNoRetestStrategy. Constructed from strategy_params dict."""
+
+    rsi_period: int = 21
+    rsi_ema_length: int = 9
+    rsi_wma_length: int = 45
+    price_ema_fast: int = 21
+    price_ema_slow: int = 200
+    nr_lookback: int = 30
+    nr_max_above_ema21: int = 3
+    nr_rsi_spread_min: float = 2.5
+    nr_sl_mode: str = "lowest_close"
+    sl_buffer_pct: float = 0.0
+    disaster_sl_multiplier: float = 3.0
+    candle_close_slippage_pct: float = 0.0
+    nr_tp1_rr: float = 1.0
+    nr_tp2_rr: float = 2.0
+    nr_tp3_rr: float = 3.0
+    nr_tp_count: int = 3
+    tp1_close_pct: float = 0.50
+    tp2_close_pct: float = 0.50
+    tp3_close_pct: float = 0.0
+    nr_move_sl_rr: float = 0.5
+    nr_lock_profit_rr: float = 0.2
+    use_active_trades: bool = True
+
+    @classmethod
+    def from_dict(cls, params: dict) -> "RsiNoRetestConfig":
+        """Construct from strategy_params dict, ignoring unknown keys."""
+        valid_keys = {f.name for f in dc_fields(cls)}
+        filtered = {k: v for k, v in params.items() if k in valid_keys}
+        return cls(**filtered)
 
 
 class RsiNoRetestStrategy(BaseStrategy):
@@ -77,15 +115,16 @@ class RsiNoRetestStrategy(BaseStrategy):
     def __init__(self, config: dict):
         super().__init__(config)
 
-        # Ensure context exists
-        if hasattr(self, "ctx") and not hasattr(self, "context"):
-            self.context = self.ctx  # type: ignore[attr-defined]
-        if not hasattr(self, "context"):
-            self.context = StrategyContext()
-
         # Use strategy defaults, allow override from config
-        cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
-        bot_cfg = config.get("bot", {})
+        from app.core.config import AppConfig
+        strategy_params = (
+            config.strategy_params
+            if isinstance(config, AppConfig)
+            else config.get("strategy_params", {})
+        ) or {}
+        cfg = {**self.DEFAULT_CONFIG, **strategy_params}
+        self.strategy_cfg = RsiNoRetestConfig.from_dict(cfg)
+        bot_cfg = config.get("bot", {}) if not isinstance(config, AppConfig) else {}
 
         # Try top-level first, then bot-level
         self.timeframe = config.get("timeframe", "15m")
@@ -224,12 +263,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl = sl * Decimal(str(1 - self.sl_buffer_pct))
         return sl
 
-    def _compute_tp_1to1(self, entry: Decimal, sl: Decimal) -> Optional[Decimal]:
-        risk = entry - sl
-        if risk <= Decimal("0"):
-            return None
-        return entry + (risk * self.tp_rr)
-
     def _compute_price_at_rr(self, entry: Decimal, sl: Decimal, rr: Decimal) -> Optional[Decimal]:
         """
         For LONG:
@@ -242,14 +275,24 @@ class RsiNoRetestStrategy(BaseStrategy):
         return entry + (risk * rr)
 
     # ---------------- main ----------------
-    def analyze(self, symbol: str, df) -> Optional[SignalEvent]:
+    def analyze(
+        self,
+        symbol: str,
+        df,
+        position: Optional[PositionSnapshot] = None,
+        context: Optional[ContextSnapshot] = None,
+    ) -> AnalysisResult:
+        # Canonical defaults
+        if context is None:
+            context = ContextSnapshot(state=SCANNING)
+
+        _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
+
         if df is None or len(df) < max(220, self.lookback + 10):
-            return None
+            return _noop
 
         if "closed" in df.columns and not bool(df.iloc[-1]["closed"]):
-            return None
-
-        key = f"{symbol}:{self.timeframe}"
+            return _noop
 
         # optional resample hook
         df_tf = resample_dataframe(df, self.timeframe) if "timestamp" in getattr(df, "columns", []) else df
@@ -257,9 +300,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         df_ind = self.indicators.compute(df_tf, symbol=symbol, timeframe=self.timeframe)
         last = Indicators.last(df_ind)
         if not last:
-            return None
-
-        ts = self._ts_from_last(df_tf, last)
+            return _noop
 
         # prices (Decimals)
         close = self._to_dec(last.get("close"))
@@ -268,210 +309,184 @@ class RsiNoRetestStrategy(BaseStrategy):
         ema21 = self._to_dec(last.get("ema21"))
 
         if close is None or ema21 is None:
-            return None
+            return _noop
 
         # RSI values
         rsi_ema9 = last.get("rsi_ema9")
         rsi_wma45 = last.get("rsi_wma45")
 
         # -------------------------
-        # EXIT / MANAGEMENT inside strategy:
-        #  - Move SL to Entry at +0.5R (intrabar by HIGH)
-        #  - TP 1:1 close all (intrabar by HIGH)
+        # EXIT / MANAGEMENT (position is open)
         # -------------------------
-        if self.use_active_trades and self.context.has_active_trade(symbol):
-            trade = self.context.get_trade(symbol)
-            meta = trade.meta if trade and trade.meta else {}
+        if self.use_active_trades and position and position.has_position:
+            meta = dict(context.meta)  # mutable copy — never mutate context.meta directly
 
-            entry_price = meta.get("entry_price")
-            sl_price = meta.get("sl_price")  # This is now Soft SL (for candle close check)
-            soft_sl = meta.get("soft_sl_price")  # Explicit soft SL if available
-            tp_price = meta.get("tp_price")
+            entry_price = self._to_dec(meta.get("entry_price"))
+            if entry_price is None:
+                return _noop
+
+            # Soft SL: prefer the ContextSnapshot direct field, fall back to meta
+            soft_sl = context.soft_sl_price or self._to_dec(meta.get("soft_sl_price"))
+            original_soft_sl = self._to_dec(meta.get("original_soft_sl")) or soft_sl
+
             moved_sl = bool(meta.get("moved_sl_to_entry", False))
             pending_candle_sl = bool(meta.get("pending_candle_sl", False))
 
-            # sanity
-            if entry_price is None:
-                return None
-
-            entry_price = self._to_dec(entry_price)
-            sl_price = self._to_dec(sl_price) if sl_price is not None else None
-            soft_sl = self._to_dec(soft_sl) if soft_sl is not None else sl_price  # Fallback to sl_price
-            tp_price = self._to_dec(tp_price) if tp_price is not None else None
-
-            if entry_price is None:
-                return None
-
-            # -------------------------------------------------
-            # STEP 0: Handle pending Close by Candle SL from previous candle
-            # Exit at THIS candle's OPEN price (simulates "next candle open")
-            # -------------------------------------------------
-            if pending_candle_sl and open_price is not None:
-                self.context.close_trade(symbol)
-                self.context.transition(key, SCANNING, reason="Close by Candle SL executed at next open", now_ts=ts)
-                return SignalEvent(
-                    symbol=symbol,
-                    signal_type="SELL",
-                    price=open_price,  # Exit at THIS candle's open (= previous candle's "next open")
-                    timestamp=ts,
-                    reason="CLOSE_BY_CANDLE_SL",
-                )
-
-            # -------------------------------------------------
-            # STEP 1: TP Logic (TP1 -> TP2 -> TP3)
-            # -------------------------------------------------
-            # Check TP hits
-            tp1_hit = meta.get("tp1_hit", False)
-            tp2_hit = meta.get("tp2_hit", False)
-            tp3_hit = meta.get("tp3_hit", False)
-            
             tp1_price = self._to_dec(meta.get("tp1_price"))
             tp2_price = self._to_dec(meta.get("tp2_price"))
             tp3_price = self._to_dec(meta.get("tp3_price"))
-            
-            # Target SL (0.2R) - use ORIGINAL soft SL, not dynamic sl_price which may be updated
-            original_soft_sl = self._to_dec(meta.get("original_soft_sl")) or sl_price
-            lock_profit_price = None
-            if original_soft_sl and entry_price:
-                 lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr)
 
-            # TP3: Close remaining
+            # Lock profit price: precompute from original SL (never changes)
+            lock_profit_price = self._to_dec(meta.get("lock_profit_price"))
+            if lock_profit_price is None and original_soft_sl and entry_price:
+                lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr)
+
+            # TP hit flags come from Portfolio (source of truth), not context
+            tp1_hit = position.tp1_hit
+            tp2_hit = position.tp2_hit
+            tp3_hit = position.tp3_hit
+
+            # -------------------------------------------------
+            # STEP 0: pending candle SL — exit at THIS candle's open
+            # -------------------------------------------------
+            if pending_candle_sl and open_price is not None:
+                new_ctx = ContextSnapshot(state=SCANNING)
+                return AnalysisResult(
+                    actions=[ClosePosition(symbol=symbol, reason="CLOSE_BY_CANDLE_SL", price=open_price)],
+                    new_context=new_ctx,
+                )
+
+            # -------------------------------------------------
+            # STEP 1: TP logic (TP3 → TP2 → TP1, highest priority first)
+            # -------------------------------------------------
+            # TP3: close remaining position (full exit at this level)
             if (not tp3_hit) and tp3_price and high is not None and high >= tp3_price:
-                self.context.close_trade(symbol)
-                self.context.transition(key, SCANNING, reason="TP3 hit -> full exit", now_ts=ts)
-                return SignalEvent(
-                    symbol=symbol,
-                    signal_type="SELL",
-                    price=tp3_price,
-                    timestamp=ts,
-                    reason=f"TP3 (>{self.tp3_rr}R)",
+                new_ctx = ContextSnapshot(state=SCANNING)
+                return AnalysisResult(
+                    actions=[PartialClose(
+                        symbol=symbol, tp_level="TP3", price=tp3_price,
+                        reason=f"TP3 (>{self.tp3_rr}R)",
+                    )],
+                    new_context=new_ctx,
                 )
-            
-            # TP2: Partial Close
+
+            # TP2: partial close, keep current SL
             if (not tp2_hit) and tp2_price and high is not None and high >= tp2_price:
-                # meta["tp2_hit"] = True <-- REMOVED: Prevent Ghost TP
-                # Ensure we maintain the current SL price (e.g. 0.2R) but update amount in Portfolio
-                current_sl = meta.get("sl_price")
-                return SignalEvent(
-                    symbol=symbol,
-                    signal_type="SELL",
-                    price=tp2_price,
-                    timestamp=ts,
-                    reason=f"TP2 (>{self.tp2_rr}R)",
-                    sl_price=current_sl,
+                new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=meta)
+                return AnalysisResult(
+                    actions=[PartialClose(
+                        symbol=symbol, tp_level="TP2", price=tp2_price,
+                        reason=f"TP2 (>{self.tp2_rr}R)",
+                    )],
+                    new_context=new_ctx,
                 )
 
-            # TP1: Partial Close + Move SL to 0.2R
+            # TP1: partial close + move SL to lock_profit_price
             if (not tp1_hit) and tp1_price and high is not None and high >= tp1_price:
-                # meta["tp1_hit"] = True  <-- REMOVED: Optimistic update causes Ghost TP if order fails.
-                # Mark SL as moved in meta so we don't try to move it again unnecessarily
-                meta["moved_sl_to_entry"] = True 
+                new_meta = dict(meta)
+                new_meta["moved_sl_to_entry"] = True
                 if lock_profit_price:
-                    meta["sl_price"] = lock_profit_price
-                    meta["soft_sl_price"] = lock_profit_price
-                
-                return SignalEvent(
-                    symbol=symbol,
-                    signal_type="SELL",
-                    price=tp1_price,
-                    timestamp=ts,
-                    reason=f"TP1 (>{self.tp1_rr}R)",
-                    sl_price=lock_profit_price,  # Tell Portfolio to move SL here
+                    new_meta["sl_price"] = lock_profit_price
+                    new_meta["soft_sl_price"] = lock_profit_price
+                new_ctx = ContextSnapshot(
+                    state=context.state,
+                    soft_sl_price=lock_profit_price,
+                    meta=new_meta,
+                )
+                return AnalysisResult(
+                    actions=[PartialClose(
+                        symbol=symbol, tp_level="TP1", price=tp1_price,
+                        reason=f"TP1 (>{self.tp1_rr}R)",
+                        new_sl_price=lock_profit_price,
+                    )],
+                    new_context=new_ctx,
                 )
 
             # -------------------------------------------------
-            # STEP 2: Move SL to lock profit when price reaches 0.5R
-            # Only if TP1 hasn't hit yet (TP1 hit already moves SL to 0.2R)
+            # STEP 2: Move SL to lock profit when high reaches +0.5R
+            # Only before TP1 hits (TP1 already moves SL via PartialClose.new_sl_price)
             # -------------------------------------------------
-            if (not moved_sl) and (not tp1_hit) and high is not None and sl_price is not None:
-                move_trigger = self._compute_price_at_rr(entry_price, sl_price, self.move_sl_rr)
-                if move_trigger is not None and high >= move_trigger:
-                     # Calculate new SL at 0.2R
-                    new_sl = lock_profit_price
-                    if new_sl is not None:
-                        # mark moved
-                        meta["moved_sl_to_entry"] = True
-                        meta["sl_price"] = new_sl  # update stored SL in meta
-                        meta["soft_sl_price"] = new_sl  # also update soft SL
-                        # Emit a SELL event with special reason to tell Portfolio to UPDATE SL (not close)
-                        return SignalEvent(
+            if (not moved_sl) and (not tp1_hit) and high is not None and soft_sl is not None:
+                move_trigger = self._compute_price_at_rr(entry_price, soft_sl, self.move_sl_rr)
+                if move_trigger is not None and high >= move_trigger and lock_profit_price is not None:
+                    new_meta = dict(meta)
+                    new_meta["moved_sl_to_entry"] = True
+                    new_meta["sl_price"] = lock_profit_price
+                    new_meta["soft_sl_price"] = lock_profit_price
+                    new_ctx = ContextSnapshot(
+                        state=context.state,
+                        soft_sl_price=lock_profit_price,
+                        meta=new_meta,
+                    )
+                    return AnalysisResult(
+                        actions=[MoveSL(
                             symbol=symbol,
-                            signal_type="SELL",
-                            price=new_sl,  # new SL price
-                            timestamp=ts,
-                            reason=f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{self.move_sl_rr}R, new_sl={new_sl} = +{self.lock_profit_rr}R)",
-                        )
+                            new_sl_price=lock_profit_price,
+                            reason=f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{self.move_sl_rr}R, new_sl={lock_profit_price} = +{self.lock_profit_rr}R)",
+                        )],
+                        new_context=new_ctx,
+                    )
 
             # -------------------------------------------------
-            # STEP 3: Close by Candle SL (LAST - only if TP not hit)
-            # Set flag to exit at NEXT candle's open
+            # STEP 3: Candle-close SL — set flag, exit next candle's open
             # -------------------------------------------------
-            if soft_sl is not None and close is not None:
-                if close <= soft_sl:
-                    # Mark for exit at next candle's open
-                    meta["pending_candle_sl"] = True
-                    # Don't close yet - wait for next candle
-                    return None
+            if soft_sl is not None and close is not None and close <= soft_sl:
+                new_meta = dict(meta)
+                new_meta["pending_candle_sl"] = True
+                new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_meta)
+                return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
-            return None
+            return _noop
 
         # -------------------------
-        # Entry state machine
+        # Entry state machine (no open position)
         # -------------------------
-        state = self.context.get_state(key)
-        
         if self.debug_enabled:
-            logger.warning(f"[{symbol}] DEBUG: State={state.phase}, OHLCV Size={len(df)}")
+            logger.warning(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={len(df)}")
 
-        if state.phase == SCANNING:
+        current_state = context.state
+
+        if current_state == SCANNING:
             if not self._detect_reclaim(df_ind):
                 logger.warning(f"[{symbol}] DEBUG: Reclaim not detected.")
-                return None
+                return _noop
 
             if not self._pullback_filter(df_ind):
                 logger.warning(f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter.")
-                return None
+                return _noop
 
-            self.context.transition(key, CONFIRMING, reason="Reclaim EMA21 + pullback ok", now_ts=ts)
             logger.warning(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
-            
-            # Refresh state to allow immediate processing in the same tick
-            state = self.context.get_state(key)
-            # Fall through to CONFIRMING logic
+            # Transition within the same tick (fall through to CONFIRMING)
+            current_state = CONFIRMING
 
-        if state.phase == CONFIRMING:
+        if current_state == CONFIRMING:
             if rsi_ema9 is None or rsi_wma45 is None:
-                return None
+                new_ctx = ContextSnapshot(state=CONFIRMING, meta=dict(context.meta))
+                return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
             spread = float(rsi_ema9) - float(rsi_wma45)
             if spread < self.rsi_spread_min:
-                self.context.transition(key, SCANNING, reason="Spread too small", now_ts=ts)
                 logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
-                return None
+                return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
-            # SL computed
+            # Compute SL
             sl_price = self._compute_sl(df_ind)
             if sl_price is None:
-                # fallback: lowest wick
                 self.sl_mode = "lowest_wick"
                 sl_price = self._compute_sl(df_ind)
 
             if sl_price is None:
-                self.context.transition(key, SCANNING, reason="No SL computed", now_ts=ts)
                 logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - No SL computed - Reset to SCANNING")
-                return None
+                return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
-            # Entry logic: Try EMA21 first, but ensure it's above SL
-            # Entry logic: Market order at next open (simulated by current close)
             entry_price = close
 
             tp1_price = self._compute_price_at_rr(entry_price, sl_price, self.tp1_rr)
             tp2_price = self._compute_price_at_rr(entry_price, sl_price, self.tp2_rr)
             tp3_price = self._compute_price_at_rr(entry_price, sl_price, self.tp3_rr)
-            
-            # Dynamic TP Allocations
+
+            # Dynamic TP allocations
             tp_allocations = {}
-            
             if self.tp_count == 1:
                 tp_allocations["TP1"] = 1.0
                 tp2_price = None
@@ -482,75 +497,59 @@ class RsiNoRetestStrategy(BaseStrategy):
                 tp3_price = None
             else:
                 tp_allocations["TP1"] = self.tp1_close_pct
-                # If doing 3 TPs, TP2 should not be 100% unless intended. 
-                # Assuming standard 3-TP scaling.
                 tp_allocations["TP2"] = self.tp2_close_pct if self.tp2_close_pct < 1.0 else 0.5
                 tp_allocations["TP3"] = 1.0
 
             if tp1_price is None:
-                self.context.transition(key, SCANNING, reason="Invalid TP risk", now_ts=ts)
                 logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Invalid TP - Reset to SCANNING")
-                return None
+                return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
-            # -------------------------------------------------
-            # Dual SL System:
-            # 1. Soft SL: sl_price with buffer (for candle-close exit logic)
-            # 2. Disaster SL: multiplier x distance from entry (hard limit order)
-            # -------------------------------------------------
-            soft_sl_price = sl_price  # Already has buffer applied from _compute_sl
+            # Dual SL system
+            soft_sl_price = sl_price
             disaster_sl_price = None
-            
             if soft_sl_price is not None:
                 soft_sl_distance = entry_price - soft_sl_price
                 disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
 
-            if self.use_active_trades:
-                self.context.open_trade(
-                    symbol=symbol,
-                    timeframe=self.timeframe,
-                    side="LONG",
-                    entry_price=float(entry_price),
-                    meta={
-                        "entry_price": entry_price,
-                        "sl_price": soft_sl_price,  # Used for candle close check
-                        "soft_sl_price": soft_sl_price,  # Explicit soft SL
-                        "original_soft_sl": soft_sl_price,  # NEVER MODIFIED - used for lock_profit calc
-                        "disaster_sl_price": disaster_sl_price,  # Reference only
-                        "tp1_price": tp1_price,
-                        "tp2_price": tp2_price,
-                        "tp3_price": tp3_price,
-                        "tp1_hit": False,
-                        "tp2_hit": False,
-                        "tp3_hit": False,
-                        "rsi_spread": spread,
-                        "sl_mode": self.sl_mode,
-                        "moved_sl_to_entry": False,
-                        "move_sl_rr": self.move_sl_rr,
-                        "lock_profit_rr": self.lock_profit_rr,
-                        "tp_allocations": tp_allocations,
-                    },
-                    now_ts=ts,
-                )
+            lock_profit_price = self._compute_price_at_rr(entry_price, soft_sl_price, self.lock_profit_rr)
 
-            # reset state after emitting BUY
-            self.context.transition(key, SCANNING, reason="BUY emitted", now_ts=ts)
+            # Build new context carrying the active trade metadata
+            tp_prices = [p for p in [tp1_price, tp2_price, tp3_price] if p is not None]
+            new_meta = {
+                "entry_price": entry_price,
+                "sl_price": soft_sl_price,
+                "soft_sl_price": soft_sl_price,
+                "original_soft_sl": soft_sl_price,  # never modified — used for lock_profit calc
+                "disaster_sl_price": disaster_sl_price,
+                "tp1_price": tp1_price,
+                "tp2_price": tp2_price,
+                "tp3_price": tp3_price,
+                "lock_profit_price": lock_profit_price,
+                "moved_sl_to_entry": False,
+                "pending_candle_sl": False,
+                "rsi_spread": spread,
+                "sl_mode": self.sl_mode,
+                "tp_allocations": tp_allocations,
+            }
+            # State goes back to SCANNING after emitting entry
+            new_ctx = ContextSnapshot(state=SCANNING, soft_sl_price=soft_sl_price, meta=new_meta)
 
             logger.info(f"[{symbol}] DEBUG: BUY SIGNAL GENERATED @ {entry_price} (SL={disaster_sl_price})")
 
-            return SignalEvent(
-                symbol=symbol,
-                signal_type="BUY",
-                price=entry_price,  # BUY at EMA21
-                timestamp=ts,
-                reason=f"NO-RETEST BUY (spread={spread:.2f} >= {self.rsi_spread_min})",
-                tp1_price=tp1_price,
-                tp2_price=tp2_price,
-                tp3_price=tp3_price,
-                sl_price=disaster_sl_price,  # Hard limit order on exchange
-                soft_sl_price=soft_sl_price,  # For portfolio reference
-                signal_class=2,
-                tp_allocations=tp_allocations,
+            return AnalysisResult(
+                actions=[OpenPosition(
+                    symbol=symbol,
+                    side="BUY",
+                    entry_price=entry_price,
+                    sl_price=disaster_sl_price,
+                    soft_sl_price=soft_sl_price,
+                    tp_prices=tp_prices,
+                    tp_allocations=tp_allocations,
+                    lock_profit_price=lock_profit_price,
+                    signal_class=2,
+                    reason=f"NO-RETEST BUY (spread={spread:.2f} >= {self.rsi_spread_min})",
+                )],
+                new_context=new_ctx,
             )
 
-        self.context.transition(key, SCANNING, reason="Unknown state reset", now_ts=ts)
-        return None
+        return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))

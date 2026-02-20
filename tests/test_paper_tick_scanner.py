@@ -36,6 +36,7 @@ def _make_exchange(balance: float = 10_000) -> PaperExchange:
         ex._last_prices = {}
         ex.state = PaperTradeState(Decimal(str(balance)))
         ex.notifier = MagicMock()
+        ex._notification_worker = MagicMock()
     return ex
 
 

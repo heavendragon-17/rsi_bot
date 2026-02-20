@@ -8,7 +8,7 @@ import requests
 
 import logging
 
-from app.utils.logger import setup_logger
+
 
 
 class TelegramBot:

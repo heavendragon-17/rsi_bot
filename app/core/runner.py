@@ -11,18 +11,23 @@ Architecture:
 """
 from __future__ import annotations
 
-import logging
 import signal
+import structlog
 import threading
 import time
+from datetime import datetime
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Type
 
 from app.core.interfaces import IFuturesExchange, IStrategy
 from app.core.portfolio import PortfolioManager
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
+from app.core.snapshots import ContextSnapshot
+from app.core.actions import OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing
+from app.core.events import SignalEvent
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class MultiSymbolRunner:
@@ -79,6 +84,7 @@ class MultiSymbolRunner:
         # Per-symbol components (created when threads start)
         self.strategies: Dict[str, IStrategy] = {}
         self.portfolios: Dict[str, PortfolioManager] = {}
+        self.contexts: Dict[str, ContextSnapshot] = {}
         
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -205,10 +211,29 @@ class MultiSymbolRunner:
             except Exception:
                 pass
 
+    def _action_to_signal(self, action: OpenPosition) -> SignalEvent:
+        """Convert an OpenPosition action to a SignalEvent for PortfolioManager."""
+        tp_prices = action.tp_prices or []
+        return SignalEvent(
+            symbol=action.symbol,
+            signal_type="BUY",
+            price=action.entry_price,
+            timestamp=datetime.now(),
+            reason=action.reason,
+            sl_price=action.sl_price,
+            soft_sl_price=action.soft_sl_price,
+            tp1_price=tp_prices[0] if len(tp_prices) > 0 else None,
+            tp2_price=tp_prices[1] if len(tp_prices) > 1 else None,
+            tp3_price=tp_prices[2] if len(tp_prices) > 2 else None,
+            signal_class=action.signal_class,
+            lock_profit_price=action.lock_profit_price,
+            tp_allocations=action.tp_allocations,
+        )
+
     def _run_symbol_loop(self, symbol: str) -> None:
         """
         Main trading loop for a single symbol.
-        
+
         Each symbol runs in its own thread with:
         - Its own Strategy instance
         - Its own PortfolioManager instance
@@ -218,33 +243,33 @@ class MultiSymbolRunner:
         # Create per-symbol components
         strategy = self.strategy_class(self.config)
         portfolio = PortfolioManager(self.exchange, self.config)
-        
+
         # Store references for monitoring
         self.strategies[symbol] = strategy
         self.portfolios[symbol] = portfolio
-        
+
         logger.info(f"[{symbol}] Strategy loop started")
-        
+
         # Track last processed candle timestamp to avoid duplicate processing
         last_processed_ts = None
-        
+
         while self.running.is_set():
             try:
                 # Get latest candle data
                 df = self.store.get_dataframe(symbol)
-                
+
                 if df is None or df.empty:
                     time.sleep(1)
                     continue
-                
+
                 # Get timestamp of latest candle
                 current_ts = df.index[-1]
-                
+
                 # Skip if we already processed this candle
                 if current_ts == last_processed_ts:
                     time.sleep(0.5)
                     continue
-                
+
                 # Only process closed candles
                 last_row = df.iloc[-1]
                 if not last_row.get('closed', False):
@@ -254,48 +279,48 @@ class MultiSymbolRunner:
                 # Sim mode: forward new candle open to PaperExchange so pending_open
                 # entry orders fill at realistic open price (not signal time price).
                 if self.config.get("bot", {}).get("mode") == "sim" and hasattr(self.exchange, "on_kline_open"):
-                    from decimal import Decimal as _Decimal
-                    self.exchange.on_kline_open(symbol, _Decimal(str(last_row.get("open", 0))))
+                    self.exchange.on_kline_open(symbol, Decimal(str(last_row.get("open", 0))))
 
-                # Analyze and generate signal
-                signal_event = strategy.analyze(symbol, df)
-                
-                if signal_event:
-                    logger.info(f"[{symbol}] Signal: {signal_event.signal_type} @ {signal_event.price}")
-                    portfolio.on_signal(signal_event)
+                # Build stateless inputs for strategy
+                position = portfolio.get_position_snapshot(symbol)
+                ctx = self.contexts.get(symbol, ContextSnapshot(state="SCANNING"))
 
-                # After processing candle, sync TP fills from exchange
+                # Analyze candle — returns typed actions + new context
+                result = strategy.analyze(symbol, df, position=position, context=ctx)
+
+                # Persist new context for next candle
+                self.contexts[symbol] = result.new_context
+
+                # Dispatch actions
+                for action in result.actions:
+                    if isinstance(action, OpenPosition):
+                        signal = self._action_to_signal(action)
+                        logger.info(f"[{symbol}] OpenPosition @ {action.entry_price}")
+                        portfolio.on_signal(signal)
+                    elif isinstance(action, ClosePosition):
+                        logger.info(f"[{symbol}] ClosePosition: {action.reason}")
+                        portfolio.close_position(action.symbol, reason=action.reason, price=action.price)
+                    elif isinstance(action, MoveSL):
+                        logger.info(f"[{symbol}] MoveSL -> {action.new_sl_price}: {action.reason}")
+                        portfolio.move_stop_loss(action.symbol, action.new_sl_price)
+                    elif isinstance(action, PartialClose):
+                        logger.info(f"[{symbol}] PartialClose {action.tp_level} @ {action.price}: {action.reason}")
+                        portfolio.execute_partial_close(action.symbol, action.tp_level, new_sl_price=action.new_sl_price)
+                    # DoNothing: no-op
+
+                # Sync TP fills from exchange (limit TP orders that filled on exchange)
                 if symbol in portfolio.positions:
                     portfolio.sync_tp_fills(symbol)
 
-                # Sync TP hit status from Portfolio back to Strategy's meta
-                # This prevents Strategy from repeatedly emitting TP signals (Ghost TP bug)
-                if (hasattr(strategy, 'context') and 
-                    strategy.context and 
-                    symbol in portfolio.positions and
-                    symbol in strategy.context.active_trades):
-                    pos = portfolio.positions[symbol]
-                    trade = strategy.context.active_trades[symbol]
-                    if trade.meta:
-                        # Sync all flags that could change during trade management
-                        trade.meta["tp1_hit"] = pos.tp1_hit
-                        trade.meta["tp2_hit"] = pos.tp2_hit
-                        trade.meta["tp3_hit"] = pos.tp3_hit
-                        # Also sync SL if it was moved (e.g., to breakeven)
-                        if pos.sl_price is not None:
-                            trade.meta["sl_price"] = pos.sl_price
-                        if hasattr(pos, 'lock_profit_price') and pos.lock_profit_price is not None:
-                            trade.meta["lock_profit_price"] = pos.lock_profit_price
-                
                 last_processed_ts = current_ts
-                
+
                 # Small sleep to prevent CPU spinning
                 time.sleep(0.1)
-                
+
             except Exception as e:
                 logger.error(f"[{symbol}] Error in trading loop: {e}", exc_info=True)
                 time.sleep(5)  # Back off on error
-        
+
         logger.info(f"[{symbol}] Strategy loop stopped")
     
     def wait(self) -> None:
