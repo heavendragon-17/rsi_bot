@@ -1,16 +1,31 @@
-// @ts-nocheck
 import React, { useEffect, useRef } from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { cn } from "../../lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 export const LookbackInput: React.FC = () => {
-  const { lookbackValue, setLookbackValue, lookbackUnit, setLookbackUnit } = useBacktestStore();
+  const { lookbackValue, setLookbackValue, lookbackUnit, setLookbackUnit } =
+    useBacktestStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcut 'L' to focus input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target instanceof HTMLElement && e.target.tagName !== 'INPUT') {
+      if (
+        e.key.toLowerCase() === "l" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.target instanceof HTMLElement &&
+        e.target.tagName !== "INPUT"
+      ) {
         e.preventDefault();
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -25,46 +40,109 @@ export const LookbackInput: React.FC = () => {
     if (!isNaN(val) && val > 0) {
       setLookbackValue(val);
     } else if (e.target.value === "") {
-        // Allow temporary empty state while typing, handled by UI not crashing but store expects number.
-        // Zustand persist might be unhappy with NaN, but `parseInt` returns NaN.
-        // We'll just not update if invalid for now or handle string in store if we wanted perfect controlled input.
-        // For now, strict update:
+      // Allow temporary empty state while typing, handled by UI not crashing but store expects number.
+    }
+  };
+
+  const increment = () => {
+    setLookbackValue((lookbackValue || 0) + 1);
+  };
+
+  const decrement = () => {
+    if ((lookbackValue || 1) > 1) {
+      setLookbackValue((lookbackValue || 1) - 1);
     }
   };
 
   return (
-    <div className="flex items-center gap-2 mb-2">
-      <div className="flex items-center gap-2 bg-input/50 border border-border-main rounded-md px-2 py-1 focus-within:ring-1 focus-within:ring-accent-main/50 focus-within:border-accent-main transition-colors w-full">
-         <span className="text-[10px] font-medium text-text-muted whitespace-nowrap">Last</span>
-         <input
+    <>
+      <style>{`
+        .custom-number-input::-webkit-outer-spin-button,
+        .custom-number-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .custom-number-input {
+          -moz-appearance: textfield;
+        }
+      `}</style>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center h-8 bg-input/50 border border-border-main rounded-md px-2.5 focus-within:ring-1 focus-within:ring-accent-main/50 transition-colors flex-1 group min-w-0">
+          <span className="text-xs font-medium text-text-muted shrink-0">
+            Last
+          </span>
+          <input
             ref={inputRef}
             type="number"
             min="1"
-            value={lookbackValue}
+            value={lookbackValue || ""}
             onChange={handleChange}
-            className="w-full bg-transparent border-none text-sm font-medium text-text-primary focus:outline-none p-0 appearance-none text-right"
-         />
-      </div>
-      
-      <div className="relative min-w-[80px]">
-        <select
-            value={lookbackUnit}
-            onChange={(e) => setLookbackUnit(e.target.value as any)}
-            className="w-full bg-input/50 border border-border-main rounded-md px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 cursor-pointer appearance-none"
-        >
-            <option value="bars">Bars</option>
-            <option value="hours">Hours</option>
-            <option value="days">Days</option>
-            <option value="weeks">Weeks</option>
-            <option value="months">Months</option>
-        </select>
-        {/* Simple arrow override could go here but default select arrow is often fine for internal tools, though design requested dropdown icon. */}
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            className="flex-1 min-w-0 w-full bg-transparent border-none text-sm font-medium text-text-primary focus:outline-none p-0 text-right pr-2 custom-number-input"
+          />
+          <div className="flex flex-col items-center justify-center shrink-0 border-l border-border-main/50 pl-1.5 ml-1">
+            <button
+              onClick={increment}
+              className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-end justify-center"
+              tabIndex={-1}
+            >
+              <ChevronUp size={12} strokeWidth={3} />
+            </button>
+            <button
+              onClick={decrement}
+              className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-start justify-center mt-0.5"
+              tabIndex={-1}
+            >
+              <ChevronDown size={12} strokeWidth={3} />
+            </button>
+          </div>
+        </div>
+
+        <div className="w-[72px] shrink-0">
+          <Select
+            value={lookbackUnit || "bars"}
+            onValueChange={(val) => setLookbackUnit(val as any)}
+          >
+            <SelectTrigger className="w-full h-8 bg-input/50 border-border-main rounded-md px-2 py-1 text-xs text-text-primary focus:ring-1 focus:ring-accent-main/50 data-[state=open]:bg-bg-elevated shadow-none transition-colors gap-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              align="end"
+              className="min-w-[70px] border-border-main bg-bg-surface backdrop-blur-xl shadow-xl"
+            >
+              <SelectItem
+                value="bars"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Bars
+              </SelectItem>
+              <SelectItem
+                value="hours"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Hours
+              </SelectItem>
+              <SelectItem
+                value="days"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Days
+              </SelectItem>
+              <SelectItem
+                value="weeks"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Weeks
+              </SelectItem>
+              <SelectItem
+                value="months"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Months
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </div>
+    </>
   );
 };

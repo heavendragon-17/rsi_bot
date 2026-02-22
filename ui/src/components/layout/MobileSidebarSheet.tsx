@@ -55,6 +55,8 @@ export const MobileSidebarSheet: React.FC = () => {
     runBacktest,
     startDate,
     endDate,
+    portfolioInput,
+    setPortfolioInput,
   } = useBacktestStore();
 
   const [isMobile, setIsMobile] = React.useState(false);
@@ -97,20 +99,10 @@ export const MobileSidebarSheet: React.FC = () => {
 
     const symbolsToCheck =
       mode === "batch"
-        ? [
-            "BTC/USDT",
-            "ETH/USDT",
-            "SOL/USDT",
-            "BNB/USDT",
-            "ADA/USDT",
-            "XRP/USDT",
-            "DOGE/USDT",
-            "DOT/USDT",
-            "MATIC/USDT",
-            "LTC/USDT",
-            "UNI/USDT",
-            "LINK/USDT",
-          ]
+        ? portfolioInput
+            .split("\n")
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
         : [symbol];
 
     try {
@@ -218,19 +210,15 @@ export const MobileSidebarSheet: React.FC = () => {
                   ) : (
                     <div>
                       <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-                        Portfolio Config
+                        Portfolio Config (Tickers separated by newline)
                       </label>
-                      <div className="p-3 bg-bg-elevated rounded border border-border-main text-xs text-text-secondary">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Layers size={14} className="text-accent-main" />
-                          <span className="font-semibold text-text-primary">
-                            12 Assets Selected
-                          </span>
-                        </div>
-                        <div className="opacity-75">
-                          BTC, ETH, SOL, BNB, ADA...
-                        </div>
-                      </div>
+                      <textarea
+                        value={portfolioInput}
+                        onChange={(e) => setPortfolioInput(e.target.value)}
+                        rows={4}
+                        className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 custom-scrollbar resize-y"
+                        placeholder="BTC/USDT\nETH/USDT"
+                      />
                     </div>
                   )}
 

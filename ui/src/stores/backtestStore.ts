@@ -10,6 +10,7 @@ import {
 } from "../api/backtest";
 import { checkDataStatus } from "../api/data";
 import { mapApiToResults, useResultsStore } from "./resultsStore";
+import { parse } from "date-fns";
 
 export interface BacktestState {
   // Navigation State
@@ -20,11 +21,14 @@ export interface BacktestState {
   // Configuration State
   mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity";
   symbol: string;
+  portfolioInput: string;
   strategy: string;
   timeframe: string;
-  startDate: Date | null;
-  endDate: Date | null;
+  startDate: string;
+  endDate: string;
   dateMode: "absolute" | "relative";
+  lookbackValue: number;
+  lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months";
 
   // Strategy Parameters
   params: {
@@ -53,14 +57,19 @@ export interface BacktestState {
   // Actions
   setMode: (mode: BacktestState["mode"]) => void;
   setSymbol: (symbol: string) => void;
+  setPortfolioInput: (input: string) => void;
   setStrategy: (strategy: string) => void;
   setTimeframe: (tf: string) => void;
   setParam: (key: string, value: number) => void;
   setCapital: (val: string) => void;
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
-  setDateRange: (start: Date | null, end: Date | null) => void;
+  setDateRange: (start: string, end: string) => void;
+  setStartDate: (date: string) => void;
+  setEndDate: (date: string) => void;
   setDateMode: (mode: "absolute" | "relative") => void;
+  setLookbackValue: (val: number) => void;
+  setLookbackUnit: (unit: "bars" | "hours" | "days" | "weeks" | "months") => void;
   loadConfig: (config: any) => void;
 
   runBacktest: () => Promise<void>;
@@ -90,11 +99,14 @@ export const useBacktestStore = create<BacktestState>()(
 
       mode: "single",
       symbol: "BTC/USDT",
+      portfolioInput: "BTC/USDT\nETH/USDT\nSOL/USDT\nBNB/USDT\nADA/USDT\nXRP/USDT\nDOGE/USDT\nDOT/USDT\nMATIC/USDT\nLTC/USDT\nUNI/USDT\nLINK/USDT",
       strategy: "rsi_no_retest",
       timeframe: "1h",
-      startDate: new Date("2024-01-01"),
-      endDate: new Date("2024-12-31"),
+      startDate: "01-01-2024",
+      endDate: "31-12-2024",
       dateMode: "relative",
+      lookbackValue: 300,
+      lookbackUnit: "bars",
 
       params: { ...DEFAULT_PARAMS },
 
@@ -109,6 +121,7 @@ export const useBacktestStore = create<BacktestState>()(
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
+      setPortfolioInput: (portfolioInput) => set({ portfolioInput }),
       setStrategy: (strategy) => set({ strategy }),
       setTimeframe: (timeframe) => set({ timeframe }),
       setParam: (key, value) =>
@@ -117,7 +130,14 @@ export const useBacktestStore = create<BacktestState>()(
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end }),
+      setStartDate: (startDate) => {
+        console.log("Store updating startDate to:", startDate);
+        set({ startDate });
+      },
+      setEndDate: (endDate) => set({ endDate }),
       setDateMode: (dateMode) => set({ dateMode }),
+      setLookbackValue: (lookbackValue) => set({ lookbackValue }),
+      setLookbackUnit: (lookbackUnit) => set({ lookbackUnit }),
       loadConfig: (config) => set((state) => ({ ...state, ...config })),
 
       // ── Real API + SSE ────────────────────────────────────────────────────
@@ -136,12 +156,8 @@ export const useBacktestStore = create<BacktestState>()(
           }
 
           // 2. Start backtest via API
-          const startDate = state.startDate instanceof Date
-            ? state.startDate
-            : new Date(state.startDate ?? "2024-01-01");
-          const endDate = state.endDate instanceof Date
-            ? state.endDate
-            : new Date(state.endDate ?? "2024-12-31");
+          const startDate = parse(state.startDate, "dd-MM-yyyy", new Date());
+          const endDate = parse(state.endDate, "dd-MM-yyyy", new Date());
 
           const { run_id } = await startBacktest({
             symbol: state.symbol,
@@ -215,8 +231,8 @@ export const useBacktestStore = create<BacktestState>()(
       getDaysDuration: () => {
         const { startDate, endDate } = get();
         if (!startDate || !endDate) return 0;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = parse(startDate, "dd-MM-yyyy", new Date());
+        const end = parse(endDate, "dd-MM-yyyy", new Date());
         return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000));
       },
 
@@ -234,11 +250,12 @@ export const useBacktestStore = create<BacktestState>()(
       },
     }),
     {
-      name: "backtest-config",
+      name: "backtest-config-v2",
       // Only persist configuration — not runtime state
       partialize: (state) => ({
         mode: state.mode,
         symbol: state.symbol,
+        portfolioInput: state.portfolioInput,
         strategy: state.strategy,
         timeframe: state.timeframe,
         params: state.params,
@@ -248,6 +265,8 @@ export const useBacktestStore = create<BacktestState>()(
         startDate: state.startDate,
         endDate: state.endDate,
         dateMode: state.dateMode,
+        lookbackValue: state.lookbackValue,
+        lookbackUnit: state.lookbackUnit,
         recentConfigs: state.recentConfigs,
       }),
     },
