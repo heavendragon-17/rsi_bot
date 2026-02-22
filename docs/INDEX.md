@@ -53,9 +53,18 @@ Historical specs that have been fully implemented. Kept for reference only — d
 | PLAN-figma-ui-v3.md | Original UI plan (13 tasks) | Superseded by DOCS.md → split files |
 | CSS_VARIABLES.md | Theme system contract | Merged into ui-spec.md |
 
-## Code Path → Documentation File
+## IMPORTANT: Documentation Maintenance
 
-When you modify code, update the corresponding doc file. Use this table as a deterministic lookup — no need to scan all docs.
+After completing ANY code change (feature, bug fix, refactor — not just workflow-guided tasks), you MUST update documentation:
+
+1. Use the table below to find which doc file covers the code you changed
+2. Update that doc file to reflect your changes (new functions, changed behavior, new config keys, etc.)
+3. If you added a new extension point (new exchange, strategy, notifier, etc.), follow the matching workflow in `docs/workflows/` first
+4. If you modified `app/repository/` models, run `python scripts/gen_db_docs.py`
+
+Skip doc updates only for trivial changes (typo fixes, log message tweaks, comment edits).
+
+### Code Path → Documentation File
 
 | Code path modified | Doc file to update |
 |--------------------|--------------------|

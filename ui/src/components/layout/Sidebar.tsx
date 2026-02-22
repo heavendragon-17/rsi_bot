@@ -24,6 +24,13 @@ import { ValidatedInput } from "../ui/ValidatedInput";
 import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 export const Sidebar: React.FC = () => {
   const {
@@ -53,6 +60,8 @@ export const Sidebar: React.FC = () => {
     endDate,
     portfolioInput,
     setPortfolioInput,
+    availableStrategies,
+    loadStrategies,
   } = useBacktestStore();
 
   const {
@@ -76,11 +85,30 @@ export const Sidebar: React.FC = () => {
     // 1. Validate inputs
     let isValid = true;
     Object.entries(params).forEach(([k, v]) => {
-      if (!validateParam(k, v.toString()).isValid) isValid = false;
+      const res = validateParam(k, v.toString());
+      if (!res.isValid) {
+        toast.error(`Invalid ${k}: ${res.error}`);
+        isValid = false;
+      }
     });
-    if (!validateParam("capital", capital).isValid) isValid = false;
-    if (!validateParam("leverage", leverage).isValid) isValid = false;
-    if (!validateParam("risk_percent", riskPercent).isValid) isValid = false;
+
+    const capRes = validateParam("capital", capital);
+    if (!capRes.isValid) {
+      toast.error(`Capital error: ${capRes.error}`);
+      isValid = false;
+    }
+
+    const levRes = validateParam("leverage", leverage);
+    if (!levRes.isValid) {
+      toast.error(`Leverage error: ${levRes.error}`);
+      isValid = false;
+    }
+
+    const riskRes = validateParam("risk_percent", riskPercent);
+    if (!riskRes.isValid) {
+      toast.error(`Risk error: ${riskRes.error}`);
+      isValid = false;
+    }
 
     if (!isValid) return;
 
@@ -153,6 +181,11 @@ export const Sidebar: React.FC = () => {
     riskPercent,
     handleRunRequest,
   ]);
+
+  // Load strategies on mount
+  useEffect(() => {
+    loadStrategies();
+  }, [loadStrategies]);
 
   const sidebarClasses = cn(
     "fixed left-4 top-20 bottom-4 z-40 hidden lg:flex flex-col transition-all duration-300 ease-in-out border border-bg-elevated/50 shadow-xl rounded-xl",
@@ -247,21 +280,34 @@ export const Sidebar: React.FC = () => {
                         <label className="text-xs font-medium text-text-secondary mb-1.5 block">
                           Symbol
                         </label>
-                        <div className="relative">
-                          <select
-                            value={symbol}
-                            onChange={(e) => setSymbol(e.target.value)}
-                            className="w-full appearance-none bg-input/50 border border-border-main rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50"
-                          >
-                            <option value="BTC/USDT">BTC/USDT</option>
-                            <option value="ETH/USDT">ETH/USDT</option>
-                            <option value="SOL/USDT">SOL/USDT</option>
-                          </select>
-                          <ChevronRight
-                            className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-text-muted pointer-events-none"
-                            size={14}
-                          />
-                        </div>
+                        <Select
+                          value={symbol}
+                          onValueChange={(val) => setSymbol(val)}
+                        >
+                          <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto data-[state=open]:bg-bg-elevated shadow-none transition-colors border-none sm:border-solid">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
+                            <SelectItem
+                              value="BTC/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
+                            >
+                              BTC/USDT
+                            </SelectItem>
+                            <SelectItem
+                              value="ETH/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
+                            >
+                              ETH/USDT
+                            </SelectItem>
+                            <SelectItem
+                              value="SOL/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
+                            >
+                              SOL/USDT
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ) : (
                       <div className="col-span-2">
@@ -309,24 +355,38 @@ export const Sidebar: React.FC = () => {
 
                 {/* Strategy Selection */}
                 <CollapsibleSection title="Strategy">
-                  <div className="relative">
-                    <select
-                      value={strategy}
-                      onChange={(e) => setStrategy(e.target.value)}
-                      className="w-full appearance-none bg-input/50 border border-border-main rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50"
-                    >
-                      <option value="rsi_no_retest">RSI No Retest</option>
-                      <option value="macd_cross">MACD Crossover</option>
-                      <option value="bollinger_breakout">
-                        Bollinger Breakout
-                      </option>
-                      {/* Ideally we would populate this with Saved Pine Indicators too */}
-                    </select>
-                    <Settings
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
-                      size={14}
-                    />
-                  </div>
+                  <Select
+                    value={strategy}
+                    onValueChange={(val) => setStrategy(val)}
+                  >
+                    <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto data-[state=open]:bg-bg-elevated shadow-none transition-colors border-none sm:border-solid">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
+                      {availableStrategies.length > 0 ? (
+                        availableStrategies.map((s) => (
+                          <SelectItem
+                            key={s.name}
+                            value={s.name}
+                            className="cursor-pointer hover:bg-bg-elevated"
+                          >
+                            {/* Assuming name is snake_case identifier or nicely formatted string */}
+                            {s.description ||
+                              s.name
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem
+                          value="rsi_no_retest"
+                          className="cursor-pointer hover:bg-bg-elevated"
+                        >
+                          RSI No Retest
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </CollapsibleSection>
 
                 {/* Parameters */}

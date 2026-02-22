@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect } from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { cn } from "../../lib/utils";
@@ -11,7 +10,14 @@ export const PresetPills: React.FC = () => {
   // Keyboard shortcut 'P' to cycle presets
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target instanceof HTMLElement && e.target.tagName !== 'INPUT') {
+      if (
+        e.key.toLowerCase() === "p" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.target instanceof HTMLElement &&
+        e.target.tagName !== "INPUT"
+      ) {
         e.preventDefault();
         const currentIndex = datePreset ? PRESETS.indexOf(datePreset) : -1;
         const nextIndex = (currentIndex + 1) % PRESETS.length;

@@ -8,9 +8,11 @@ import {
   getRunDetail,
   getTimeseries,
 } from "../api/backtest";
-import { checkDataStatus } from "../api/data";
+import { checkDataStatus } from "../lib/data-utils";
 import { mapApiToResults, useResultsStore } from "./resultsStore";
-import { parse } from "date-fns";
+import { parse, format } from "date-fns";
+import { fetchStrategies } from "../api/strategies";
+import type { StrategyInfo } from "../types/api-types";
 
 export interface BacktestState {
   // Navigation State
@@ -23,12 +25,14 @@ export interface BacktestState {
   symbol: string;
   portfolioInput: string;
   strategy: string;
+  availableStrategies: StrategyInfo[];
   timeframe: string;
   startDate: string;
   endDate: string;
   dateMode: "absolute" | "relative";
   lookbackValue: number;
-  lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months";
+  lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months" | "years";
+  datePreset: string | null;
 
   // Strategy Parameters
   params: {
@@ -69,8 +73,11 @@ export interface BacktestState {
   setEndDate: (date: string) => void;
   setDateMode: (mode: "absolute" | "relative") => void;
   setLookbackValue: (val: number) => void;
-  setLookbackUnit: (unit: "bars" | "hours" | "days" | "weeks" | "months") => void;
+  setLookbackUnit: (unit: "bars" | "hours" | "days" | "weeks" | "months" | "years") => void;
+  setDatePreset: (preset: string | null) => void;
+  syncRelativeDates: () => void;
   loadConfig: (config: any) => void;
+  loadStrategies: () => Promise<void>;
 
   runBacktest: () => Promise<void>;
   cancelBacktest: () => Promise<void>;
@@ -101,12 +108,14 @@ export const useBacktestStore = create<BacktestState>()(
       symbol: "BTC/USDT",
       portfolioInput: "BTC/USDT\nETH/USDT\nSOL/USDT\nBNB/USDT\nADA/USDT\nXRP/USDT\nDOGE/USDT\nDOT/USDT\nMATIC/USDT\nLTC/USDT\nUNI/USDT\nLINK/USDT",
       strategy: "rsi_no_retest",
+      availableStrategies: [],
       timeframe: "1h",
       startDate: "01-01-2024",
       endDate: "31-12-2024",
       dateMode: "relative",
       lookbackValue: 300,
       lookbackUnit: "bars",
+      datePreset: null,
 
       params: { ...DEFAULT_PARAMS },
 
@@ -123,22 +132,101 @@ export const useBacktestStore = create<BacktestState>()(
       setSymbol: (symbol) => set({ symbol }),
       setPortfolioInput: (portfolioInput) => set({ portfolioInput }),
       setStrategy: (strategy) => set({ strategy }),
-      setTimeframe: (timeframe) => set({ timeframe }),
+      setTimeframe: (timeframe) => {
+        set({ timeframe });
+        get().syncRelativeDates();
+      },
       setParam: (key, value) =>
         set((s) => ({ params: { ...s.params, [key]: value } })),
       setCapital: (capital) => set({ capital }),
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
-      setDateRange: (start, end) => set({ startDate: start, endDate: end }),
+      setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
       setStartDate: (startDate) => {
         console.log("Store updating startDate to:", startDate);
-        set({ startDate });
+        set({ startDate, dateMode: "absolute", datePreset: null });
       },
-      setEndDate: (endDate) => set({ endDate }),
-      setDateMode: (dateMode) => set({ dateMode }),
-      setLookbackValue: (lookbackValue) => set({ lookbackValue }),
-      setLookbackUnit: (lookbackUnit) => set({ lookbackUnit }),
-      loadConfig: (config) => set((state) => ({ ...state, ...config })),
+      setEndDate: (endDate) => set({ endDate, dateMode: "absolute", datePreset: null }),
+      setDateMode: (dateMode) => {
+        set({ dateMode });
+        get().syncRelativeDates();
+      },
+      setLookbackValue: (lookbackValue) => {
+        set({ lookbackValue, datePreset: null });
+        get().syncRelativeDates();
+      },
+      setLookbackUnit: (lookbackUnit) => {
+        set({ lookbackUnit, datePreset: null });
+        get().syncRelativeDates();
+      },
+      setDatePreset: (preset) => {
+        if (!preset) {
+          set({ datePreset: null });
+          return;
+        }
+        let val = 1;
+        let unit: "bars" | "hours" | "days" | "weeks" | "months" | "years" = "days";
+        switch (preset) {
+          case "1D": val = 1; unit = "days"; break;
+          case "1W": val = 1; unit = "weeks"; break;
+          case "1M": val = 1; unit = "months"; break;
+          case "3M": val = 3; unit = "months"; break;
+          case "1Y": val = 1; unit = "years"; break;
+          case "YTD": {
+            const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+            const diffTime = Math.abs(new Date().getTime() - startOfYear.getTime());
+            val = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            unit = "days";
+            break;
+          }
+          case "All": {
+            val = 20; // 20 years approximation for all data
+            unit = "years";
+            break;
+          }
+        }
+        set({ datePreset: preset, lookbackValue: val, lookbackUnit: unit, dateMode: "relative" });
+        get().syncRelativeDates();
+      },
+      syncRelativeDates: () => {
+         const { dateMode, lookbackValue, lookbackUnit, timeframe } = get();
+         if (dateMode !== "relative") return;
+         
+         const end = new Date();
+         let start = new Date();
+         
+         if (lookbackUnit === "bars") {
+           const barsPerDay: Record<string, number> = {
+             "15m": 96, "1h": 24, "4h": 6, "1d": 1,
+           };
+           const bpd = barsPerDay[timeframe] || 24;
+           const days = Math.ceil(lookbackValue / bpd);
+           start.setDate(start.getDate() - days);
+         } else if (lookbackUnit === "hours") {
+           start.setHours(start.getHours() - lookbackValue);
+         } else if (lookbackUnit === "days") {
+           start.setDate(start.getDate() - lookbackValue);
+         } else if (lookbackUnit === "weeks") {
+           start.setDate(start.getDate() - lookbackValue * 7);
+         } else if (lookbackUnit === "months") {
+           start.setMonth(start.getMonth() - lookbackValue);
+         } else if (lookbackUnit === "years") {
+           start.setFullYear(start.getFullYear() - lookbackValue);
+         }
+         
+         const format = (d: Date) => {
+           const day = String(d.getDate()).padStart(2, '0');
+           const month = String(d.getMonth() + 1).padStart(2, '0');
+           const year = d.getFullYear();
+           return `${day}-${month}-${year}`;
+         };
+         
+         set({ startDate: format(start), endDate: format(end) });
+      },
+      loadConfig: (config) => {
+        set((state) => ({ ...state, ...config }));
+        get().syncRelativeDates();
+      },
 
       // ── Real API + SSE ────────────────────────────────────────────────────
 
@@ -147,24 +235,85 @@ export const useBacktestStore = create<BacktestState>()(
         set({ isRunning: true, runProgress: 0 });
 
         try {
-          // 1. Fail fast: check data file exists
-          const dataStatus = await checkDataStatus(state.symbol, state.timeframe);
-          if (!dataStatus.available) {
-            throw new Error(
-              `No data for ${state.symbol} ${state.timeframe}. Download data first.`,
-            );
-          }
-
-          // 2. Start backtest via API
           const startDate = parse(state.startDate, "dd-MM-yyyy", new Date());
           const endDate = parse(state.endDate, "dd-MM-yyyy", new Date());
+
+          if (state.mode === "batch") {
+            const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
+            if (symbols.length === 0) throw new Error("No symbols provided for batch run.");
+
+            // 1. Check data
+            const dataStatus = await checkDataStatus(symbols, state.timeframe);
+            if (!dataStatus.allFresh) {
+              throw new Error("Missing data for some symbols. Please download data first.");
+            }
+
+            // 2. Start all backtests
+            const runIds: { id: number, symbol: string }[] = [];
+            const perConfigCap = parseFloat(state.capital) / symbols.length;
+
+            for (const sym of symbols) {
+              const { run_id } = await startBacktest({
+                symbol: sym,
+                timeframe: state.timeframe,
+                strategy: state.strategy,
+                start_date: format(startDate, "yyyy-MM-dd"),
+                end_date: format(endDate, "yyyy-MM-dd"),
+                initial_capital: perConfigCap.toString(),
+                leverage: parseInt(state.leverage) || 1,
+                risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
+                params: state.params,
+              });
+              runIds.push({ id: run_id, symbol: sym });
+            }
+
+            set({ currentRunId: runIds[0].id });
+
+            const progressMap = new Map<number, number>();
+            const promises = runIds.map(({ id, symbol }) => new Promise<any>((resolve, reject) => {
+              const cleanup = streamProgress(id,
+                (pct) => {
+                  progressMap.set(id, pct);
+                  let total = 0;
+                  progressMap.forEach(v => total += v);
+                  set({ runProgress: total / symbols.length });
+                },
+                async () => {
+                  cleanup();
+                  try {
+                    const [detail, timeseries] = await Promise.all([getRunDetail(id), getTimeseries(id)]);
+                    resolve({ symbol, detail, timeseries, initialCapital: perConfigCap });
+                  } catch (e) { reject(e); }
+                },
+                (err) => { cleanup(); reject(new Error(err)); }
+              );
+            }));
+
+            const allResults = await Promise.all(promises);
+
+            // Import util
+            const { aggregateBatchResults } = await import("../lib/batch-utils");
+            const aggregated = aggregateBatchResults(allResults);
+
+            const { useBatchResultsStore } = await import("./batchResultsStore");
+            useBatchResultsStore.getState().setBatchResults(aggregated);
+
+            set({ isRunning: false, runProgress: 0, currentRunId: null });
+            return;
+          }
+
+          // Single run mode
+          const dataStatus = await checkDataStatus([state.symbol], state.timeframe);
+          if (!dataStatus.allFresh) {
+            throw new Error(`No data for ${state.symbol}. Download data first.`);
+          }
 
           const { run_id } = await startBacktest({
             symbol: state.symbol,
             timeframe: state.timeframe,
             strategy: state.strategy,
-            start_date: startDate.toISOString().split("T")[0],
-            end_date: endDate.toISOString().split("T")[0],
+            start_date: format(startDate, "yyyy-MM-dd"),
+            end_date: format(endDate, "yyyy-MM-dd"),
             initial_capital: state.capital,
             leverage: parseInt(state.leverage) || 1,
             risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
@@ -179,6 +328,9 @@ export const useBacktestStore = create<BacktestState>()(
               run_id,
               (pct) => set({ runProgress: pct }),
               async () => {
+                // Instantly clean up to prevent EventSource from firing onerror when server closes
+                cleanup();
+                
                 // 4. On complete: fetch results and push to resultsStore
                 try {
                   const [detail, timeseries] = await Promise.all([
@@ -188,10 +340,8 @@ export const useBacktestStore = create<BacktestState>()(
                   useResultsStore.getState().setResults(
                     mapApiToResults(detail, timeseries),
                   );
-                  cleanup();
                   resolve();
                 } catch (fetchErr) {
-                  cleanup();
                   reject(fetchErr);
                 }
               },
@@ -218,6 +368,15 @@ export const useBacktestStore = create<BacktestState>()(
           }
         }
         set({ isRunning: false, runProgress: 0, currentRunId: null });
+      },
+
+      loadStrategies: async () => {
+        try {
+          const strategies = await fetchStrategies();
+          set({ availableStrategies: strategies });
+        } catch (err) {
+          console.error("Failed to load strategies:", err);
+        }
       },
 
       resetParams: () =>
@@ -267,6 +426,7 @@ export const useBacktestStore = create<BacktestState>()(
         dateMode: state.dateMode,
         lookbackValue: state.lookbackValue,
         lookbackUnit: state.lookbackUnit,
+        datePreset: state.datePreset,
         recentConfigs: state.recentConfigs,
       }),
     },

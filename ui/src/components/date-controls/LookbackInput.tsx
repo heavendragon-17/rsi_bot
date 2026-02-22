@@ -139,6 +139,12 @@ export const LookbackInput: React.FC = () => {
               >
                 Months
               </SelectItem>
+              <SelectItem
+                value="years"
+                className="text-xs text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Years
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

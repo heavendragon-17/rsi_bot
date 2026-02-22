@@ -596,7 +596,7 @@ class BacktestEngine(Engine):
                 )
                 self.exchange.create_order(
                     symbol=symbol,
-                    type="market",
+                    order_type="market",
                     side="SELL",
                     amount=float(amount),
                     price=final_price,

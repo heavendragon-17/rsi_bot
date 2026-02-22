@@ -92,3 +92,7 @@ Actions: `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`
 - `MarketDataStore` caps at 6,000 candles per symbol in memory
 - Main branch: `mua-tren-the-nang`
 - structlog for all logging (zero print statements)
+
+## IMPORTANT: Documentation Maintenance
+
+After ANY code change, follow the documentation maintenance rules in `docs/INDEX.md` → "Documentation Maintenance" section. This is mandatory for all non-trivial changes.

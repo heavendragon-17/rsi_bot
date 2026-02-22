@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { startGridSearch, streamQuantProgress } from "../api/quant";
+import { parse } from "date-fns";
 
 export interface GridSearchResult {
   xValue: number;
@@ -221,8 +222,8 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
         symbol,
         timeframe,
         strategy,
-        start_date: startDate?.toISOString(),
-        end_date: endDate?.toISOString(),
+        start_date: startDate ? parse(startDate, "dd-MM-yyyy", new Date()).toISOString().split("T")[0] : undefined,
+        end_date: endDate ? parse(endDate, "dd-MM-yyyy", new Date()).toISOString().split("T")[0] : undefined,
         params: baseParams,
         grid_params: {
           [xAxisParam]: xValues,

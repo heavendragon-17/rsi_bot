@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { startSensitivity, streamQuantProgress } from "../api/quant";
+import { parse } from "date-fns";
 
 export type SensitivityMetric = "net_pnl" | "sharpe" | "profit_factor" | "win_rate";
 
@@ -168,8 +169,8 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
         symbol,
         timeframe,
         strategy,
-        start_date: startDate?.toISOString(),
-        end_date: endDate?.toISOString(),
+        start_date: startDate ? parse(startDate, "dd-MM-yyyy", new Date()).toISOString().split("T")[0] : undefined,
+        end_date: endDate ? parse(endDate, "dd-MM-yyyy", new Date()).toISOString().split("T")[0] : undefined,
         base_params: params,
         variations: variationsToTest,
         metric

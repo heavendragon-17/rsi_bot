@@ -29,8 +29,10 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   };
 
   return (
-    <div className={cn("border-b border-border-main/50 last:border-0", className)}>
-      <div 
+    <div
+      className={cn("border-b border-border-main/50 last:border-0", className)}
+    >
+      <div
         className="flex items-center justify-between py-3 px-4 cursor-pointer hover:bg-white/5 transition-colors group"
         onClick={handleToggle}
       >
@@ -39,12 +41,10 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           {title}
         </div>
         {headerAction && (
-          <div onClick={(e) => e.stopPropagation()}>
-            {headerAction}
-          </div>
+          <div onClick={(e) => e.stopPropagation()}>{headerAction}</div>
         )}
       </div>
-      
+
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
@@ -54,9 +54,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pt-0">
-              {children}
-            </div>
+            <div className="px-4 pb-4 pt-1">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
