@@ -12,7 +12,7 @@ sys.path.append(os.getcwd())
 from app.core.context import StrategyContext
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.core.portfolio import PortfolioManager, Position
 from app.core.events import SignalEvent
 
 class TestPartialTPSL(unittest.TestCase):
@@ -72,15 +72,15 @@ class TestPartialTPSL(unittest.TestCase):
         
         # Mock Portfolio Position
         initial_amount = Decimal("2")
-        self.portfolio.positions[symbol] = type('Position', (object,), {
-            'symbol': symbol,
-            'amount': initial_amount, 
-            'entry_price': entry_price, 
-            'sl_order_id': 'mock_sl_id',
-            'tp1_hit': False, 'tp2_hit': False, 'tp3_hit': False,
-            'side': 'BUY',
-            'sl_price': sl_price
-        })() # Instantiated object
+        self.portfolio.positions[symbol] = Position(
+            symbol=symbol,
+            amount=initial_amount,
+            entry_price=entry_price,
+            side='BUY',
+            timestamp=datetime.now(),
+            sl_price=sl_price,
+            sl_order_id='mock_sl_id',
+        )
         
         # Mock Exchange State
         self.exchange.positions[symbol] = initial_amount
@@ -144,44 +144,53 @@ class TestPartialTPSL(unittest.TestCase):
         
         # Mock create_order to track calls
         executed_orders = []
-        def mock_create_order(**kwargs):
-            executed_orders.append(kwargs)
-            return {'id': 'new_ord_id', **kwargs}
-            
+        def mock_create_order(symbol, order_type=None, side=None, amount=None, price=None, params=None):
+            order = {
+                'id': 'new_ord_id',
+                'symbol': symbol,
+                'order_type': order_type,
+                'side': side,
+                'amount': amount,
+                'price': price,
+                'params': params or {},
+            }
+            executed_orders.append(order)
+            return order
+
+        # Also mock cancel_order to not fail on the old SL
+        self.exchange.cancel_order = lambda oid, sym: True
         self.exchange.create_order = mock_create_order
-        
+
         # Run portfolio logic
         self.portfolio.on_signal(signal)
-        
+
         # 5. Verify Portfolio Actions
-        # Should have 2 actions: 
-        # a) Market Sell (TP1) for 50% amount (1.0)
-        # b) Update SL Order (Cancel/Replace or Update)
-        
+        # Should have 2 actions:
+        # a) Market Sell (TP1) for 50% amount (1.0) with reduceOnly
+        # b) stop_market SL of 1.0 at lock_profit price (102) with reduceOnly
+
         # Check Position Amount: 2.0 -> 1.0 (50% close)
         pos = self.portfolio.positions[symbol]
         self.assertEqual(pos.amount, Decimal("1.0"))
         self.assertTrue(pos.tp1_hit)
-        
+
         # Check Executed Orders
-        # Expectation: 
-        # 1. Market SELL of 1.0 (TP1)
-        # 2. Limit SELL (SL) of 1.0 at 102 (Lock Profit)
-        
         print("\nExecuted Orders:", executed_orders)
-        
-        tp_orders = [o for o in executed_orders if o.get('type') == 'market']
+
+        tp_orders = [o for o in executed_orders if o.get('order_type') == 'market']
         self.assertEqual(len(tp_orders), 1)
         self.assertEqual(tp_orders[0]['amount'], Decimal("1.0"))
-        
-        sl_orders = [o for o in executed_orders if o.get('type') == 'limit']
-        # Depending on _move_sl_to_entry implementation, it might update existing or create new
-        # Our mock exchange doesn't implement 'update_stop_loss' so it falls back to cancel+create
+        # TP exit should have reduceOnly
+        self.assertTrue(tp_orders[0]['params'].get('reduceOnly'))
+
+        sl_orders = [o for o in executed_orders if o.get('order_type') == 'stop_market']
         self.assertTrue(len(sl_orders) >= 1)
         last_sl_order = sl_orders[-1]
-        
-        self.assertEqual(last_sl_order['price'], expected_sl)
+
+        # SL price is in params.stopPrice for stop_market orders
+        self.assertEqual(last_sl_order['params']['stopPrice'], expected_sl)
         self.assertEqual(last_sl_order['amount'], Decimal("1.0"))
+        self.assertTrue(last_sl_order['params'].get('reduceOnly'))
 
 if __name__ == '__main__':
     unittest.main()

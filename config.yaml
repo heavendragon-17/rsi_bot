@@ -51,3 +51,9 @@ risk:
 
 backtest:
     initial_balance: 10000
+
+paper_sim:
+    initial_balance: 10000        # USDT starting balance for sim mode
+    telegram_token: ""            # leave blank to reuse bot.telegram_token
+    chat_id: ""                   # leave blank to reuse TELEGRAM_CHAT_ID; set to a channel/group ID to send paper msgs separately
+    tick_sample_interval_ms: 500  # aggTrade sampling interval (ms)
