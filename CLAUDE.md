@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For detailed specs, read `docs/INDEX.md` first — it maps each doc file to its domain and tells you which file to consult for your task.
 
+- **Agent workflow**: `docs/agent-workflow.md` — **MUST READ before every task.** Covers planning, verification, task management, and code quality standards.
 - **AI agent specs**: `docs/` (architecture, backtest engine, API reference, strategies, etc.)
 - **Human guides**: `wiki/` (getting started, architecture overview, backtest guide)
 - **Database schema**: `docs/database.md` — auto-generated from ORM. Run `python scripts/gen_db_docs.py` to regenerate. Design rationale lives in `app/repository/backtest/models.py` code comments.

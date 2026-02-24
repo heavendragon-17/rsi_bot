@@ -11,6 +11,7 @@ These files are the **canonical specifications** for building and modifying the 
 
 | File                                           | Covers                                                                                                   | Read when...                                                              |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [agent-workflow.md](agent-workflow.md)         | Planning, verification, task management, code quality standards, core principles                          | **MUST READ before every task** — defines how agents work in this repo   |
 | [architecture.md](architecture.md)             | System overview, tech stack, 3-layer clean architecture, threading model                                 | Starting any task — provides context for the whole system                 |
 | [live-bot.md](live-bot.md)                     | WebSocket streaming, strategy execution, portfolio management, exchange adapters, multi-symbol runner    | Working on the live trading bot (`main.py`, `app/core/`, `app/services/`) |
 | [backtest-engine.md](backtest-engine.md)       | Single backtest flow, batch mode, tick-level paper replay, engine internals, data management, SSE bridge | Working on backtest engine (`app/backtest/`, `app/api/`)                  |
