@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.core.exceptions import OrderRejectedError
 from app.paper.exchange import MAKER_FEE, TAKER_FEE, PaperExchange
 from app.paper.state import PaperTradeState
 
@@ -55,6 +56,7 @@ def _make_exchange(balance: float = 10_000) -> PaperExchange:
         ex._last_prices = {}
         ex.state = PaperTradeState(Decimal(str(balance)))
         ex.notifier = MagicMock()
+        ex._notification_worker = MagicMock()
     return ex
 
 
@@ -129,9 +131,9 @@ class TestSoftSL:
     def test_soft_sl_skipped_if_no_tick_price(self):
         ex = _make_exchange()
         _open_position(ex, entry="100000")
-        # No last price set → should not crash, just return None
-        result = ex.create_order("BTC/USDT", "market", "SELL", Decimal("0.01"), params={"reduceOnly": True})
-        assert result is None
+        # No last price set → raises OrderRejectedError (cannot fill without price)
+        with pytest.raises(OrderRejectedError):
+            ex.create_order("BTC/USDT", "market", "SELL", Decimal("0.01"), params={"reduceOnly": True})
 
     def test_reduce_only_skipped_if_no_position(self):
         ex = _make_exchange()

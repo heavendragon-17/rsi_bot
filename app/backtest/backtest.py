@@ -19,6 +19,7 @@ if PROJECT_ROOT not in sys.path:
 
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
+from app.backtest.config_builder import build_backtest_config
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 
@@ -51,52 +52,49 @@ def main():
     )
     args = parser.parse_args()
 
-    # Load Base Config
-    config = load_config()
+    # Load base config once to read defaults
+    base_config = load_config()
 
     # Get strategy from config or CLI override
-    strategy_name = args.strategy or config.get("strategy", "rsi_wma_retest")
+    strategy_name = args.strategy or base_config.get("strategy", "rsi_wma_retest")
     if strategy_name not in STRATEGY_MAP:
         print(f"Error: Unknown strategy '{strategy_name}'. Available: {list(STRATEGY_MAP.keys())}")
         sys.exit(1)
     strategy_class = STRATEGY_MAP[strategy_name]
 
-    # Get balance from CLI or config
-    balance = args.balance or config.get('backtest', {}).get('initial_balance', 10000)
-    
-    # Override backtest settings
-    if 'backtest' not in config:
-        config['backtest'] = {}
-    config['backtest']['initial_balance'] = balance
+    # Determine balance
+    balance = args.balance or base_config.get('backtest', {}).get('initial_balance', 10000)
 
     # Determine symbol
     if args.symbol:
         symbol = args.symbol
     else:
-        # Infer from filename: XPLUSDT_5m.csv -> XPL/USDT
+        # Infer from filename: BTCUSDT_5m.csv -> BTC/USDT
         filename = os.path.basename(args.data)
         base = filename.replace('.csv', '').split('_')[0]
-        # Try to split into symbol/USDT
         if base.endswith('USDT'):
             symbol = base[:-4] + '/USDT'
         elif base.endswith('USDC'):
             symbol = base[:-4] + '/USDC'
         else:
-            symbol = base + '/USDT'  # Default assumption
-    
+            symbol = base + '/USDT'
+
     # Determine timeframe
     if args.timeframe:
         timeframe = args.timeframe
     else:
-        # Infer from filename: XPLUSDT_5m.csv -> 5m
+        # Infer from filename: BTCUSDT_5m.csv -> 5m
         filename = os.path.basename(args.data)
         parts = filename.replace('.csv', '').split('_')
-        timeframe = parts[1] if len(parts) > 1 else config.get('timeframe', '5m')
-    
-    # Override config with command line values
-    config['symbols'] = [symbol]
-    config['timeframe'] = timeframe
-    config['bot']['timeframe'] = timeframe
+        timeframe = parts[1] if len(parts) > 1 else base_config.get('timeframe', '5m')
+
+    # Build engine config via shared config builder (single source of truth)
+    config = build_backtest_config(
+        symbol=symbol,
+        timeframe=timeframe,
+        strategy_name=strategy_name,
+        initial_balance=float(balance),
+    )
 
     print(f"Strategy: {strategy_name}")
     print(f"Symbol: {symbol}")
@@ -111,20 +109,20 @@ def main():
         config=config
     )
 
-    # Run
-    engine.run()
+    # Run — returns pre-computed results dict
+    results = engine.run()
 
     # Report
     os.makedirs(args.output, exist_ok=True)
     print(f"Saving reports to: {args.output}")
-    
+
+    leverage = config.get("risk", {}).get("leverage", 1)
     reporter = BacktestReporter(
-        engine.exchange, 
-        config, 
-        initial_balance=balance, 
-        symbol=symbol, 
+        results,
+        symbol=symbol,
         timeframe=timeframe,
-        strategy_name=strategy_name
+        strategy_name=strategy_name,
+        leverage=leverage,
     )
     report_path = reporter.generate_report(output_dir=args.output)
     

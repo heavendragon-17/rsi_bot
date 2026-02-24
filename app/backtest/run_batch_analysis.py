@@ -23,7 +23,7 @@ from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data
-from app.utils.logger import setup_logger
+from app.core.logging import setup_logging
 import logging
 
 # Strategy mapping
@@ -223,7 +223,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
     Returns a dict with results or None if failed.
     """
     # Configure logger for worker process
-    setup_logger(stream=sys.stdout, level=logging.INFO)
+    setup_logging(level="INFO")
     
     try:
         # Import strategy class here to avoid pickling issues
@@ -255,61 +255,55 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         run_config = copy.deepcopy(config)
         run_config['symbols'] = [symbol]
         
-        # Run backtest
+        # Run backtest — returns pre-computed results dict
         engine = BacktestEngine(data_file, strategy_class, run_config)
         engine.exchange.initial_balance = Decimal(str(balance))
         engine.exchange.balance = Decimal(str(balance))
-        engine.run()
-        
+        results = engine.run()
+
         # **EXPORT SIGNALS TO CSV**
         export_signals_to_csv(engine, symbol, report_dir, debug=False)
 
-        
-        # Generate report data
+        # Generate HTML and CSV reports via thin formatter
+        leverage = run_config.get("risk", {}).get("leverage", 1)
         reporter = BacktestReporter(
-            engine.exchange,
-            config,
-            initial_balance=float(balance),
+            results,
             symbol=symbol,
             timeframe=timeframe,
-            strategy_name=strategy_name
+            strategy_name=strategy_name,
+            leverage=leverage,
         )
-        
-        df = pd.DataFrame(engine.exchange.trade_history)
-        round_trips = reporter._build_round_trips(df)
-        metrics = reporter._calculate_metrics(round_trips)
-        drawdown = reporter._calculate_drawdown(round_trips)
-        risk_metrics = reporter._calculate_risk_metrics(round_trips, drawdown)
-        monthly_returns = reporter._calculate_monthly_returns(round_trips)
-        
-        final_bal = engine.exchange.fetch_balance().get("total", {}).get("USDT", 0)
-        realized_pnl = float(round_trips['pnl'].sum()) if not round_trips.empty else 0.0
-        profit = realized_pnl
-        profit_pct = (profit / float(balance)) * 100
-        
+
         html_content = reporter._generate_html_report(
-            metrics, drawdown, risk_metrics, monthly_returns,
-            final_bal, profit, profit_pct, round_trips,
             return_only=True,
-            output_dir=report_dir
+            output_dir=report_dir,
         )
-        
+
         # Export CSVs
-        reporter._export_csv(df, round_trips, output_dir=report_dir)
-        
+        reporter._export_csv(output_dir=report_dir)
+
+        metrics = results.get("metrics", {})
+        profit = results.get("net_profit", 0.0)
+        profit_pct = results.get("net_profit_pct", 0.0)
+        drawdown_avg = results.get("drawdown", {}).get("avg_drawdown_pct", 0)
+
         print(f"[{symbol}] [OK] Completed - PnL: ${profit:.2f} ({profit_pct:+.1f}%)")
-        
+
+        # Convert round_trips list to DataFrame for BatchHtmlGenerator compatibility
+        rt_list = results.get("round_trips", [])
+        round_trips_df = pd.DataFrame(rt_list) if rt_list else pd.DataFrame()
+
         return {
-            'symbol': symbol,
-            'metrics': metrics,
-            'html': html_content,
-            'profit': profit,
-            'profit_pct': profit_pct,
-            'initial_balance': float(balance),
-            'final_balance': float(final_bal),
-            'drawdown': drawdown.get('avg_drawdown_pct', 0),
-            'trades': metrics.get('total_trades', 0),
-            'round_trips': round_trips
+            "symbol": symbol,
+            "metrics": metrics,
+            "html": html_content,
+            "profit": profit,
+            "profit_pct": profit_pct,
+            "initial_balance": results.get("initial_balance", float(balance)),
+            "final_balance": results.get("final_balance", float(balance)),
+            "drawdown": drawdown_avg,
+            "trades": metrics.get("total_trades", 0),
+            "round_trips": round_trips_df,
         }
         
     except Exception as e:
@@ -779,7 +773,7 @@ def main():
         return
 
     # Configure global logger for main process
-    setup_logger(stream=sys.stdout, level=logging.INFO)
+    setup_logging(level="INFO")
 
     # Load Config
     config = load_config()

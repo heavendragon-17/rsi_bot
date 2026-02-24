@@ -8,9 +8,12 @@ import time
 from typing import List, Optional
 
 import ccxt
+import structlog
 import websocket
 
 from .normalizer import DataNormalizer
+
+logger = structlog.get_logger()
 
 STREAM_URL = "wss://fstream.binance.com/stream?streams="
 
@@ -43,6 +46,10 @@ class BinanceStreamManager:
 
         self.ws: Optional[websocket.WebSocketApp] = None
         self.keep_running = True
+
+        # Optional callbacks — set by LiveEventSource to receive closed candles
+        self.on_kline_close = None   # Callable[[Candle], None]
+        self.on_tick = None          # Callable[[Candle], None]  (every kline update)
 
         # Convert input symbols to websocket stream symbols:
         # "BTC/USDT" -> "btcusdt"
@@ -97,7 +104,7 @@ class BinanceStreamManager:
         if not self.enable_history:
             return
 
-        print("Fetching initial historical data (binanceusdm)...")
+        logger.info("fetching_history", symbols=self.raw_symbols)
         try:
             exchange = ccxt.binanceusdm()
             for symbol in self.raw_symbols:
@@ -115,13 +122,13 @@ class BinanceStreamManager:
                         candle = DataNormalizer.normalize_ccxt(symbol, ohlcv)
                         self.store.update_candle(candle)
 
-                    print(f"Fetched {len(ohlcvs)} candles for {symbol} ({ccxt_symbol})")
+                    logger.info("history_fetched", symbol=symbol, candles=len(ohlcvs))
 
                 except Exception as e:
-                    print(f"Error fetching history for {symbol}: {e}")
+                    logger.error("history_fetch_error", symbol=symbol, error=str(e))
 
         except Exception as e:
-            print(f"Error initializing CCXT futures client: {e}")
+            logger.error("ccxt_init_error", error=str(e))
 
     # ----------------------------
     # websocket callbacks
@@ -140,20 +147,26 @@ class BinanceStreamManager:
         try:
             event = DataNormalizer.normalize_binance(data)
         except Exception as e:
-            print(f"Normalizer error: {e}")
+            logger.error("normalizer_error", error=str(e))
             return
 
         # store Candle
         self.store.update_candle(event.payload)
 
+        # Fire optional callbacks for LiveEventSource integration
+        if self.on_tick is not None:
+            self.on_tick(event.payload)
+        if event.type.name == "KLINE_CLOSE" and self.on_kline_close is not None:
+            self.on_kline_close(event.payload)
+
     def on_error(self, ws, error) -> None:
-        print(f"Websocket Error: {error}")
+        logger.error("websocket_error", error=str(error))
 
     def on_close(self, ws, close_status_code, close_msg) -> None:
-        print(f"Websocket Disconnected ({close_status_code}) {close_msg}")
+        logger.warning("websocket_disconnected", code=close_status_code, msg=close_msg)
 
     def on_open(self, ws) -> None:
-        print(f"Websocket Connected: {self.stream_symbols} timeframe={self.timeframe}")
+        logger.info("websocket_connected", symbols=self.stream_symbols, timeframe=self.timeframe)
 
     # ----------------------------
     # lifecycle
@@ -175,7 +188,7 @@ class BinanceStreamManager:
                     # run_forever blocks until disconnect
                     self.ws.run_forever(ping_interval=60, ping_timeout=10)
                 except Exception as e:
-                    print(f"WS run_forever crashed: {e}")
+                    logger.error("websocket_crashed", error=str(e))
 
                 # reconnect delay
                 if self.keep_running:

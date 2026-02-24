@@ -3,11 +3,16 @@ Core Event Types for RSI Trading Bot
 =====================================
 All price fields use Decimal for financial precision.
 """
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Union
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class EventType(Enum):
@@ -87,7 +92,7 @@ class OrderEvent:
     price: Optional[Decimal] = None
 
 
-@dataclass 
+@dataclass
 class TPSLEvent:
     """Take profit or stop loss trigger event."""
     symbol: str
@@ -95,3 +100,39 @@ class TPSLEvent:
     trigger_price: Decimal
     close_percentage: Decimal  # How much of position to close (0.0 - 1.0)
     timestamp: datetime
+
+
+# ============================================
+# Engine Event Types (PR7: Unified Engine)
+# ============================================
+
+@dataclass
+class TickEvent:
+    """Real-time price tick (from WebSocket or historical replay)."""
+    symbol: str
+    price: Decimal
+    timestamp: datetime
+    volume: Optional[Decimal] = None
+
+
+@dataclass
+class CandleCloseEvent:
+    """
+    A candle has closed. Contains full OHLCV Candle data.
+
+    The optional ``df`` field carries a pre-built DataFrame with indicators
+    already computed (used by BacktestEventSource). When ``df`` is None the
+    Engine is responsible for fetching the DataFrame from its data store.
+    """
+    candle: Candle
+    df: Optional[pd.DataFrame] = None  # type: ignore[type-arg]
+
+
+@dataclass
+class EngineStopEvent:
+    """Signals the engine to stop processing."""
+    reason: str = "normal"
+
+
+# Union of all engine-level events
+EngineEvent = Union[TickEvent, CandleCloseEvent, EngineStopEvent]

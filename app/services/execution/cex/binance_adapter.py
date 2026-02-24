@@ -4,14 +4,20 @@ Wraps CCXT binanceusdm. Supports paper (testnet) and live (mainnet).
 Translates normalized order types to Binance-native params.
 """
 import os
-import logging
+import threading
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 from pathlib import Path
 
 import ccxt
+import structlog
 
+from app.core.exceptions import (
+    ExchangeError, InsufficientFundsError, OrderRejectedError,
+    OrderNotFoundError, ConnectionError, RateLimitError, PositionError,
+)
 from app.core.interfaces import IFuturesExchange
+from app.core.utils import to_decimal
 
 # Load environment variables
 try:
@@ -24,20 +30,12 @@ try:
 except ImportError:
     pass
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 # ==============================================================================
 # Helper Functions (Symbol Normalization)
 # ==============================================================================
-
-def to_decimal(val) -> Decimal:
-    if val is None:
-        return Decimal("0")
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val))
-
 
 def _to_external_symbol(symbol: str) -> str:
     """Normalize to CCXT futures style: BTC/USDT:USDT"""
@@ -91,6 +89,7 @@ class BinanceAdapter(IFuturesExchange):
     """
 
     def __init__(self, config: dict = None):
+        self._lock = threading.Lock()
         config = config or {}
         mode = config.get("bot", {}).get("mode", "paper")
         api_key, secret = _get_credentials(mode)
@@ -151,55 +150,85 @@ class BinanceAdapter(IFuturesExchange):
 
         ext_symbol = _to_external_symbol(symbol)
 
-        try:
-            result = self._exchange.create_order(
-                symbol=ext_symbol,
-                type=ccxt_type,
-                side=side.upper(),
-                amount=float(amount),
-                price=float(price) if price else None,
-                params=ccxt_params,
-            )
-            logger.info(
-                f"Order placed: {side} {actual_type} {amount} {symbol} "
-                f"@ {price or 'market'} → id={result.get('id')}"
-            )
-            return result
-        except Exception as e:
-            logger.error(f"Order failed: {side} {actual_type} {amount} {symbol}: {e}")
-            return None
+        with self._lock:
+            try:
+                result = self._exchange.create_order(
+                    symbol=ext_symbol,
+                    type=ccxt_type,
+                    side=side.upper(),
+                    amount=float(amount),
+                    price=float(price) if price else None,
+                    params=ccxt_params,
+                )
+                logger.info(
+                    f"Order placed: {side} {actual_type} {amount} {symbol} "
+                    f"@ {price or 'market'} → id={result.get('id')}"
+                )
+                return result
+            except ccxt.InsufficientFunds as e:
+                raise InsufficientFundsError(str(e), original=e)
+            except ccxt.InvalidOrder as e:
+                raise OrderRejectedError(str(e), original=e)
+            except ccxt.OrderNotFound as e:
+                raise OrderNotFoundError(str(e), original=e)
+            except ccxt.RateLimitExceeded as e:
+                raise RateLimitError(str(e), original=e)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
         """Fetch order status by ID."""
         ext_symbol = _to_external_symbol(symbol)
-        return self._exchange.fetch_order(order_id, ext_symbol)
+        with self._lock:
+            try:
+                return self._exchange.fetch_order(order_id, ext_symbol)
+            except ccxt.OrderNotFound as e:
+                raise OrderNotFoundError(str(e), original=e)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:
         """Cancel an open order."""
         ext_symbol = _to_external_symbol(symbol)
-        try:
-            self._exchange.cancel_order(order_id, ext_symbol)
-            return True
-        except Exception as e:
-            logger.warning(f"Cancel order {order_id} failed: {e}")
-            return False
+        with self._lock:
+            try:
+                self._exchange.cancel_order(order_id, ext_symbol)
+                return True
+            except ccxt.OrderNotFound as e:
+                raise OrderNotFoundError(str(e), original=e)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     def cancel_all_orders(self, symbol: str) -> int:
         """Cancel all open orders for a symbol. Returns count cancelled."""
         ext_symbol = _to_external_symbol(symbol)
-        try:
-            result = self._exchange.cancel_all_orders(ext_symbol)
-            count = len(result) if isinstance(result, list) else 0
-            logger.info(f"Cancelled {count} orders for {symbol}")
-            return count
-        except Exception as e:
-            logger.error(f"Cancel all orders for {symbol} failed: {e}")
-            return 0
+        with self._lock:
+            try:
+                result = self._exchange.cancel_all_orders(ext_symbol)
+                count = len(result) if isinstance(result, list) else 0
+                logger.info(f"Cancelled {count} orders for {symbol}")
+                return count
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch all open/pending orders for a symbol."""
         ext_symbol = _to_external_symbol(symbol) if symbol else None
-        return self._exchange.fetch_open_orders(ext_symbol)
+        with self._lock:
+            try:
+                return self._exchange.fetch_open_orders(ext_symbol)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     # ------------------------------------------------------------------
     # IFuturesExchange: Position & Balance
@@ -208,23 +237,37 @@ class BinanceAdapter(IFuturesExchange):
     def set_leverage(self, leverage: int, symbol: str) -> bool:
         """Set leverage for a symbol."""
         ext_symbol = _to_external_symbol(symbol)
-        try:
-            self._exchange.set_leverage(leverage, ext_symbol)
-            logger.info(f"Leverage set to {leverage}x for {symbol}")
-            return True
-        except Exception as e:
-            logger.warning(f"Set leverage failed for {symbol}: {e}")
-            return False
+        with self._lock:
+            try:
+                self._exchange.set_leverage(leverage, ext_symbol)
+                logger.info(f"Leverage set to {leverage}x for {symbol}")
+                return True
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise PositionError(str(e), original=e)
 
     def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
         """Fetch open positions, filtering out zero-size."""
         ext_symbols = [_to_external_symbol(s) for s in symbols] if symbols else None
-        positions = self._exchange.fetch_positions(ext_symbols)
-        return [p for p in positions if abs(float(p.get("contracts", 0))) > 0]
+        with self._lock:
+            try:
+                positions = self._exchange.fetch_positions(ext_symbols)
+                return [p for p in positions if abs(float(p.get("contracts", 0))) > 0]
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
-    def fetch_balance(self, params: Dict = {}) -> Dict:
+    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """Fetch balance in CCXT format."""
-        return self._exchange.fetch_balance(params)
+        with self._lock:
+            try:
+                return self._exchange.fetch_balance(params)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     # ------------------------------------------------------------------
     # IExchange: Market Data
@@ -235,7 +278,13 @@ class BinanceAdapter(IFuturesExchange):
     ) -> Sequence[Sequence[Any]]:
         """Fetch historical OHLCV candles."""
         ext_symbol = _to_external_symbol(symbol)
-        return self._exchange.fetch_ohlcv(ext_symbol, timeframe, limit=limit)
+        with self._lock:
+            try:
+                return self._exchange.fetch_ohlcv(ext_symbol, timeframe, limit=limit)
+            except ccxt.NetworkError as e:
+                raise ConnectionError(str(e), original=e)
+            except ccxt.BaseError as e:
+                raise ExchangeError(str(e), original=e)
 
     # ------------------------------------------------------------------
     # Utility Methods

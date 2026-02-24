@@ -12,6 +12,8 @@ from typing import Optional, Dict, Any, List, Sequence
 import pandas as pd
 
 from app.core.events import Candle, SignalEvent, MarketEvent
+from app.core.snapshots import PositionSnapshot, ContextSnapshot
+from app.core.analysis_result import AnalysisResult
 
 
 # ============================================
@@ -76,10 +78,27 @@ class IIndicators(ABC):
 
 class IStrategy(ABC):
     """Interface for trading strategies."""
-    
+
     @abstractmethod
-    def analyze(self, symbol: str, df: pd.DataFrame) -> Optional[SignalEvent]:
-        """Analyze market data and return signal if conditions are met."""
+    def analyze(
+        self,
+        symbol: str,
+        df: pd.DataFrame,
+        position: Optional[PositionSnapshot] = None,
+        context: Optional[ContextSnapshot] = None,
+    ) -> AnalysisResult:
+        """
+        Pure analysis function.
+
+        Args:
+            symbol:   Trading pair.
+            df:       OHLCV DataFrame with pre-computed indicators.
+            position: Current position state from Portfolio (None = no position).
+            context:  Strategy state machine snapshot (None = start fresh).
+
+        Returns:
+            AnalysisResult with typed actions and the new context to store.
+        """
         pass
 
 
@@ -140,7 +159,7 @@ class IFuturesExchange(IExchange):
         pass
     
     @abstractmethod
-    def fetch_balance(self, params: Dict = {}) -> Dict:
+    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """Fetch balance in CCXT format."""
         pass
 

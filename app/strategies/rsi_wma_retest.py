@@ -20,7 +20,7 @@ from app.strategies.base import BaseStrategy
 from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent
-from app.core.context import StrategyContext, SCANNING, RETESTING, CONFIRMING
+from app.core.context import SCANNING, RETESTING, CONFIRMING
 
 
 class RsiWmaRetestStrategy(BaseStrategy):
@@ -63,12 +63,6 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
     def __init__(self, config: dict):
         super().__init__(config)
-
-        # Ensure context exists
-        if hasattr(self, "ctx") and not hasattr(self, "context"):
-            self.context = self.ctx  # type: ignore[attr-defined]
-        if not hasattr(self, "context"):
-            self.context = StrategyContext()
 
         # Use strategy defaults, allow override from config
         cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
