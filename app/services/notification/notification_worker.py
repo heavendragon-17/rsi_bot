@@ -34,9 +34,9 @@ class NotificationWorker:
         self._thread.start()
 
     def stop(self) -> None:
-        """Signal stop and wait for the thread to exit (up to 5s)."""
+        """Signal stop and wait for the thread to exit (up to 30s) to drain queue."""
         self._stopped.set()
-        self._thread.join(timeout=5.0)
+        self._thread.join(timeout=30.0)
 
     def enqueue(self, method_name: str, *args, **kwargs) -> None:
         """
@@ -49,14 +49,15 @@ class NotificationWorker:
             logger.warning("notification_queue_full", method=method_name)
 
     def _run(self) -> None:
-        while not self._stopped.is_set():
+        while not self._stopped.is_set() or not self._queue.empty():
             try:
-                method_name, args, kwargs = self._queue.get(timeout=1.0)
+                method_name, args, kwargs = self._queue.get(timeout=0.5)
                 method = getattr(self.notifier, method_name, None)
                 if method is not None:
                     try:
                         method(*args, **kwargs)
                     except Exception:
                         logger.exception("notification_failed", method=method_name)
+                self._queue.task_done()
             except queue.Empty:
                 continue

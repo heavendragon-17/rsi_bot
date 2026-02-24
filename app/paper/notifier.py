@@ -82,6 +82,9 @@ class PaperTelegramNotifier:
         # Used by /paper_reset confirmation flow
         self._pending_reset: Optional[float] = None  # timestamp of last /paper_reset
         self._reset_lock = threading.Lock()
+        
+        print(f"[Notifier Init] chat_id={self._chat_id}, fallback={self._bot.default_chat_id}")
+        print(f"[Notifier Init] token ending in {self._bot.token[-4:] if self._bot.token else 'None'}")
 
     # ------------------------------------------------------------------
     # Fill events
@@ -150,6 +153,7 @@ class PaperTelegramNotifier:
             _row("Balance:", f"{_fmt_price(state.balance)}  (margin used: {_fmt_price(margin)})"),
         ]
         lines.append(_mono("\n".join(body_lines)))
+        print(f"[Notifier] Formatting on_entry for {order.symbol}")
         self._send("\n".join(lines))
 
     def on_fill(
@@ -432,6 +436,9 @@ class PaperTelegramNotifier:
 
     def _send(self, message: str) -> None:
         try:
-            self._bot.send_message(message, chat_id=self._chat_id)
-        except Exception:
+            print("[Notifier] Sending message to Telegram...")
+            res = self._bot.send_message(message, chat_id=self._chat_id)
+            print(f"[Notifier] Telegram result: {res}")
+        except Exception as e:
+            print(f"[Notifier] Exception in send: {e}")
             logger.exception("PaperTelegramNotifier: failed to send message")

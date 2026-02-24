@@ -63,6 +63,7 @@ class PaperExchange(IFuturesExchange):
         self.state = PaperTradeState(initial_balance)
         self._config = config
         self._last_prices: Dict[str, Decimal] = {}   # latest tick price per symbol
+        self._sim_time: Optional[float] = None  # set by replay script to override time.time()
 
         from app.paper.notifier import PaperTelegramNotifier
         from app.services.notification.notification_worker import NotificationWorker
@@ -71,6 +72,21 @@ class PaperExchange(IFuturesExchange):
         self._notification_worker.start()
 
         logger.info(f"PaperExchange initialised — balance={initial_balance} USDT")
+
+    def silence_notifications(self) -> None:
+        """Replace notifier with a no-op to prevent per-trade Telegram messages.
+        Used by tick replay mode to avoid Telegram API rate limits."""
+        self._notification_worker.stop()
+
+        class _SilentNotifier:
+            """Swallows all notification method calls."""
+            def __getattr__(self, _):
+                return lambda *a, **kw: None
+
+        self.notifier = _SilentNotifier()
+        from app.services.notification.notification_worker import NotificationWorker
+        self._notification_worker = NotificationWorker(self.notifier)
+        self._notification_worker.start()
 
     # ------------------------------------------------------------------
     # IFuturesExchange interface
@@ -272,7 +288,7 @@ class PaperExchange(IFuturesExchange):
 
             order.status = "filled"
             order.fill_price = fill_price
-            order.filled_at = time.time()
+            order.filled_at = self._sim_time or time.time()
             del self.state.pending_orders[order.id]
 
             # --- BUY (entry) ---
@@ -327,7 +343,7 @@ class PaperExchange(IFuturesExchange):
                 r_multiple=(pnl_net / position.initial_risk) if position.initial_risk else Decimal("0"),
                 exit_reason=exit_reason,
                 opened_at=0.0,  # set in _open_position_locked
-                closed_at=order.filled_at or time.time(),
+                closed_at=order.filled_at or self._sim_time or time.time(),
             )
 
             # Update or close position
@@ -361,7 +377,7 @@ class PaperExchange(IFuturesExchange):
         )
         # Store entry timestamp on trade (need to update ClosedTrade.opened_at later)
         # We use a simple approach: store entry time in the position object
-        pos._opened_at = order.filled_at or time.time()  # type: ignore[attr-defined]
+        pos._opened_at = order.filled_at or self._sim_time or time.time()  # type: ignore[attr-defined]
         self.state.positions[order.symbol] = pos
 
         logger.info(

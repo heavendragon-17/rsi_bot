@@ -217,7 +217,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         ts_prior = prior_candle.name if hasattr(prior_candle, "name") else "N/A"
         ts_closed = confirmed_close_candle.name if hasattr(confirmed_close_candle, "name") else "N/A"
         if self.debug_enabled:
-            logger.warning(f"DEBUG RECLAIM: Prior(-3)={prior_close}/{prior_ema21} (TS={ts_prior}) | Closed(-2)={curr_close}/{curr_ema21} (TS={ts_closed})")
+            logger.debug(f"DEBUG RECLAIM: Prior(-3)={prior_close}/{prior_ema21} (TS={ts_prior}) | Closed(-2)={curr_close}/{curr_ema21} (TS={ts_closed})")
 
         # Logic: Prior (-3) was BELOW/EQUAL, and Confirmed Closed (-2) is ABOVE.
         return (prior_close <= prior_ema21) and (curr_close > curr_ema21)
@@ -442,13 +442,14 @@ class RsiNoRetestStrategy(BaseStrategy):
         # Entry state machine (no open position)
         # -------------------------
         if self.debug_enabled:
-            logger.warning(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={len(df)}")
+            logger.debug(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={len(df)}")
 
         current_state = context.state
 
         if current_state == SCANNING:
             if not self._detect_reclaim(df_ind):
-                logger.warning(f"[{symbol}] DEBUG: Reclaim not detected.")
+                if self.debug_enabled:
+                    logger.debug(f"[{symbol}] DEBUG: Reclaim not detected.")
                 return _noop
 
             if not self._pullback_filter(df_ind):

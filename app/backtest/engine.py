@@ -46,9 +46,19 @@ class BacktestEngine(Engine):
 
         symbol = config["symbols"][0]
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
-        leverage = config.get("risk", {}).get("leverage", 1)
+        risk_cfg = config.get("risk", {})
+        leverage = risk_cfg.get("leverage", 1)
 
-        exchange = MockExchange(initial_balance=initial_balance, leverage=leverage)
+        # Use same default fees as PaperExchange (Binance futures)
+        taker_fee = float(risk_cfg.get("taker_fee", 0.0005))   # 0.05%
+        maker_fee = float(risk_cfg.get("maker_fee", 0.0002))   # 0.02%
+
+        exchange = MockExchange(
+            initial_balance=initial_balance,
+            leverage=leverage,
+            taker_fee=taker_fee,
+            maker_fee=maker_fee,
+        )
         strategy = strategy_class(config)
         portfolio = PortfolioManager(exchange, config)
 
@@ -101,13 +111,20 @@ class BacktestEngine(Engine):
         # Let MockExchange check wicks against pending SL/TP orders
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, l, c, ts)
 
-        # If a stop-loss order executed, clear the portfolio position and
-        # reset the strategy context so the next candle starts clean.
+        # If any SELL order executed (SL or TP), check whether the position
+        # was fully closed on the exchange.  When it is, clear the portfolio
+        # position **and** reset the strategy context to SCANNING so the
+        # strategy can generate new entry signals on the very next candle.
+        # NOTE: We do NOT cancel remaining pending orders here — MockExchange's
+        # reduceOnly guard will auto-cancel them on the next update_candle().
         for order in executed_orders:
-            if order.get("type", "").upper() == "STOP_LOSS":
-                if candle.symbol in self.portfolio.positions:
-                    del self.portfolio.positions[candle.symbol]
-                self.contexts[candle.symbol] = ContextSnapshot(state="SCANNING")
+            if order.get("side", "").upper() == "SELL":
+                if candle.symbol not in self.exchange.positions:
+                    # Position fully closed (SL or final TP filled)
+                    if candle.symbol in self.portfolio.positions:
+                        del self.portfolio.positions[candle.symbol]
+                    self.contexts[candle.symbol] = ContextSnapshot(state="SCANNING")
+                    break  # position is gone, no need to check more orders
 
         self.portfolio.sync_from_exchange()
 

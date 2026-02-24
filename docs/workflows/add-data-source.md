@@ -2,10 +2,11 @@
 
 > Add a new market data stream (live) or historical data source (backtest).
 > Reference implementations:
->   - Live stream: `app/services/market_data/stream_manager.py` (BinanceStreamManager)
->   - Event source bridge: `app/services/market_data/live_event_source.py` (LiveEventSource)
->   - Backtest data: `app/backtest/backtest_event_source.py` (BacktestEventSource)
->   - Event source interface: `app/core/event_source.py`
+>
+> - Live stream: `app/services/market_data/stream_manager.py` (BinanceStreamManager)
+> - Event source bridge: `app/services/market_data/live_event_source.py` (LiveEventSource)
+> - Backtest data: `app/backtest/backtest_event_source.py` (BacktestEventSource)
+> - Event source interface: `app/core/event_source.py`
 
 ## Prerequisites
 
@@ -58,6 +59,7 @@ File: `app/backtest/download_{name}.py`
 Fetch OHLCV data and write CSV to `app/backtest/data/{SYMBOL}_{timeframe}.csv`.
 
 Required CSV columns (matching existing format):
+
 ```
 timestamp,open,high,low,close,volume
 ```
@@ -76,17 +78,40 @@ Add a download-trigger endpoint that runs the download script. Model on the exis
 
 ## Path C: Sim Tick Feed
 
-For `PaperExchange` (sim mode), the tick feed comes from `app/paper/stream_manager.py`. If your new exchange needs sim mode support, create a similar tick-level stream that feeds `PaperExchange.on_tick()`.
+For `PaperExchange` (sim mode), there are two tick feed sources:
+
+**Live (real-time):** `app/paper/stream_manager.py` subscribes to Binance `aggTrade` WebSocket streams and calls `PaperExchange.on_tick()` every 500 ms. If your new exchange needs sim mode support, create a similar tick-level stream.
+
+**Historical (replay):** `app/backtest/run_paper_tick_replay.py` replays a downloaded monthly aggTrades CSV through `PaperExchange` for tick-accurate offline backtesting.
+
+```bash
+# Step 1 — Download historical tick CSV
+python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1
+# Output: app/backtest/data/BTCUSDT_ticks_2024_01.csv
+
+# Step 2 — Download matching OHLC CSV (for indicator computation)
+python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 9000
+
+# Step 3 — Run tick-level replay
+python app/backtest/run_paper_tick_replay.py \
+    --ohlc  app/backtest/data/BTCUSDT_5m.csv \
+    --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
+    --symbol BTC/USDT --timeframe 5m --balance 10000
+```
+
+See `docs/backtest-engine.md` → Tick-Level Paper Backtest for full architecture details.
 
 ## Testing
 
 **Live stream (Path A):**
+
 1. Unit test: mock WebSocket, verify `Candle` objects have correct fields
 2. Unit test: verify `on_kline_close` callback fires only on closed candles (not partial updates)
 3. Unit test: verify reconnection logic on disconnect
 4. Integration test: run against testnet or mock server
 
 **Historical data (Path B):**
+
 1. Test that the download script produces valid CSV with correct columns
 2. Test that `BacktestEventSource` can iterate over the generated CSV
 3. Verify event count matches row count minus warmup period

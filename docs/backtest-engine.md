@@ -100,6 +100,7 @@ async def _generate():
 ### Crash Recovery
 
 On server startup, run a cleanup sweep:
+
 - Query all rows in `runs` where `status = 'running'`
 - Set `status = 'failed'`, `completed_at = NOW()`
 - Add note: `"Server restart — run interrupted"`
@@ -162,6 +163,7 @@ for timestamp in aligned_timestamps:
 ### Auto-Detect & Prompt
 
 Before any backtest:
+
 1. `GET /api/data/status?symbol=X&timeframe=Y`
 2. Backend checks CSV exists and covers requested date range
 3. If missing → show `DataPrepModal`
@@ -185,6 +187,60 @@ Result:    |---Jan---Feb---Mar---Apr---May---Jun---|
 
 - **Small gaps (< 5 candles)**: Forward-fill, log warning
 - **Large gaps (>= 5 candles)**: Reject, show error with gap details
+
+## Tick-Level Paper Backtest
+
+> **User guide:** See [wiki/paper-backtest.md](../wiki/paper-backtest.md) for a full walkthrough.
+
+Tick-by-tick replay through `PaperExchange` for high-fidelity SL/TP fill simulation.
+
+### Entrypoint
+
+`app/backtest/run_paper_tick_replay.py`
+
+### Arguments
+
+| Arg           | Required | Default         | Notes                                                   |
+| ------------- | -------- | --------------- | ------------------------------------------------------- |
+| `--ohlc`      | **Yes**  | —               | OHLC CSV path (e.g. `app/backtest/data/ZILUSDT_5m.csv`) |
+| `--ticks`     | **Yes**  | —               | aggTrades CSV path                                      |
+| `--symbol`    | No       | `BTC/USDT`      | Must match data files                                   |
+| `--timeframe` | No       | `5m`            | Candle interval of the OHLC file                        |
+| `--balance`   | No       | `10000`         | Initial USDT balance                                    |
+| `--strategy`  | No       | `rsi_no_retest` | One of `rsi_no_retest`, `rsi_wma_retest`                |
+
+### Data Prerequisite Commands
+
+```bash
+# Option A — Exact N months from today (recommended, includes daily ticks for current month)
+python app/backtest/download_tick_data.py --symbol <SYMBOL_NO_SLASH> --recent 3
+
+# Option B — Specific monthly archive
+python app/backtest/download_tick_data.py --symbol <SYMBOL_NO_SLASH> --year <YYYY> --month <M>
+
+# Download OHLC CSV covering the same period
+python app/backtest/download_data.py --symbol <SYMBOL_NO_SLASH> --timeframe <TF> --limit <N>
+```
+
+> **Constraint:** The OHLC and tick files **must overlap in time range**. Candles outside the tick window are skipped.
+
+### Execution Rules (for AI Agents)
+
+1. **Always verify data files exist** before invoking the script. Check for both `--ohlc` and `--ticks` paths.
+2. **Symbol format matters:** `--symbol` uses `/` (e.g. `ZIL/USDT`), but download scripts use no slash (e.g. `ZILUSDT`).
+3. **Expect long runtime.** Tick replay processes millions of rows; do **not** set short timeouts. Typical: 1–5 minutes per month of tick data.
+4. **Output is stdout.** The script prints a summary report with Net Profit, Win Rate, Sharpe, Drawdown, etc. Parse the console output for results.
+5. **Environment:** Must run inside the `rsi` conda environment.
+
+### Internals (Quick Reference)
+
+- Exchange: `PaperExchange` — real FIFO SL/TP, gap fills, fees
+- Strategy path: identical to `BacktestEngine` (`ContextSnapshot`, `PortfolioManager`)
+- Tick CSV streamed line-by-line (low memory)
+- Telegram notifications silenced via mock notifier
+- Metrics computed with `BacktestEngine` static helpers (same definitions)
+
+---
 
 ## Performance Optimizations
 
@@ -216,10 +272,10 @@ df_slice = self.df.iloc[start:i+1]
 
 ### Combined Impact
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| Single run (8,832 candles) | 2-4s | 1-2s |
-| Grid search (200 params, 8 cores) | ~600s | ~30-60s |
+| Scenario                          | Before | After   |
+| --------------------------------- | ------ | ------- |
+| Single run (8,832 candles)        | 2-4s   | 1-2s    |
+| Grid search (200 params, 8 cores) | ~600s  | ~30-60s |
 
 ## Trade Detail Chart
 

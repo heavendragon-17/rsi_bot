@@ -64,6 +64,7 @@ class TelegramBot:
             "chat_id": target_chat_id,
             "text": message,
             "disable_web_page_preview": bool(disable_web_preview),
+            "parse_mode": "HTML",
         }
 
         # Add an inline URL button if requested
@@ -93,11 +94,13 @@ class TelegramBot:
                 resp.status_code,
                 resp.text,
             )
+            print(f"TELEGRAM ERROR: {resp.status_code} - {resp.text}")
             return False
 
-        except Exception:
+        except Exception as e:
             # Never crash the trading engine
             self.logger.exception("Telegram send exception")
+            print(f"TELEGRAM EXCEPTION: {e}")
             return False
 
     # ------------------------------------------------------------

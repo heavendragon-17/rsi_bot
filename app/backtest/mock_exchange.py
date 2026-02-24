@@ -585,6 +585,10 @@ class MockExchange(IFuturesExchange):
         pnl_pct = None
         margin_used = Decimal("0")
 
+        # Calculate fees early so we can include them in pnl
+        fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
+        fee_cost = notional * fee_rate
+
         if side == "BUY":
             if margin > self.balance:
                 raise InsufficientFundsError(
@@ -616,9 +620,19 @@ class MockExchange(IFuturesExchange):
             position_margin = self.margin_used.get(symbol, Decimal("0"))
             margin_to_return = position_margin * close_ratio
 
+            # Recalculate exit notional & fee after potential amount adjustment
+            notional = exec_price * amount
+            fee_cost = notional * fee_rate
+
             if entry_price is not None:
                 price_diff = exec_price - entry_price
-                pnl = float(price_diff * amount)
+                gross_pnl = price_diff * amount
+                # Approximate entry fee for this portion of the position
+                entry_notional = entry_price * amount
+                entry_fee_rate = self.taker_fee  # entries are always market (taker)
+                entry_fee = entry_notional * entry_fee_rate
+                # Net PnL = gross - entry fee - exit fee
+                pnl = float(gross_pnl - entry_fee - fee_cost)
                 pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
             else:
                 pnl = 0.0
@@ -645,14 +659,11 @@ class MockExchange(IFuturesExchange):
 
             margin_used = margin_to_return
 
+            # Exit fee already included in pnl, no separate deduction needed
+
         # Recalculate notional after potential amount adjustment
-        notional = exec_price * amount
-
-        # Calculate fees
-        fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
-        fee_cost = notional * fee_rate
-
-        self.balance -= fee_cost
+        if side == "BUY":
+            notional = exec_price * amount
 
         order_id = self._next_order_id()
 
