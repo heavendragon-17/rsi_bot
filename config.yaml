@@ -1,28 +1,31 @@
 bot:
   active: true
   mode: "sim" # mock | paper | live
-  debug: true # Toggle verbose strategy logging
+  debug: false # Toggle verbose strategy logging
 
 exchange:
   name: "binanceusdm" # binanceusdm | lighter | etc.
 
 timeframe: "15m"
 symbols:
-  - "ZIL/USDT"
-  - "FIL/USDT"
-  - "1INCH/USDT"
-  - "IOTA/USDT"
-  - "AXS/USDT"
-  - "DOGE/USDT"
-  - "ATOM/USDT"
-  - "TON/USDT"
-  - "LTC/USDT"
-  - "NOT/USDT"
-  - "UNI/USDT"
-  - "BCH/USDT"
+  - "PYTH/USDT"
   - "XLM/USDT"
+  - "BERA/USDT"
+  - "AXS/USDT"
+  - "ETH/USDT"
+  - "ARB/USDT"
   - "MINA/USDT"
+  - "TRX/USDT"
+  - "API3/USDT"
+  - "ETHFI/USDT"
+  - "WIF/USDT"
+  - "HBAR/USDT"
+  - "FET/USDT"
+  - "STX/USDT"
   - "OP/USDT"
+  - "TON/USDT"
+  - "ETC/USDT"
+  - "OG/USDT"
 
 # Strategy selection
 # Available: "rsi_wma_retest", "rsi_no_retest"
