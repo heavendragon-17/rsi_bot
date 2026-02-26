@@ -67,7 +67,7 @@ def main():
     else:
         ns = NotificationService(NullNotifier(), mode=bot_mode)
 
-    # 3. Create exchange via factory (returns IFuturesExchange)
+    # 3. Create exchange via factory (returns IExchange)
     exchange = create_exchange(config, notification_service=ns)
 
     # 4. Create runner with execution

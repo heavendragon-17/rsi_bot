@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Read `docs/architecture.md` — understand `IFuturesExchange` and the normalized order vocabulary
+- Read `docs/architecture.md` — understand `IExchange` and the normalized order vocabulary
 - Read `docs/live-bot.md` — understand exchange adapter section and exchange modes
 - Verify the exchange is in CCXT: `python -c "import ccxt; print(ccxt.exchanges)"`
 
@@ -37,9 +37,9 @@ File: `app/services/execution/cex/{name}_adapter.py`
 
 Model on `app/services/execution/cex/binance_adapter.py`. The adapter must:
 
-- **Implement `IFuturesExchange`** from `app/core/interfaces.py` — all 9 abstract methods:
-  - `fetch_ohlcv`, `create_order`, `fetch_order`, `cancel_order` (from `IExchange`)
-  - `set_leverage`, `fetch_positions`, `fetch_balance`, `fetch_open_orders`, `cancel_all_orders` (from `IFuturesExchange`)
+- **Implement `IExchange`** from `app/core/interfaces.py` — all 9 abstract methods:
+  - `fetch_ohlcv`, `create_order`, `fetch_order`, `cancel_order`
+  - `set_leverage`, `fetch_positions`, `fetch_balance`, `fetch_open_orders`, `cancel_all_orders`
 - **Wrap CCXT** with `threading.Lock` for thread safety (the live bot calls from multiple threads)
 - **Translate normalized order types** to exchange-native params:
   - `market` → CCXT `market`

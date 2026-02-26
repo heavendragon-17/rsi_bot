@@ -23,7 +23,7 @@ import structlog
 from app.core.exceptions import ExchangeError, InsufficientFundsError
 
 logger = structlog.get_logger()
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 from app.core.events import SignalEvent
 from .utils import to_decimal
 
@@ -67,7 +67,7 @@ class PortfolioManager:
     - All exit orders include reduceOnly=True
     """
 
-    def __init__(self, exchange: IFuturesExchange, config: dict, notification_service=None):
+    def __init__(self, exchange: IExchange, config: dict, notification_service=None):
         self.exchange = exchange
         self.config = config
         self.positions: Dict[str, Position] = {}

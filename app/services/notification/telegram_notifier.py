@@ -19,7 +19,7 @@ import os
 from decimal import Decimal
 from typing import Dict, Optional
 
-from app.core.interfaces import INotifier
+from app.core.interfaces import INotifier, IExchange
 from app.services.notification.telegram_bot import TelegramBot
 
 logger = logging.getLogger(__name__)
@@ -76,6 +76,133 @@ class TelegramNotifier(INotifier):
         )
         self._chat_id: Optional[str] = os.getenv("TELEGRAM_CHAT_ID")
         self._prefix = _MODE_PREFIX.get(mode, "🤖 BOT")
+        self._exchange: Optional[IExchange] = None
+
+    def attach_exchange(self, exchange: IExchange) -> None:
+        """Store a reference to the exchange for handling commands."""
+        self._exchange = exchange
+
+    def start_command_polling(self) -> None:
+        """Start the Telegram polling loop and register commands."""
+        callbacks = {
+            "/status": self._handle_status_cmd,
+            "/history": self._handle_history_cmd,
+            "/winrate": self._handle_winrate_cmd,
+            "/report": self._handle_report_cmd,
+            "/reset": self._handle_reset_cmd,
+        }
+        self._bot.start_polling(callbacks)
+
+    def _verify_chat_id(self, chat_id: str) -> bool:
+        if self._chat_id and str(chat_id) != str(self._chat_id):
+            logger.warning(f"Unauthorized command attempt from chat {chat_id}")
+            return False
+        return True
+
+    def _handle_status_cmd(self, chat_id: str) -> None:
+        if not self._verify_chat_id(chat_id): return
+        if not self._exchange: return
+        
+        balance = self._exchange.fetch_balance()
+        usdt_total = balance.get("total", {}).get("USDT", 0.0)
+        positions = self._exchange.fetch_positions()
+        
+        running_status = "⏸ PAUSED" if getattr(self._exchange, "is_paused", lambda: False)() else "▶️ RUNNING"
+        
+        lines = [
+            f"{self._prefix} | 📊 STATUS",
+            "",
+            _row("Bot State:", running_status),
+            _row("Balance:", f"${usdt_total:,.2f}"),
+            _row("Positions:", f"{len(positions)} open"),
+        ]
+        
+        if positions:
+            lines.append("")
+            for p in positions:
+                upnl = p.get('unrealizedPnl', 0.0)
+                emoji = "🟢" if upnl >= 0 else "🔴"
+                lines.append(f"{emoji} {p['symbol']} | Size: {p['contracts']:.4f} | PnL: {_fmt_pnl(Decimal(str(upnl)))}")
+
+        msg = "\n".join(lines)
+        self._bot.send_message(_mono(msg), chat_id=chat_id)
+
+    def _handle_history_cmd(self, chat_id: str) -> None:
+        if not self._verify_chat_id(chat_id): return
+        if not self._exchange or not hasattr(self._exchange, "state"): return
+        
+        state = self._exchange.state
+        trades = state.closed_trades[-10:] # last 10
+        
+        if not trades:
+            self._bot.send_message(_mono(f"{self._prefix} | 📜 HISTORY\n\nNo closed trades yet."), chat_id=chat_id)
+            return
+
+        lines = [f"{self._prefix} | 📜 HISTORY (Last {len(trades)})", ""]
+        for t in reversed(trades):
+            emoji = "🟢" if t.pnl_net >= 0 else "🔴"
+            lines.append(f"{emoji} {t.symbol} | {_fmt_pnl(t.pnl_net)} ({t.exit_reason}) | {float(t.amount):.4f}")
+            
+        self._bot.send_message(_mono("\n".join(lines)), chat_id=chat_id)
+
+    def _handle_winrate_cmd(self, chat_id: str) -> None:
+        if not self._verify_chat_id(chat_id): return
+        if not self._exchange or not hasattr(self._exchange, "state"): return
+        
+        trades = self._exchange.state.closed_trades
+        total = len(trades)
+        if total == 0:
+            self._bot.send_message(_mono(f"{self._prefix} | 🎯 WINRATE\n\nNo trades yet."), chat_id=chat_id)
+            return
+            
+        wins = sum(1 for t in trades if t.pnl_net > 0)
+        losses = sum(1 for t in trades if t.pnl_net <= 0)
+        winrate = (wins / total) * 100
+        
+        lines = [
+            f"{self._prefix} | 🎯 WINRATE",
+            "",
+            _row("Total Trades:", str(total)),
+            _row("Wins:", str(wins)),
+            _row("Losses:", str(losses)),
+            _row("Win Rate:", f"{winrate:.1f}%"),
+        ]
+        self._bot.send_message(_mono("\n".join(lines)), chat_id=chat_id)
+
+    def _handle_report_cmd(self, chat_id: str) -> None:
+        if not self._verify_chat_id(chat_id): return
+        if not self._exchange or not hasattr(self._exchange, "state"): return
+        
+        state = self._exchange.state
+        trades = state.closed_trades
+        
+        total_pnl = sum(t.pnl_net for t in trades)
+        gross_pnl = sum(t.pnl_gross for t in trades)
+        total_fees = sum(t.fees_paid for t in trades)
+        total_funding = sum(getattr(t, "funding_paid", Decimal("0")) for t in trades)
+        
+        lines = [
+            f"{self._prefix} | 📈 REPORT",
+            "",
+            _row("Trades:", str(len(trades))),
+            _row("Net P&L:", _fmt_pnl(total_pnl)),
+            _row("Gross P&L:", _fmt_pnl(gross_pnl)),
+            _row("Total Fees:", _fmt_pnl(-total_fees)),
+        ]
+        if total_funding != Decimal("0"):
+            lines.append(_row("Funding:", _fmt_pnl(-total_funding)))
+            
+        self._bot.send_message(_mono("\n".join(lines)), chat_id=chat_id)
+
+    def _handle_reset_cmd(self, chat_id: str) -> None:
+        if not self._verify_chat_id(chat_id): return
+        if not self._exchange: return
+        
+        if hasattr(self._exchange, "state") and hasattr(self._exchange.state, "reset"):
+            self._exchange.state.reset()
+            self._bot.send_message(_mono(f"{self._prefix} | 🔄 RESET\n\nBot state (balance and trades) has been reset."), chat_id=chat_id)
+        else:
+            self._bot.send_message(_mono(f"{self._prefix} | ⚠️ RESET FAILED\n\nReset not supported in current mode."), chat_id=chat_id)
 
     # ------------------------------------------------------------------
     # INotifier

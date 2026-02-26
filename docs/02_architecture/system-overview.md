@@ -151,8 +151,6 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 │  ├─ fetch_order(id,sym)                                         │
 │  └─ cancel_order(id,sym)         Implementations:               │
 │                                   - PortfolioManager             │
-│  IFuturesExchange (extends                                       │
-│    IExchange)                                                    │
 │  ├─ set_leverage(lev,sym)                                       │
 │  ├─ fetch_positions(symbols?)                                   │
 │  ├─ fetch_balance(params?)                                      │
@@ -165,6 +163,13 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 │  - PaperExchange (sim)                                           │
 │  - Custom DEX adapters (auto-discovered)                         │
 └──────────────────────────────────────────────────────────────────┘
+
+Cross-cutting interface (not a layer — injected across layers):
+
+  INotifier  (app/core/interfaces.py)
+  ├─ Injected into: PortfolioManager, SimExchange, SimFundingScheduler
+  ├─ Implementations: TelegramNotifier (via NotificationService + NotificationWorker)
+  └─ Fallback: NullNotifier (when Telegram is disabled or fails to init)
 ```
 
 ### Interface Method Reference
@@ -207,10 +212,6 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 | `fetch_order` | `(order_id: str, symbol: str) -> Dict[str, Any]` | Fetch order status by ID |
 | `cancel_order` | `(order_id: str, symbol: str) -> bool` | Cancel an open order |
 
-#### IFuturesExchange (extends IExchange) (`app/core/interfaces.py`)
-
-| Method | Signature | Description |
-|--------|-----------|-------------|
 | `set_leverage` | `(leverage: int, symbol: str) -> bool` | Set leverage for a symbol |
 | `fetch_positions` | `(symbols: Optional[List[str]]) -> List[Dict]` | Fetch open positions (filters zero-size) |
 | `fetch_balance` | `(params: Optional[Dict]) -> Dict` | Fetch balance in CCXT format |
@@ -224,6 +225,19 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 | `on_signal` | `(signal: SignalEvent) -> None` | Process a trading signal (entry) |
 | `has_position` | `(symbol: str) -> bool` | Check if there is an open position for symbol |
 | `close_position` | `(symbol: str, percentage: Decimal) -> None` | Close percentage of position (0.0 - 1.0) |
+
+#### INotifier (`app/core/interfaces.py`)
+
+Cross-cutting interface. All methods must be non-blocking and never raise. See `docs/08_execution_and_oms/notifications.md` for full spec.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `send_message` | `(message: str) -> None` | Send a plain-text or HTML message |
+| `on_entry` | `(symbol, side, entry_price, amount, sl_price?, tp_prices?, leverage, balance?) -> None` | Called when a position is opened (entry order filled) |
+| `on_fill` | `(symbol, exit_reason, fill_price, amount, pnl_gross?, pnl_net?, fees?, r_multiple?, remaining_amount?, balance?) -> None` | Called when an SL or TP order fills (partial or full exit) |
+| `on_error` | `(context: str, error: str) -> None` | Called on a critical error (order rejection, exchange failure, etc.) |
+| `on_funding` | `(symbol, rate, payment, balance) -> None` | Called every 8 hours when funding fees are deducted (sim mode) |
+| `on_toggle` | `(is_paused: bool) -> None` | Called when bot execution is paused or resumed |
 
 ---
 
@@ -255,7 +269,7 @@ The factory reads `config["bot"]["mode"]` and instantiates the appropriate adapt
 
 **File**: `app/services/execution/exchange_factory.py`
 
-The factory function `create_exchange(config) -> IFuturesExchange` selects the adapter based on mode and exchange name.
+The factory function `create_exchange(config) -> IExchange` selects the adapter based on mode and exchange name.
 
 ### Resolution Order
 

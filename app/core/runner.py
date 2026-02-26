@@ -19,7 +19,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Type
 
-from app.core.interfaces import IFuturesExchange, IStrategy
+from app.core.interfaces import IExchange, IStrategy
 from app.core.portfolio import PortfolioManager
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
@@ -48,7 +48,7 @@ class MultiSymbolRunner:
         self,
         config: Dict[str, Any],
         strategy_class: Type[IStrategy],
-        exchange: IFuturesExchange,
+        exchange: IExchange,
         notification_service=None,
         telegram=None,  # deprecated — use notification_service
     ):
@@ -58,7 +58,7 @@ class MultiSymbolRunner:
         Args:
             config: Application configuration dict
             strategy_class: Strategy class to instantiate per symbol
-            exchange: Shared IFuturesExchange instance (already created by factory)
+            exchange: Shared IExchange instance (already created by factory)
             notification_service: Optional NotificationService for trade events
             telegram: Deprecated — kept for backward compat, use notification_service
         """

@@ -321,7 +321,7 @@ The adapter uses a single `threading.Lock` to serialize all CCXT API calls. This
 ### Lock Scope
 
 ```python
-class BinanceAdapter(IFuturesExchange):
+class BinanceAdapter(IExchange):
     def __init__(self, config):
         self._lock = threading.Lock()
         self._exchange = ccxt.binanceusdm({...})

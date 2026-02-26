@@ -21,14 +21,14 @@ Trading threads are never blocked by Telegram latency.
 
 ## Key Files
 
-| File | Role |
-|------|------|
-| `app/core/interfaces.py` — `INotifier` | Abstract contract. Scalar params only. |
+| File                                                | Role                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `app/core/interfaces.py` — `INotifier`              | Abstract contract. Scalar params only.                                          |
 | `app/services/notification/notification_service.py` | Wraps `INotifier` + `NotificationWorker`. Single instance created in `main.py`. |
-| `app/services/notification/telegram_notifier.py` | Implements `INotifier` with HTML formatting and mode-aware prefix. |
-| `app/services/notification/null_notifier.py` | No-op implementation. Used when Telegram is disabled or fails. |
-| `app/services/notification/notification_worker.py` | Background daemon thread. Dispatches queue items to the underlying notifier. |
-| `app/services/notification/telegram_bot.py` | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`. |
+| `app/services/notification/telegram_notifier.py`    | Implements `INotifier` with HTML formatting and mode-aware prefix.              |
+| `app/services/notification/null_notifier.py`        | No-op implementation. Used when Telegram is disabled or fails.                  |
+| `app/services/notification/notification_worker.py`  | Background daemon thread. Dispatches queue items to the underlying notifier.    |
+| `app/services/notification/telegram_bot.py`         | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`.      |
 
 ---
 
@@ -55,6 +55,7 @@ class INotifier(ABC):
 ```
 
 **Design rules:**
+
 - All parameters are **scalars** (str, Decimal, int, bool, Optional[...]).
   No exchange-adapter-specific state objects (no `SimTradeState`, no `PaperOrder`).
 - All implementations must be **safe to call from any thread** and **never raise**.
@@ -63,14 +64,14 @@ class INotifier(ABC):
 
 ## Who Fires Each Event
 
-| Event | Sim mode | Live / Paper mode |
-|-------|----------|-------------------|
-| `on_entry` | `SimExchange._execute_fill` (exact candle-open fill price, includes SL/TP) | `PortfolioManager._handle_buy_signal` (signal price approximation) |
-| `on_fill` (SL / TP) | `SimExchange._execute_fill` (exact fill price) | Not fired — hard SL fills externally on Binance; see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |
-| `on_fill` (manual close) | `SimExchange._execute_fill` (via `create_order`) | `PortfolioManager._handle_full_sell` |
-| `on_funding` | `SimFundingScheduler` (every 8 h) | Not fired |
-| `on_toggle` | `SimExchange.is_paused` setter (if wired) | Not fired |
-| `on_error` | Available for any caller | Available for any caller |
+| Event                    | Sim mode                                                                   | Live / Paper mode                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `on_entry`               | `SimExchange._execute_fill` (exact candle-open fill price, includes SL/TP) | `PortfolioManager._handle_buy_signal` (signal price approximation)                                                     |
+| `on_fill` (SL / TP)      | `SimExchange._execute_fill` (exact fill price)                             | Not fired — hard SL fills externally on Binance; see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |
+| `on_fill` (manual close) | `SimExchange._execute_fill` (via `create_order`)                           | `PortfolioManager._handle_full_sell`                                                                                   |
+| `on_funding`             | `SimFundingScheduler` (every 8 h)                                          | Not fired                                                                                                              |
+| `on_toggle`              | `SimExchange.is_paused` setter (if wired)                                  | Not fired                                                                                                              |
+| `on_error`               | Available for any caller                                                   | Available for any caller                                                                                               |
 
 **Duplication guard**: `SimExchange` sets `_fires_entry_notification = True` and
 `_fires_fill_notification = True`. `PortfolioManager` checks these flags and
@@ -80,18 +81,19 @@ skips its own fire to avoid duplicate messages in sim mode.
 
 ## Mode Prefixes
 
-| Mode | Prefix |
-|------|--------|
-| `live` | 🤖 LIVE |
-| `paper` | 🧪 TESTNET |
-| `sim` | 📄 SIM |
-| `mock` | 🔬 BACKTEST |
+| Mode    | Prefix      |
+| ------- | ----------- |
+| `live`  | 🤖 LIVE     |
+| `paper` | 🧪 TESTNET  |
+| `sim`   | 📄 SIM      |
+| `mock`  | 🔬 BACKTEST |
 
 ---
 
 ## Message Format Examples
 
 ### Entry (on_entry)
+
 ```
 📄 SIM | 🟢 LONG ENTERED — BTC/USDT
 
@@ -109,6 +111,7 @@ Balance:       $9,950.00
 ```
 
 ### SL Hit (on_fill, exit_reason="HARD_SL")
+
 ```
 📄 SIM | 🛑 HARD SL HIT — BTC/USDT LONG
 
@@ -125,6 +128,7 @@ Balance:       $9,897.53
 ```
 
 ### TP Hit (on_fill, exit_reason="TP1", remaining_amount=0.005)
+
 ```
 📄 SIM | ✅ TP1 HIT — BTC/USDT LONG (partial)
 
@@ -140,6 +144,7 @@ Balance:       $9,974.89
 ```
 
 ### Funding (on_funding)
+
 ```
 📄 SIM | 💸 FUNDING — BTC/USDT
 
@@ -155,16 +160,16 @@ Balance:       $9,974.79
 
 ### Environment Variables (`.env`)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | For Telegram | Bot token from @BotFather |
-| `TELEGRAM_CHAT_ID` | For Telegram | Channel or user ID to send messages to |
+| Variable             | Required     | Description                            |
+| -------------------- | ------------ | -------------------------------------- |
+| `TELEGRAM_BOT_TOKEN` | For Telegram | Bot token from @BotFather              |
+| `TELEGRAM_CHAT_ID`   | For Telegram | Channel or user ID to send messages to |
 
 ### config.yaml
 
 ```yaml
 bot:
-  telegram_enabled: true   # false → NullNotifier, no Telegram calls
+  telegram_enabled: true # false → NullNotifier, no Telegram calls
 ```
 
 ---
@@ -183,6 +188,27 @@ bot:
 
 ---
 
+## Telegram Commands
+
+The `TelegramBot` supports efficient "long-polling" to receive commands without blocking the trading threads. It uses the `getUpdates` API with a timeout to instantly react to commands while using negligible resources.
+
+The following commands are wired up via `notification_service.attach_exchange(exchange)` and handled by `TelegramNotifier`:
+
+| Command    | Action                                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `/status`  | Shows bot state (`▶️ RUNNING` or `⏸ PAUSED`), current total USDT balance, and all open positions with unrealized PnL. |
+| `/history` | Shows the last 10 closed trades, their net PnL, exit reason (e.g., TP1, HARD_SL), and amount.                         |
+| `/winrate` | Shows total trades, wins, losses, and the overall win rate percentage.                                                |
+| `/report`  | Shows lifetime metrics: net PnL, gross PnL, total fees paid, and total funding paid.                                  |
+| `/reset`   | **DANGEROUS**: Clears all closed trades and resets the bot's standard balance. This is primarily for paper/sim mode.  |
+
+To add a new command:
+
+1. Define a handler method in `TelegramNotifier` (e.g., `_handle_mycmd(self, chat_id: str)`).
+2. Register it in `start_command_polling()` dictionary mapping (`callbacks = {"/mycmd": self._handle_mycmd}`).
+
+---
+
 ## Adding a New Notification Channel
 
 See [docs/workflows/add-notifier.md](../workflows/add-notifier.md) for the step-by-step guide.
@@ -192,10 +218,10 @@ Summary: implement `INotifier`, pass an instance to `NotificationService(your_no
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| No Telegram messages at all | `telegram_enabled: false` or missing token | Check config + `.env` |
-| `TelegramBot` init error on startup | `TELEGRAM_BOT_TOKEN` env var missing | Add to `.env`, falls back to `NullNotifier` |
-| Messages delayed | `NotificationWorker` queue backed up | Normal under load — queue drains async |
-| Duplicate on_entry messages | Exchange fires + PM fires | Check `_fires_entry_notification` flag on exchange |
-| No SL notifications in live mode | Hard SL fills on exchange without PM polling | Known gap — see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |
+| Symptom                             | Cause                                        | Fix                                                                               |
+| ----------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| No Telegram messages at all         | `telegram_enabled: false` or missing token   | Check config + `.env`                                                             |
+| `TelegramBot` init error on startup | `TELEGRAM_BOT_TOKEN` env var missing         | Add to `.env`, falls back to `NullNotifier`                                       |
+| Messages delayed                    | `NotificationWorker` queue backed up         | Normal under load — queue drains async                                            |
+| Duplicate on_entry messages         | Exchange fires + PM fires                    | Check `_fires_entry_notification` flag on exchange                                |
+| No SL notifications in live mode    | Hard SL fills on exchange without PM polling | Known gap — see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |

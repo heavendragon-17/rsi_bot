@@ -16,7 +16,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Dict, Optional
 
-from app.core.interfaces import INotifier
+from app.core.interfaces import INotifier, IExchange
 from app.services.notification.notification_worker import NotificationWorker
 
 
@@ -35,6 +35,16 @@ class NotificationService(INotifier):
     def stop(self) -> None:
         """Stop the background worker (drains queue up to 30 s)."""
         self._worker.stop()
+
+    def attach_exchange(self, exchange: IExchange) -> None:
+        """Attach exchange to underlying notifier for command handling."""
+        if hasattr(self._notifier, "attach_exchange"):
+            self._notifier.attach_exchange(exchange)
+
+    def start_command_polling(self) -> None:
+        """Start the Telegram polling loop."""
+        if hasattr(self._notifier, "start_command_polling"):
+            self._notifier.start_command_polling()
 
     # ------------------------------------------------------------------
     # INotifier delegation — all calls go through the worker queue

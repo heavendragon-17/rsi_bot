@@ -1,7 +1,7 @@
 """
 Lighter DEX Adapter
 ===================
-Adapter for Lighter exchange implementing IFuturesExchange interface.
+Adapter for Lighter exchange implementing IExchange interface.
 Wraps the lighter-python SDK (Async) to match CCXT interface standards (Sync).
 
 SDK: https://github.com/elliottech/lighter-python
@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 from decimal import Decimal
 
 from app.core.exceptions import ExchangeError
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,9 @@ LIGHTER_TESTNET_URL = "https://testnet.zklighter.elliot.ai"
 LIGHTER_MAINNET_URL = "https://mainnet.zklighter.elliot.ai"
 
 
-class LighterAdapter(IFuturesExchange):
+class LighterAdapter(IExchange):
     """
-    Lighter exchange adapter implementing IFuturesExchange.
+    Lighter exchange adapter implementing IExchange.
     
     Wraps the ASYNC Lighter Python SDK to provide SYNCHRONOUS CCXT-compatible interface.
     Uses asyncio.run() for each call to bridge the gap.
@@ -156,7 +156,7 @@ class LighterAdapter(IFuturesExchange):
         """Run coroutine in a new event loop."""
         return asyncio.run(coro)
 
-    # ===== IFuturesExchange Interface =====
+    # ===== IExchange Interface =====
     
     def fetch_balance(self, params: Dict = {}) -> Dict:
         """

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
+import threading
+import time
+from typing import Callable, Dict, Optional
 
 import requests
 
@@ -31,6 +33,10 @@ class TelegramBot:
 
         if not self.token:
             raise RuntimeError(f"Missing {token_env} env var.")
+
+        self._callbacks: Dict[str, Callable[[str], None]] = {}
+        self._polling_thread: Optional[threading.Thread] = None
+        self._stop_polling = threading.Event()
 
     def send_message(
         self,
@@ -102,6 +108,88 @@ class TelegramBot:
             self.logger.exception("Telegram send exception")
             print(f"TELEGRAM EXCEPTION: {e}")
             return False
+
+    def start_polling(self, callbacks: Dict[str, Callable[[str], None]]) -> None:
+        """
+        Start a background thread to long-poll for incoming commands.
+
+        Args:
+            callbacks: A dictionary mapping command strings (e.g. "/status") to
+                       callback functions. The callbacks receive the chat_id string.
+        """
+        if self._polling_thread and self._polling_thread.is_alive():
+            self.logger.warning("Telegram polling is already running.")
+            return
+
+        self._callbacks = callbacks
+        self._stop_polling.clear()
+        self._polling_thread = threading.Thread(
+            target=self._poll_updates,
+            name="telegram-polling",
+            daemon=True
+        )
+        self._polling_thread.start()
+        self.logger.info("Telegram command polling started.")
+
+    def stop_polling(self) -> None:
+        """Stop the background polling thread."""
+        self._stop_polling.set()
+        if self._polling_thread:
+            self._polling_thread.join(timeout=5)
+
+    def _poll_updates(self) -> None:
+        """Long-polling loop for fetching Telegram updates."""
+        offset = 0
+        url = f"https://api.telegram.org/bot{self.token}/getUpdates"
+
+        while not self._stop_polling.is_set():
+            try:
+                # Use a timeout of 30 seconds for true long-polling
+                payload = {"offset": offset, "timeout": 30}
+                
+                # set request timeout slightly larger than long-poll timeout
+                resp = requests.get(url, params=payload, timeout=35)
+                
+                if resp.status_code != 200:
+                    self.logger.error(f"Telegram getUpdates failed: {resp.status_code} - {resp.text}")
+                    time.sleep(5)
+                    continue
+
+                data = resp.json()
+                if not data.get("ok"):
+                    self.logger.error(f"Telegram getUpdates returned ok=False: {data}")
+                    time.sleep(5)
+                    continue
+
+                for update in data.get("result", []):
+                    update_id = update.get("update_id")
+                    offset = update_id + 1  # acknowledge this update
+
+                    message = update.get("message")
+                    if not message:
+                        continue
+
+                    text = message.get("text", "").strip()
+                    chat_id = str(message.get("chat", {}).get("id"))
+
+                    if not text:
+                        continue
+                    
+                    # Match command
+                    for cmd, callback in self._callbacks.items():
+                        if text.startswith(cmd):
+                            try:
+                                callback(chat_id)
+                            except Exception:
+                                self.logger.exception(f"Error executing callback for {cmd} from chat {chat_id}")
+                            break
+
+            except requests.exceptions.Timeout:
+                # Normal for long-polling
+                continue
+            except Exception:
+                self.logger.exception("Telegram polling loop error")
+                time.sleep(5)
 
     # ------------------------------------------------------------
     # Helpers for building trade URLs (optional convenience)

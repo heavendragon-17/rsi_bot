@@ -30,9 +30,9 @@ No other code changes are needed. The factory pattern handles adapter selection 
 
 **File:** `app/services/execution/exchange_factory.py`
 
-**Entry point:** `create_exchange(config: Dict) -> IFuturesExchange`
+**Entry point:** `create_exchange(config: Dict) -> IExchange`
 
-The factory reads `bot.mode` and `exchange.name` from the config dict and returns the appropriate adapter. All adapters implement `IFuturesExchange` so the rest of the system (PortfolioManager, strategies, etc.) is exchange-agnostic.
+The factory reads `bot.mode` and `exchange.name` from the config dict and returns the appropriate adapter. All adapters implement `IExchange` so the rest of the system (PortfolioManager, strategies, etc.) is exchange-agnostic.
 
 ### Selection Logic
 
@@ -80,7 +80,7 @@ For exchanges not in the CCXT registry (e.g., Lighter, Hyperliquid), the factory
 **To add a new DEX:**
 
 1. Create `app/services/execution/dex/{name}_adapter.py`.
-2. Define class `{Name}Adapter` implementing `IFuturesExchange`.
+2. Define class `{Name}Adapter` implementing `IExchange`.
 3. Set `exchange.name: '{name}'` in `config.yaml`.
 4. No changes to `exchange_factory.py` are needed.
 

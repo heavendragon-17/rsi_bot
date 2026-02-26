@@ -6,7 +6,7 @@
 
 ## BinanceAdapter (`app/services/execution/cex/binance_adapter.py`)
 
-CCXT wrapper implementing `IFuturesExchange`. Used for `paper` and `live` modes.
+CCXT wrapper implementing `IExchange`. Used for `paper` and `live` modes.
 
 ### Thread Safety
 Single `threading.Lock` on `self._lock` — all exchange API calls are serialized through this lock. `fetch_ticker()` is the only exception (not thread-critical).
@@ -54,7 +54,7 @@ CCXT exceptions are caught and re-raised as custom types:
 
 ## MockExchange (`app/services/execution/mock_exchange.py`)
 
-In-memory order simulation for backtesting. Implements `IFuturesExchange`.
+In-memory order simulation for backtesting. Implements `IExchange`.
 
 ### Behavior
 - **Entry orders** (`market`): Instant fill at signal price
@@ -79,7 +79,7 @@ Each candle, MockExchange checks all pending orders against OHLC:
 
 ## PaperExchange (`app/paper/exchange.py`)
 
-Tick-by-tick order simulation against live aggTrade data. Implements `IFuturesExchange`.
+Tick-by-tick order simulation against live aggTrade data. Implements `IExchange`.
 
 ### Behavior
 - **Entry**: Fill on kline open (not at signal price — simulates next-bar entry)
@@ -104,7 +104,7 @@ app/services/execution/dex/{name}_adapter.py → class {Name}Adapter
 
 No factory modification needed. The adapter just needs to:
 1. Exist at the correct path with the correct class name
-2. Implement `IFuturesExchange`
+2. Implement `IExchange`
 3. Accept `config` in constructor
 
 ### LighterAdapter (`app/services/execution/dex/lighter_adapter.py`)
@@ -115,7 +115,7 @@ Lighter DEX adapter using the Lighter SDK. Credentials via `LIGHTER_*` env vars.
 
 ## Factory (`app/services/execution/exchange_factory.py`)
 
-`create_exchange(config) → IFuturesExchange`
+`create_exchange(config) → IExchange`
 
 | Mode | Result |
 |------|--------|

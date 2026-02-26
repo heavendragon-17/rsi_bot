@@ -1,8 +1,8 @@
 """
 Clean Architecture Interfaces
 Layer 1: Data Ingestion  - IDataProvider, IDataStore
-Layer 2: Core Logic      - IStrategy, IIndicators  
-Layer 3: Execution       - IExchange, IPortfolio
+Layer 2: Core Logic      - IStrategy, IIndicators
+Layer 3: Execution       - IExchange (unified futures exchange), IPortfolio
 """
 from __future__ import annotations
 
@@ -107,8 +107,8 @@ class IStrategy(ABC):
 # ============================================
 
 class IExchange(ABC):
-    """Interface for exchange operations."""
-    
+    """Interface for perpetual futures exchange operations."""
+
     @abstractmethod
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         """
@@ -144,20 +144,16 @@ class IExchange(ABC):
         """Cancel an open order."""
         pass
 
-
-class IFuturesExchange(IExchange):
-    """Interface for perpetual futures exchange operations."""
-    
     @abstractmethod
     def set_leverage(self, leverage: int, symbol: str) -> bool:
         """Set leverage for a symbol."""
         pass
-    
+
     @abstractmethod
     def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
         """Fetch open positions."""
         pass
-    
+
     @abstractmethod
     def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """Fetch balance in CCXT format."""

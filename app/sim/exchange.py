@@ -2,7 +2,7 @@
 """
 SimExchange
 =============
-Implements IFuturesExchange using local order simulation against live
+Implements IExchange using local order simulation against live
 Binance aggTrade tick data.  PortfolioManager calls this identically
 to BinanceAdapter — it is completely unaware of sim mode.
 
@@ -36,7 +36,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
 
 from app.core.exceptions import OrderRejectedError
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 from app.sim.state import ClosedTrade, SimOrder, SimPosition, SimTradeState
 
 logger = structlog.get_logger()
@@ -51,7 +51,7 @@ def _to_dec(val) -> Decimal:
     return Decimal(str(val)) if val is not None else Decimal("0")
 
 
-class SimExchange(IFuturesExchange):
+class SimExchange(IExchange):
     """
     Local futures order simulator.  Thread-safe via SimTradeState.lock.
     """
@@ -76,7 +76,7 @@ class SimExchange(IFuturesExchange):
         logger.info(f"SimExchange initialised — balance={initial_balance} USDT")
 
     # ------------------------------------------------------------------
-    # IFuturesExchange interface
+    # IExchange interface
     # ------------------------------------------------------------------
 
     def set_leverage(self, leverage: int, symbol: str) -> bool:
