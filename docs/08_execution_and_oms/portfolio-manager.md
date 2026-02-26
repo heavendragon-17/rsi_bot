@@ -1,0 +1,131 @@
+# PortfolioManager
+
+> The sole execution path for all order operations. No component should call exchange methods directly.
+
+---
+
+## Role
+
+`PortfolioManager` is the orchestrator between strategy decisions and exchange execution:
+- Calculates position sizes based on risk parameters
+- Places entry, TP, and SL orders as a group
+- Tracks open positions in memory
+- Syncs TP fills via polling
+- Handles partial closes, SL moves, and full exits
+
+**Location**: `app/core/portfolio.py`
+
+---
+
+## Position Sizing
+
+### Risk-Based Sizing (default, `use_risk_based_sizing=True`)
+
+```
+risk_capital = initial_capital if use_initial_capital_for_risk else current_balance
+risk_amount = risk_capital × risk_per_trade_pct
+sl_distance_pct = |entry_price - sl_price| / entry_price
+position_notional = risk_amount / sl_distance_pct
+position_size = position_notional / entry_price
+```
+
+### Max Position Cap
+
+```
+max_amount = (balance × max_position_size_pct × leverage) / entry_price
+final_size = min(position_size, max_amount)
+```
+
+### Edge Cases
+- SL distance = 0 → returns 0 (skip trade)
+- SL distance < `min_sl_distance_pct` → still uses risk-based sizing, logs warning
+
+---
+
+## Entry Flow (`on_signal()` → `_handle_buy_signal()`)
+
+1. Fetch current balance from exchange
+2. Calculate position size (risk-based or max-position)
+3. Set leverage: `exchange.set_leverage(leverage, symbol)`
+4. Place market entry: `create_order(symbol, "market", "BUY", amount)`
+5. Store `Position` in `self.positions[symbol]`
+6. Place hard SL: `create_order(symbol, "stop_market", "SELL", amount, params={"stopPrice": sl, "reduceOnly": True})`
+7. Place TP orders: `_place_tp_orders()` — limit orders for each TP level with `reduceOnly=True`
+
+---
+
+## TP Fill Sync (`sync_tp_fills()`)
+
+Called periodically by the runner to detect filled TP orders:
+
+1. For each TP order ID in `position.tp_order_ids`:
+   - `fetch_order(order_id, symbol)`
+   - If status = `"closed"` (filled):
+     - Decrement `position.amount` by TP amount
+     - Set `position.tp{n}_hit = True`
+     - Remove from `tp_order_ids`
+2. After TP1 fill: move SL to breakeven via `_move_sl_to_entry()`
+
+---
+
+## SL Movement (`move_stop_loss()`)
+
+1. Cancel existing SL order: `cancel_order(sl_order_id)`
+2. Place new SL: `create_order(symbol, "stop_market", "SELL", current_amount, params={"stopPrice": new_price, "reduceOnly": True})`
+3. Update `position.sl_order_id` and `position.sl_price`
+
+---
+
+## Partial Close (`execute_partial_close()`)
+
+1. Cancel the specific TP limit order
+2. Place market sell for the partial amount: `create_order(symbol, "market", "SELL", partial_amount, params={"reduceOnly": True})`
+3. Decrement `position.amount`
+4. If `new_sl_price` provided: call `move_stop_loss()`
+
+---
+
+## Full Exit (`close_position()`)
+
+1. Cancel all open orders for the symbol: `cancel_all_orders(symbol)`
+2. Place market exit: `create_order(symbol, "market", "SELL", full_amount, params={"reduceOnly": True})`
+3. Remove position from `self.positions`
+
+### Soft SL Exit (`_handle_soft_sl_exit()`)
+
+Special pre-check before soft SL exit:
+- Query exchange for actual position existence
+- If hard SL already fired (no position on exchange): just clean up local state
+- If position exists: proceed with market exit
+
+**SL exit reason logic**: `LOCK_PROFIT` if sl > entry, `BREAKEVEN` if sl == entry, `STOP_LOSS` if sl < entry.
+
+---
+
+## Position Snapshot (`get_position_snapshot()`)
+
+Returns a read-only `PositionSnapshot` for strategy consumption:
+
+```python
+PositionSnapshot(
+    has_position=True,
+    symbol="BTC/USDT",
+    side="BUY",
+    entry_price=Decimal("42150.00"),
+    current_sl=Decimal("41500.00"),
+    tp1_hit=False,
+    tp2_hit=False,
+    tp3_hit=False,
+    lock_profit_triggered=False,  # True if current_sl > entry_price
+    unrealized_pnl=Decimal("25.50")
+)
+```
+
+---
+
+## Exchange Sync (`sync_from_exchange()`)
+
+On startup or periodically:
+- Fetches positions from exchange via `exchange.fetch_positions()`
+- Removes local positions that no longer exist on exchange (orphan cleanup)
+- Does NOT create new local positions for exchange positions not tracked locally

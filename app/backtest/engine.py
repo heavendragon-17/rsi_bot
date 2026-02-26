@@ -49,7 +49,7 @@ class BacktestEngine(Engine):
         risk_cfg = config.get("risk", {})
         leverage = risk_cfg.get("leverage", 1)
 
-        # Use same default fees as PaperExchange (Binance futures)
+        # Use same default fees as SimExchange (Binance futures)
         taker_fee = float(risk_cfg.get("taker_fee", 0.0005))   # 0.05%
         maker_fee = float(risk_cfg.get("maker_fee", 0.0002))   # 0.02%
 

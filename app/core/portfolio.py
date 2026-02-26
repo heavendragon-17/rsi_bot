@@ -67,10 +67,11 @@ class PortfolioManager:
     - All exit orders include reduceOnly=True
     """
 
-    def __init__(self, exchange: IFuturesExchange, config: dict):
+    def __init__(self, exchange: IFuturesExchange, config: dict, notification_service=None):
         self.exchange = exchange
         self.config = config
         self.positions: Dict[str, Position] = {}
+        self._notification_service = notification_service
 
         # Risk settings
         risk_cfg = config.get("risk", {})
@@ -512,6 +513,25 @@ class PortfolioManager:
         tp_orders = self._place_tp_orders(signal, amount)
         self.positions[signal.symbol].tp_order_ids = tp_orders
 
+        # 4. Notify on entry — skip if exchange fires its own entry notification (e.g. SimExchange)
+        if self._notification_service and not getattr(self.exchange, "_fires_entry_notification", False):
+            tp_prices = {k: v for k, v in [
+                ("TP1", signal.tp1_price), ("TP2", signal.tp2_price), ("TP3", signal.tp3_price)
+            ] if v is not None}
+            try:
+                self._notification_service.on_entry(
+                    symbol=signal.symbol,
+                    side="LONG",
+                    entry_price=price,
+                    amount=amount,
+                    sl_price=signal.sl_price,
+                    tp_prices=tp_prices or None,
+                    leverage=int(self.leverage),
+                    balance=balance,
+                )
+            except Exception:
+                logger.warning(f"[{signal.symbol}] on_entry notification failed")
+
         return order
 
     # -------------------------
@@ -575,7 +595,22 @@ class PortfolioManager:
             )
 
             if order:
+                fill_price = price or pos.entry_price
+                closed_amount = pos.amount
                 self.positions.pop(symbol, None)
+
+                # Notify on fill — skip if exchange fires its own fill notification (e.g. SimExchange)
+                if self._notification_service and not getattr(self.exchange, "_fires_fill_notification", False):
+                    try:
+                        self._notification_service.on_fill(
+                            symbol=symbol,
+                            exit_reason=exit_reason,
+                            fill_price=fill_price,
+                            amount=closed_amount,
+                        )
+                    except Exception:
+                        logger.warning(f"[{symbol}] on_fill notification failed")
+
                 return order
         except ExchangeError as e:
             logger.error(f"Failed to execute full sell for {symbol}: {e}")

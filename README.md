@@ -35,12 +35,30 @@ cd ui && npm install && npm run dev                        # frontend
 
 ## Documentation
 
-| Resource                                               | Description                                  |
-| ------------------------------------------------------ | -------------------------------------------- |
-| [Getting Started](wiki/getting-started.md)             | Installation, setup, and first run           |
-| [Architecture Overview](wiki/architecture-overview.md) | System design and key concepts               |
-| [Backtest Guide](wiki/backtest-guide.md)               | Using the UI, parameter tuning, optimization |
-| [Strategy Reference](docs/strategy-reference.md)       | Strategy parameters and trading rules        |
+**Human Guides (wiki/):**
+
+| Resource | Description |
+|----------|-------------|
+| [Getting Started](wiki/getting-started.md) | Installation, setup, and first run |
+| [Architecture Overview](wiki/architecture-overview.md) | System design and key concepts |
+| [Backtest Guide](wiki/backtest-guide.md) | Using the UI, parameter tuning, optimization |
+| [Paper Backtest](wiki/paper-backtest.md) | Tick-level paper backtest guide |
+
+**AI Agent Specs (docs/):**
+
+| Resource | Description |
+|----------|-------------|
+| [Documentation Index](docs/INDEX.md) | Smart routing table — start here |
+| [Architecture](docs/02_architecture/) | System overview, data types, threading model |
+| [Strategy Reference](docs/07_trading_strategies/) | Strategy parameters and trading rules |
+| [API Reference](docs/14_api_reference/) | REST + SSE endpoint reference |
+
+**Other:**
+
+| Resource | Description |
+|----------|-------------|
+| [CHANGELOG](CHANGELOG.md) | Version history and release notes |
+| [Security Policy](SECURITY.md) | Secrets management and vulnerability reporting |
 
 ## Project Structure
 

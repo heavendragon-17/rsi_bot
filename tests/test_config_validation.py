@@ -95,7 +95,7 @@ def test_to_legacy_dict_structure():
     assert "strategy" in d
     assert "timeframe" in d
     assert "backtest" in d
-    assert "paper_sim" in d
+    assert "sim" in d
 
 
 def test_to_legacy_dict_mode_preserved():

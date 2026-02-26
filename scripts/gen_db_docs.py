@@ -1,5 +1,5 @@
 """
-Auto-generate docs/database.md from ORM models.
+Auto-generate docs/14_api_reference/database.md from ORM models.
 
 Usage:
     python scripts/gen_db_docs.py
@@ -175,7 +175,7 @@ def generate_full_doc():
 
 
 def main():
-    output_path = Path(__file__).resolve().parent.parent / "docs" / "database.md"
+    output_path = Path(__file__).resolve().parent.parent / "docs" / "14_api_reference" / "database.md"
     content = generate_full_doc()
     output_path.write_text(content, encoding="utf-8")
     print(f"Generated {output_path} ({len(content)} bytes)")

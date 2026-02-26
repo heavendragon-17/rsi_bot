@@ -1,0 +1,96 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+---
+
+## [Unreleased]
+
+### Added
+- Enterprise documentation restructure: numbered folder hierarchy in `docs/` for AI agents
+- `.env.example` with all environment variables documented
+- `SECURITY.md` security policy
+- `CHANGELOG.md` (this file)
+- `docs/00_onboarding/` — AI agent bootstrap guide
+- `docs/06_quant_research/` — Quant research pipeline docs
+- `docs/09_portfolio_and_reconciliation/` — Portfolio tracking and known gaps
+- `docs/12_deployment_and_ops/` — Deployment and operations guides
+- `docs/13_runbooks_and_postmortems/` — Incident response runbooks
+- `docs/15_debugging/` — Structured debug guides with decision trees
+- `docs/adr/` — Architecture Decision Records
+
+### Changed
+- Reorganized flat `docs/` files into numbered folder structure
+- Enhanced `docs/INDEX.md` with task-based routing table
+- Updated `CLAUDE.md` to reference new folder structure
+- Updated `README.md` with expanded documentation links
+
+---
+
+## Historical Milestones
+
+> Retroactive documentation of major changes. See `docs/archive/IMPROVE.md` and `docs/archive/SPEC.md` for full details.
+
+### Architecture Improvements (PRs 1-8)
+
+#### PR8 — Typed Configuration System
+- Frozen dataclass config with `__post_init__` validation
+- `AppConfig.from_yaml()` loading with type safety
+
+#### PR7 — Normalized Order Vocabulary
+- Unified order types: `market`, `limit`, `stop_market`, `stop_limit`, `trailing_stop`
+- All exit orders use `reduceOnly=True`
+- SL = `stop_market` (not `limit`)
+
+#### PR6 — Stateless Strategy Pattern
+- `analyze(symbol, df, position=PositionSnapshot, context=ContextSnapshot) → AnalysisResult`
+- Runner stores context per symbol, passes on each call
+- Actions: `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`
+
+#### PR5 — PortfolioManager as Sole Execution Path
+- Removed `BinanceSignalExecutor`
+- All order execution flows through `PortfolioManager`
+
+#### PR4 — Clean Interface Hierarchy
+- 3-layer architecture: Data Ingestion → Core Logic → Execution
+- All interfaces in `app/core/interfaces.py`
+
+#### PR3 — Exchange Factory + DEX Auto-Discovery
+- Factory creates adapters based on `config.yaml` mode
+- DEX adapters auto-discovered via `importlib`
+
+#### PR2 — BinanceAdapter CCXT Wrapper
+- Replaced raw API calls with CCXT
+- Paper mode via `set_sandbox_mode(True)`
+
+#### PR1 — structlog Migration
+- Replaced all `print()` with structured logging
+- Zero print statements policy
+
+### FastAPI Integration (SPEC Phases 1-5)
+
+#### Phase 5 — Optimization Suite
+- Grid search with heatmap visualization
+- Walk-forward optimization with robustness verdict
+- Sensitivity analysis with tornado charts
+
+#### Phase 4 — Batch Mode + Multi-Symbol
+- Unified simulation engine for batch backtests
+- Multi-symbol data synchronization
+- Capital allocation across symbols
+
+#### Phase 3 — Trade Detail Charts
+- TradingView Lightweight Charts integration
+- Entry/exit markers, SL/TP lines, equity curve
+
+#### Phase 2 — Run History + Comparison
+- SQLite storage for backtest results
+- Run comparison (2-run detailed, N-run metrics table)
+- Pagination and filtering
+
+#### Phase 1 — Core Backtest UI
+- React frontend + FastAPI backend
+- SSE for real-time progress
+- ProcessPoolExecutor for parallel backtests

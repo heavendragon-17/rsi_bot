@@ -1,16 +1,16 @@
 """
-Paper Exchange Tick Replay
+Sim Exchange Tick Replay
 ===========================
 Run a full strategy backtest against tick-level aggTrades data,
-using PaperExchange for realistic SL/TP fill simulation instead
+using SimExchange for realistic SL/TP fill simulation instead
 of the wick-approximation MockExchange.
 
 Architecture
 ------------
 1. Load OHLC CSV for indicator pre-computation (same as BacktestEngine).
 2. Replay candles through the strategy to generate signals/actions.
-3. On each candle open → call PaperExchange.on_kline_open() to fill pending entries.
-4. On each tick from the aggTrades CSV → call PaperExchange.on_tick() for SL/TP fills.
+3. On each candle open → call SimExchange.on_kline_open() to fill pending entries.
+4. On each tick from the aggTrades CSV → call SimExchange.on_tick() for SL/TP fills.
 5. On each candle close → run strategy.analyze() and dispatch actions via PortfolioManager.
 6. After replay → compute results using BacktestEngine.compute_results() logic.
 
@@ -61,8 +61,7 @@ from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition, Par
 from app.core.events import SignalEvent
 from app.core.portfolio import PortfolioManager
 from app.core.snapshots import ContextSnapshot
-from app.paper.exchange import PaperExchange
-from app.paper.state import PaperTradeState
+from app.sim.exchange import SimExchange
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 
@@ -83,9 +82,9 @@ def _build_config(symbol: str, timeframe: str, balance: float, strategy_name: st
         strategy_name=strategy_name,
         initial_balance=balance,
     )
-    # Mark as sim so PaperExchange behaves correctly
+    # Ensure mode is sim
     config.setdefault("bot", {})["mode"] = "sim"
-    config.setdefault("paper_sim", {})["initial_balance"] = balance
+    config.setdefault("sim", {})["initial_balance"] = balance
     return config
 
 
@@ -120,17 +119,20 @@ def _action_to_signal(action: OpenPosition) -> SignalEvent:
     )
 
 
-def _make_paper_exchange(config: dict) -> PaperExchange:
-    """Create a PaperExchange."""
-    ex = PaperExchange(config)
+def _make_sim_exchange(config: dict) -> SimExchange:
+    """Create a SimExchange with notifications silenced (replay uses summary only)."""
+    from app.services.notification.null_notifier import NullNotifier
+    from app.services.notification.notification_service import NotificationService
+    ns = NotificationService(NullNotifier(), mode="mock")
+    ex = SimExchange(config, notification_service=ns)
     return ex
 
 
 # ── results computation (adapted from BacktestEngine) ─────────────────────────
 
-def _compute_results(exchange: PaperExchange, initial_balance: float) -> dict:
+def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
     """
-    Compute P&L metrics from PaperExchange closed_trades.
+    Compute P&L metrics from SimExchange closed_trades.
     Mirrors BacktestEngine.compute_results() using the same helpers.
     """
     trades = []
@@ -288,11 +290,11 @@ def _send_telegram_summary(
     """Send a single Telegram message summarising the entire tick replay."""
     try:
         from app.services.notification.telegram_bot import TelegramBot
-        paper_cfg = config.get("paper_sim", {})
-        token_override = paper_cfg.get("telegram_token", "").strip()
-        token_env = "PAPER_TELEGRAM_BOT_TOKEN" if token_override else "TELEGRAM_BOT_TOKEN"
+        sim_cfg = config.get("sim", config.get("paper_sim", {}))
+        token_override = sim_cfg.get("telegram_token", "").strip()
+        token_env = "SIM_TELEGRAM_BOT_TOKEN" if token_override else "TELEGRAM_BOT_TOKEN"
         bot = TelegramBot(token_env=token_env)
-        chat_id = paper_cfg.get("chat_id", "").strip() or None
+        chat_id = sim_cfg.get("chat_id", "").strip() or None
 
         m = results.get("metrics", {})
         r = results.get("risk_metrics", {})
@@ -349,11 +351,10 @@ def run_replay(
     ohlc_start_ts = full_df.index[WARMUP].value // 10**6   # ms
     ohlc_end_ts   = full_df.index[-1].value  // 10**6 + 60_000  # add 1 extra minute
 
-    # 3. Create PaperExchange and PortfolioManager
-    exchange = _make_paper_exchange(config)
-    # Silence per-trade Telegram notifications to avoid API rate limits.
-    # A single summary message is sent after the replay completes.
-    exchange.silence_notifications()
+    # 3. Create SimExchange and PortfolioManager
+    # Notifications are silenced at creation (NullNotifier injected by _make_sim_exchange).
+    # A single Telegram summary is sent after the replay completes.
+    exchange = _make_sim_exchange(config)
     portfolio = PortfolioManager(exchange, config)
     context = ContextSnapshot(state="SCANNING")
 
@@ -396,7 +397,7 @@ def run_replay(
         candle_ts_ms = full_df.index[candle_idx].value // 10**6   # candle OPEN time
         previous_ts_ms = full_df.index[candle_idx - 1].value // 10**6
 
-        # Set simulated clock so PaperExchange timestamps match candle time
+        # Set simulated clock so SimExchange timestamps match candle time
         exchange._sim_time = candle_ts_ms / 1000.0
 
         # Determine the candle's time window
@@ -452,7 +453,7 @@ def run_replay(
         result = strategy.analyze(symbol, df_slice, position=position, context=context)
         context = result.new_context
 
-        # Sync TP fills that happened via exchange ticks (PaperExchange already did this
+        # Sync TP fills that happened via exchange ticks (SimExchange already did this
         # via on_tick(), but we still need to reconcile PortfolioManager state)
         with exchange.state.lock:
             ex_has_pos = symbol in exchange.state.positions
@@ -520,7 +521,7 @@ def run_replay(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Tick-level paper backtest using PaperExchange",
+        description="Tick-level sim backtest using SimExchange",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
