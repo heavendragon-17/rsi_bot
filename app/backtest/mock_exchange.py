@@ -18,7 +18,7 @@ import structlog
 from typing import Dict, List, Optional, Any, Sequence
 from decimal import Decimal
 from app.core.exceptions import InsufficientFundsError, OrderNotFoundError
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
 
 logger = structlog.get_logger()
@@ -40,7 +40,7 @@ def _base_asset(symbol: str) -> str:
     return s.strip()
 
 
-class MockExchange(IFuturesExchange):
+class MockExchange(IExchange):
     """
     Thread-safe mock exchange for backtesting and paper trading.
     Uses RLock to protect all internal state for concurrent access.
@@ -216,7 +216,7 @@ class MockExchange(IFuturesExchange):
             return executed
 
     # ============================================================
-    # IFuturesExchange methods
+    # IExchange methods
     # ============================================================
 
     def set_leverage(self, leverage: int, symbol: str) -> bool:

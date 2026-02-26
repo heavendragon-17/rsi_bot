@@ -4,12 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Documentation
 
-For detailed specs, read `docs/INDEX.md` first — it maps each doc file to its domain and tells you which file to consult for your task.
+For detailed specs, read `docs/INDEX.md` first — it has a **task-based routing table** that tells you exactly which folder and files to read for your task.
 
+- **First time?** Read `docs/00_onboarding/onboarding.md` — agent bootstrap, conventions, do/don't rules
 - **Agent workflow**: `docs/agent-workflow.md` — **MUST READ before every task.** Covers planning, verification, task management, and code quality standards.
-- **AI agent specs**: `docs/` (architecture, backtest engine, API reference, strategies, etc.)
+- **AI agent specs**: `docs/` — numbered folders (02_architecture through 15_debugging) covering every system domain
+- **Extension guides**: `docs/workflows/` — step-by-step guides for adding strategies, exchanges, endpoints, etc.
 - **Human guides**: `wiki/` (getting started, architecture overview, backtest guide)
-- **Database schema**: `docs/database.md` — auto-generated from ORM. Run `python scripts/gen_db_docs.py` to regenerate. Design rationale lives in `app/repository/backtest/models.py` code comments.
+- **Database schema**: `docs/14_api_reference/database.md` — auto-generated from ORM. Run `python scripts/gen_db_docs.py` to regenerate.
 
 ## Commands
 
@@ -41,7 +43,7 @@ python scripts/gen_db_docs.py
 ```
 Layer 1: Data Ingestion    IDataProvider, IDataStore
 Layer 2: Core Logic        IStrategy, IIndicators
-Layer 3: Execution         IExchange, IFuturesExchange, IPortfolio
+Layer 3: Execution         IExchange, IPortfolio
 ```
 
 ### Live Bot Data Flow

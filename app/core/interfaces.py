@@ -1,8 +1,8 @@
 """
 Clean Architecture Interfaces
 Layer 1: Data Ingestion  - IDataProvider, IDataStore
-Layer 2: Core Logic      - IStrategy, IIndicators  
-Layer 3: Execution       - IExchange, IPortfolio
+Layer 2: Core Logic      - IStrategy, IIndicators
+Layer 3: Execution       - IExchange (unified futures exchange), IPortfolio
 """
 from __future__ import annotations
 
@@ -107,8 +107,8 @@ class IStrategy(ABC):
 # ============================================
 
 class IExchange(ABC):
-    """Interface for exchange operations."""
-    
+    """Interface for perpetual futures exchange operations."""
+
     @abstractmethod
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
         """
@@ -144,20 +144,16 @@ class IExchange(ABC):
         """Cancel an open order."""
         pass
 
-
-class IFuturesExchange(IExchange):
-    """Interface for perpetual futures exchange operations."""
-    
     @abstractmethod
     def set_leverage(self, leverage: int, symbol: str) -> bool:
         """Set leverage for a symbol."""
         pass
-    
+
     @abstractmethod
     def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
         """Fetch open positions."""
         pass
-    
+
     @abstractmethod
     def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """Fetch balance in CCXT format."""
@@ -176,18 +172,90 @@ class IFuturesExchange(IExchange):
 
 class IPortfolio(ABC):
     """Interface for portfolio management."""
-    
+
     @abstractmethod
     def on_signal(self, signal: SignalEvent) -> None:
         """Process a trading signal."""
         pass
-    
+
     @abstractmethod
     def has_position(self, symbol: str) -> bool:
         """Check if there's an open position for symbol."""
         pass
-    
+
     @abstractmethod
     def close_position(self, symbol: str, percentage: Decimal) -> None:
         """Close percentage of position (0.0 - 1.0)."""
+        pass
+
+
+# ============================================
+# Notification Interface
+# ============================================
+
+class INotifier(ABC):
+    """
+    Trade notification interface.
+
+    All methods MUST be non-blocking and never raise — they are called from
+    trading threads. Use scalar parameters only; no exchange-adapter-specific
+    state objects are passed so this interface is decoupled from sim/live/paper.
+    """
+
+    @abstractmethod
+    def send_message(self, message: str) -> None:
+        """Send a plain-text (or HTML) message."""
+        pass
+
+    @abstractmethod
+    def on_entry(
+        self,
+        symbol: str,
+        side: str,
+        entry_price: Decimal,
+        amount: Decimal,
+        sl_price: Optional[Decimal] = None,
+        tp_prices: Optional[Dict[str, Decimal]] = None,
+        leverage: int = 1,
+        balance: Optional[Decimal] = None,
+    ) -> None:
+        """Called when a position is opened (entry order filled)."""
+        pass
+
+    @abstractmethod
+    def on_fill(
+        self,
+        symbol: str,
+        exit_reason: str,
+        fill_price: Decimal,
+        amount: Decimal,
+        pnl_gross: Optional[Decimal] = None,
+        pnl_net: Optional[Decimal] = None,
+        fees: Optional[Decimal] = None,
+        r_multiple: Optional[Decimal] = None,
+        remaining_amount: Optional[Decimal] = None,
+        balance: Optional[Decimal] = None,
+    ) -> None:
+        """Called when an SL or TP order fills (partial or full exit)."""
+        pass
+
+    @abstractmethod
+    def on_error(self, context: str, error: str) -> None:
+        """Called on a critical error (order rejection, exchange failure, etc.)."""
+        pass
+
+    @abstractmethod
+    def on_funding(
+        self,
+        symbol: str,
+        rate: Decimal,
+        payment: Decimal,
+        balance: Decimal,
+    ) -> None:
+        """Called every 8 hours when funding fees are deducted (sim mode)."""
+        pass
+
+    @abstractmethod
+    def on_toggle(self, is_paused: bool) -> None:
+        """Called when bot execution is paused or resumed."""
         pass

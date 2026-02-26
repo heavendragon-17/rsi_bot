@@ -1,8 +1,8 @@
 """
 Dedicated notification background thread with bounded queue.
 
-Replaces ad-hoc `threading.Thread(target=notifier.on_entry, ...).start()` calls
-in PaperExchange. Notifications are dispatched FIFO. If the queue is full,
+Replaces ad-hoc `threading.Thread(target=notifier.on_entry, ...).start()` calls.
+Notifications are dispatched FIFO. If the queue is full,
 the event is silently dropped (trading logic is never blocked).
 """
 import queue

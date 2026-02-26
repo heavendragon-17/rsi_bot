@@ -28,7 +28,7 @@ setup_logging(level="INFO")
 
 import structlog
 
-from app.services.notification.telegram_bot import TelegramBot
+from app.services.notification.notification_service import NotificationService
 from app.services.notification.null_notifier import NullNotifier
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.services.execution.exchange_factory import create_exchange
@@ -54,28 +54,28 @@ def main():
     bot_mode = app_config.exchange.mode
     logger.info("bot_starting", mode=bot_mode.upper())
 
-    # 2. Initialize Telegram (optional — falls back to NullNotifier on failure)
-    telegram = None
+    # 2. Build NotificationService (wraps TelegramNotifier or NullNotifier)
     if app_config.notification.telegram_enabled:
         try:
-            telegram = TelegramBot()
-            telegram.send_message(f"🤖 RSI Bot Started\nMode: {bot_mode.upper()}")
+            from app.services.notification.telegram_notifier import TelegramNotifier
+            ns = NotificationService(TelegramNotifier(mode=bot_mode), mode=bot_mode)
+            ns.send_message(f"🤖 RSI Bot Started\nMode: {bot_mode.upper()}")
             logger.info("telegram_initialized")
         except Exception as e:
             logger.warning("telegram_init_failed_using_null_notifier", error=str(e))
-            telegram = NullNotifier()
+            ns = NotificationService(NullNotifier(), mode=bot_mode)
     else:
-        telegram = NullNotifier()
+        ns = NotificationService(NullNotifier(), mode=bot_mode)
 
-    # 3. Create exchange via factory (returns IFuturesExchange)
-    exchange = create_exchange(config)
+    # 3. Create exchange via factory (returns IExchange)
+    exchange = create_exchange(config, notification_service=ns)
 
     # 4. Create runner with execution
     runner = MultiSymbolRunner(
         config=config,
         strategy_class=RsiNoRetestStrategy,
         exchange=exchange,
-        telegram=telegram,
+        notification_service=ns,
     )
 
     # 5. Start and wait
@@ -86,7 +86,7 @@ def main():
         logger.info("bot_stopped_by_user")
     finally:
         runner.stop()
-        telegram.send_message("🛑 RSI Bot Stopped")
+        ns.send_message("🛑 RSI Bot Stopped")
 
 
 if __name__ == "__main__":

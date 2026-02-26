@@ -1,73 +1,120 @@
 # Add a Notification Channel
 
 > Add a new notification channel (Discord, Slack, email, PagerDuty, etc.).
-> Reference implementation: `app/services/notification/telegram_bot.py`
-> Interface contract (duck-typed): `app/services/notification/null_notifier.py`
+> Reference spec: `docs/08_execution_and_oms/notifications.md`
+> Interface: `INotifier` in `app/core/interfaces.py`
 
 ## Prerequisites
 
-- Read `docs/live-bot.md` — Telegram Notifications section
-- Read `app/services/notification/null_notifier.py` — the full method signature contract (7 methods)
-- Read `app/services/notification/telegram_bot.py` — see how error handling is done
+- Read `docs/08_execution_and_oms/notifications.md` — full architecture, event table, and message format examples
+- Read `app/core/interfaces.py` — `INotifier` abstract class (lines ~196–266) for the exact method signatures
+- Read `app/services/notification/telegram_notifier.py` — reference implementation with error handling patterns
 
 ## Steps
 
 ### 1. Understand the method contract
 
-The "interface" is defined by duck typing from `NullNotifier`. Your class must implement all 7 methods with `*args, **kwargs` signatures:
+Subclass `INotifier` from `app/core/interfaces.py`. Your class must implement all 6 abstract methods with the exact signatures below:
 
 ```python
-def send_message(self, *args, **kwargs) -> None: ...
-def on_entry(self, *args, **kwargs) -> None: ...
-def on_fill(self, *args, **kwargs) -> None: ...
-def on_exit(self, *args, **kwargs) -> None: ...
-def on_error(self, *args, **kwargs) -> None: ...
-def on_funding(self, *args, **kwargs) -> None: ...
-def on_toggle(self, *args, **kwargs) -> None: ...
+from app.core.interfaces import INotifier
+from decimal import Decimal
+from typing import Optional, Dict
+
+class MyNotifier(INotifier):
+    def send_message(self, message: str) -> None: ...
+
+    def on_entry(
+        self,
+        symbol: str,
+        side: str,
+        entry_price: Decimal,
+        amount: Decimal,
+        sl_price: Optional[Decimal] = None,
+        tp_prices: Optional[Dict[str, Decimal]] = None,
+        leverage: int = 1,
+        balance: Optional[Decimal] = None,
+    ) -> None: ...
+
+    def on_fill(
+        self,
+        symbol: str,
+        exit_reason: str,
+        fill_price: Decimal,
+        amount: Decimal,
+        pnl_gross: Optional[Decimal] = None,
+        pnl_net: Optional[Decimal] = None,
+        fees: Optional[Decimal] = None,
+        r_multiple: Optional[Decimal] = None,
+        remaining_amount: Optional[Decimal] = None,
+        balance: Optional[Decimal] = None,
+    ) -> None: ...
+
+    def on_error(self, context: str, error: str) -> None: ...
+
+    def on_funding(
+        self,
+        symbol: str,
+        rate: Decimal,
+        payment: Decimal,
+        balance: Decimal,
+    ) -> None: ...
+
+    def on_toggle(self, is_paused: bool) -> None: ...
 ```
 
-**Critical**: All methods must **never raise exceptions** that could crash the bot. Follow the `telegram_bot.py` pattern — wrap all external calls in `try/except Exception`, log the error, return silently.
+**Critical**: All methods must **never raise exceptions** that could crash the bot. Follow `telegram_notifier.py` — wrap all external calls in `try/except Exception`, log the error, return silently.
 
 ### 2. Create the notifier file
 
 File: `app/services/notification/{name}_notifier.py`
 
-Model on `app/services/notification/telegram_bot.py`. Key patterns:
+Model on `app/services/notification/telegram_notifier.py`. Key patterns:
 
+- Subclass `INotifier` (enforces the contract at class definition time)
 - Read credentials from environment variables in `__init__` (`os.getenv`)
 - Raise `RuntimeError` in `__init__` if required env vars are missing (fail loudly at startup, not silently at runtime)
 - Use `structlog.get_logger()` for logging
-- Use `requests` for HTTP calls with a short timeout (5s)
+- Use `requests` for HTTP calls with a short timeout (5 s)
 - Wrap all external calls in `try/except` — the notifier must never crash the bot
 
 ### 3. Inject the notifier
 
 File: `main.py`
 
-Currently the bot initializes `TelegramBot` and falls back to `NullNotifier`:
+The bot creates a `NotificationService` wrapping either `TelegramNotifier` or `NullNotifier`:
+
 ```python
+from app.services.notification.notification_service import NotificationService
+from app.services.notification.telegram_notifier import TelegramNotifier
+from app.services.notification.null_notifier import NullNotifier
+
 try:
-    notifier = TelegramBot()
+    notifier = TelegramNotifier(mode=config.bot.mode)
 except Exception:
     notifier = NullNotifier()
+
+notification_service = NotificationService(notifier, mode=config.bot.mode)
 ```
 
-**To replace Telegram**: Swap `TelegramBot()` with your notifier class.
+`NotificationService` wraps the `INotifier` with a background `NotificationWorker` queue (non-blocking). Always pass `NotificationService` instances — never raw notifiers — to `PortfolioManager`, `SimExchange`, etc.
+
+**To replace Telegram**: Swap `TelegramNotifier(...)` with your notifier class.
 
 **To add alongside Telegram**: Create a `MultiNotifier` wrapper that fans out to multiple channels:
+
 ```python
-class MultiNotifier:
-    def __init__(self, notifiers):
+class MultiNotifier(INotifier):
+    def __init__(self, notifiers: list[INotifier]):
         self.notifiers = notifiers
 
-    def send_message(self, *a, **kw):
+    def send_message(self, message: str) -> None:
         for n in self.notifiers:
-            try: n.send_message(*a, **kw)
+            try: n.send_message(message)
             except Exception: pass
-    # ... repeat for all 7 methods
-```
 
-For paper/sim mode: also update `app/paper/notifier.py` (`PaperTelegramNotifier`) if you want the new channel in sim mode.
+    # Repeat for all 6 methods
+```
 
 ### 4. Add credentials to `.env`
 
@@ -83,11 +130,11 @@ Document all required env vars in the module docstring of your notifier file.
 2. Mock the HTTP call (e.g., `unittest.mock.patch('requests.post')`)
 3. Test that exceptions in HTTP calls do NOT propagate — the notifier swallows them
 4. Test that missing env vars raise `RuntimeError` at construction time
-5. Test that each of the 7 methods can be called without errors
+5. Test that each of the 6 methods can be called without errors
 6. Run `pytest tests/ -v`
 
 ## Documentation Impact
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/services/notification/` modified → update **`docs/live-bot.md`**: generalize the "Telegram Notifications" section to "Notifications", add the new channel with its env vars and fallback behavior
+- `app/services/notification/` modified → update **`docs/08_execution_and_oms/notifications.md`**: add the new channel to the Key Files table and update the Configuration section with its env vars and fallback behavior

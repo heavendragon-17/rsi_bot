@@ -16,7 +16,7 @@ from app.core.exceptions import (
     ExchangeError, InsufficientFundsError, OrderRejectedError,
     OrderNotFoundError, ConnectionError, RateLimitError, PositionError,
 )
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
 
 # Load environment variables
@@ -81,7 +81,7 @@ def _get_credentials(mode: str):
 # BinanceAdapter
 # ==============================================================================
 
-class BinanceAdapter(IFuturesExchange):
+class BinanceAdapter(IExchange):
     """
     Binance USDT-M Futures adapter.
     Wraps CCXT binanceusdm. Supports paper (testnet) and live (mainnet).
@@ -231,7 +231,7 @@ class BinanceAdapter(IFuturesExchange):
                 raise ExchangeError(str(e), original=e)
 
     # ------------------------------------------------------------------
-    # IFuturesExchange: Position & Balance
+    # IExchange: Position & Balance
     # ------------------------------------------------------------------
 
     def set_leverage(self, leverage: int, symbol: str) -> bool:

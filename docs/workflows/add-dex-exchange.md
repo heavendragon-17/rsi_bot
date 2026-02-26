@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Read `docs/architecture.md` — understand `IFuturesExchange` and order vocabulary
+- Read `docs/architecture.md` — understand `IExchange` and order vocabulary
 - Read `docs/live-bot.md` — understand exchange adapter section and DEX auto-discovery
 - Read the DEX's own API/SDK documentation thoroughly before writing code
 - Identify: Does the SDK use async? Does it use different symbol naming (e.g., `BTC-PERP` vs `BTC/USDT`)?
@@ -38,7 +38,7 @@ See `app/services/execution/exchange_factory.py` lines 63-88 (`_load_custom_adap
 
 Model on `app/services/execution/dex/lighter_adapter.py`. Required:
 
-- **Implement ALL `IFuturesExchange` abstract methods** (9 methods from `app/core/interfaces.py`):
+- **Implement ALL `IExchange` abstract methods** (9 methods from `app/core/interfaces.py`):
   - `fetch_ohlcv(symbol, timeframe, limit)`
   - `create_order(symbol, order_type, side, amount, price=None, params=None)`
   - `fetch_order(order_id, symbol)`
@@ -97,7 +97,7 @@ bot:
 ## Testing
 
 1. Write `tests/test_{name}_adapter.py`
-2. Mock the SDK client — test all 9 `IFuturesExchange` methods with mocked responses
+2. Mock the SDK client — test all 9 `IExchange` methods with mocked responses
 3. Test normalized order type → DEX-native translation for all 5 types
 4. Test error mapping: SDK-specific exceptions → `ExchangeError` subclasses
 5. Test async bridge if applicable: SDK async methods are callable synchronously

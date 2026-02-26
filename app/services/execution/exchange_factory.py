@@ -3,7 +3,7 @@ Exchange Factory - Environment Mode Separation
 ===============================================
 Implements four distinct modes:
   - mock:  MockExchange (in-memory, no network calls, historical data)
-  - sim:   PaperExchange (local order simulation against live Binance aggTrade data)
+  - sim:   SimExchange (local order simulation against live Binance aggTrade data)
   - paper: Real exchange connected to Testnet
   - live:  Real exchange connected to Mainnet
 
@@ -23,7 +23,7 @@ import logging
 import importlib
 from typing import Any, Dict
 
-from app.core.interfaces import IFuturesExchange
+from app.core.interfaces import IExchange
 from app.backtest.mock_exchange import MockExchange
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def _get_credentials(env_prefix: str, mode: str) -> tuple:
     return api_key, secret
 
 
-def _load_custom_adapter(exchange_name: str, config: Dict[str, Any]) -> IFuturesExchange:
+def _load_custom_adapter(exchange_name: str, config: Dict[str, Any]) -> IExchange:
     """
     Dynamically load a custom DEX adapter.
     
@@ -88,40 +88,49 @@ def _load_custom_adapter(exchange_name: str, config: Dict[str, Any]) -> IFutures
         )
 
 
-def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
+def create_exchange(config: Dict[str, Any], notification_service=None) -> IExchange:
     """
     Create an exchange instance based on the bot mode.
-    
+
     Args:
         config: Configuration dict with structure:
             bot:
               mode: "mock" | "sim" | "paper" | "live"
             exchange:
               name: "binanceusdm" | "lighter" | etc.
-    
+        notification_service: Optional NotificationService injected into SimExchange.
+
     Returns:
-        IFuturesExchange instance
+        IExchange instance
     """
     mode = config.get("bot", {}).get("mode", "mock").lower()
     exchange_name = config.get("exchange", {}).get("name", "binanceusdm").lower()
-    
-    # ===== 1. Mock Mode =====
+
+    # ===== 1. Sim Mode =====
     if mode == "sim":
-        from app.paper.exchange import PaperExchange
-        paper_cfg = config.get("paper_sim", {})
-        initial_balance = paper_cfg.get("initial_balance", 10000)
-        logger.info(f"Factory: Created PaperExchange (sim mode, balance={initial_balance})")
-        return PaperExchange(config)
+        from app.sim.exchange import SimExchange
+        sim_cfg = config.get("sim", config.get("paper_sim", {}))
+        initial_balance = sim_cfg.get("initial_balance", 10000)
+        logger.info(f"Factory: Created SimExchange (sim mode, balance={initial_balance})")
+        exc = SimExchange(config, notification_service=notification_service)
+        if notification_service and hasattr(notification_service, "attach_exchange"):
+            notification_service.attach_exchange(exc)
+            notification_service.start_command_polling()
+        return exc
 
     if mode == "mock":
         backtest_cfg = config.get("backtest", {})
         initial_balance = backtest_cfg.get("initial_balance", 10000.0)
         leverage = config.get("risk", {}).get("leverage", 1)
         logger.info(f"Factory: Created MockExchange (balance={initial_balance}, leverage={leverage})")
-        return MockExchange(initial_balance=initial_balance, leverage=leverage)
+        exc = MockExchange(initial_balance=initial_balance, leverage=leverage)
+        if notification_service and hasattr(notification_service, "attach_exchange"):
+            notification_service.attach_exchange(exc)
+            notification_service.start_command_polling()
+        return exc
     
     # ===== 2. CCXT Exchanges (Binance, etc.) =====
-    # Return BinanceAdapter (wraps CCXT, implements IFuturesExchange)
+    # Return BinanceAdapter (wraps CCXT, implements IExchange)
     # instead of raw CCXT — ensures normalized order type translation
     if exchange_name in EXCHANGE_CONFIG:
         from app.services.execution.cex.binance_adapter import BinanceAdapter
@@ -133,11 +142,14 @@ def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
 
         adapter = BinanceAdapter(config)
         logger.info(f"Factory: Created BinanceAdapter in {mode.upper()} mode.")
+        if notification_service and hasattr(notification_service, "attach_exchange"):
+            notification_service.attach_exchange(adapter)
+            notification_service.start_command_polling()
         return adapter
     
     # ===== 3. Custom DEX Adapters (Lighter, Hyperliquid, etc.) =====
     adapter = _load_custom_adapter(exchange_name, config)
-    
+
     if mode == "paper":
         logger.info(f"Factory: Created {exchange_name.capitalize()}Adapter in PAPER (Testnet) mode.")
     else:
@@ -145,4 +157,8 @@ def create_exchange(config: Dict[str, Any]) -> IFuturesExchange:
         logger.warning(f"WARNING: RUNNING {exchange_name.upper()} IN LIVE MODE - REAL MONEY AT RISK")
         logger.warning("=" * 60)
     
+    if notification_service and hasattr(notification_service, "attach_exchange"):
+        notification_service.attach_exchange(adapter)
+        notification_service.start_command_polling()
+
     return adapter

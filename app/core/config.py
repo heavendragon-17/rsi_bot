@@ -75,8 +75,8 @@ class BacktestConfig:
 
 
 @dataclass(frozen=True)
-class PaperSimConfig:
-    """Local simulation settings (PaperExchange / sim mode)."""
+class SimConfig:
+    """Local simulation settings (SimExchange / sim mode)."""
 
     initial_balance: Decimal = Decimal("10000")
     tick_sample_interval_ms: int = 500
@@ -94,7 +94,7 @@ class AppConfig:
     risk: RiskConfig = field(default_factory=RiskConfig)
     notification: NotificationConfig = field(default_factory=NotificationConfig)
     backtest: BacktestConfig = field(default_factory=BacktestConfig)
-    paper_sim: PaperSimConfig = field(default_factory=PaperSimConfig)
+    sim: SimConfig = field(default_factory=SimConfig)
     symbols: List[str] = field(default_factory=lambda: ["BTC/USDT"])
     strategy_name: str = "rsi_no_retest"
     strategy_params: Dict[str, Any] = field(default_factory=dict)
@@ -112,7 +112,7 @@ class AppConfig:
         exchange_raw = raw.get("exchange", {})
         risk_raw = raw.get("risk", {})
         backtest_raw = raw.get("backtest", {})
-        paper_sim_raw = raw.get("paper_sim", {})
+        paper_sim_raw = raw.get("sim", raw.get("paper_sim", {}))  # backward compat
 
         return cls(
             exchange=ExchangeConfig(
@@ -139,7 +139,7 @@ class AppConfig:
             backtest=BacktestConfig(
                 initial_balance=Decimal(str(backtest_raw.get("initial_balance", "10000"))),
             ),
-            paper_sim=PaperSimConfig(
+            sim=SimConfig(
                 initial_balance=Decimal(str(paper_sim_raw.get("initial_balance", "10000"))),
                 tick_sample_interval_ms=int(
                     paper_sim_raw.get("tick_sample_interval_ms", 500)
@@ -187,8 +187,8 @@ class AppConfig:
             "backtest": {
                 "initial_balance": float(self.backtest.initial_balance),
             },
-            "paper_sim": {
-                "initial_balance": float(self.paper_sim.initial_balance),
-                "tick_sample_interval_ms": self.paper_sim.tick_sample_interval_ms,
+            "sim": {
+                "initial_balance": float(self.sim.initial_balance),
+                "tick_sample_interval_ms": self.sim.tick_sample_interval_ms,
             },
         }

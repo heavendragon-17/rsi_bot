@@ -19,7 +19,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Type
 
-from app.core.interfaces import IFuturesExchange, IStrategy
+from app.core.interfaces import IExchange, IStrategy
 from app.core.portfolio import PortfolioManager
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
@@ -48,8 +48,9 @@ class MultiSymbolRunner:
         self,
         config: Dict[str, Any],
         strategy_class: Type[IStrategy],
-        exchange: IFuturesExchange,
-        telegram=None,
+        exchange: IExchange,
+        notification_service=None,
+        telegram=None,  # deprecated — use notification_service
     ):
         """
         Initialize the multi-symbol runner.
@@ -57,8 +58,9 @@ class MultiSymbolRunner:
         Args:
             config: Application configuration dict
             strategy_class: Strategy class to instantiate per symbol
-            exchange: Shared IFuturesExchange instance (already created by factory)
-            telegram: Optional TelegramBot for notifications
+            exchange: Shared IExchange instance (already created by factory)
+            notification_service: Optional NotificationService for trade events
+            telegram: Deprecated — kept for backward compat, use notification_service
         """
         self.config = config
         self.strategy_class = strategy_class
@@ -67,7 +69,8 @@ class MultiSymbolRunner:
 
         # Shared exchange (thread-safe)
         self.exchange = exchange
-        self.telegram = telegram
+        self._notification_service = notification_service
+        self.telegram = notification_service  # backward compat alias
         logger.info(f"Using shared exchange: {type(self.exchange).__name__}")
         
         # Market data store (already thread-safe)
@@ -118,19 +121,19 @@ class MultiSymbolRunner:
         self._start_stream()
 
         # 3b. Sim mode: start aggTrade tick stream + funding scheduler
-        self._paper_stream = None
+        self._sim_stream = None
         self._funding_scheduler = None
         if self.config.get("bot", {}).get("mode") == "sim":
-            from app.paper.stream_manager import PaperTradeStreamManager
-            from app.paper.funding import PaperFundingScheduler
-            self._paper_stream = PaperTradeStreamManager(
+            from app.sim.stream_manager import SimTradeStreamManager
+            from app.sim.funding import SimFundingScheduler
+            self._sim_stream = SimTradeStreamManager(
                 symbols=self.symbols,
-                paper_exchange=self.exchange,
+                sim_exchange=self.exchange,
             )
-            self._paper_stream.start()
-            self._funding_scheduler = PaperFundingScheduler(
+            self._sim_stream.start()
+            self._funding_scheduler = SimFundingScheduler(
                 state=self.exchange.state,
-                notifier=self.exchange.notifier,
+                notification_service=self._notification_service,
             )
             self._funding_scheduler.start()
 
@@ -242,7 +245,7 @@ class MultiSymbolRunner:
         """
         # Create per-symbol components
         strategy = self.strategy_class(self.config)
-        portfolio = PortfolioManager(self.exchange, self.config)
+        portfolio = PortfolioManager(self.exchange, self.config, notification_service=self._notification_service)
 
         # Store references for monitoring
         self.strategies[symbol] = strategy
@@ -276,7 +279,7 @@ class MultiSymbolRunner:
                     time.sleep(0.5)
                     continue
 
-                # Sim mode: forward new candle open to PaperExchange so pending_open
+                # Sim mode: forward new candle open to SimExchange so pending_open
                 # entry orders fill at realistic open price (not signal time price).
                 if self.config.get("bot", {}).get("mode") == "sim" and hasattr(self.exchange, "on_kline_open"):
                     self.exchange.on_kline_open(symbol, Decimal(str(last_row.get("open", 0))))
@@ -353,9 +356,9 @@ class MultiSymbolRunner:
         if self.stream:
             self.stream.stop()
 
-        # Stop sim-mode paper infrastructure
-        if getattr(self, "_paper_stream", None):
-            self._paper_stream.stop()
+        # Stop sim-mode infrastructure
+        if getattr(self, "_sim_stream", None):
+            self._sim_stream.stop()
         if getattr(self, "_funding_scheduler", None):
             self._funding_scheduler.stop()
         
@@ -364,7 +367,11 @@ class MultiSymbolRunner:
             thread.join(timeout=5)
             if thread.is_alive():
                 logger.warning(f"Thread {thread.name} did not stop gracefully")
-        
+
+        # Drain notification queue
+        if self._notification_service and hasattr(self._notification_service, "stop"):
+            self._notification_service.stop()
+
         logger.info("Multi-symbol runner stopped")
     
     def get_status(self) -> Dict[str, Any]:
