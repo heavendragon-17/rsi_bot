@@ -1,3 +1,4 @@
+requests
 ccxt
 hyperliquid-python-sdk
 pandas
