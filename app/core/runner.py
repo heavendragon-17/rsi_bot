@@ -268,28 +268,40 @@ class MultiSymbolRunner:
                 # Get timestamp of latest candle
                 current_ts = df.index[-1]
 
-                # Skip if we already processed this candle
-                if current_ts == last_processed_ts:
+                # Find the most recently closed candle
+                closed_candles = df[df['closed'] == True]
+                
+                if closed_candles.empty:
                     time.sleep(0.5)
                     continue
 
-                # Only process closed candles
-                last_row = df.iloc[-1]
-                if not last_row.get('closed', False):
+                # Get the timestamp of the last closed candle
+                last_closed_ts = closed_candles.index[-1]
+
+                # Skip if we already processed this closed candle
+                if last_closed_ts == last_processed_ts:
                     time.sleep(0.5)
                     continue
+
+                # Slice df up to the last closed candle to prevent strategy
+                # from computing signals on incomplete data
+                df_to_analyze = df.loc[:last_closed_ts].copy()
 
                 # Sim mode: forward new candle open to SimExchange so pending_open
                 # entry orders fill at realistic open price (not signal time price).
                 if self.config.get("bot", {}).get("mode") == "sim" and hasattr(self.exchange, "on_kline_open"):
-                    self.exchange.on_kline_open(symbol, Decimal(str(last_row.get("open", 0))))
+                    # Use the open price of the exact next unclosed candle if available
+                    open_price = Decimal(str(df_to_analyze.iloc[-1].get("close", 0)))
+                    if current_ts > last_closed_ts:
+                        open_price = Decimal(str(df.loc[current_ts, "open"]))
+                    self.exchange.on_kline_open(symbol, open_price)
 
                 # Build stateless inputs for strategy
                 position = portfolio.get_position_snapshot(symbol)
                 ctx = self.contexts.get(symbol, ContextSnapshot(state="SCANNING"))
 
                 # Analyze candle — returns typed actions + new context
-                result = strategy.analyze(symbol, df, position=position, context=ctx)
+                result = strategy.analyze(symbol, df_to_analyze, position=position, context=ctx)
 
                 # Persist new context for next candle
                 self.contexts[symbol] = result.new_context
@@ -315,7 +327,7 @@ class MultiSymbolRunner:
                 if symbol in portfolio.positions:
                     portfolio.sync_tp_fills(symbol)
 
-                last_processed_ts = current_ts
+                last_processed_ts = last_closed_ts
 
                 # Small sleep to prevent CPU spinning
                 time.sleep(0.1)

@@ -103,6 +103,9 @@ class TelegramBot:
             print(f"TELEGRAM ERROR: {resp.status_code} - {resp.text}")
             return False
 
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            self.logger.warning(f"Telegram send network error: {e}")
+            return False
         except Exception as e:
             # Never crash the trading engine
             self.logger.exception("Telegram send exception")
@@ -187,7 +190,10 @@ class TelegramBot:
             except requests.exceptions.Timeout:
                 # Normal for long-polling
                 continue
-            except Exception:
+            except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
+                self.logger.warning(f"Telegram polling network error: {e}")
+                time.sleep(5)
+            except Exception as e:
                 self.logger.exception("Telegram polling loop error")
                 time.sleep(5)
 

@@ -173,11 +173,21 @@ class SimExchange(IExchange):
             created_at=time.time(),
         )
 
-        # Market BUY (entry) → pending_open (fills at next candle open)
+        # Market BUY (entry) → immediate fill (simulating live market order behavior)
         if order_type == "market" and side == "BUY" and not reduce_only:
-            order.status = "pending_open"
-            self.state.add_order(order)
-            logger.info(f"[SimExchange] Entry order queued ({order.id[:8]}) — {symbol} {amount}")
+            # We check the latest streaming price. If available, route it instantly so that
+            # limit (TP) and stop_market (SL) orders can be processed on the next tick.
+            last_price = self._last_prices.get(symbol, Decimal("0"))
+            if last_price > Decimal("0"):
+                order.status = "pending"
+                self.state.add_order(order)
+                self._execute_fill(order, last_price)
+                # logger.info(f"[SimExchange] Entry order filled immediately ({order.id[:8]}) — {symbol} {amount} @ {last_price}")
+            else:
+                # Fallback if no tick data yet
+                order.status = "pending_open"
+                self.state.add_order(order)
+                logger.info(f"[SimExchange] Entry order queued ({order.id[:8]}) — {symbol} {amount}")
             return self._order_to_dict(order)
 
         # Market SELL with reduceOnly → immediate fill at current tick price (soft SL)
