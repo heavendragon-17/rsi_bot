@@ -45,3 +45,4 @@ desktop.ini
 *.base
 *.canvas
 /.claude
+/app/backtest/report

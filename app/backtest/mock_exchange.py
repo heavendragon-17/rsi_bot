@@ -102,6 +102,82 @@ class MockExchange(IExchange):
             }
 
     # ============================================================
+    # Liquidation Management
+    # ============================================================
+
+    def check_liquidation(self, timestamp: Any) -> bool:
+        """
+        Check if the portfolio margin has been exhausted.
+        If equity drops <= 0, force close all positions at current prices
+        and charge a liquidation fee. Thread-safe.
+        
+        Returns True if liquidation occurred, False otherwise.
+        """
+        with self._lock:
+            if not self.positions:
+                return False
+
+            usdt_balance = self.balance
+            used_usdt = sum(self.margin_used.values())
+            
+            # Calculate total unrealized PnL
+            total_upnl = Decimal("0")
+            for symbol, amt_dec in self.positions.items():
+                if amt_dec == 0:
+                    continue
+                entry = self.entry_prices.get(symbol, Decimal("0"))
+                curr_data = self.current_prices.get(symbol, {})
+                curr = to_decimal(curr_data.get("price", entry))
+                upnl = (curr - entry) * amt_dec
+                total_upnl += upnl
+
+            # Total equity = balance + margin_used + unrealized_pnl
+            # Note: balance is unencumbered cash. To get total equity:
+            # Equity = (Balance + Margin Used) + UPNL
+            total_equity = usdt_balance + used_usdt + total_upnl
+            
+            # Simple liquidation: if equity <= 0
+            if total_equity <= Decimal("0"):
+                logger.warning("portfolio_liquidated", equity=float(total_equity), timestamp=timestamp)
+                
+                # Close all positions at market price
+                symbols_to_close = list(self.positions.keys())
+                for symbol in symbols_to_close:
+                    amount = self.positions.get(symbol, Decimal("0"))
+                    if amount <= 0:
+                        continue
+                        
+                    curr_data = self.current_prices.get(symbol, {})
+                    exec_price = to_decimal(curr_data.get("price", Decimal("0")))
+                    if exec_price <= 0:
+                        exec_price = self.entry_prices.get(symbol, Decimal("0"))
+                    
+                    # Temporarily increase taker fee to simulate liquidation penalty
+                    old_taker_fee = self.taker_fee
+                    self.taker_fee = Decimal("0.005")  # 0.5% liquidation fee
+
+                    try:
+                        self._execute_order(
+                            symbol=symbol,
+                            side="SELL",  # Assuming we only have long positions for now
+                            amount=amount,
+                            exec_price=exec_price,
+                            timestamp=timestamp,
+                            order_type="MARKET",
+                            exit_reason="LIQUIDATION",
+                        )
+                    except Exception as e:
+                        logger.error("liquidation_error", symbol=symbol, error=str(e))
+                    finally:
+                        self.taker_fee = old_taker_fee
+                        
+                # Ensure balance is strictly 0 (no negative balance)
+                self.balance = Decimal("0")
+                return True
+                
+            return False
+
+    # ============================================================
     # Market data update (OHLC) — Trigger logic for pending orders
     # ============================================================
 

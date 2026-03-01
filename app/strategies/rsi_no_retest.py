@@ -30,7 +30,7 @@ from app.utils.resampler import resample_dataframe
 from app.core.context import SCANNING, CONFIRMING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
-from app.core.actions import OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing
+from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
 
 logger = structlog.get_logger()
 
@@ -138,6 +138,13 @@ class RsiNoRetestStrategy(BaseStrategy):
             price_ema_fast=cfg.get("price_ema_fast", 21),
             price_ema_slow=cfg.get("price_ema_slow", 200),
         )
+
+        risk_cfg = config.get("risk", {}) if not hasattr(config, "get") or isinstance(config, dict) else getattr(config, "risk", {})
+        if not isinstance(risk_cfg, dict):
+             risk_cfg = risk_cfg.dict() if hasattr(risk_cfg, "dict") else {}
+             
+        self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", 0.0005)))
+        self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", 0.0002)))
 
         # ================================
         # Strategy parameters
@@ -263,16 +270,22 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl = sl * Decimal(str(1 - self.sl_buffer_pct))
         return sl
 
-    def _compute_price_at_rr(self, entry: Decimal, sl: Decimal, rr: Decimal) -> Optional[Decimal]:
+    def _compute_price_at_rr(self, entry: Decimal, sl: Decimal, rr: Decimal, is_taker_exit: bool = False) -> Optional[Decimal]:
         """
-        For LONG:
-          risk = entry - sl
-          price_at_rr = entry + rr * risk
+        Calculates the target price to achieve exactly `rr` * R, net of fees.
+        R is the risk defined as (entry - sl).
+        Net Profit = exit - entry - entry * taker_fee - exit * exit_fee.
+        So: exit * (1 - exit_fee) = entry * (1 + taker_fee) + (rr * R)
         """
         risk = entry - sl
         if risk <= Decimal("0"):
             return None
-        return entry + (risk * rr)
+            
+        target_net_profit = rr * risk
+        exit_fee_rate = self.taker_fee if is_taker_exit else self.maker_fee
+        
+        target_price = (entry * (Decimal("1") + self.taker_fee) + target_net_profit) / (Decimal("1") - exit_fee_rate)
+        return target_price
 
     # ---------------- main ----------------
     def analyze(
@@ -332,19 +345,11 @@ class RsiNoRetestStrategy(BaseStrategy):
             moved_sl = bool(meta.get("moved_sl_to_entry", False))
             pending_candle_sl = bool(meta.get("pending_candle_sl", False))
 
-            tp1_price = self._to_dec(meta.get("tp1_price"))
-            tp2_price = self._to_dec(meta.get("tp2_price"))
-            tp3_price = self._to_dec(meta.get("tp3_price"))
-
             # Lock profit price: precompute from original SL (never changes)
             lock_profit_price = self._to_dec(meta.get("lock_profit_price"))
             if lock_profit_price is None and original_soft_sl and entry_price:
-                lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr)
-
-            # TP hit flags come from Portfolio (source of truth), not context
-            tp1_hit = position.tp1_hit
-            tp2_hit = position.tp2_hit
-            tp3_hit = position.tp3_hit
+                # Stop loss acts as a TAKER order when hit
+                lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr, is_taker_exit=True)
 
             # -------------------------------------------------
             # STEP 0: pending candle SL — exit at THIS candle's open
@@ -357,57 +362,11 @@ class RsiNoRetestStrategy(BaseStrategy):
                 )
 
             # -------------------------------------------------
-            # STEP 1: TP logic (TP3 → TP2 → TP1, highest priority first)
+            # STEP 1: Move SL to lock profit when high reaches +0.5R
+            # TP targets are handled entirely by the exchange as limit orders.
             # -------------------------------------------------
-            # TP3: close remaining position (full exit at this level)
-            if (not tp3_hit) and tp3_price and high is not None and high >= tp3_price:
-                new_ctx = ContextSnapshot(state=SCANNING)
-                return AnalysisResult(
-                    actions=[PartialClose(
-                        symbol=symbol, tp_level="TP3", price=tp3_price,
-                        reason=f"TP3 (>{self.tp3_rr}R)",
-                    )],
-                    new_context=new_ctx,
-                )
-
-            # TP2: partial close, keep current SL
-            if (not tp2_hit) and tp2_price and high is not None and high >= tp2_price:
-                new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=meta)
-                return AnalysisResult(
-                    actions=[PartialClose(
-                        symbol=symbol, tp_level="TP2", price=tp2_price,
-                        reason=f"TP2 (>{self.tp2_rr}R)",
-                    )],
-                    new_context=new_ctx,
-                )
-
-            # TP1: partial close + move SL to lock_profit_price
-            if (not tp1_hit) and tp1_price and high is not None and high >= tp1_price:
-                new_meta = dict(meta)
-                new_meta["moved_sl_to_entry"] = True
-                if lock_profit_price:
-                    new_meta["sl_price"] = lock_profit_price
-                    new_meta["soft_sl_price"] = lock_profit_price
-                new_ctx = ContextSnapshot(
-                    state=context.state,
-                    soft_sl_price=lock_profit_price,
-                    meta=new_meta,
-                )
-                return AnalysisResult(
-                    actions=[PartialClose(
-                        symbol=symbol, tp_level="TP1", price=tp1_price,
-                        reason=f"TP1 (>{self.tp1_rr}R)",
-                        new_sl_price=lock_profit_price,
-                    )],
-                    new_context=new_ctx,
-                )
-
-            # -------------------------------------------------
-            # STEP 2: Move SL to lock profit when high reaches +0.5R
-            # Only before TP1 hits (TP1 already moves SL via PartialClose.new_sl_price)
-            # -------------------------------------------------
-            if (not moved_sl) and (not tp1_hit) and high is not None and soft_sl is not None:
-                move_trigger = self._compute_price_at_rr(entry_price, soft_sl, self.move_sl_rr)
+            if (not moved_sl) and high is not None and soft_sl is not None:
+                move_trigger = self._compute_price_at_rr(entry_price, original_soft_sl, self.move_sl_rr, is_taker_exit=False)
                 if move_trigger is not None and high >= move_trigger and lock_profit_price is not None:
                     new_meta = dict(meta)
                     new_meta["moved_sl_to_entry"] = True
@@ -428,7 +387,7 @@ class RsiNoRetestStrategy(BaseStrategy):
                     )
 
             # -------------------------------------------------
-            # STEP 3: Candle-close SL — set flag, exit next candle's open
+            # STEP 2: Candle-close SL — set flag, exit next candle's open
             # -------------------------------------------------
             if soft_sl is not None and close is not None and close <= soft_sl:
                 new_meta = dict(meta)
@@ -482,9 +441,10 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             entry_price = close
 
-            tp1_price = self._compute_price_at_rr(entry_price, sl_price, self.tp1_rr)
-            tp2_price = self._compute_price_at_rr(entry_price, sl_price, self.tp2_rr)
-            tp3_price = self._compute_price_at_rr(entry_price, sl_price, self.tp3_rr)
+            # TPs are limit orders => Maker fees
+            tp1_price = self._compute_price_at_rr(entry_price, sl_price, self.tp1_rr, is_taker_exit=False)
+            tp2_price = self._compute_price_at_rr(entry_price, sl_price, self.tp2_rr, is_taker_exit=False)
+            tp3_price = self._compute_price_at_rr(entry_price, sl_price, self.tp3_rr, is_taker_exit=False)
 
             # Dynamic TP allocations
             tp_allocations = {}
@@ -512,7 +472,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                 soft_sl_distance = entry_price - soft_sl_price
                 disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
 
-            lock_profit_price = self._compute_price_at_rr(entry_price, soft_sl_price, self.lock_profit_rr)
+            # Lock profit is triggered as STOP_MARKET => Taker fee
+            lock_profit_price = self._compute_price_at_rr(entry_price, soft_sl_price, self.lock_profit_rr, is_taker_exit=True)
 
             # Build new context carrying the active trade metadata
             tp_prices = [p for p in [tp1_price, tp2_price, tp3_price] if p is not None]

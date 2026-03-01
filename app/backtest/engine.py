@@ -111,20 +111,15 @@ class BacktestEngine(Engine):
         # Let MockExchange check wicks against pending SL/TP orders
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, l, c, ts)
 
-        # If any SELL order executed (SL or TP), check whether the position
-        # was fully closed on the exchange.  When it is, clear the portfolio
-        # position **and** reset the strategy context to SCANNING so the
-        # strategy can generate new entry signals on the very next candle.
-        # NOTE: We do NOT cancel remaining pending orders here — MockExchange's
-        # reduceOnly guard will auto-cancel them on the next update_candle().
-        for order in executed_orders:
-            if order.get("side", "").upper() == "SELL":
-                if candle.symbol not in self.exchange.positions:
-                    # Position fully closed (SL or final TP filled)
-                    if candle.symbol in self.portfolio.positions:
-                        del self.portfolio.positions[candle.symbol]
-                    self.contexts[candle.symbol] = ContextSnapshot(state="SCANNING")
-                    break  # position is gone, no need to check more orders
+        # Sync exchange-executed orders back into portfolio state.
+        # This covers two cases:
+        #  1. PARTIAL TP fill (limit order fired by update_candle): mark tp1/2/3_hit
+        #     and reduce pos.amount so strategy.analyze() won't emit a duplicate
+        #     PartialClose on the same candle (which would sell at close price instead
+        #     of the exact TP price, producing variable and incorrect PnL).
+        #  2. Full position close (SL or final TP): clear portfolio position and
+        #     reset context to SCANNING so new entries can fire immediately.
+        self._sync_executed_orders_to_portfolio(candle.symbol, executed_orders)
 
         self.portfolio.sync_from_exchange()
 
@@ -594,6 +589,51 @@ class BacktestEngine(Engine):
         indicators = strategy.indicators
         df = indicators.compute(df, symbol=symbol, timeframe="backtest")
         return df
+
+    def _sync_executed_orders_to_portfolio(self, symbol: str, executed_orders: list) -> None:
+        """
+        After update_candle() fires pending limit/stop orders, sync the fills back
+        into PortfolioManager so the strategy sees the correct state on the same candle.
+
+        Without this, strategy.analyze() reads position.tp1_hit=False and emits a
+        PartialClose on the same candle that already had its TP1 limit order fill,
+        causing a second sell at the candle's close price (variable PnL) instead of
+        the precise TP1 price we computed.
+
+        Two outcomes handled:
+        - Partial TP fill: mark tp_hit flag, reduce pos.amount on the position record.
+        - Full close (SL or final TP): remove portfolio position, reset context to SCANNING.
+        """
+        for order in executed_orders:
+            if order.get("side", "").upper() != "SELL":
+                continue
+
+            exit_reason = order.get("info", {}).get("exit_reason", "").upper()
+            filled_amount = order.get("filled", order.get("amount", 0))
+
+            # --- Full close: clear portfolio position and reset strategy context ---
+            if symbol not in self.exchange.positions:
+                if symbol in self.portfolio.positions:
+                    del self.portfolio.positions[symbol]
+                self.contexts[symbol] = ContextSnapshot(state="SCANNING")
+                return  # position gone — nothing more to sync
+
+            # --- Partial TP fill: update portfolio position state ---
+            pos = self.portfolio.positions.get(symbol)
+            if pos is None:
+                continue
+
+            from decimal import Decimal
+            filled_dec = Decimal(str(filled_amount))
+
+            if exit_reason in ("TP1", "TP2", "TP3"):
+                # Mark the TP level hit so strategy.analyze() won't emit PartialClose
+                flag = f"{exit_reason.lower()}_hit"
+                setattr(pos, flag, True)
+                # Reduce portfolio pos.amount to match exchange position
+                pos.amount = max(Decimal("0"), pos.amount - filled_dec)
+                # Remove the TP order id so execute_partial_close cancel doesn't fail
+                pos.tp_order_ids.pop(exit_reason, None)
 
     def _close_open_positions(self) -> None:
         """Close all open positions at final price for accurate EOD reporting."""

@@ -115,11 +115,16 @@ class PortfolioManager:
         # Determine risk capital (initial capital or current balance)
         if self.use_initial_capital_for_risk:
             risk_capital = self.initial_capital
+            # When using initial capital for risk, cap against initial capital too.
+            # Using current (degraded) balance as the cap would produce smaller positions
+            # than the risk formula intends, causing inconsistent TP/SL PnL.
+            cap_balance = self.initial_capital
         else:
             risk_capital = balance
+            cap_balance = balance
 
-        # Max margin we can use (based on current balance and leverage)
-        max_margin = balance * self.max_position_size_pct
+        # Max margin we can use (cap_balance ensures consistency with risk_capital)
+        max_margin = cap_balance * self.max_position_size_pct
         max_notional = max_margin * self.leverage
         max_amount = max_notional / entry_price
 
