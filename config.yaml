@@ -4,7 +4,7 @@ bot:
   debug: false # Toggle verbose strategy logging
 
 exchange:
-  name: "binanceusdm" # binanceusdm | lighter | etc.
+  name: "binanceusdm" # binanceusdm | lighter | hyperliquid | etc.
 
 timeframe: "15m"
 symbols:
