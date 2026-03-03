@@ -261,6 +261,7 @@ class BinanceAdapter(IExchange):
 
     def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
         """Fetch balance in CCXT format."""
+        params = params or {}
         with self._lock:
             try:
                 return self._exchange.fetch_balance(params)

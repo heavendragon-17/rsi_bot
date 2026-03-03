@@ -70,7 +70,7 @@ class SimExchange(IExchange):
 
         # Flags that tell PortfolioManager SimExchange handles its own notifications
         # so PortfolioManager skips firing duplicate events in sim mode.
-        self._fires_entry_notification: bool = True
+        self._fires_entry_notification: bool = False
         self._fires_fill_notification: bool = True
 
         logger.info(f"SimExchange initialised — balance={initial_balance} USDT")
@@ -307,76 +307,73 @@ class SimExchange(IExchange):
                         elif o.order_type == "limit" and o.price:
                             _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
                 # Capture for notification outside lock
-                notify_entry = (
-                    order.symbol, "LONG", fill_price, order.amount,
-                    self.state.balance, _sl_price, _tp_prices or None,
+                # Let PortfolioManager handle entry notifications to include SL/TP
+                notify_entry = None
+            else:
+                # --- SELL (SL or TP) ---
+                position = self.state.positions.get(order.symbol)
+                if not position:
+                    return
+    
+                close_amount = min(order.amount, position.amount)
+                if close_amount <= 0:
+                    return
+    
+                # Fee
+                if order.order_type == "limit":
+                    fee = fill_price * close_amount * MAKER_FEE
+                else:
+                    fee = fill_price * close_amount * TAKER_FEE
+    
+                # P&L
+                pnl_gross = (fill_price - position.entry_price) * close_amount
+                pnl_net = pnl_gross - fee
+    
+                # Funding attribution (pro-rata by close amount / initial amount)
+                funding_attr = Decimal("0")
+    
+                # Update balance
+                self.state.balance += pnl_net
+                self.state.total_fees_paid += fee
+    
+                # Determine exit reason
+                exit_reason = self._exit_reason(order, position)
+    
+                # Build ClosedTrade
+                trade = ClosedTrade(
+                    symbol=order.symbol,
+                    entry_price=position.entry_price,
+                    exit_price=fill_price,
+                    amount=close_amount,
+                    side="long",
+                    pnl_gross=pnl_gross,
+                    fees_paid=fee,
+                    funding_paid=funding_attr,
+                    pnl_net=pnl_net,
+                    r_multiple=(pnl_net / position.initial_risk) if position.initial_risk else Decimal("0"),
+                    exit_reason=exit_reason,
+                    opened_at=0.0,  # set in _open_position_locked
+                    closed_at=order.filled_at or self._sim_time or time.time(),
                 )
-                return
-
-            # --- SELL (SL or TP) ---
-            position = self.state.positions.get(order.symbol)
-            if not position:
-                return
-
-            close_amount = min(order.amount, position.amount)
-            if close_amount <= 0:
-                return
-
-            # Fee
-            if order.order_type == "limit":
-                fee = fill_price * close_amount * MAKER_FEE
-            else:
-                fee = fill_price * close_amount * TAKER_FEE
-
-            # P&L
-            pnl_gross = (fill_price - position.entry_price) * close_amount
-            pnl_net = pnl_gross - fee
-
-            # Funding attribution (pro-rata by close amount / initial amount)
-            funding_attr = Decimal("0")
-
-            # Update balance
-            self.state.balance += pnl_net
-            self.state.total_fees_paid += fee
-
-            # Determine exit reason
-            exit_reason = self._exit_reason(order, position)
-
-            # Build ClosedTrade
-            trade = ClosedTrade(
-                symbol=order.symbol,
-                entry_price=position.entry_price,
-                exit_price=fill_price,
-                amount=close_amount,
-                side="long",
-                pnl_gross=pnl_gross,
-                fees_paid=fee,
-                funding_paid=funding_attr,
-                pnl_net=pnl_net,
-                r_multiple=(pnl_net / position.initial_risk) if position.initial_risk else Decimal("0"),
-                exit_reason=exit_reason,
-                opened_at=0.0,  # set in _open_position_locked
-                closed_at=order.filled_at or self._sim_time or time.time(),
-            )
-
-            # Update or close position
-            position.amount -= close_amount
-            remaining = position.amount
-            if position.amount <= Decimal("0.000001"):
-                del self.state.positions[order.symbol]
-                self.state.closed_trades.append(trade)
-            else:
-                self.state.closed_trades.append(trade)
-
-            balance_after = self.state.balance
-
-            # Capture for notification outside lock
-            notify_fill = (
-                order.symbol, exit_reason, fill_price, close_amount,
-                pnl_gross, pnl_net, fee, trade.r_multiple,
-                remaining if remaining > Decimal("0.000001") else Decimal("0"),
-                balance_after,
-            )
+    
+                # Update or close position
+                position.amount -= close_amount
+                remaining = position.amount
+                if position.amount <= Decimal("0.000001"):
+                    del self.state.positions[order.symbol]
+                    self.state.closed_trades.append(trade)
+                else:
+                    self.state.closed_trades.append(trade)
+    
+                balance_after = self.state.balance
+    
+                # Capture for notification outside lock
+                notify_fill = (
+                    order.symbol, exit_reason, fill_price, close_amount,
+                    pnl_gross, pnl_net, fee, trade.r_multiple,
+                    remaining if remaining > Decimal("0.000001") else Decimal("0"),
+                    balance_after,
+                )
 
         # Emit notifications outside lock
         if notify_entry and self._notification_service:
