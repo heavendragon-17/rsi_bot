@@ -46,3 +46,5 @@ desktop.ini
 *.canvas
 /.claude
 /app/backtest/report
+/.obsidian
+/ui/node_modules
