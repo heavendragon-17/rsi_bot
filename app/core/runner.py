@@ -23,6 +23,7 @@ from app.core.interfaces import IExchange, IStrategy
 from app.core.portfolio import PortfolioManager
 from app.services.market_data.store import MarketDataStore
 from app.services.market_data.stream_manager import BinanceStreamManager
+from app.services.market_data.normalizer import DataNormalizer
 from app.core.snapshots import ContextSnapshot
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing
 from app.core.events import SignalEvent
@@ -88,6 +89,12 @@ class MultiSymbolRunner:
         self.strategies: Dict[str, IStrategy] = {}
         self.portfolios: Dict[str, PortfolioManager] = {}
         self.contexts: Dict[str, ContextSnapshot] = {}
+
+        # Map config symbol (e.g. "BTC/USDT") → store key (e.g. "BTC")
+        # DataNormalizer strips the quote asset before storing in MarketDataStore
+        self._store_keys: Dict[str, str] = {
+            s: DataNormalizer._normalize_symbol(s) for s in self.symbols
+        }
         
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -258,10 +265,12 @@ class MultiSymbolRunner:
 
         while self.running.is_set():
             try:
-                # Get latest candle data
-                df = self.store.get_dataframe(symbol)
+                # Get latest candle data using normalized store key
+                store_key = self._store_keys.get(symbol, symbol)
+                df = self.store.get_dataframe(store_key)
 
                 if df is None or df.empty:
+                    logger.debug(f"[{symbol}] No data yet (store_key={store_key})")
                     time.sleep(1)
                     continue
 
