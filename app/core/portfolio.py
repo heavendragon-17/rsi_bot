@@ -452,10 +452,12 @@ class PortfolioManager:
     # -------------------------
     def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
         if signal.symbol in self.positions:
+            logger.warning(f"[{signal.symbol}] Skipping BUY: position already exists")
             return None
 
         price = signal.price
         if price <= Decimal("0"):
+            logger.warning(f"[{signal.symbol}] Skipping BUY: invalid price {price}")
             return None
 
         # Position sizing: Use soft_sl_price for risk calculation
@@ -472,6 +474,7 @@ class PortfolioManager:
                 price=price,  # hint for MockExchange
             )
             if not order:
+                logger.warning(f"[{signal.symbol}] Skipping BUY: create_order returned None")
                 return None
         except InsufficientFundsError as e:
             logger.warning(f"Insufficient funds for {signal.symbol}: {e}")

@@ -103,7 +103,7 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
          logger.warning(f"Data missing or insufficient for {len(missing_data_symbols)} symbols. Attempting to download...")
          for symbol, safe_symbol, data_file in missing_data_symbols:
                try:
-                    download_data(safe_symbol, timeframe, limit, DATA_DIR)
+                    download_data(symbol, timeframe, limit, DATA_DIR)
                     if not os.path.exists(data_file):
                          logger.critical(f"Failed to fully download data for {symbol}. Stopping.")
                          sys.exit(1)
@@ -188,11 +188,41 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
             strategy_name=strategy_name,
             leverage=leverage,
         )
+    os.makedirs(REPORT_DIR, exist_ok=True)
     html_content = reporter._generate_html_report(return_only=True, output_dir=REPORT_DIR)
     report_path = os.path.join(REPORT_DIR, "portfolio_backtest_report.html")
     with open(report_path, "w", encoding="utf-8") as f:
          f.write(html_content)
     print(f"Report saved to: {report_path}")
+
+    # Save JSON report for AI agent debugging
+    import json
+    import numpy as np
+
+    def safe_serialize(obj):
+        if isinstance(obj, (pd.Timestamp, pd.DatetimeIndex)):
+            return obj.isoformat()
+        if isinstance(obj, pd.Series):
+            return obj.to_list()
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if pd.isna(obj):
+            return None
+        if hasattr(obj, "item"):
+            return obj.item()
+        from datetime import datetime, date
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        return str(obj)
+
+    json_report_path = os.path.join(REPORT_DIR, "portfolio_backtest_report.json")
+    try:
+        with open(json_report_path, "w", encoding="utf-8") as f:
+            json.dump(results, f, default=safe_serialize, indent=2)
+        print(f"AI Debug Report saved to: {json_report_path}")
+    except Exception as e:
+        logger.error(f"Failed to generate JSON debug report: {e}")
+
     
     # Auto-open report in browser
     import webbrowser

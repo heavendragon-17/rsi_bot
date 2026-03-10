@@ -316,11 +316,18 @@ class MultiSymbolRunner:
                 self.contexts[symbol] = result.new_context
 
                 # Dispatch actions
+                # IMPORTANT: Never send Telegram notifications synchronously here.
+                # All notifications go through NotificationService (async queue).
+                # Synchronous calls block this thread and delay other symbol processing.
                 for action in result.actions:
                     if isinstance(action, OpenPosition):
                         signal = self._action_to_signal(action)
-                        logger.info(f"[{symbol}] OpenPosition @ {action.entry_price}")
-                        portfolio.on_signal(signal)
+                        logger.info(f"[{symbol}] SIGNAL: {signal.signal_type} | {action.reason}")
+                        order = portfolio.on_signal(signal)
+                        if order:
+                            logger.info(f"[{symbol}] Order placed successfully")
+                        else:
+                            logger.warning(f"[{symbol}] Signal processed but no order placed")
                     elif isinstance(action, ClosePosition):
                         logger.info(f"[{symbol}] ClosePosition: {action.reason}")
                         portfolio.close_position(action.symbol, reason=action.reason, price=action.price)
