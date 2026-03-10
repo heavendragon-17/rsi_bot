@@ -412,10 +412,12 @@ class RsiNoRetestStrategy(BaseStrategy):
                 return _noop
 
             if not self._pullback_filter(df_ind):
-                logger.warning(f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter.")
+                if self.debug_enabled:
+                    logger.debug(f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter.")
                 return _noop
 
-            logger.warning(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
+            if self.debug_enabled:
+                logger.debug(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
             # Transition within the same tick (fall through to CONFIRMING)
             current_state = CONFIRMING
 
@@ -426,7 +428,8 @@ class RsiNoRetestStrategy(BaseStrategy):
 
             spread = float(rsi_ema9) - float(rsi_wma45)
             if spread < self.rsi_spread_min:
-                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
+                if self.debug_enabled:
+                    logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
             # Compute SL
@@ -436,7 +439,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                 sl_price = self._compute_sl(df_ind)
 
             if sl_price is None:
-                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - No SL computed - Reset to SCANNING")
+                if self.debug_enabled:
+                    logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - No SL computed - Reset to SCANNING")
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
             entry_price = close
@@ -462,7 +466,8 @@ class RsiNoRetestStrategy(BaseStrategy):
                 tp_allocations["TP3"] = 1.0
 
             if tp1_price is None:
-                logger.warning(f"[{symbol}] DEBUG: Failed Confirmation - Invalid TP - Reset to SCANNING")
+                if self.debug_enabled:
+                    logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - Invalid TP - Reset to SCANNING")
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
             # Dual SL system

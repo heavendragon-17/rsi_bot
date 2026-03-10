@@ -191,6 +191,10 @@ class PortfolioEngine(Engine):
                 pos.amount = max(Decimal("0"), pos.amount - filled_dec)
                 pos.tp_order_ids.pop(exit_reason, None)
 
+                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior
+                if exit_reason == "TP1" and pos.amount > Decimal("0"):
+                    self.portfolio._move_sl_to_entry(symbol)
+
     def _record_equity(self, ts) -> None:
         """Calculate and store the current total portfolio equity"""
         if not hasattr(self, '_last_equity_ts') or self._last_equity_ts != ts:

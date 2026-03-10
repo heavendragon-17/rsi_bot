@@ -21,6 +21,7 @@ from app.core.snapshots import ContextSnapshot
 from app.backtest.backtest_event_source import BacktestEventSource
 from app.backtest.mock_exchange import MockExchange
 from app.core.portfolio import PortfolioManager
+from app.backtest.download_data import calculate_candle_limit
 
 logger = structlog.get_logger()
 
@@ -42,6 +43,19 @@ class BacktestEngine(Engine):
 
     def __init__(self, data_path: str, strategy_class, config: dict) -> None:
         data = pd.read_csv(data_path)
+        
+        duration_cfg = config.get("backtest", {}).get("duration", {})
+        days = duration_cfg.get("days", 0)
+        months = duration_cfg.get("months", 0)
+        years = duration_cfg.get("years", 0)
+        timeframe = config.get("timeframe", "15m")
+        try:
+            limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
+            if limit > 0:
+                data = data.tail(limit).reset_index(drop=True)
+        except Exception as e:
+            logger.warning(f"Could not calculate or apply candle limit: {e}")
+            
         data["timestamp"] = pd.to_datetime(data["timestamp"])
 
         symbol = config["symbols"][0]
@@ -265,36 +279,52 @@ class BacktestEngine(Engine):
 
     @staticmethod
     def _build_round_trips(trades_df: pd.DataFrame) -> pd.DataFrame:
-        """Pair BUY entries with SELL exits to form complete round-trips."""
+        """Pair BUY entries with SELL exits to form complete round-trips.
+
+        Groups by symbol first so that portfolio-mode interleaved trades
+        from different symbols are never mixed into the same round-trip.
+        """
         if trades_df.empty:
             return pd.DataFrame()
 
         round_trips = []
-        current_entry = None
-        partial_exits = []
-        total_pnl = 0.0
-        total_exit_amount = 0.0
 
-        for _, trade in trades_df.iterrows():
-            if trade["side"] == "BUY":
-                if current_entry is not None and partial_exits:
-                    round_trips.append(BacktestEngine._create_round_trip(
-                        current_entry, partial_exits, total_pnl, total_exit_amount
-                    ))
-                current_entry = trade
-                partial_exits = []
-                total_pnl = 0.0
-                total_exit_amount = 0.0
-            elif trade["side"] == "SELL" and current_entry is not None:
-                partial_exits.append(trade)
-                if trade["pnl"] is not None:
-                    total_pnl += trade["pnl"]
-                total_exit_amount += trade["amount"]
+        # Group by symbol to avoid cross-symbol mismatches in portfolio mode
+        if "symbol" in trades_df.columns:
+            groups = trades_df.groupby("symbol", sort=False)
+        else:
+            groups = [("_", trades_df)]
 
-        if current_entry is not None and partial_exits:
-            round_trips.append(BacktestEngine._create_round_trip(
-                current_entry, partial_exits, total_pnl, total_exit_amount
-            ))
+        for _symbol, symbol_trades in groups:
+            current_entry = None
+            partial_exits = []
+            total_pnl = 0.0
+            total_exit_amount = 0.0
+
+            for _, trade in symbol_trades.iterrows():
+                if trade["side"] == "BUY":
+                    if current_entry is not None and partial_exits:
+                        round_trips.append(BacktestEngine._create_round_trip(
+                            current_entry, partial_exits, total_pnl, total_exit_amount
+                        ))
+                    current_entry = trade
+                    partial_exits = []
+                    total_pnl = 0.0
+                    total_exit_amount = 0.0
+                elif trade["side"] == "SELL" and current_entry is not None:
+                    partial_exits.append(trade)
+                    if trade["pnl"] is not None:
+                        total_pnl += trade["pnl"]
+                    total_exit_amount += trade["amount"]
+
+            if current_entry is not None and partial_exits:
+                round_trips.append(BacktestEngine._create_round_trip(
+                    current_entry, partial_exits, total_pnl, total_exit_amount
+                ))
+
+        # Sort by entry_time for chronological report order
+        if round_trips:
+            round_trips.sort(key=lambda rt: rt.get("entry_time") or "")
 
         return pd.DataFrame(round_trips) if round_trips else pd.DataFrame()
 
@@ -350,9 +380,13 @@ class BacktestEngine(Engine):
             "hit_sl": any(get_exit_reason(e) in ("SL", "STOP_LOSS") for e in exits),
         }
 
+    # All exit_reason values that represent a stop-loss variant
+    _SL_LABELS = {"SL", "STOP_LOSS", "BREAKEVEN", "LOCK_PROFIT", "STOP_MARKET"}
+
     @staticmethod
     def _get_highest_exit_reason(exit_reasons: list) -> str:
-        if any(r in ("SL", "STOP_LOSS") for r in exit_reasons):
+        has_sl = any(r in BacktestEngine._SL_LABELS for r in exit_reasons)
+        if has_sl:
             has_tp = any(r and r.startswith("TP") for r in exit_reasons)
             if has_tp:
                 for tp in ["TP3", "TP2", "TP1"]:
@@ -634,6 +668,10 @@ class BacktestEngine(Engine):
                 pos.amount = max(Decimal("0"), pos.amount - filled_dec)
                 # Remove the TP order id so execute_partial_close cancel doesn't fail
                 pos.tp_order_ids.pop(exit_reason, None)
+
+                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior
+                if exit_reason == "TP1" and pos.amount > Decimal("0"):
+                    self.portfolio._move_sl_to_entry(symbol)
 
     def _close_open_positions(self) -> None:
         """Close all open positions at final price for accurate EOD reporting."""

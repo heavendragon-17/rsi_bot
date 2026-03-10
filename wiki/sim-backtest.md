@@ -1,6 +1,6 @@
 # Paper Backtest (Tick-Level Replay)
 
-A higher-fidelity backtesting mode that replays real aggTrades tick data through `PaperExchange` instead of using the wick-approximation `MockExchange`. This measures precise SL/TP fill prices, FIFO ordering, and gap scenarios that OHLC-based backtests cannot capture.
+A higher-fidelity backtesting mode that replays real aggTrades tick data through `  SimExchange` instead of using the wick-approximation `MockExchange`. This measures precise SL/TP fill prices, FIFO ordering, and gap scenarios that OHLC-based backtests cannot capture.
 
 ---
 

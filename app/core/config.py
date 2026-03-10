@@ -114,17 +114,23 @@ class AppConfig:
         backtest_raw = raw.get("backtest", {})
         paper_sim_raw = raw.get("sim", raw.get("paper_sim", {}))  # backward compat
 
+        raw_leverage = risk_raw.get("leverage", 10)
+        if str(raw_leverage).strip() == "max_position_size_pct":
+            leverage_val = int(float(risk_raw.get("max_position_size_pct", 10)))
+        else:
+            leverage_val = int(raw_leverage)
+
         return cls(
             exchange=ExchangeConfig(
                 name=exchange_raw.get("name", "binanceusdm"),
                 mode=bot.get("mode", "mock"),
-                leverage=int(risk_raw.get("leverage", 10)),
+                leverage=leverage_val,
                 margin_type=exchange_raw.get("margin_type", "ISOLATED"),
             ),
             risk=RiskConfig(
                 risk_per_trade_pct=Decimal(str(risk_raw.get("risk_per_trade_pct", "0.02"))),
                 max_position_size_pct=Decimal(str(risk_raw.get("max_position_size_pct", "0.99"))),
-                leverage=int(risk_raw.get("leverage", 10)),
+                leverage=leverage_val,
                 use_initial_capital_for_risk=bool(
                     risk_raw.get("use_initial_capital_for_risk", False)
                 ),

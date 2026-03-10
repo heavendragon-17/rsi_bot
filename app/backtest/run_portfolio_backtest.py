@@ -24,7 +24,7 @@ from app.backtest.portfolio_event_source import PortfolioEventSource
 from app.backtest.mock_exchange import MockExchange
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-from app.backtest.download_data import download_data
+from app.backtest.download_data import download_data, calculate_candle_limit
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.core.logging import setup_logging
@@ -69,18 +69,41 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
     dfs = {}
     missing_data_symbols = []
 
+    # Calculate dynamic candle limit
+    duration_cfg = config.get("backtest", {}).get("duration", {})
+    days = duration_cfg.get("days", 0)
+    months = duration_cfg.get("months", 0)
+    years = duration_cfg.get("years", 0)
+    
+    try:
+        limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
+    except ValueError as e:
+        logger.error(f"Error calculating candle limit: {e}")
+        limit = 8832 # Fallback
+
     # 1. Verify / download Data
     for symbol in symbols:
          safe_symbol = symbol.replace('/', '')
          data_file = os.path.join(DATA_DIR, f"{safe_symbol}_{timeframe}.csv")
+         
+         needs_download = False
          if not os.path.exists(data_file):
+              needs_download = True
+         else:
+              # Check if the file has enough rows (approximate with line count)
+              with open(data_file, 'r', encoding='utf-8') as f:
+                  row_count = sum(1 for _ in f) - 1 # subtract header
+              if row_count < int(limit * 0.95): # 5% margin for missing data/downtime
+                  needs_download = True
+                  
+         if needs_download:
               missing_data_symbols.append((symbol, safe_symbol, data_file))
 
     if missing_data_symbols:
-         logger.warning(f"Missing data for {len(missing_data_symbols)} symbols. Attempting to download...")
+         logger.warning(f"Data missing or insufficient for {len(missing_data_symbols)} symbols. Attempting to download...")
          for symbol, safe_symbol, data_file in missing_data_symbols:
                try:
-                    download_data(safe_symbol, timeframe, 8832, DATA_DIR)
+                    download_data(safe_symbol, timeframe, limit, DATA_DIR)
                     if not os.path.exists(data_file):
                          logger.critical(f"Failed to fully download data for {symbol}. Stopping.")
                          sys.exit(1)
@@ -94,6 +117,8 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
          safe_symbol = symbol.replace('/', '')
          data_file = os.path.join(DATA_DIR, f"{safe_symbol}_{timeframe}.csv")
          df = pd.read_csv(data_file)
+         if limit > 0:
+             df = df.tail(limit).reset_index(drop=True)
          df["timestamp"] = pd.to_datetime(df["timestamp"])
          
          # The base _prepare_dataframe modifies index and computes indicators
@@ -164,9 +189,17 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
             leverage=leverage,
         )
     html_content = reporter._generate_html_report(return_only=True, output_dir=REPORT_DIR)
-    with open(os.path.join(REPORT_DIR, "portfolio_backtest_report.html"), "w", encoding="utf-8") as f:
+    report_path = os.path.join(REPORT_DIR, "portfolio_backtest_report.html")
+    with open(report_path, "w", encoding="utf-8") as f:
          f.write(html_content)
-    print(f"Report saved to: {os.path.join(REPORT_DIR, 'portfolio_backtest_report.html')}")
+    print(f"Report saved to: {report_path}")
+    
+    # Auto-open report in browser
+    import webbrowser
+    try:
+        webbrowser.open(f"file://{os.path.abspath(report_path)}")
+    except Exception as e:
+        print(f"Could not auto-open report: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Unified Portfolio Backtest")

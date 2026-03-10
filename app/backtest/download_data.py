@@ -11,6 +11,37 @@ from datetime import datetime
 import time
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+import re
+
+def calculate_candle_limit(timeframe: str, days: int = 0, months: int = 0, years: int = 0, default_limit: int = 8832) -> int:
+    """
+    Calculate the number of candles to download based on the given duration.
+    Assumes 30 days per month and 365 days per year.
+    Fallbacks to default_limit if duration is 0.
+    """
+    total_days = days + (months * 30) + (years * 365)
+    if total_days <= 0:
+        return default_limit
+        
+    # Parse timeframe string (e.g. "15m", "1h", "1d") to get minutes
+    match = re.match(r"(\d+)([mhd])", timeframe)
+    if not match:
+        raise ValueError(f"Invalid timeframe format: {timeframe}")
+        
+    value = int(match.group(1))
+    unit = match.group(2).lower()
+    
+    if unit == 'm':
+        tf_minutes = value
+    elif unit == 'h':
+        tf_minutes = value * 60
+    elif unit == 'd':
+        tf_minutes = value * 60 * 24
+    else:
+        raise ValueError(f"Unsupported timeframe unit: {unit}")
+        
+    total_minutes = total_days * 24 * 60
+    return total_minutes // tf_minutes
 
 def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> None:
     """
@@ -116,9 +147,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download historical data from Binance")
     parser.add_argument("--symbol", type=str, default="BTC/USDT", help="Trading pair (e.g. BTC/USDT)")
     parser.add_argument("--timeframe", type=str, default="5m", help="Timeframe (e.g. 1m, 5m, 1h, 1d)")
-    parser.add_argument("--limit", type=int, default=1000, help="Number of candles (can exceed 1000)")
+    parser.add_argument("--limit", type=int, default=1000, help="Number of candles (can exceed 1000). Overridden by duration args if provided.")
+    parser.add_argument("--days", type=int, default=0, help="Number of days of data to download")
+    parser.add_argument("--months", type=int, default=0, help="Number of months of data to download (assumes 30 days/month)")
+    parser.add_argument("--years", type=int, default=0, help="Number of years of data to download (assumes 365 days/year)")
     parser.add_argument("--output", type=str, default=os.path.join(SCRIPT_DIR, "data"), help="Output directory")
     
     args = parser.parse_args()
     
-    download_data(args.symbol, args.timeframe, args.limit, args.output)
+    # Calculate limit based on duration if any duration argument is provided
+    if args.days > 0 or args.months > 0 or args.years > 0:
+        limit = calculate_candle_limit(args.timeframe, days=args.days, months=args.months, years=args.years, default_limit=args.limit)
+    else:
+        limit = args.limit
+        
+    download_data(args.symbol, args.timeframe, limit, args.output)

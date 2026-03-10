@@ -138,21 +138,28 @@ class TestPartialTPSL(unittest.TestCase):
         self.strategy.indicators.compute = lambda df, **ks: df_mock
         Indicators.last = lambda df: last_vals
 
-        # 3. Analyze - Should return PartialClose(TP1) action
+        # 3. Analyze - Should return MoveSL action (lock profit triggered at +0.5R)
         result = self.strategy.analyze(symbol, df_mock, position=position, context=ctx)
 
         print("\nGenerated Result:", result)
 
-        # Verify action is PartialClose for TP1
-        tp1_action = next((a for a in result.actions if isinstance(a, PartialClose) and a.tp_level == "TP1"), None)
-        self.assertIsNotNone(tp1_action, "Should have generated a PartialClose(TP1) action")
-        self.assertTrue(tp1_action.reason.startswith("TP1"))
+        # Verify action is MoveSL
+        move_sl_action = next((a for a in result.actions if isinstance(a, MoveSL)), None)
+        self.assertIsNotNone(move_sl_action, "Should have generated a MoveSL action for lock profit")
+        self.assertTrue("MOVE_SL_LOCK_PROFIT" in move_sl_action.reason)
 
         # KEY CHECK: Does action carry correct new SL (lock profit)?
-        # Lock Profit = 100 + (10 * 0.2) = 102
-        expected_sl = Decimal("102")
-        self.assertIsNotNone(tp1_action.new_sl_price)
-        self.assertAlmostEqual(float(tp1_action.new_sl_price), float(expected_sl), places=2)
+        # Risk = 10. Lock Profit target = 0.2R net of fees.
+        # R = entry - sl = 100 - 90 = 10
+        # target_net_profit = 0.2 * 10 = 2
+        # Exit fee rate = 0.0005 (taker for stop_market)
+        # Entry fee = 100 * 0.0005 = 0.05
+        # 100 * 1.0005 + 2 = 102.05
+        # exit * 0.9995 = 102.05
+        # expected_sl = 102.05 / 0.9995 = 102.101...
+        expected_sl = Decimal("102.10105052526263")
+        self.assertIsNotNone(move_sl_action.new_sl_price)
+        self.assertAlmostEqual(float(move_sl_action.new_sl_price), float(expected_sl), places=2)
 
         # 4. Simulate Portfolio Handling via execute_partial_close (new runner flow)
 
@@ -176,7 +183,9 @@ class TestPartialTPSL(unittest.TestCase):
         self.exchange.create_order = mock_create_order
 
         # Run portfolio logic using new execute_partial_close path
-        self.portfolio.execute_partial_close(symbol, tp1_action.tp_level, new_sl_price=tp1_action.new_sl_price)
+        # In the new design, partial close is manual or triggered separately from the MoveSL,
+        # but we can still test execute_partial_close using the price from move_sl_action as a test.
+        self.portfolio.execute_partial_close(symbol, "TP1", new_sl_price=move_sl_action.new_sl_price)
 
         # 5. Verify Portfolio Actions
         # Should have 2 actions:

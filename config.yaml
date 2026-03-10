@@ -54,6 +54,10 @@ risk:
 
 backtest:
   initial_balance: 10000
+  duration:
+    days: 0
+    months: 3
+    years: 0
 
 sim:
   initial_balance: 10000 # USDT starting balance for sim mode

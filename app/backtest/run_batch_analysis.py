@@ -22,7 +22,7 @@ from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-from app.backtest.download_data import download_data
+from app.backtest.download_data import download_data, calculate_candle_limit
 from app.core.logging import setup_logging
 import logging
 
@@ -241,11 +241,31 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         safe_symbol = symbol.replace('/', '')
         data_file = os.path.join(data_dir, f"{safe_symbol}_{timeframe}.csv")
         
-        # Download if missing
+        duration_cfg = config.get("backtest", {}).get("duration", {})
+        days = duration_cfg.get("days", 0)
+        months = duration_cfg.get("months", 0)
+        years = duration_cfg.get("years", 0)
+        
+        try:
+            limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
+        except ValueError as e:
+            print(f"[{symbol}] Error calculating candle limit: {e}")
+            limit = 8832 # Fallback
+            
+        needs_download = False
         if not os.path.exists(data_file):
-            print(f"[{symbol}] Data not found. Downloading...")
+            needs_download = True
+        else:
+            with open(data_file, 'r', encoding='utf-8') as f:
+                row_count = sum(1 for _ in f) - 1
+            if row_count < int(limit * 0.95):
+                needs_download = True
+                
+        # Download if missing or insufficient
+        if needs_download:
+            print(f"[{symbol}] Data missing or insufficient. Downloading...")
             try:
-                download_data(safe_symbol, timeframe, 8832, data_dir)
+                download_data(safe_symbol, timeframe, limit, data_dir)
                 if not os.path.exists(data_file):
                     return {"symbol": symbol, "error": "Download failed"}
             except Exception as e:
@@ -256,6 +276,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         run_config['symbols'] = [symbol]
         
         # Run backtest — returns pre-computed results dict
+        # BacktestEngine now internally tail(limit)s based on config
         engine = BacktestEngine(data_file, strategy_class, run_config)
         engine.exchange.initial_balance = Decimal(str(balance))
         engine.exchange.balance = Decimal(str(balance))
@@ -308,7 +329,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         
     except Exception as e:
         import traceback
-        print(f"[{symbol}] ✗ Error: {e}")
+        print(f"[{symbol}] X Error: {e}")
         traceback.print_exc()
         return {"symbol": symbol, "error": str(e)}
 
