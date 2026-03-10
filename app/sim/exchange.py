@@ -182,7 +182,7 @@ class SimExchange(IExchange):
                 order.status = "pending"
                 self.state.add_order(order)
                 self._execute_fill(order, last_price)
-                # logger.info(f"[SimExchange] Entry order filled immediately ({order.id[:8]}) — {symbol} {amount} @ {last_price}")
+                logger.info(f"[SimExchange] Entry filled immediately ({order.id[:8]}) — {symbol} {amount} @ {last_price}")
             else:
                 # Fallback if no tick data yet
                 order.status = "pending_open"

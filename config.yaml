@@ -40,7 +40,7 @@ strategy: "rsi_no_retest"
 risk:
   # Position sizing
   max_position_size_pct: 10 # Max margin to use per trade (99% of balance)
-  risk_per_trade_pct: 0.02 # Risk 2% of capital per trade
+  risk_per_trade_pct: 0.002 # Risk 2% of capital per trade
   use_risk_based_sizing: true # Calculate size based on SL distance
   use_initial_capital_for_risk: true # Risk based on initial capital (not current balance)
   min_sl_distance_pct: 0.003 # Minimum SL distance (1%) - skip trades with smaller SL
@@ -53,10 +53,10 @@ risk:
   tp2_close_pct: 0.50 # Close 1/2 of remaining at TP2
 
 backtest:
-  initial_balance: 10000
+  initial_balance: 100000
   duration:
     days: 0
-    months: 3
+    months: 2
     years: 0
 
 sim:
