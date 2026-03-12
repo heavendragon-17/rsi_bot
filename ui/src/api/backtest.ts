@@ -8,6 +8,10 @@ import type {
   BacktestStartResponse,
   RunDetail,
   TimeseriesResponse,
+  BatchRunDetail,
+  BatchTimeseriesResponse,
+  PortfolioRunDetail,
+  PortfolioTimeseriesResponse,
 } from "../types/api-types";
 
 // ---------------------------------------------------------------------------
@@ -44,7 +48,7 @@ export async function startBacktest(
  */
 export function streamProgress(
   runId: number,
-  onProgress: (pct: number) => void,
+  onProgress: (pct: number, payload?: any) => void,
   onComplete: (data: { run_id: number; status: string }) => void,
   onError: (message: string) => void,
 ): () => void {
@@ -52,12 +56,12 @@ export function streamProgress(
     `/api/backtest/${runId}/progress`,
     (eventName, data) => {
       if (eventName === "progress") {
-        const d = data as { pct?: number };
-        onProgress(d.pct ?? 0);
+        const d = data as { pct?: number; symbol?: string; symbol_status?: string };
+        onProgress(d.pct ?? 0, d);
       } else if (eventName === "complete") {
         onComplete(data as { run_id: number; status: string });
-      } else if (eventName === "error") {
-        const d = data as { message?: string };
+      } else if (eventName === "error" || eventName === "symbol_error") {
+        const d = data as { message?: string; symbol?: string };
         onError(d.message ?? "Unknown backtest error");
       }
     },
@@ -70,8 +74,8 @@ export function streamProgress(
 // ---------------------------------------------------------------------------
 
 /** DELETE /api/backtest/{run_id} */
-export async function cancelBacktest(runId: number): Promise<void> {
-  await apiFetch<void>(`/api/backtest/${runId}`, { method: "DELETE" });
+export async function cancelBacktest(runId: number, mode: string = "single"): Promise<void> {
+  await apiFetch<void>(`/api/backtest/${runId}?mode=${mode}`, { method: "DELETE" });
 }
 
 // ---------------------------------------------------------------------------
@@ -90,4 +94,20 @@ export async function getRunDetail(runId: number): Promise<RunDetail> {
 /** GET /api/backtest/{run_id}/timeseries — lazy-load equity + drawdown curves */
 export async function getTimeseries(runId: number): Promise<TimeseriesResponse> {
   return apiFetch<TimeseriesResponse>(`/api/backtest/${runId}/timeseries`);
+}
+
+export async function getBatchRunDetail(id: number): Promise<BatchRunDetail> {
+  return apiFetch<BatchRunDetail>(`/api/backtest/batch/${id}`);
+}
+
+export async function getBatchTimeseries(id: number): Promise<BatchTimeseriesResponse> {
+  return apiFetch<BatchTimeseriesResponse>(`/api/backtest/batch/${id}/timeseries`);
+}
+
+export async function getPortfolioRunDetail(id: number): Promise<PortfolioRunDetail> {
+  return apiFetch<PortfolioRunDetail>(`/api/backtest/portfolio/${id}`);
+}
+
+export async function getPortfolioTimeseries(id: number): Promise<PortfolioTimeseriesResponse> {
+  return apiFetch<PortfolioTimeseriesResponse>(`/api/backtest/portfolio/${id}/timeseries`);
 }

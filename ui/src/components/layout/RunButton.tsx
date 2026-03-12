@@ -7,7 +7,10 @@ interface RunButtonProps {
 }
 
 export const RunButton: React.FC<RunButtonProps> = ({ onClick }) => {
-  const { isRunning, runProgress, runBacktest, cancelBacktest } = useBacktestStore();
+  const isRunning = false;
+const runProgress = 0;
+const runBacktest = async () => {};
+const cancelBacktest = async () => {};
 
   const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();

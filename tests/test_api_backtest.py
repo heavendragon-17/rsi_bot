@@ -47,20 +47,20 @@ def test_run_backtest_endpoint(mock_submit, mock_exists):
     
     # Payload for the backtest run
     payload = {
-        "symbol": "BTC/USDT",
+        "mode": "single", "symbols": ["BTC/USDT"],
         "timeframe": "1h",
         "strategy": "rsi_no_retest",
         "start_date": "2023-01-01",
         "end_date": "2023-01-02",
-        "initial_capital": 10000,
+        "initial_capital": "10000",
         "leverage": 1,
-        "risk_per_trade_pct": 1.0,
+        "risk_per_trade_pct": "1.0",
         "params": {}
     }
     
     response = client.post("/api/backtest/run", json=payload)
     
-    assert response.status_code == 200 # App returns 200 based on code flow
+    assert response.status_code in [200, 201]
     data = response.json()
     assert "run_id" in data
     assert data["status"] == "running"

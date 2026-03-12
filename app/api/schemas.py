@@ -6,9 +6,9 @@ Do NOT add hand-written TypeScript interfaces for these models.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 
 # ---------------------------------------------------------------------------
@@ -17,28 +17,20 @@ from pydantic import BaseModel, model_validator
 
 
 class BacktestRequest(BaseModel):
-    """Unified backtest request. Provide exactly one of `symbol` (single) or `symbols` (portfolio)."""
-    symbol: str | None = None           # Single-symbol mode
-    symbols: list[str] | None = None    # Portfolio mode
+    mode: Literal["single", "batch", "portfolio"]
+    symbols: list[str]               # single → use symbols[0]
     timeframe: str
     strategy: str
-    start_date: str
+    start_date: str                  # yyyy-MM-dd
     end_date: str
-    initial_capital: str = "10000.00"   # TEXT / Decimal string
+    initial_capital: str = "10000"
+    capital_mode: Literal["split", "full"] = "split"   # batch only
     leverage: int = 10
     risk_per_trade_pct: str = "0.02"
     fee_tier: str = "0.001"
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}
-
-    @model_validator(mode="after")
-    def _check_symbol_xor_symbols(self) -> "BacktestRequest":
-        has_single = bool(self.symbol)
-        has_multi = bool(self.symbols)
-        if has_single == has_multi:
-            raise ValueError("Provide exactly one of 'symbol' (single) or 'symbols' (portfolio)")
-        return self
 
 
 # ---------------------------------------------------------------------------
@@ -47,8 +39,67 @@ class BacktestRequest(BaseModel):
 
 
 class BacktestStartResponse(BaseModel):
-    run_id: int
+    run_id: int | None = None          # For single mode — existing Run row
+    batch_run_id: int | None = None    # For batch mode — new BatchRun row
+    portfolio_run_id: int | None = None  # For portfolio mode — new PortfolioRun row
+    mode: str
+    status: str          # "running"
+
+
+class BatchSymbolResult(BaseModel):
+    symbol: str
+    status: Literal["completed", "failed"]
+    error: str | None = None
+    net_profit: str | None = None
+    net_profit_pct: float | None = None
+    win_rate: float | None = None
+    profit_factor: float | None = None
+    max_drawdown_pct: float | None = None
+    sharpe_ratio: float | None = None
+    total_trades: int | None = None
+    trades: list[dict[str, Any]] | None = None
+
+
+class BatchRunDetail(BaseModel):
+    id: int
+    mode: Literal["batch"] = "batch"
+    strategy_name: str
+    timeframe: str
     status: str
+    created_at: str
+    config: dict[str, Any]
+    capital_mode: str            # "split" | "full"
+    symbol_count: int
+    failed_symbols: list[str]
+    aggregate: dict[str, Any]    # total_pnl, portfolio_return, avg_sharpe, total_trades, etc.
+    symbols: list[BatchSymbolResult]
+
+
+class PortfolioRunDetail(BaseModel):
+    id: int
+    mode: Literal["portfolio"] = "portfolio"
+    strategy_name: str
+    timeframe: str
+    status: str
+    created_at: str
+    config: dict[str, Any]
+    symbols: list[str]
+    results: dict[str, Any]      # same shape as single RunResult (shared portfolio metrics)
+    trades: list[dict[str, Any]] # all trades with symbol field
+
+
+class BatchTimeseriesResponse(BaseModel):
+    batch_run_id: int
+    portfolio_equity_curve: list[dict[str, Any]]   # aggregate equity over time
+    per_symbol_equity: dict[str, list[dict[str, Any]]]        # symbol → equity curve
+    monthly_returns: dict[str, Any]
+
+
+class PortfolioTimeseriesResponse(BaseModel):
+    portfolio_run_id: int
+    equity_curve: list[dict[str, Any]]
+    drawdown_curve: list[dict[str, Any]]
+    monthly_returns: dict[str, Any]
 
 
 class RunSummary(BaseModel):
