@@ -11,7 +11,6 @@ import {
   Calendar,
   Activity,
   Sliders,
-  Code,
   History,
 } from "lucide-react";
 import { useBacktestStore } from "../../stores/backtestStore";
@@ -77,11 +76,6 @@ export const Sidebar: React.FC = () => {
   };
 
   const handleRunRequest = async () => {
-    if (mode === "pine") {
-      toast.info("Pine Script testing is coming in a future update.");
-      return;
-    }
-
     // 1. Validate inputs
     let isValid = true;
     Object.entries(params).forEach(([k, v]) => {
@@ -117,7 +111,7 @@ export const Sidebar: React.FC = () => {
     const startTime = Date.now();
 
     const symbolsToCheck =
-      mode === "batch"
+      mode === "batch" || mode === "portfolio"
         ? portfolioInput
             .split("\n")
             .map((s) => s.trim())
@@ -145,7 +139,8 @@ export const Sidebar: React.FC = () => {
         openModal();
       }
     } catch (e) {
-      executeRun();
+      toast.error("Could not check data status. Is the backend running?");
+      return;
     }
   };
 
@@ -253,25 +248,22 @@ export const Sidebar: React.FC = () => {
                       : "text-text-secondary hover:text-text-primary"
                   )}
                 >
-                  Portfolio
+                  Batch
                 </button>
                 <button
-                  onClick={() => setMode("pine")}
+                  onClick={() => setMode("portfolio")}
                   className={cn(
-                    "flex-1 py-1.5 text-[10px] font-medium rounded-md transition-all flex items-center justify-center gap-1",
-                    mode === "pine"
-                      ? "bg-bg-secondary text-accent-main shadow-sm"
+                    "flex-1 py-1.5 text-[10px] font-medium rounded-md transition-all",
+                    mode === "portfolio"
+                      ? "bg-bg-secondary text-text-primary shadow-sm"
                       : "text-text-secondary hover:text-text-primary"
                   )}
                 >
-                  <Code size={10} />
-                  Pine
+                  Portfolio
                 </button>
               </div>
             </CollapsibleSection>
-            {/* Only show Strategy/Asset config if NOT in Pine mode */}
-            {mode !== "pine" && (
-              <>
+            {/* Symbol & Timeframe */}
                 {/* Symbol & Timeframe */}
                 <CollapsibleSection title="Asset Config">
                   <div className="grid grid-cols-2 gap-3 mb-3">
@@ -469,18 +461,7 @@ export const Sidebar: React.FC = () => {
                     </div>
                   </div>
                 </CollapsibleSection>
-              </>
-            )}
-            {/* Pine Tool Instructions (only if Pine mode) */}
-            {mode === "pine" && (
-              <div className="p-4 text-xs text-text-muted italic">
-                Use the Pine Script Translator to import strategies from
-                TradingView.
-                <br />
-                <br />
-                Once saved, they will appear in your Strategy list.
-              </div>
-            )}
+
           </div>
         </div>
 
@@ -508,12 +489,6 @@ export const Sidebar: React.FC = () => {
               />
             </div>
 
-            <div className="group relative flex justify-center w-full">
-              <Code
-                size={20}
-                className="text-text-secondary group-hover:text-text-primary transition-colors cursor-pointer"
-              />
-            </div>
           </div>
         )}
 
@@ -523,8 +498,6 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* Sticky Footer (RUN Button) - Hide in Pine mode? Or change text? */}
-      {mode !== "pine" && (
         <div className="p-4 border-t border-border-main/50 bg-bg-surface/80 backdrop-blur-md shrink-0 z-20">
           {isSidebarOpen ? (
             <RunButton onClick={handleRunRequest} />
@@ -537,7 +510,6 @@ export const Sidebar: React.FC = () => {
             </button>
           )}
         </div>
-      )}
     </aside>
   );
 };

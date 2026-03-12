@@ -43,9 +43,14 @@ def calculate_candle_limit(timeframe: str, days: int = 0, months: int = 0, years
     total_minutes = total_days * 24 * 60
     return total_minutes // tf_minutes
 
-def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> None:
+def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exchange=None) -> None:
     """
     Download historical OHLCV data from Binance incrementally.
+
+    Args:
+        exchange: Optional pre-loaded ccxt.binanceusdm instance. If None, a new one is
+                  created and markets are loaded here. Pass a shared instance when calling
+                  in a loop to avoid redundant load_markets() calls per symbol.
     """
     print(f"Downloading data for {symbol} ({timeframe})...")
     
@@ -53,8 +58,17 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
     safe_symbol = symbol.replace('/', '')
     filepath = os.path.join(output_dir, f"{safe_symbol}_{timeframe}.csv")
     
-    exchange = ccxt.binanceusdm()
+    if exchange is None:
+        exchange = ccxt.binanceusdm()
+        exchange.load_markets()  # Sync full symbol list so all valid tickers are recognized
     MAX_PER_REQUEST = 1000
+    
+    # CCXT binanceusdm requires futures symbol format: "PYTH/USDT:USDT" not "PYTH/USDT"
+    # Auto-convert spot-style symbols from symbols.txt / config.yaml
+    fetch_symbol = symbol
+    if hasattr(exchange, 'id') and exchange.id == 'binanceusdm':
+        if ':' not in symbol and '/USDT' in symbol:
+            fetch_symbol = symbol + ':USDT'
     
     all_new_candles = []
     
@@ -65,12 +79,17 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
     if os.path.exists(filepath):
         try:
             existing_df = pd.read_csv(filepath)
-            existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
-            existing_df = existing_df.sort_values('timestamp').reset_index(drop=True)
-            last_ts = existing_df['timestamp'].iloc[-1]
-            print(f"  Found existing file with {len(existing_df)} candles. Last timestamp: {last_ts}")
-            # Convert UTC+7 back to UTC ms
-            since_ts = int((last_ts - pd.Timedelta(hours=7)).timestamp() * 1000)
+            
+            if len(existing_df) < int(limit * 0.95):
+                print(f"  Existing file has only {len(existing_df)} candles (needs ~{limit}). Discarding and fetching fresh.")
+                existing_df = None
+            else:
+                existing_df['timestamp'] = pd.to_datetime(existing_df['timestamp'])
+                existing_df = existing_df.sort_values('timestamp').reset_index(drop=True)
+                last_ts = existing_df['timestamp'].iloc[-1]
+                print(f"  Found existing file with {len(existing_df)} candles. Last timestamp: {last_ts}")
+                # Convert UTC+7 back to UTC ms
+                since_ts = int((last_ts - pd.Timedelta(hours=7)).timestamp() * 1000)
         except Exception as e:
             print(f"  Error reading existing file: {e}")
             existing_df = None
@@ -83,7 +102,7 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
             current_since = since_ts
             while True:
                 time.sleep(0.5)
-                ohlcv = exchange.fetch_ohlcv(symbol, timeframe, since=current_since, limit=MAX_PER_REQUEST)
+                ohlcv = exchange.fetch_ohlcv(fetch_symbol, timeframe, since=current_since, limit=MAX_PER_REQUEST)
                 if not ohlcv:
                     break
                 
@@ -107,7 +126,7 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
         print(f"  No existing file. Fetching {limit} candles backwards...")
         remaining = limit
         try:
-            ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=min(remaining, MAX_PER_REQUEST))
+            ohlcv = exchange.fetch_ohlcv(fetch_symbol, timeframe, limit=min(remaining, MAX_PER_REQUEST))
             if ohlcv:
                 all_new_candles.extend(ohlcv)
                 remaining -= len(ohlcv)
@@ -116,7 +135,7 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str) -> N
                     time.sleep(0.5)
                     oldest_ts = ohlcv[0][0] - 1
                     batch_size = min(remaining, MAX_PER_REQUEST)
-                    ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=batch_size, params={'endTime': oldest_ts})
+                    ohlcv = exchange.fetch_ohlcv(fetch_symbol, timeframe, limit=batch_size, params={'endTime': oldest_ts})
                     
                     if not ohlcv:
                         print("  No more historical data available.")

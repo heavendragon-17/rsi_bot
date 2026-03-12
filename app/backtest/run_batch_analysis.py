@@ -44,6 +44,37 @@ def load_config():
         return yaml.safe_load(f)
 
 
+def _enrich_round_trips(results: dict, debug_rows: list) -> dict:
+    """Join entry_spread and above_count from strategy debug rows into round_trips."""
+    buy_lookup = {
+        (str(r.get("symbol", "")), str(r.get("timestamp", ""))): r
+        for r in debug_rows
+        if r.get("signal") == "BUY"
+    }
+    rt_list = results.get("round_trips", [])
+    if not rt_list or not buy_lookup:
+        return results
+
+    enriched = []
+    for rt in rt_list:
+        rt = dict(rt)
+        sym = str(rt.get("symbol", ""))
+        try:
+            entry_ts = str(pd.Timestamp(rt["entry_time"])) if rt.get("entry_time") else ""
+        except Exception:
+            entry_ts = str(rt.get("entry_time", ""))
+        match = buy_lookup.get((sym, entry_ts))
+        rt["entry_rsi_ema9"] = round(float(match["rsi_ema9"]), 4) if match and match.get("rsi_ema9") is not None else None
+        rt["entry_rsi_wma45"] = round(float(match["rsi_wma45"]), 4) if match and match.get("rsi_wma45") is not None else None
+        rt["entry_spread"] = round(float(match["spread"]), 4) if match and match.get("spread") is not None else None
+        rt["above_count"] = int(match["above_count"]) if match and match.get("above_count") is not None else None
+        enriched.append(rt)
+
+    results = dict(results)
+    results["round_trips"] = enriched
+    return results
+
+
 def debug_trade_structure(engine, symbol: str):
     """Debug function to inspect trade history structure."""
     print(f"\n{'='*60}")
@@ -256,10 +287,31 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         if not os.path.exists(data_file):
             needs_download = True
         else:
+            row_count = 0
+            last_line = ""
             with open(data_file, 'r', encoding='utf-8') as f:
-                row_count = sum(1 for _ in f) - 1
+                for line in f:
+                    if line.strip():
+                        row_count += 1
+                        last_line = line
+            row_count -= 1
+            
             if row_count < int(limit * 0.95):
                 needs_download = True
+            else:
+                try:
+                    last_ts_str = last_line.split(',')[0].strip()
+                    last_ts = pd.to_datetime(last_ts_str, errors='coerce')
+                    
+                    tf_str = timeframe.replace('m', 'min').replace('h', 'H').replace('d', 'D')
+                    tf_delta = pd.to_timedelta(tf_str)
+                    now_utc7 = pd.Timestamp.utcnow().tz_localize(None) + pd.Timedelta(hours=7)
+                    
+                    if pd.notna(last_ts) and (now_utc7 - last_ts) > (tf_delta * 2):
+                        needs_download = True
+                except Exception as e:
+                    print(f"[{symbol}] Error checking data recency: {e}")
+                    needs_download = True
                 
         # Download if missing or insufficient
         if needs_download:
@@ -285,14 +337,29 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
         # **EXPORT SIGNALS TO CSV**
         export_signals_to_csv(engine, symbol, report_dir, debug=False)
 
+        # **EXPORT PER-CANDLE DEBUG CSV**
+        debug_rows = getattr(engine.strategy, "_debug_rows", [])
+        if debug_rows:
+            safe_sym = symbol.replace("/", "_")
+            debug_path = os.path.join(report_dir, "debug_csv", f"debug_{safe_sym}_{timeframe}.csv")
+            engine.strategy.export_debug_csv(debug_path)
+            print(f"[{symbol}] Debug CSV: {debug_path}")
+            # Enrich round_trips with per-trade entry_spread and above_count
+            results = _enrich_round_trips(results, debug_rows)
+
         # Generate HTML and CSV reports via thin formatter
         leverage = run_config.get("risk", {}).get("leverage", 1)
+        strategy_params = {
+            **getattr(strategy_class, "DEFAULT_CONFIG", {}),
+            **run_config.get("strategy_params", {}),
+        }
         reporter = BacktestReporter(
             results,
             symbol=symbol,
             timeframe=timeframe,
             strategy_name=strategy_name,
             leverage=leverage,
+            strategy_params=strategy_params,
         )
 
         html_content = reporter._generate_html_report(

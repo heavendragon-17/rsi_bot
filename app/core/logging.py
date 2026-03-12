@@ -12,13 +12,15 @@ import threading
 import structlog
 
 
-def setup_logging(level: str = "INFO", json_output: bool = False) -> None:
+def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str = "rsi_bot.log", console: bool = True) -> None:
     """
     Configure structlog + stdlib logging.
 
     Args:
         level: Log level ("DEBUG", "INFO", "WARNING", "ERROR")
         json_output: True for production (JSON lines), False for dev (colored console)
+        log_file: Name/path for the log file
+        console: Whether to output logs to standard output
     """
     structlog.reset_defaults()
 
@@ -53,17 +55,23 @@ def setup_logging(level: str = "INFO", json_output: bool = False) -> None:
         ],
     )
 
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-
-    file_handler = logging.FileHandler("rsi_bot.log")
-    file_handler.setFormatter(formatter)
-
     root = logging.getLogger()
     root.handlers.clear()
-    root.addHandler(handler)
-    root.addHandler(file_handler)
+    
+    if console:
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        root.addHandler(handler)
+
+    if log_file:
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        root.addHandler(file_handler)
+
     root.setLevel(getattr(logging, level.upper()))
+    
+    # Suppress verbose 3rd-party loggers
+    logging.getLogger("ccxt").setLevel(logging.WARNING)
 
 
 def _add_thread_name(logger, method_name, event_dict):

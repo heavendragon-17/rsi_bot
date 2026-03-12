@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { cn } from "../../lib/utils";
 import {
@@ -14,6 +14,9 @@ export const LookbackInput: React.FC = () => {
   const { lookbackValue, setLookbackValue, lookbackUnit, setLookbackUnit } =
     useBacktestStore();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [inputVal, setInputVal] = useState(String(lookbackValue));
+
+  useEffect(() => { setInputVal(String(lookbackValue)); }, [lookbackValue]);
 
   // Keyboard shortcut 'L' to focus input
   useEffect(() => {
@@ -36,11 +39,10 @@ export const LookbackInput: React.FC = () => {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputVal(e.target.value);
     const val = parseInt(e.target.value);
     if (!isNaN(val) && val > 0) {
       setLookbackValue(val);
-    } else if (e.target.value === "") {
-      // Allow temporary empty state while typing, handled by UI not crashing but store expects number.
     }
   };
 
@@ -75,7 +77,7 @@ export const LookbackInput: React.FC = () => {
             ref={inputRef}
             type="number"
             min="1"
-            value={lookbackValue || ""}
+            value={inputVal}
             onChange={handleChange}
             className="flex-1 min-w-0 w-full bg-transparent border-none text-sm font-medium text-text-primary focus:outline-none p-0 text-right pr-2 custom-number-input"
           />

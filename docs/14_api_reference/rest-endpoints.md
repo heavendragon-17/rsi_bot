@@ -18,7 +18,7 @@ Allowed origins: `http://localhost:3000`, `http://localhost:5173` (Vite dev serv
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/backtest/run` | Start a backtest |
+| `POST` | `/api/backtest/run` | Start a backtest (single-symbol or portfolio mode) |
 | `GET` | `/api/backtest/{run_id}/progress` | SSE stream of progress events |
 | `DELETE` | `/api/backtest/{run_id}` | Cancel a running backtest |
 | `GET` | `/api/backtest/{run_id}` | Run detail (config + metrics + trades) |
@@ -26,11 +26,18 @@ Allowed origins: `http://localhost:3000`, `http://localhost:5173` (Vite dev serv
 
 ### `POST /api/backtest/run`
 
-**Body**: `{ symbol, timeframe, strategy, params, initial_capital, leverage, risk_per_trade_pct, ... }`
+**Mode**: Determined by which field is provided — mutually exclusive:
+
+| Field | Type | Mode |
+|-------|------|------|
+| `symbol` | `string` | Single-symbol — runs one `BacktestEngine` against a local CSV |
+| `symbols` | `string[]` | Portfolio — runs `_run_portfolio_backtest` across all symbols |
+
+**Common body fields**: `timeframe`, `strategy`, `start_date`, `end_date`, `initial_capital`, `leverage`, `risk_per_trade_pct`, `fee_tier`, `slippage_model`, `slippage_pct`, `params`
 
 **Response**: `{ run_id, status: "running" }`
 
-**Flow**: Validates request → creates Run + RunConfig DB rows → submits to ThreadPoolExecutor → returns immediately.
+**Flow**: Validates request → creates `Run` + `RunConfig` DB rows (`symbol="PORTFOLIO"` for portfolio mode) → submits to ThreadPoolExecutor → returns immediately.
 
 ### `GET /api/backtest/{run_id}/progress` (SSE)
 
