@@ -28,12 +28,44 @@ class BacktestReporter:
         timeframe: str,
         strategy_name: str,
         leverage: int = 1,
+        strategy_params: dict = None,
     ):
         self.results = results
         self.symbol = symbol
         self.timeframe = timeframe
         self.strategy_name = strategy_name
         self.leverage = leverage
+        self.strategy_params = strategy_params or {}
+
+    def _render_params_badges(self) -> str:
+        """Render key strategy params as small info badges below the header badges.
+        Only emits HTML when at least one recognised param is present, so
+        other strategies or reporters without strategy_params see nothing.
+        """
+        p = self.strategy_params
+        items = []
+
+        if "nr_max_above_ema21" in p:
+            items.append(
+                f'<span style="background:rgba(251,146,60,0.15); color:#fb923c; border:1px solid rgba(251,146,60,0.35); '
+                f'padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:600;">'
+                f'max_above_ema21: {p["nr_max_above_ema21"]}</span>'
+            )
+        if "nr_rsi_spread_min" in p:
+            items.append(
+                f'<span style="background:rgba(34,211,238,0.12); color:#22d3ee; border:1px solid rgba(34,211,238,0.3); '
+                f'padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:600;">'
+                f'rsi_spread_min: {p["nr_rsi_spread_min"]}</span>'
+            )
+
+        if not items:
+            return '<p style="margin-bottom:20px;"></p>'
+
+        badges = " ".join(items)
+        return (
+            f'<p style="text-align:center; margin-bottom:24px; display:flex; '
+            f'gap:8px; justify-content:center; flex-wrap:wrap;">{badges}</p>'
+        )
 
     @staticmethod
     def _format_duration(hours: float) -> str:
@@ -48,6 +80,7 @@ class BacktestReporter:
         return f"{days:.1f}d"
 
     def generate_report(self, output_dir: str = ".") -> str | None:
+
         """Generate HTML and CSV reports from pre-computed results."""
         round_trips = self.results.get("round_trips", [])
         if not round_trips and self.results.get("metrics", {}).get("total_trades", 0) == 0:
@@ -179,6 +212,11 @@ class BacktestReporter:
             ticker_pills_html += '</div>'
 
         # Build trades table HTML
+        has_rsi_ema9_col = not round_trips_df.empty and "entry_rsi_ema9" in round_trips_df.columns
+        has_rsi_wma45_col = not round_trips_df.empty and "entry_rsi_wma45" in round_trips_df.columns
+        has_spread_col = not round_trips_df.empty and "entry_spread" in round_trips_df.columns
+        has_above_col = not round_trips_df.empty and "above_count" in round_trips_df.columns
+
         if not round_trips_df.empty:
             trades_table_html = f"""
             {ticker_pills_html}
@@ -198,6 +236,10 @@ class BacktestReporter:
                         <th>PnL %</th>
                         <th>Hold Time</th>
                         <th>Exit Reason</th>
+                        {"<th title='RSI EMA9 value at entry'>RSI EMA9</th>" if has_rsi_ema9_col else ""}
+                        {"<th title='RSI WMA45 value at entry'>RSI WMA45</th>" if has_rsi_wma45_col else ""}
+                        {"<th title='RSI EMA9 - RSI WMA45 at entry'>Spread</th>" if has_spread_col else ""}
+                        {"<th title='Candles above EMA21 in lookback at entry'>Above EMA21</th>" if has_above_col else ""}
                     </tr>
                 </thead>
                 <tbody>
@@ -206,14 +248,23 @@ class BacktestReporter:
                 pnl_class = "positive" if row["pnl"] > 0 else "negative"
                 hold_hours = row.get("hold_duration_hours")
                 exit_reason = str(row.get("exit_reason", "UNKNOWN"))
-                
+
                 sym_col = ""
                 row_attr = ""
                 if "symbol" in row:
                     sym = row['symbol']
                     sym_col = f'<td><span class="ticker-badge" style="background-color: {ticker_colors.get(sym, "#666")}">{sym}</span></td>'
                     row_attr = f'data-symbol="{sym}"'
-                    
+
+                rsi9_val = row.get("entry_rsi_ema9")
+                rsi9_col = f'<td>{rsi9_val:.2f}</td>' if has_rsi_ema9_col and rsi9_val is not None else ("<td>-</td>" if has_rsi_ema9_col else "")
+                rsi45_val = row.get("entry_rsi_wma45")
+                rsi45_col = f'<td>{rsi45_val:.2f}</td>' if has_rsi_wma45_col and rsi45_val is not None else ("<td>-</td>" if has_rsi_wma45_col else "")
+                spread_val = row.get("entry_spread")
+                spread_col = f'<td>{spread_val:.2f}</td>' if has_spread_col and spread_val is not None else ("<td>-</td>" if has_spread_col else "")
+                above_val = row.get("above_count")
+                above_col = f'<td>{int(above_val)}</td>' if has_above_col and above_val is not None else ("<td>-</td>" if has_above_col else "")
+
                 trades_table_html += f"""
                     <tr {row_attr}>
                         <td>{i + 1}</td>
@@ -227,6 +278,10 @@ class BacktestReporter:
                         <td class="{pnl_class}">{row['pnl_pct']:.2f}%</td>
                         <td>{self._format_duration(hold_hours)}</td>
                         <td><span class="badge badge-{exit_reason.lower().replace('+', '-')}">{exit_reason}</span></td>
+                        {rsi9_col}
+                        {rsi45_col}
+                        {spread_col}
+                        {above_col}
                     </tr>
                 """
             trades_table_html += "</tbody></table></div>" + per_symbol_stats_html + "</div>"
@@ -444,10 +499,11 @@ class BacktestReporter:
     <div class="container">
         <h1>{self.symbol} ({self.timeframe})</h1>
         <p style="text-align:center; color:#888; margin-top:-20px; margin-bottom:10px;">Backtest Report</p>
-        <p style="text-align:center; margin-bottom:30px;">
+        <p style="text-align:center; margin-bottom:10px;">
             <span style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-right: 10px;">Strategy: {self.strategy_name}</span>
             <span style="background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">Leverage: {self.leverage}x</span>
         </p>
+        {self._render_params_badges()}
 
         <div class="metrics-grid">
             <div class="metric-card">

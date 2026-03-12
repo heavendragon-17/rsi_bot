@@ -8,7 +8,6 @@ import {
   getRunDetail,
   getTimeseries,
 } from "../api/backtest";
-import { checkDataStatus } from "../lib/data-utils";
 import { mapApiToResults, useResultsStore } from "./resultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
@@ -21,7 +20,7 @@ export interface BacktestState {
   setSidebarOpen: (isOpen: boolean) => void;
 
   // Configuration State
-  mode: "single" | "batch" | "pine" | "history" | "grid-search" | "walk-forward" | "sensitivity";
+  mode: "single" | "batch" | "portfolio" | "history" | "grid-search" | "walk-forward" | "sensitivity";
   symbol: string;
   portfolioInput: string;
   strategy: string;
@@ -30,6 +29,7 @@ export interface BacktestState {
   startDate: string;
   endDate: string;
   dateMode: "absolute" | "relative";
+  timezone: string;
   lookbackValue: number;
   lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months" | "years";
   datePreset: string | null;
@@ -72,6 +72,7 @@ export interface BacktestState {
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
   setDateMode: (mode: "absolute" | "relative") => void;
+  setTimezone: (tz: string) => void;
   setLookbackValue: (val: number) => void;
   setLookbackUnit: (unit: "bars" | "hours" | "days" | "weeks" | "months" | "years") => void;
   setDatePreset: (preset: string | null) => void;
@@ -113,6 +114,7 @@ export const useBacktestStore = create<BacktestState>()(
       startDate: "01-01-2024",
       endDate: "31-12-2024",
       dateMode: "relative",
+      timezone: "UTC",
       lookbackValue: 300,
       lookbackUnit: "bars",
       datePreset: null,
@@ -137,7 +139,7 @@ export const useBacktestStore = create<BacktestState>()(
         get().syncRelativeDates();
       },
       setParam: (key, value) =>
-        set((s) => ({ params: { ...s.params, [key]: value } })),
+        set((s) => ({ params: { ...s.params, [key]: Number(value) } })),
       setCapital: (capital) => set({ capital }),
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
@@ -147,6 +149,7 @@ export const useBacktestStore = create<BacktestState>()(
         set({ startDate, dateMode: "absolute", datePreset: null });
       },
       setEndDate: (endDate) => set({ endDate, dateMode: "absolute", datePreset: null }),
+      setTimezone: (timezone) => set({ timezone }),
       setDateMode: (dateMode) => {
         set({ dateMode });
         get().syncRelativeDates();
@@ -242,13 +245,7 @@ export const useBacktestStore = create<BacktestState>()(
             const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
             if (symbols.length === 0) throw new Error("No symbols provided for batch run.");
 
-            // 1. Check data
-            const dataStatus = await checkDataStatus(symbols, state.timeframe);
-            if (!dataStatus.allFresh) {
-              throw new Error("Missing data for some symbols. Please download data first.");
-            }
-
-            // 2. Start all backtests
+            // Start all backtests
             const runIds: { id: number, symbol: string }[] = [];
             const perConfigCap = parseFloat(state.capital) / symbols.length;
 
@@ -302,12 +299,55 @@ export const useBacktestStore = create<BacktestState>()(
             return;
           }
 
-          // Single run mode
-          const dataStatus = await checkDataStatus([state.symbol], state.timeframe);
-          if (!dataStatus.allFresh) {
-            throw new Error(`No data for ${state.symbol}. Download data first.`);
+          if (state.mode === "portfolio") {
+            const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
+            if (symbols.length === 0) throw new Error("No symbols provided for portfolio run.");
+
+            const { run_id } = await startBacktest({
+              symbols: symbols,
+              timeframe: state.timeframe,
+              strategy: state.strategy,
+              start_date: format(startDate, "yyyy-MM-dd"),
+              end_date: format(endDate, "yyyy-MM-dd"),
+              initial_capital: state.capital,
+              leverage: parseInt(state.leverage) || 1,
+              risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
+              params: state.params,
+            });
+
+            set({ currentRunId: run_id });
+
+            await new Promise<void>((resolve, reject) => {
+              const cleanup = streamProgress(
+                run_id,
+                (pct) => set({ runProgress: pct }),
+                async () => {
+                  cleanup();
+                  try {
+                    const [detail, timeseries] = await Promise.all([
+                      getRunDetail(run_id),
+                      getTimeseries(run_id),
+                    ]);
+                    useResultsStore.getState().setResults(
+                      mapApiToResults(detail, timeseries)
+                    );
+                    resolve();
+                  } catch (fetchErr) {
+                    reject(fetchErr);
+                  }
+                },
+                (msg) => {
+                  cleanup();
+                  reject(new Error(msg));
+                }
+              );
+            });
+
+            set({ isRunning: false, runProgress: 100, currentRunId: null });
+            return;
           }
 
+          // Single run mode
           const { run_id } = await startBacktest({
             symbol: state.symbol,
             timeframe: state.timeframe,
@@ -424,6 +464,7 @@ export const useBacktestStore = create<BacktestState>()(
         startDate: state.startDate,
         endDate: state.endDate,
         dateMode: state.dateMode,
+        timezone: state.timezone,
         lookbackValue: state.lookbackValue,
         lookbackUnit: state.lookbackUnit,
         datePreset: state.datePreset,

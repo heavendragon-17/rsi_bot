@@ -84,14 +84,17 @@ def _csv_path(symbol: str, timeframe: str) -> str:
 
 @router.post("/run", status_code=201, response_model=BacktestStartResponse)
 async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
-    # 1. Fail fast — check data file
-    csv_path = _csv_path(body.symbol, body.timeframe)
-    if not os.path.exists(csv_path):
-        safe = body.symbol.replace("/", "")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Data file not found: {safe}_{body.timeframe}.csv. Download data first.",
-        )
+    is_portfolio = bool(body.symbols)
+
+    # 1. Fail fast — check data file (single mode only; portfolio downloads dynamically)
+    if not is_portfolio:
+        csv_path = _csv_path(body.symbol, body.timeframe)
+        if not os.path.exists(csv_path):
+            safe = body.symbol.replace("/", "")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Data file not found: {safe}_{body.timeframe}.csv. Download data first.",
+            )
 
     # 2. Resolve strategy
     strategies = _load_strategies()
@@ -118,7 +121,7 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
 
     cfg = RunConfig(
         run_id=run.id,
-        symbol=body.symbol,
+        symbol="PORTFOLIO" if is_portfolio else body.symbol,
         timeframe=body.timeframe,
         start_date=date.fromisoformat(body.start_date),
         end_date=date.fromisoformat(body.end_date),
@@ -137,43 +140,75 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
 
     # 5. Create SSE queue
     loop = asyncio.get_event_loop()
-    q = exc_mod.create_progress_queue(run_id)
-
-    # 6. Build config and submit job
-    engine_config = build_backtest_config(
-        symbol=body.symbol,
-        timeframe=body.timeframe,
-        strategy_name=body.strategy,
-        initial_balance=float(body.initial_capital),
-        leverage=body.leverage,
-        risk_per_trade_pct=float(body.risk_per_trade_pct),
-        params=body.params,
-    )
+    exc_mod.create_progress_queue(run_id)
 
     progress_cb = exc_mod.make_progress_callback(run_id, loop)
 
-    def _run_backtest():
-        """Executed in thread pool worker."""
-        from app.backtest.engine import BacktestEngine
+    if is_portfolio:
+        # --- Portfolio mode ---
+        symbols = body.symbols
 
-        try:
-            engine = BacktestEngine(csv_path, strategy_class, engine_config)
-            results = engine.run(on_progress=progress_cb)
+        def _run_backtest():
+            from app.backtest.run_portfolio_backtest import _run_portfolio_backtest
 
-            # Persist results in a fresh DB session (different thread)
-            _persist_results(run_id, results)
+            try:
+                results = _run_portfolio_backtest(
+                    symbols=symbols,
+                    strategy_name=body.strategy,
+                    timeframe=body.timeframe,
+                    start_date=body.start_date,
+                    end_date=body.end_date,
+                    initial_capital=float(body.initial_capital),
+                    leverage=body.leverage,
+                    risk_per_trade_pct=float(body.risk_per_trade_pct),
+                    fee_tier=body.fee_tier,
+                    slippage_model=body.slippage_model,
+                    slippage_pct=float(body.slippage_pct),
+                    params=body.params,
+                    progress_cb=progress_cb,
+                )
+                _persist_results(run_id, results)
+                exc_mod.publish_event(
+                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
+                )
+            except Exception as err:
+                logger.error("portfolio_backtest_worker_error", run_id=run_id, error=str(err))
+                _mark_failed(run_id, str(err))
+                exc_mod.publish_event(
+                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
+                )
+            finally:
+                exc_mod.cleanup_job(run_id)
+    else:
+        # --- Single-symbol mode ---
+        engine_config = build_backtest_config(
+            symbol=body.symbol,
+            timeframe=body.timeframe,
+            strategy_name=body.strategy,
+            initial_balance=float(body.initial_capital),
+            leverage=body.leverage,
+            risk_per_trade_pct=float(body.risk_per_trade_pct),
+            params=body.params,
+        )
 
-            exc_mod.publish_event(
-                run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
-            )
-        except Exception as err:
-            logger.error("backtest_worker_error", run_id=run_id, error=str(err))
-            _mark_failed(run_id, str(err))
-            exc_mod.publish_event(
-                run_id, loop, "error", {"run_id": run_id, "message": str(err)}
-            )
-        finally:
-            exc_mod.cleanup_job(run_id)
+        def _run_backtest():
+            from app.backtest.engine import BacktestEngine
+
+            try:
+                engine = BacktestEngine(csv_path, strategy_class, engine_config)
+                results = engine.run(on_progress=progress_cb)
+                _persist_results(run_id, results)
+                exc_mod.publish_event(
+                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
+                )
+            except Exception as err:
+                logger.error("backtest_worker_error", run_id=run_id, error=str(err))
+                _mark_failed(run_id, str(err))
+                exc_mod.publish_event(
+                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
+                )
+            finally:
+                exc_mod.cleanup_job(run_id)
 
     exc_mod.submit_backtest(run_id, _run_backtest)
 

@@ -5,7 +5,6 @@ import { EmptyState } from './components/dashboard/EmptyState';
 import { DataPrepModal } from './components/data-modal/DataPrepModal';
 import { ResultsDashboard } from './components/results/ResultsDashboard';
 import { BatchResultsDashboard } from './components/results/batch/BatchResultsDashboard';
-import { PineTranslator } from './components/pine/PineTranslator';
 import { RunHistory } from './components/history/RunHistory';
 import { GridSearch } from './components/GridSearch';
 import { WalkForward } from './components/WalkForward';
@@ -30,7 +29,6 @@ function App() {
 
   const showSingle = mode === "single" && hasResults;
   const showBatch = mode === "batch" && hasBatchResults;
-  const showPine = mode === "pine";
   const showHistory = mode === "history";
   const showGridSearch = mode === "grid-search";
   const showWalkForward = mode === "walk-forward";
@@ -40,13 +38,12 @@ function App() {
     <Layout>
       {showSingle && <ResultsDashboard />}
       {showBatch && <BatchResultsDashboard />}
-      {showPine && <PineTranslator />}
       {showHistory && <RunHistory />}
       {showGridSearch && <GridSearch />}
       {showWalkForward && <WalkForward />}
       {showSensitivity && <SensitivityAnalysis />}
-      
-      {!showSingle && !showBatch && !showPine && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
+
+      {!showSingle && !showBatch && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
       
       <DataPrepModal />
       <Toaster richColors position="bottom-right" />

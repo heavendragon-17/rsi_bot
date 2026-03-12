@@ -40,7 +40,7 @@
 | [07_trading_strategies/](07_trading_strategies/) | Stateless analyze() pattern, strategy params, entry/exit rules, SL/TP logic | Working on strategies (`app/strategies/`) |
 | [08_execution_and_oms/](08_execution_and_oms/) | Order lifecycle, PortfolioManager flow, exchange adapters | Working on execution (`app/services/execution/`, `app/core/portfolio/`) |
 | [09_portfolio_and_reconciliation/](09_portfolio_and_reconciliation/) | Position tracking, PnL calculation, capital allocation, known gaps | Working on position/portfolio logic |
-| [10_frontend_dashboard/](10_frontend_dashboard/) | React UI architecture, Zustand stores, charts, themes, Pine indicators | Working on the frontend (`ui/src/`) |
+| [10_frontend_dashboard/](10_frontend_dashboard/) | React UI architecture, Zustand stores, charts, themes | Working on the frontend (`ui/src/`) |
 | [11_testing_and_backtesting/](11_testing_and_backtesting/) | Testing strategy, backtest engine, optimization (grid/walk-forward/sensitivity) | Working on tests or backtest (`tests/`, `app/backtest/`) |
 | [12_deployment_and_ops/](12_deployment_and_ops/) | Deployment checklist, monitoring, security, production config | Deploying or operating the live bot |
 | [13_runbooks_and_postmortems/](13_runbooks_and_postmortems/) | Incident response runbooks, postmortem templates | Handling or preparing for production incidents |
@@ -123,4 +123,5 @@ Historical specs that have been fully implemented. Kept for reference only — d
 | SPEC.md | FastAPI integration spec (Phases 1-5) | Fully implemented |
 | IMPROVE.md | Architecture improvement spec (PRs 1-8) | Fully implemented |
 | PLAN-figma-ui-v3.md | Original UI plan (13 tasks) | Superseded |
+| pine-indicators.md | Custom indicator library spec | Archived (feature removed) |
 | CSS_VARIABLES.md | Theme system contract | Merged into ui-spec |

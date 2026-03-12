@@ -21,9 +21,9 @@
 └───────────────────────────┴──────────────────────────────┘
 ```
 
-- **Top tab bar**: Mode switching (Backtest, Batch, Grid Search, Walk-Forward, Sensitivity, History)
-- **Sidebar**: Always shows the same shared configuration regardless of mode
-- **Main content area**: Mode-specific content and mode-specific config (grid axes, walk-forward windows, etc.)
+- **Top tab bar**: Mode switching (Backtest, Portfolio, Batch, Grid Search, Walk-Forward, Sensitivity, History)
+- **Sidebar**: Always shows the same shared configuration regardless of mode. In "Portfolio" mode, the symbol selector expands to allow multiple symbol selection.
+- **Main content area**: Mode-specific content and mode-specific config (grid axes, walk-forward windows, portfolio aggregation settings, etc.)
 
 ---
 
@@ -32,16 +32,16 @@
 | Store | Purpose | Persistence |
 |-------|---------|-------------|
 | `backtestStore` | Config + run orchestration | localStorage (config only) |
-| `resultsStore` | Single backtest results | None (loaded from API) |
+| `resultsStore` | Single backtest and portfolio results | None (loaded from API) |
 | `historyStore` | Paginated run history | None (loaded from API) |
-| `batchResultsStore` | Multi-symbol portfolio results | localStorage (flag only) |
+| `batchResultsStore` | Multi-symbol batch results | localStorage (flag only) |
 | `gridSearchStore` | Grid search config + results | None |
 | `walkForwardStore` | Walk-forward config + results | None |
 | `sensitivityStore` | Sensitivity config + results | None |
 | `exportStore` | Export config + trade annotations | localStorage (all) |
 | `dataPrepStore` | Data download tracking | None |
 | `themeStore` | UI themes (3 hardcoded) | None |
-| `pineStore` | Custom indicator library | localStorage (saved indicators) |
+
 
 **SSE pattern**: `engineStore.ts` for SSE integration — session as param, SSE in `await new Promise`, `onerror` handler.
 

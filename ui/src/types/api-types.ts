@@ -4,7 +4,8 @@
  */
 
 export interface BacktestRequest {
-  symbol: string;
+  symbol?: string;          // Single-symbol mode — provide exactly one of symbol or symbols
+  symbols?: string[];       // Portfolio mode — provide exactly one of symbol or symbols
   timeframe: string;
   strategy: string;
   start_date: string;

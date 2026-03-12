@@ -15,7 +15,6 @@ import {
   Layers,
   RotateCcw,
   ChevronRight,
-  Code,
 } from "lucide-react";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { ValidatedInput } from "../ui/ValidatedInput";
@@ -91,8 +90,6 @@ export const MobileSidebarSheet: React.FC = () => {
   };
 
   const handleRunRequest = async () => {
-    if (mode === "pine") return;
-
     let isValid = true;
     Object.entries(params).forEach(([k, v]) => {
       const res = validateParam(k, v.toString());
@@ -126,7 +123,7 @@ export const MobileSidebarSheet: React.FC = () => {
     const startTime = Date.now();
 
     const symbolsToCheck =
-      mode === "batch"
+      mode === "batch" || mode === "portfolio"
         ? portfolioInput
             .split("\n")
             .map((s) => s.trim())
@@ -192,25 +189,23 @@ export const MobileSidebarSheet: React.FC = () => {
                     : "text-text-secondary hover:text-text-primary"
                 )}
               >
-                Portfolio
+                Batch
               </button>
               <button
-                onClick={() => setMode("pine")}
+                onClick={() => setMode("portfolio")}
                 className={cn(
-                  "flex-1 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1",
-                  mode === "pine"
-                    ? "bg-bg-secondary text-accent-main shadow-sm"
+                  "flex-1 py-2 text-xs font-medium rounded-md transition-all",
+                  mode === "portfolio"
+                    ? "bg-bg-secondary text-text-primary shadow-sm"
                     : "text-text-secondary hover:text-text-primary"
                 )}
               >
-                <Code size={12} />
-                Pine
+                Portfolio
               </button>
             </div>
           </CollapsibleSection>
 
-          {mode !== "pine" && (
-            <>
+          {/* Asset Config, Date, Strategy, Params, Risk */}
               {/* Symbol & Timeframe */}
               <CollapsibleSection title="Asset Config">
                 <div className="space-y-3">
@@ -407,26 +402,12 @@ export const MobileSidebarSheet: React.FC = () => {
                   </div>
                 </div>
               </CollapsibleSection>
-            </>
-          )}
-
-          {mode === "pine" && (
-            <div className="p-4 text-xs text-text-muted italic">
-              Use the Pine Script Translator to import strategies from
-              TradingView.
-              <br />
-              <br />
-              Once saved, they will appear in your Strategy list.
-            </div>
-          )}
         </div>
 
         {/* Sticky Footer with Run Button */}
-        {mode !== "pine" && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border-main bg-bg-surface/95 backdrop-blur-md">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border-main bg-bg-surface/95 backdrop-blur-md">
             <RunButton onClick={handleRunRequest} />
           </div>
-        )}
       </SheetContent>
     </Sheet>
   );

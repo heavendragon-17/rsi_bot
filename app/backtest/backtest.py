@@ -123,6 +123,7 @@ def main():
         timeframe=timeframe,
         strategy_name=strategy_name,
         leverage=leverage,
+        strategy_params={**strategy_class.DEFAULT_CONFIG, **config.get("strategy_params", {})},
     )
     report_path = reporter.generate_report(output_dir=args.output)
     
