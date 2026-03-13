@@ -1,16 +1,71 @@
 import React from "react";
 import { Play, X } from "lucide-react";
 import { useBacktestStore } from "../../stores/backtestStore";
+import { useSingleRunStore } from "../../stores/singleRunStore";
+import { useBatchRunStore } from "../../stores/batchRunStore";
+import { usePortfolioRunStore } from "../../stores/portfolioRunStore";
+import { parse, isValid } from "date-fns";
+import { toast } from "sonner";
 
 interface RunButtonProps {
     onClick?: () => void;
 }
 
 export const RunButton: React.FC<RunButtonProps> = ({ onClick }) => {
-  const isRunning = false;
-const runProgress = 0;
-const runBacktest = async () => {};
-const cancelBacktest = async () => {};
+  const store = useBacktestStore();
+  const singleStore = useSingleRunStore();
+  const batchStore = useBatchRunStore();
+  const portfolioStore = usePortfolioRunStore();
+
+  const isRunning = singleStore.isRunning || batchStore.isRunning || portfolioStore.isRunning;
+  const runProgress = store.mode === 'single' ? singleStore.runProgress : store.mode === 'batch' ? batchStore.runProgress : portfolioStore.runProgress;
+
+  const runBacktest = async () => {
+    try {
+      const config = {
+        mode: store.mode as 'single' | 'batch' | 'portfolio',
+        symbols: store.mode === 'single' ? [store.symbol] : store.portfolioInput.split('\n').filter(s => s.trim() !== ''),
+        timeframe: store.timeframe,
+        strategy: store.strategy,
+        start_date: store.startDate, // Need to make sure format matches yyyy-MM-dd logic in stores
+        end_date: store.endDate,
+        initial_capital: store.capital,
+        capital_mode: store.capitalMode,
+        leverage: parseInt(store.leverage),
+        risk_per_trade_pct: store.riskPercent,
+        fee_tier: "0.001",
+        slippage_model: "none",
+        slippage_pct: "0.0",
+        params: store.params
+      };
+
+      // Basic formatting handle
+      let sd = config.start_date;
+      if (sd && sd.includes("-") && sd.split("-")[0].length === 2) {
+          const parts = sd.split("-");
+          sd = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          config.start_date = sd;
+      }
+      let ed = config.end_date;
+      if (ed && ed.includes("-") && ed.split("-")[0].length === 2) {
+          const parts = ed.split("-");
+          ed = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          config.end_date = ed;
+      }
+
+      if (store.mode === 'single') singleStore.run(config);
+      if (store.mode === 'batch') batchStore.run(config);
+      if (store.mode === 'portfolio') portfolioStore.run(config);
+    } catch (e: any) {
+        toast.error(e.message);
+    }
+  };
+
+  const cancelBacktest = async () => {
+      if (store.mode === 'single') singleStore.cancel();
+      if (store.mode === 'batch') batchStore.cancel();
+      if (store.mode === 'portfolio') portfolioStore.cancel();
+  };
 
   const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();

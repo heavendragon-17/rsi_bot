@@ -59,7 +59,7 @@ export const MobileSidebarSheet: React.FC = () => {
     riskPercent,
     setRiskPercent,
     isRunning,
-    runBacktest,
+    /* runBacktest, */
     startDate,
     endDate,
     portfolioInput,
@@ -85,7 +85,7 @@ export const MobileSidebarSheet: React.FC = () => {
 
   const executeRun = async () => {
     // backtestStore.runBacktest() handles API call, SSE, results, and history (server-side).
-    await runBacktest();
+    /* await runBacktest(); */
     setSidebarOpen(false);
   };
 
