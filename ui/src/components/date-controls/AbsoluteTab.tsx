@@ -20,15 +20,14 @@ export const AbsoluteTab: React.FC = () => {
           const e = res.date_range.end.split("T")[0];
           setDataRange({ start: s, end: e });
 
-          // Auto-adjust if current dates are out of bounds or just default
+          // Auto-fill store dates with the actual data range
+          const toStoreFmt = (iso: string) => {
+            const [y, m, d] = iso.split("-");
+            return `${d}-${m}-${y}`;
+          };
           const currentStore = useBacktestStore.getState();
-          if (
-            currentStore.startDate === "2024-01-01" &&
-            currentStore.endDate === "2024-12-31"
-          ) {
-            currentStore.setStartDate(s);
-            currentStore.setEndDate(e);
-          }
+          currentStore.setStartDate(toStoreFmt(s));
+          currentStore.setEndDate(toStoreFmt(e));
         } else {
           setDataRange(null);
         }

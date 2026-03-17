@@ -24,6 +24,7 @@ from app.backtest.portfolio_event_source import PortfolioEventSource
 from app.backtest.mock_exchange import MockExchange
 from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+import ccxt
 from app.backtest.download_data import download_data, calculate_candle_limit
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
@@ -48,6 +49,38 @@ DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 def load_config():
     with open(CONFIG_PATH, "r") as f:
         return yaml.safe_load(f)
+
+
+def _enrich_round_trips(results: dict, debug_rows: list) -> dict:
+    """Join entry_spread and above_count from strategy debug rows into round_trips."""
+    buy_lookup = {
+        (str(r.get("symbol", "")), str(r.get("timestamp", ""))): r
+        for r in debug_rows
+        if r.get("signal") == "BUY"
+    }
+    rt_list = results.get("round_trips", [])
+    if not rt_list or not buy_lookup:
+        return results
+
+    enriched = []
+    for rt in rt_list:
+        rt = dict(rt)
+        sym = str(rt.get("symbol", ""))
+        try:
+            entry_ts = str(pd.Timestamp(rt["entry_time"])) if rt.get("entry_time") else ""
+        except Exception:
+            entry_ts = str(rt.get("entry_time", ""))
+        match = buy_lookup.get((sym, entry_ts))
+        rt["entry_rsi_ema9"] = round(float(match["rsi_ema9"]), 4) if match and match.get("rsi_ema9") is not None else None
+        rt["entry_rsi_wma45"] = round(float(match["rsi_wma45"]), 4) if match and match.get("rsi_wma45") is not None else None
+        rt["entry_spread"] = round(float(match["spread"]), 4) if match and match.get("spread") is not None else None
+        rt["above_count"] = int(match["above_count"]) if match and match.get("above_count") is not None else None
+        enriched.append(rt)
+
+    results = dict(results)
+    results["round_trips"] = enriched
+    return results
+
 
 def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
     symbols = config.get("symbols", [])
@@ -90,20 +123,48 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
          if not os.path.exists(data_file):
               needs_download = True
          else:
-              # Check if the file has enough rows (approximate with line count)
+              # Check if the file has enough rows and is up to date
+              row_count = 0
+              last_line = ""
               with open(data_file, 'r', encoding='utf-8') as f:
-                  row_count = sum(1 for _ in f) - 1 # subtract header
+                  for line in f:
+                      if line.strip():
+                          row_count += 1
+                          last_line = line
+              row_count -= 1 # subtract header
+              
               if row_count < int(limit * 0.95): # 5% margin for missing data/downtime
                   needs_download = True
+              else:
+                  # Check recency based on the last row
+                  try:
+                      last_ts_str = last_line.split(',')[0].strip()
+                      last_ts = pd.to_datetime(last_ts_str, errors='coerce')
+                      
+                      tf_str = timeframe.replace('m', 'min').replace('h', 'H').replace('d', 'D')
+                      tf_delta = pd.to_timedelta(tf_str)
+                      now_utc7 = pd.Timestamp.utcnow().tz_localize(None) + pd.Timedelta(hours=7)
+                      
+                      if pd.notna(last_ts) and (now_utc7 - last_ts) > (tf_delta * 2):
+                          needs_download = True
+                  except Exception as e:
+                      logger.warning(f"Error checking data recency for {symbol}: {e}")
+                      needs_download = True
+                  
                   
          if needs_download:
               missing_data_symbols.append((symbol, safe_symbol, data_file))
 
     if missing_data_symbols:
          logger.warning(f"Data missing or insufficient for {len(missing_data_symbols)} symbols. Attempting to download...")
+         # Create one shared exchange with markets loaded once — avoids N redundant API calls
+         shared_exchange = ccxt.binanceusdm()
+         print("Loading Binance Futures market list...")
+         shared_exchange.load_markets()
+         print(f"Markets loaded. Starting download for {len(missing_data_symbols)} symbol(s)...")
          for symbol, safe_symbol, data_file in missing_data_symbols:
                try:
-                    download_data(symbol, timeframe, limit, DATA_DIR)
+                    download_data(symbol, timeframe, limit, DATA_DIR, exchange=shared_exchange)
                     if not os.path.exists(data_file):
                          logger.critical(f"Failed to fully download data for {symbol}. Stopping.")
                          sys.exit(1)
@@ -165,6 +226,15 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
     results = engine.run(on_progress=progress)
     print("\n[DONE] Backtest Complete")
 
+    # **EXPORT PER-CANDLE DEBUG CSV**
+    debug_rows = getattr(engine.strategy, "_debug_rows", [])
+    if debug_rows:
+        debug_path = os.path.join(REPORT_DIR, "debug_csv", f"debug_PORTFOLIO_{timeframe}.csv")
+        engine.strategy.export_debug_csv(debug_path)
+        print(f"Portfolio debug CSV: {debug_path}")
+        # Enrich round_trips with per-trade entry_spread and above_count
+        results = _enrich_round_trips(results, debug_rows)
+
     # 5. Extract and print results
     metrics = results.get("metrics", {})
     profit = results.get("net_profit", 0.0)
@@ -187,6 +257,7 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
             timeframe=timeframe,
             strategy_name=strategy_name,
             leverage=leverage,
+            strategy_params={**strategy_class.DEFAULT_CONFIG, **config.get("strategy_params", {})},
         )
     os.makedirs(REPORT_DIR, exist_ok=True)
     html_content = reporter._generate_html_report(return_only=True, output_dir=REPORT_DIR)
@@ -248,6 +319,6 @@ if __name__ == "__main__":
     strategy_name = args.strategy or config.get("strategy", "rsi_wma_retest")
     
     # Ensure logs folder + structured logging
-    setup_logging(level="INFO")
+    setup_logging(level="DEBUG", log_file="backtest.log", console=False)
 
     run_portfolio_analysis(config, strategy_name, timeframe)

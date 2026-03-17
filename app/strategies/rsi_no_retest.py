@@ -99,9 +99,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_tp1_rr": 1.0,            # TP1: 1R (Close 50%)
         "nr_tp2_rr": 2.0,            # TP2: 2R (Close 25%)
         "nr_tp3_rr": 3.0,            # TP3: 3R (Close 25%)
-        "nr_tp_count": 3,            # Number of TPs (1-3)
-        "tp1_close_pct": 0.50,
-        "tp2_close_pct": 0.5,
+        "nr_tp_count": 1,            # Number of TPs (1-3)
+        "tp1_close_pct": 1,
+        "tp2_close_pct": 0,
         "tp3_close_pct": 0,
 
         # SL management
@@ -183,6 +183,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         # Debug Toggle
         self.debug_enabled = bool(bot_cfg.get("debug", False))
 
+        # Per-candle debug rows — accumulated during backtest, exported via export_debug_csv()
+        self._debug_rows: list[dict] = []
+
     # ---------------- helpers ----------------
     def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
         ts = last.get("ts")
@@ -229,18 +232,27 @@ class RsiNoRetestStrategy(BaseStrategy):
         # Logic: Prior (-3) was BELOW/EQUAL, and Confirmed Closed (-2) is ABOVE.
         return (prior_close <= prior_ema21) and (curr_close > curr_ema21)
 
-    def _pullback_filter(self, df_ind: pd.DataFrame) -> bool:
+    def _pullback_filter(self, df_ind: pd.DataFrame) -> tuple[bool, int]:
         """
         Lookback excludes current candle.
         Condition: number of candles closed above EMA21 <= max_above_ema21
+        Returns (passed, above_count).
         """
         if len(df_ind) < self.lookback + 2:
-            return False
+            return False, 0
         window = df_ind.iloc[-(self.lookback + 1) : -1]
         closes = window["close"]
         ema21s = window["ema21"]
         above = int((closes > ema21s).sum())
-        return above <= self.max_above_ema21
+        return above <= self.max_above_ema21, above
+
+    def export_debug_csv(self, path: str) -> None:
+        """Export per-candle debug rows collected during backtest to a CSV file."""
+        if not self._debug_rows:
+            return
+        import os
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        pd.DataFrame(self._debug_rows).to_csv(path, index=False)
 
     def _compute_sl(self, df_ind: pd.DataFrame) -> Optional[Decimal]:
         if self.sl_mode == "lowest_wick":
@@ -405,32 +417,73 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         current_state = context.state
 
+        # Initialise a debug row for this candle (entry-path only)
+        # Use index[-1] (current candle = entry candle) so it matches round_trip entry_time
+        _ts = str(df_ind.index[-1]) if len(df_ind) >= 1 else None
+        _debug_row: dict = {
+            "timestamp": _ts,
+            "symbol": symbol,
+            "close": float(close) if close is not None else None,
+            "ema21": float(ema21) if ema21 is not None else None,
+            "rsi_ema9": float(rsi_ema9) if rsi_ema9 is not None else None,
+            "rsi_wma45": float(rsi_wma45) if rsi_wma45 is not None else None,
+            "spread": None,
+            "above_count": None,
+            "max_above_ema21": self.max_above_ema21,
+            "rsi_spread_min": self.rsi_spread_min,
+            "reclaim_detected": False,
+            "pullback_ok": False,
+            "spread_ok": False,
+            "signal": "NONE",
+        }
+
         if current_state == SCANNING:
             if not self._detect_reclaim(df_ind):
                 if self.debug_enabled:
                     logger.debug(f"[{symbol}] DEBUG: Reclaim not detected.")
+                self._debug_rows.append(_debug_row)
                 return _noop
 
-            if not self._pullback_filter(df_ind):
+            _debug_row["reclaim_detected"] = True
+            pullback_ok, above_count = self._pullback_filter(df_ind)
+            _debug_row["above_count"] = above_count
+            _debug_row["pullback_ok"] = pullback_ok
+
+            if not pullback_ok:
                 if self.debug_enabled:
-                    logger.debug(f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter.")
+                    logger.debug(
+                        f"[{symbol}] DEBUG: Reclaim detected but failed Pullback Filter "
+                        f"(above={above_count} > max_above_ema21={self.max_above_ema21})."
+                    )
+                self._debug_rows.append(_debug_row)
                 return _noop
 
             if self.debug_enabled:
-                logger.debug(f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK)")
+                logger.debug(
+                    f"[{symbol}] DEBUG: Transition to CONFIRMING (Reclaim OK, above={above_count}/{self.max_above_ema21})"
+                )
             # Transition within the same tick (fall through to CONFIRMING)
             current_state = CONFIRMING
 
         if current_state == CONFIRMING:
             if rsi_ema9 is None or rsi_wma45 is None:
                 new_ctx = ContextSnapshot(state=CONFIRMING, meta=dict(context.meta))
+                self._debug_rows.append(_debug_row)
                 return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
             spread = float(rsi_ema9) - float(rsi_wma45)
+            _debug_row["spread"] = spread
             if spread < self.rsi_spread_min:
                 if self.debug_enabled:
-                    logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - Spread {spread:.2f} < {self.rsi_spread_min} - Reset to SCANNING")
+                    logger.debug(
+                        f"[{symbol}] DEBUG: Failed Confirmation - "
+                        f"RSI_EMA9={float(rsi_ema9):.2f}, RSI_WMA45={float(rsi_wma45):.2f}, "
+                        f"Spread={spread:.2f} < rsi_spread_min={self.rsi_spread_min} - Reset to SCANNING"
+                    )
+                self._debug_rows.append(_debug_row)
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
+
+            _debug_row["spread_ok"] = True
 
             # Compute SL
             sl_price = self._compute_sl(df_ind)
@@ -441,6 +494,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             if sl_price is None:
                 if self.debug_enabled:
                     logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - No SL computed - Reset to SCANNING")
+                self._debug_rows.append(_debug_row)
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
             entry_price = close
@@ -468,6 +522,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             if tp1_price is None:
                 if self.debug_enabled:
                     logger.debug(f"[{symbol}] DEBUG: Failed Confirmation - Invalid TP - Reset to SCANNING")
+                self._debug_rows.append(_debug_row)
                 return AnalysisResult(actions=[DoNothing()], new_context=ContextSnapshot(state=SCANNING))
 
             # Dual SL system
@@ -501,7 +556,13 @@ class RsiNoRetestStrategy(BaseStrategy):
             # State goes back to SCANNING after emitting entry
             new_ctx = ContextSnapshot(state=SCANNING, soft_sl_price=soft_sl_price, meta=new_meta)
 
-            logger.info(f"[{symbol}] DEBUG: BUY SIGNAL GENERATED @ {entry_price} (SL={disaster_sl_price})")
+            logger.info(
+                f"[{symbol}] DEBUG: BUY SIGNAL GENERATED @ {entry_price} "
+                f"(SL={disaster_sl_price}, RSI_EMA9={float(rsi_ema9):.2f}, RSI_WMA45={float(rsi_wma45):.2f}, Spread={spread:.2f})"
+            )
+
+            _debug_row["signal"] = "BUY"
+            self._debug_rows.append(_debug_row)
 
             return AnalysisResult(
                 actions=[OpenPosition(

@@ -174,12 +174,15 @@ class BacktestEngine(Engine):
         self._total_steps = max(len(self._full_df) - self.WARMUP, 1)
 
         initial_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
+        strategy_params = {**self.strategy.DEFAULT_CONFIG, **self.config.get("strategy_params", {})}
         logger.info(
             "backtest_start",
             symbol=self.symbol,
             candles=len(self._full_df),
             initial_balance=initial_bal,
             leverage=f"{self.exchange.leverage}x",
+            nr_max_above_ema21=strategy_params.get("nr_max_above_ema21", "N/A"),
+            nr_rsi_spread_min=strategy_params.get("nr_rsi_spread_min", "N/A"),
         )
 
         super().run()

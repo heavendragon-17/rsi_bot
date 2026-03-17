@@ -56,7 +56,6 @@ app.include_router(history.router)
 app.include_router(strategies.router)
 app.include_router(data.router)
 
-
 @app.get("/health")
 def health():
     return {"status": "ok"}

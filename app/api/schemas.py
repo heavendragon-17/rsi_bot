@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -17,7 +17,9 @@ from pydantic import BaseModel
 
 
 class BacktestRequest(BaseModel):
-    symbol: str
+    """Unified backtest request. Provide exactly one of `symbol` (single) or `symbols` (portfolio)."""
+    symbol: str | None = None           # Single-symbol mode
+    symbols: list[str] | None = None    # Portfolio mode
     timeframe: str
     strategy: str
     start_date: str
@@ -29,6 +31,14 @@ class BacktestRequest(BaseModel):
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}
+
+    @model_validator(mode="after")
+    def _check_symbol_xor_symbols(self) -> "BacktestRequest":
+        has_single = bool(self.symbol)
+        has_multi = bool(self.symbols)
+        if has_single == has_multi:
+            raise ValueError("Provide exactly one of 'symbol' (single) or 'symbols' (portfolio)")
+        return self
 
 
 # ---------------------------------------------------------------------------

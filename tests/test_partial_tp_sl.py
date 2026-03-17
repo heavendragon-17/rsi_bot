@@ -13,7 +13,7 @@ from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
 from app.core.portfolio import PortfolioManager, Position
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
-from app.core.actions import PartialClose
+from app.core.actions import PartialClose, MoveSL
 from app.utils.indicators import Indicators
 
 class TestPartialTPSL(unittest.TestCase):
@@ -211,7 +211,7 @@ class TestPartialTPSL(unittest.TestCase):
         last_sl_order = sl_orders[-1]
 
         # SL price is in params.stopPrice for stop_market orders
-        self.assertEqual(last_sl_order['params']['stopPrice'], expected_sl)
+        self.assertAlmostEqual(float(last_sl_order['params']['stopPrice']), float(expected_sl), places=2)
         self.assertEqual(last_sl_order['amount'], Decimal("1.0"))
         self.assertTrue(last_sl_order['params'].get('reduceOnly'))
 

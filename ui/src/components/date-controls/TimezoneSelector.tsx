@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { Globe } from "lucide-react";

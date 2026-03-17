@@ -17,6 +17,7 @@ import type {
 /**
  * POST /api/backtest/run
  * Returns run_id and initial status.
+ * Pass `symbol` for single-symbol mode or `symbols` (array) for portfolio mode.
  * Throws ApiError 400 if data file is missing or strategy is unknown.
  */
 export async function startBacktest(
