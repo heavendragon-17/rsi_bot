@@ -1,511 +1,579 @@
-# Backtest API & UI Redesign — Full Specification
+# CI/CD Pipeline & Code Quality — Full Specification
 
-**Date:** 2026-03-12
-**Branch:** `fix/backtest-sl-wrong`
-**Scope:** Move batch/portfolio aggregation from frontend to backend. Expose three distinct run modes through a single unified API contract. Delete frontend aggregation workaround.
+**Date:** 2026-03-17
+**Branch:** `claude/refactor-cicd-prep-NiFf9`
+**Scope:** Add GitHub Actions CI/CD, code quality tooling (ruff, mypy, ESLint, Prettier), pre-commit hooks, systemd deployment to VPS, and file size conventions. No structural refactoring of existing code.
 
 ---
 
 ## 1. Problem Statement
 
-The current architecture has a fundamental layering violation:
+The codebase has:
+- **No CI/CD pipeline** — no automated testing, linting, or deployment
+- **No code quality tooling** — no linter, formatter, or type checker configured
+- **Manual deployment** — bot runs in screen/tmux on VPS, deployed by SSH + manual commands
+- **No pre-commit hooks** — code style varies across files
 
-- `run_batch_analysis.py` already performs parallel batch backtesting with proper aggregation in the backend
-- `portfolio_engine.py` + `portfolio_event_source.py` already implement true multi-symbol portfolio backtesting with shared capital
-- Neither is exposed via the HTTP API
-- The UI (`backtestStore.ts`) works around this by firing N separate API calls, streaming N SSE connections in parallel, and running `aggregateBatchResults()` in the browser
-
-**Target architecture:** Backend owns all computation and aggregation. Frontend sends config, receives a run ID, streams one SSE for progress, fetches one result payload.
-
----
-
-## 2. Mode Definitions
-
-### Mode A — Single
-- Run `BacktestEngine` for one symbol
-- Same as current behavior
-- Capital: `initial_capital` used fully for that symbol
-
-### Mode B — Batch
-- Run `BacktestEngine` for N symbols **independently** (parallel workers via `ProcessPoolExecutor`)
-- Capital allocation: **user-selectable**
-  - `split` — each symbol gets `initial_capital / N`
-  - `full` — each symbol gets the full `initial_capital`
-- Symbols do NOT interact; no shared exchange state
-- Results aggregated server-side into one `BatchResult` payload
-- Progress reported as overall completion (e.g., "7/12 symbols done")
-
-### Mode C — Portfolio
-- Run `PortfolioEngine` with `PortfolioEventSource` (chronological multiplexing)
-- All symbols share **one** `MockExchange` and **one** `PortfolioManager`
-- Capital is shared — one symbol's trade affects available balance for others
-- Maximum scale: 10–20 symbols (no streaming-from-disk optimization needed)
-- Date range overlap: allowed — each symbol runs with whatever data it has in the requested range. `PortfolioEventSource` already handles mismatched start dates via `start_idx`.
+**Goal:** Add automated quality gates and deployment without touching existing code structure. Use a baseline-ignore approach so all existing code passes immediately, and only new/modified code must meet quality standards.
 
 ---
 
-## 3. API Contract
+## 2. Decisions Summary
 
-### 3.1 Unified Request
-
-**Single endpoint for all modes:**
-
-```
-POST /api/backtest/run
-```
-
-New `BacktestRequest` Pydantic schema (replaces existing):
-
-```python
-class BacktestRequest(BaseModel):
-    mode: Literal["single", "batch", "portfolio"]
-    symbols: list[str]               # single → use symbols[0]
-    timeframe: str
-    strategy: str
-    start_date: str                  # yyyy-MM-dd
-    end_date: str
-    initial_capital: str = "10000"
-    capital_mode: Literal["split", "full"] = "split"   # batch only
-    leverage: int = 10
-    risk_per_trade_pct: str = "0.02"
-    fee_tier: str = "0.001"
-    slippage_model: str = "none"
-    slippage_pct: str = "0.0"
-    params: dict[str, Any] = {}
-```
-
-**Response:**
-
-```python
-class BacktestStartResponse(BaseModel):
-    run_id: int          # For single mode — existing Run row
-    batch_run_id: int    # For batch mode — new BatchRun row
-    portfolio_run_id: int  # For portfolio mode — new PortfolioRun row
-    mode: str
-    status: str          # "running"
-```
-
-> Only one of `run_id / batch_run_id / portfolio_run_id` will be populated depending on mode.
-
-### 3.2 Progress SSE
-
-All three modes share the same SSE endpoint:
-
-```
-GET /api/backtest/{id}/progress?mode=single|batch|portfolio
-```
-
-**Single** — existing format:
-```json
-{"event": "progress", "pct": 42}
-{"event": "complete", "run_id": 7, "status": "completed"}
-```
-
-**Batch** — adds per-symbol status:
-```json
-{"event": "progress", "pct": 58, "completed": 7, "total": 12, "symbol": "ETH/USDT", "symbol_status": "completed"}
-{"event": "symbol_error", "symbol": "XRP/USDT", "message": "Download failed"}
-{"event": "complete", "batch_run_id": 3, "status": "partial", "failed": ["XRP/USDT"]}
-```
-
-**Portfolio** — same as single (PortfolioEngine reports 0–100%):
-```json
-{"event": "progress", "pct": 71}
-{"event": "complete", "portfolio_run_id": 5, "status": "completed"}
-```
-
-### 3.3 Result Fetch Endpoints
-
-```
-GET /api/backtest/{run_id}                         # single — existing RunDetail
-GET /api/backtest/batch/{batch_run_id}             # new BatchRunDetail
-GET /api/backtest/portfolio/{portfolio_run_id}     # new PortfolioRunDetail
-
-GET /api/backtest/{run_id}/timeseries              # single — unchanged
-GET /api/backtest/batch/{batch_run_id}/timeseries  # batch — portfolio equity + per-symbol curves
-GET /api/backtest/portfolio/{portfolio_run_id}/timeseries  # portfolio equity curve
-```
-
-### 3.4 Cancel
-
-```
-DELETE /api/backtest/{id}?mode=single|batch|portfolio
-```
-
-- **Single**: existing behavior
-- **Batch**: kill all in-flight `ProcessPoolExecutor` workers immediately (`future.cancel()` + `executor.shutdown(wait=False)`)
-- **Portfolio**: call `PortfolioEngine.stop()` via event
-
-### 3.5 Auto-Download Behavior
-
-If data is missing for any symbol:
-1. Attempt inline download via `download_data()` before starting the engine
-2. If download succeeds, proceed
-3. If download fails for a symbol:
-   - **Single**: return HTTP 400
-   - **Batch**: mark that symbol as failed, continue with others (partial result)
-   - **Portfolio**: return HTTP 400 (cannot run with any missing symbol since the event stream needs all of them)
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| CI/CD platform | GitHub Actions | Already using GitHub |
+| Python linting/formatting | ruff (E, F, I, N, B, UP rules) | Fast, replaces 5+ tools |
+| Python type checking | mypy (relaxed mode) | Catches obvious errors without requiring full annotations |
+| TypeScript linting | ESLint + Prettier | Most mature ecosystem, best plugin support |
+| Test runner | pytest + coverage report (no gate) | Coverage visible in PRs but doesn't block merge |
+| Pre-commit hooks | ruff format + ruff check | Catch issues before they reach CI |
+| Deploy trigger | GitHub release tag | Most controlled for production trading bot |
+| Deploy method | systemd + SSH (Docker planned for later) | Simple for single bot, migrate to Docker when multi-bot needed |
+| VPS secrets | .env stays on VPS, SSH key in GitHub Secrets | API keys never leave the server |
+| Bot restart during deploy | Hard restart | 15m timeframe = negligible risk of missing signal in 10-30s gap |
+| Rollback strategy | Re-deploy previous release tag | Simple, reliable, tag-based |
+| File size convention | Soft 100 lines, hard 150 (new code only) | Pragmatic balance, shadcn/ui excluded |
+| Existing violations | Baseline ignore | Zero disruption, only new violations caught |
+| File splitting | Deferred | Skip for now, split organically as files are touched |
+| Backtest UI deployment | Not deployed | UI is local-only (dev machine) |
 
 ---
 
-## 4. Backend Implementation
+## 3. GitHub Actions Pipeline
 
-### 4.1 New API Routes
+### 3.1 CI Workflow (runs on every push and PR)
 
-File: `app/api/routes/backtest.py`
+**File:** `.github/workflows/ci.yml`
 
-- Extend `POST /api/backtest/run` to dispatch on `body.mode`
-- Add `GET /api/backtest/batch/{id}` and `GET /api/backtest/batch/{id}/timeseries`
-- Add `GET /api/backtest/portfolio/{id}` and `GET /api/backtest/portfolio/{id}/timeseries`
-- Extend `DELETE /api/backtest/{id}` with mode parameter
+```yaml
+name: CI
+on:
+  push:
+    branches: [mua-tren-the-nang]
+  pull_request:
+    branches: [mua-tren-the-nang]
 
-### 4.2 Batch Execution
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Ruff format check
+        run: ruff format --check .
+      - name: Ruff lint
+        run: ruff check .
+      - name: Mypy type check
+        run: mypy app/ --ignore-missing-imports
+      - name: Pytest + coverage
+        run: pytest tests/ --cov=app --cov-report=xml --cov-report=term-missing -v
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
 
-Adapted from `run_batch_analysis.py`:
-
-```python
-def _run_batch_backtest(batch_run_id, symbols, config, ...):
-    with ProcessPoolExecutor(max_workers=min(cpu_count, len(symbols))) as executor:
-        futures = {executor.submit(run_single_backtest, sym, ...): sym for sym in symbols}
-        for future in as_completed(futures):
-            result = future.result()
-            # publish per-symbol progress event to SSE queue
-            # collect results or errors
-    # persist BatchRun + BatchRunResult to DB
-    # publish complete event
+  frontend-quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci
+      - name: ESLint
+        run: npx eslint src/ --max-warnings 0
+      - name: Prettier check
+        run: npx prettier --check "src/**/*.{ts,tsx,css}"
+      - name: TypeScript check
+        run: npx tsc --noEmit
 ```
 
-Cancel registers the executor in `exc_mod` so `executor.shutdown(wait=False, cancel_futures=True)` can be called.
+### 3.2 Deploy Workflow (runs on release tag)
 
-### 4.3 Portfolio Execution
+**File:** `.github/workflows/deploy.yml`
 
-Adapted from `run_portfolio_backtest.py`:
+```yaml
+name: Deploy
+on:
+  release:
+    types: [published]
 
-```python
-def _run_portfolio_backtest(portfolio_run_id, symbols, config, ...):
-    dfs = {sym: load_and_prepare_df(sym, ...) for sym in symbols}
-    event_source = PortfolioEventSource(dfs, start_idx=220)
-    exchange = MockExchange(config)
-    engine = PortfolioEngine(event_source, strategy_class, exchange, config, symbols)
-    results = engine.run(on_progress=progress_cb)
-    # persist PortfolioRun + PortfolioRunResult to DB
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []  # CI runs separately on the branch/PR before merge
+    environment: production
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/rsi_bot
+            git fetch origin --tags
+            git checkout ${{ github.event.release.tag_name }}
+            pip install -r requirements.txt
+            sudo systemctl restart rsi-bot
+            sleep 3
+            sudo systemctl is-active rsi-bot
 ```
 
-### 4.4 New Pydantic Schemas
+### 3.3 Rollback
 
-Add to `app/api/schemas.py`:
+To rollback: create a new GitHub release pointing to the previous working tag. The deploy workflow runs again with the older tag.
 
-```python
-class BatchSymbolResult(BaseModel):
-    symbol: str
-    status: Literal["completed", "failed"]
-    error: str | None
-    net_profit: str | None
-    net_profit_pct: float | None
-    win_rate: float | None
-    profit_factor: float | None
-    max_drawdown_pct: float | None
-    sharpe_ratio: float | None
-    total_trades: int | None
-    trades: list[dict[str, Any]] | None
-
-class BatchRunDetail(BaseModel):
-    id: int
-    mode: Literal["batch"] = "batch"
-    strategy_name: str
-    timeframe: str
-    status: str
-    created_at: str
-    config: dict[str, Any]
-    capital_mode: str            # "split" | "full"
-    symbol_count: int
-    failed_symbols: list[str]
-    aggregate: dict[str, Any]    # total_pnl, portfolio_return, avg_sharpe, total_trades, etc.
-    symbols: list[BatchSymbolResult]
-
-class PortfolioRunDetail(BaseModel):
-    id: int
-    mode: Literal["portfolio"] = "portfolio"
-    strategy_name: str
-    timeframe: str
-    status: str
-    created_at: str
-    config: dict[str, Any]
-    symbols: list[str]
-    results: dict[str, Any]      # same shape as single RunResult (shared portfolio metrics)
-    trades: list[dict[str, Any]] # all trades with symbol field
-
-class BatchTimeseriesResponse(BaseModel):
-    batch_run_id: int
-    portfolio_equity_curve: list[dict[str, Any]]   # aggregate equity over time
-    per_symbol_equity: dict[str, list[dict]]        # symbol → equity curve
-    monthly_returns: dict[str, Any]
-
-class PortfolioTimeseriesResponse(BaseModel):
-    portfolio_run_id: int
-    equity_curve: list[dict[str, Any]]
-    drawdown_curve: list[dict[str, Any]]
-    monthly_returns: dict[str, Any]
+Manual emergency rollback (SSH into VPS):
+```bash
+cd /opt/rsi_bot
+git checkout v1.2.3  # previous known-good tag
+pip install -r requirements.txt
+sudo systemctl restart rsi-bot
 ```
 
 ---
 
-## 5. Database Schema
+## 4. Python Tooling
 
-### 5.1 New Tables
+### 4.1 Ruff Configuration
 
-```sql
--- Batch runs
-CREATE TABLE batch_run (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    strategy_id INTEGER REFERENCES strategy(id),
-    status      TEXT NOT NULL DEFAULT 'running',   -- running|completed|partial|failed|cancelled
-    capital_mode TEXT NOT NULL DEFAULT 'split',    -- split|full
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    started_at  DATETIME,
-    completed_at DATETIME
-);
+**File:** `pyproject.toml` (new section, or new file)
 
-CREATE TABLE batch_run_config (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    batch_run_id    INTEGER REFERENCES batch_run(id),
-    symbols         TEXT NOT NULL,   -- JSON array
-    timeframe       TEXT,
-    start_date      DATE,
-    end_date        DATE,
-    initial_capital TEXT,
-    leverage        INTEGER,
-    risk_per_trade_pct TEXT,
-    params          TEXT             -- JSON
-);
+```toml
+[tool.ruff]
+target-version = "py311"
+line-length = 120
 
-CREATE TABLE batch_run_result (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    batch_run_id    INTEGER REFERENCES batch_run(id),
-    aggregate_stats TEXT NOT NULL,   -- JSON: total_pnl, portfolio_return, avg_sharpe, etc.
-    per_symbol_stats TEXT NOT NULL,  -- JSON: array of BatchSymbolResult
-    failed_symbols  TEXT,            -- JSON array
-    equity_curve    BLOB,            -- zlib-compressed JSON
-    monthly_returns TEXT             -- JSON
-);
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "B",   # flake8-bugbear (common bugs)
+    "UP",  # pyupgrade (modernize syntax)
+]
+ignore = []
 
--- Portfolio runs
-CREATE TABLE portfolio_run (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    strategy_id INTEGER REFERENCES strategy(id),
-    status      TEXT NOT NULL DEFAULT 'running',
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    started_at  DATETIME,
-    completed_at DATETIME
-);
+# Files that exist before this spec are baselined.
+# Ruff will auto-generate this on first run.
+# See section 4.4 for baseline procedure.
 
-CREATE TABLE portfolio_run_config (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    portfolio_run_id    INTEGER REFERENCES portfolio_run(id),
-    symbols             TEXT NOT NULL,   -- JSON array
-    timeframe           TEXT,
-    start_date          DATE,
-    end_date            DATE,
-    initial_capital     TEXT,
-    leverage            INTEGER,
-    risk_per_trade_pct  TEXT,
-    params              TEXT             -- JSON
-);
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802", "N803"]  # allow non-PEP8 names in tests
 
-CREATE TABLE portfolio_run_result (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    portfolio_run_id    INTEGER REFERENCES portfolio_run(id),
-    -- same metrics columns as run_result
-    net_profit          TEXT,
-    net_profit_pct      REAL,
-    win_rate            REAL,
-    profit_factor       REAL,
-    max_drawdown_pct    REAL,
-    sharpe_ratio        REAL,
-    total_trades        INTEGER,
-    exit_reasons        TEXT,    -- JSON
-    equity_curve        BLOB,    -- zlib-compressed JSON
-    drawdown_curve      BLOB,    -- zlib-compressed JSON
-    monthly_returns     TEXT     -- JSON
-);
-
-CREATE TABLE portfolio_trade (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    portfolio_run_id    INTEGER REFERENCES portfolio_run(id),
-    -- same columns as trade table + symbol
-    symbol              TEXT,
-    side                TEXT,
-    entry_time          DATETIME,
-    exit_time           DATETIME,
-    entry_price         TEXT,
-    exit_price          TEXT,
-    quantity            TEXT,
-    pnl                 TEXT,
-    pnl_pct             REAL,
-    exit_reason         TEXT
-);
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 ```
 
----
+### 4.2 Mypy Configuration
 
-## 6. Frontend Implementation
+**File:** `pyproject.toml` (additional section)
 
-### 6.1 API Layer (`ui/src/api/backtest.ts`)
-
-Replace the current `startBacktest()` signature:
-
-```typescript
-export async function startBacktest(params: BacktestRequest): Promise<BacktestStartResponse>
-
-// New result fetchers
-export async function getBatchRunDetail(id: number): Promise<BatchRunDetail>
-export async function getBatchTimeseries(id: number): Promise<BatchTimeseriesResponse>
-export async function getPortfolioRunDetail(id: number): Promise<PortfolioRunDetail>
-export async function getPortfolioTimeseries(id: number): Promise<PortfolioTimeseriesResponse>
+```toml
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_configs = true
+check_untyped_defs = false       # relaxed: don't require annotations
+disallow_untyped_defs = false    # relaxed: don't require annotations
+no_implicit_optional = true
 ```
 
-`streamProgress` stays the same — works for all modes since the SSE endpoint is unified.
+### 4.3 Dev Dependencies
 
-### 6.2 Store Architecture
-
-Three separate Zustand stores for execution/results:
-
-| Store | Purpose |
-|-------|---------|
-| `backtestStore.ts` | Config state only (mode, symbols, params, dates). Delegates runBacktest() to mode-specific execution. |
-| `singleRunStore.ts` | Single-mode execution + result state |
-| `batchRunStore.ts` | Batch-mode execution + result state (replaces batchResultsStore.ts) |
-| `portfolioRunStore.ts` | Portfolio-mode execution + result state (new) |
-
-`backtestStore.runBacktest()` inspects `mode` and calls the appropriate store.
-
-#### `backtestStore` changes:
-- Remove: `runBacktest`, `cancelBacktest`, `currentRunId`, `runProgress`, `isRunning`
-- Add: `activeStore` getter that returns the appropriate execution store based on `mode`
-- Add: `capitalMode: "split" | "full"` to persisted config
-
-#### New `batchRunStore`:
-```typescript
-interface BatchRunState {
-  isRunning: boolean
-  runProgress: number
-  completedSymbols: number
-  totalSymbols: number
-  symbolStatuses: Record<string, "pending" | "running" | "completed" | "failed">
-  currentBatchRunId: number | null
-  result: BatchRunDetail | null
-  timeseries: BatchTimeseriesResponse | null
-  run: (config: BacktestRequest) => Promise<void>
-  cancel: () => Promise<void>
-}
-```
-
-#### New `portfolioRunStore`:
-```typescript
-interface PortfolioRunState {
-  isRunning: boolean
-  runProgress: number
-  currentPortfolioRunId: number | null
-  result: PortfolioRunDetail | null
-  timeseries: PortfolioTimeseriesResponse | null
-  run: (config: BacktestRequest) => Promise<void>
-  cancel: () => Promise<void>
-}
-```
-
-### 6.3 UI Components
-
-Delete: `ui/src/lib/batch-utils.ts` (aggregation moves to backend)
-
-Delete existing batch workaround components and replace with new ones built against clean backend response shapes:
-
-**New components:**
+**File:** `requirements-dev.txt` (new)
 
 ```
-ui/src/components/results/
-├── single/
-│   ├── SingleResultsDashboard.tsx    (renamed/refactored from ResultsDashboard.tsx)
-│   ├── HeroStats.tsx
-│   ├── MetricsGrid.tsx
-│   ├── TradesTable.tsx
-│   ├── EquityUnderwaterChart.tsx
-│   └── ExitReasonsChart.tsx
-│
-├── batch/
-│   ├── BatchResultsDashboard.tsx     (new — consumes BatchRunDetail)
-│   ├── BatchHeroStats.tsx            (total PnL, portfolio return, avg sharpe)
-│   ├── SymbolPerformanceTable.tsx    (per-symbol metrics table)
-│   ├── PortfolioEquityChart.tsx      (aggregate equity curve)
-│   ├── SymbolEquityChart.tsx         (per-symbol equity overlay)
-│   └── FailedSymbolsAlert.tsx        (shows which symbols had errors)
-│
-└── portfolio/
-    ├── PortfolioResultsDashboard.tsx  (new — consumes PortfolioRunDetail)
-    ├── PortfolioHeroStats.tsx
-    ├── SharedCapitalChart.tsx         (equity curve with shared capital)
-    ├── PerSymbolTradesBreakdown.tsx
-    └── PortfolioMetricsGrid.tsx
+ruff>=0.8.0
+mypy>=1.13.0
+pytest>=8.0.0
+pytest-cov>=6.0.0
+pre-commit>=4.0.0
 ```
 
-**Launchpad (`Launchpad.tsx`) changes:**
-- Add `capitalMode` toggle (Split / Full) — visible only when `mode === "batch"`
-- `portfolioInput` textarea remains for batch and portfolio modes
-- Progress display: for batch, show symbol-by-symbol completion ("7/12 symbols done — ETH/USDT ✓")
+### 4.4 Baseline Procedure
 
-### 6.4 History Page (`RunHistory.tsx`)
-
-Add three tabs: **Single | Batch | Portfolio**
-
-Each tab has its own fetch from:
-- `GET /api/history` (existing, filtered by `run_type=single`)
-- `GET /api/history/batch` (new)
-- `GET /api/history/portfolio` (new)
-
-Clicking a row:
-- Single → opens `SingleResultsDashboard`
-- Batch → opens `BatchResultsDashboard`
-- Portfolio → opens `PortfolioResultsDashboard`
-
-### 6.5 TypeScript Types
-
-Add new Pydantic schemas to `app/api/schemas.py`, then regenerate:
+On first setup, generate a baseline so existing code passes:
 
 ```bash
-npm run generate-types
+# Auto-fix what ruff can fix (formatting, import sorting)
+ruff format .
+ruff check --fix .
+
+# Remaining unfixable violations get baselined
+# Option A: Use ruff's per-file-ignores for specific files
+# Option B: Use inline `# noqa` comments (ruff check --add-noqa)
+ruff check --add-noqa .
 ```
 
-Do NOT hand-write TypeScript interfaces for the new schemas.
+**Important:** The auto-fix step (formatting + safe fixes) WILL modify existing files, but these are cosmetic changes (whitespace, import order, quote style). They don't change behavior. This is the one exception to "don't touch existing code." These changes should be in a single commit with message: `style: apply ruff formatting baseline`.
+
+After baseline, all subsequent CI runs start clean.
 
 ---
 
-## 7. Implementation Order
+## 5. TypeScript/React Tooling
 
-1. **DB migration** — create new tables (`batch_run`, `portfolio_run`, etc.)
-2. **Backend batch endpoint** — `POST /api/backtest/run` dispatches to batch worker, new `GET /api/backtest/batch/{id}` routes
-3. **Backend portfolio endpoint** — same pattern for portfolio
-4. **Pydantic schemas** — add new request/response models, regenerate TS types
-5. **Frontend stores** — `batchRunStore`, `portfolioRunStore`, refactor `backtestStore` to config-only
-6. **Frontend API layer** — update `startBacktest()` signature, add new fetchers
-7. **UI components** — replace batch components, build portfolio components, update Launchpad progress UI
-8. **History page tabs** — add batch/portfolio tabs
-9. **Delete dead code** — `lib/batch-utils.ts`, old batch workaround in `backtestStore.runBacktest()`
+### 5.1 ESLint Configuration
+
+**File:** `ui/eslint.config.js` (new, flat config format)
+
+```js
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+    },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-refresh/only-export-components": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "off",  // too many existing `any` types
+    },
+  },
+  {
+    ignores: ["dist/", "node_modules/", "src/components/ui/"],  // exclude shadcn/ui
+  }
+);
+```
+
+### 5.2 Prettier Configuration
+
+**File:** `ui/.prettierrc` (new)
+
+```json
+{
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "printWidth": 100
+}
+```
+
+**File:** `ui/.prettierignore` (new)
+
+```
+dist/
+node_modules/
+src/components/ui/
+```
+
+### 5.3 Baseline Procedure
+
+```bash
+cd ui
+npx prettier --write "src/**/*.{ts,tsx,css}"
+npx eslint src/ --fix
+```
+
+Same as Python: cosmetic-only changes in a single commit: `style: apply eslint+prettier formatting baseline`.
 
 ---
 
-## 8. Out of Scope
+## 6. Pre-Commit Hooks
 
-- Grid search, walk-forward, sensitivity modes (untouched)
-- Pine translator mode (untouched)
-- Streaming-from-disk for 50+ symbol portfolios (deferred, 10-20 is max)
-- Correlation matrix in batch results (existing component kept if it still renders correctly)
-- Short-selling support in portfolio mode
+**File:** `.pre-commit-config.yaml` (new)
+
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix]
+```
+
+**Setup command:**
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+**Note:** Frontend hooks (ESLint/Prettier) are NOT in pre-commit to keep commits fast. Frontend quality is enforced in CI only. If this becomes a problem, we can add `lint-staged` + `husky` later.
 
 ---
 
-## 9. Key Constraints & Invariants
+## 7. VPS Systemd Service
 
-- **`run_batch_analysis.py`** is kept as a CLI tool but its logic (`run_single_backtest`, aggregation) is extracted into a shared module that both the CLI and API use
-- **`PortfolioEngine.stop()`** must be called through the executor cancellation path — do not add a new stop mechanism
-- **All prices remain Decimal** in the engine; the API serializes to string for JSON transport
-- **SSE timeout** stays at 300s per connection — batch runs with 20 symbols against 5000-bar data should complete well within this
-- **`backtest-config-v2`** localStorage key: add `capitalMode` to the persisted config in `backtestStore` partialize
+### 7.1 Service Unit File
+
+**File:** `deploy/rsi-bot.service` (new, checked into repo)
+
+```ini
+[Unit]
+Description=RSI Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=botuser
+WorkingDirectory=/opt/rsi_bot
+EnvironmentFile=/opt/rsi_bot/.env
+ExecStart=/opt/rsi_bot/venv/bin/python main.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 7.2 VPS Initial Setup (one-time, documented)
+
+```bash
+# 1. Create bot user
+sudo useradd -m -s /bin/bash botuser
+
+# 2. Clone repo
+sudo mkdir -p /opt/rsi_bot
+sudo chown botuser:botuser /opt/rsi_bot
+sudo -u botuser git clone <repo-url> /opt/rsi_bot
+
+# 3. Create virtualenv
+sudo -u botuser python3 -m venv /opt/rsi_bot/venv
+sudo -u botuser /opt/rsi_bot/venv/bin/pip install -r /opt/rsi_bot/requirements.txt
+
+# 4. Copy .env (contains API keys — NEVER in repo)
+sudo -u botuser cp /path/to/.env /opt/rsi_bot/.env
+
+# 5. Install systemd service
+sudo cp /opt/rsi_bot/deploy/rsi-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable rsi-bot
+sudo systemctl start rsi-bot
+
+# 6. Verify
+sudo systemctl status rsi-bot
+sudo journalctl -u rsi-bot -f
+```
+
+### 7.3 GitHub Secrets Required
+
+| Secret | Description |
+|--------|-------------|
+| `VPS_HOST` | VPS IP address or hostname |
+| `VPS_USER` | SSH user with sudo access (or botuser with systemctl permissions) |
+| `VPS_SSH_KEY` | Private SSH key for VPS_USER |
+
+### 7.4 Sudoers (allow botuser to restart without password)
+
+```bash
+# /etc/sudoers.d/rsi-bot
+botuser ALL=(ALL) NOPASSWD: /bin/systemctl restart rsi-bot, /bin/systemctl is-active rsi-bot
+```
+
+---
+
+## 8. File Size Convention
+
+### 8.1 Rules
+
+- **Target:** 100 lines per file (soft limit)
+- **Maximum:** 150 lines per file (hard limit)
+- **Applies to:** All new and modified Python/TypeScript files
+- **Excludes:** shadcn/ui components (`ui/src/components/ui/`), test files, generated files
+- **Enforcement:** Not automated in CI (advisory only). Enforced during code review.
+- **Existing files:** No retroactive splitting. Files are split when they are modified for other reasons.
+
+### 8.2 Counting
+
+- Lines are counted including imports, comments, and blank lines
+- A file at 148 lines is acceptable; a file at 152 lines should be split
+- When splitting, prefer extracting into a sibling file in the same directory with a clear name
+
+### 8.3 Future: Automated Enforcement
+
+If desired later, add a CI check:
+
+```bash
+# Find files over 150 lines (excluding vendor/generated)
+find app/ ui/src/ -name "*.py" -o -name "*.ts" -o -name "*.tsx" | \
+  grep -v "ui/src/components/ui/" | \
+  xargs wc -l | awk '$1 > 150 && !/total/ {print}'
+```
+
+---
+
+## 9. Project Structure Changes
+
+### 9.1 New Files
+
+```
+.github/
+├── workflows/
+│   ├── ci.yml                    # CI pipeline (lint, type-check, test)
+│   └── deploy.yml                # Deploy on release tag
+
+deploy/
+├── rsi-bot.service               # systemd unit file
+└── setup-vps.sh                  # One-time VPS setup script (optional)
+
+pyproject.toml                     # ruff + mypy config (new or extended)
+requirements-dev.txt               # Dev dependencies (ruff, mypy, pytest-cov, pre-commit)
+.pre-commit-config.yaml            # Pre-commit hooks
+
+ui/eslint.config.js                # ESLint flat config
+ui/.prettierrc                     # Prettier config
+ui/.prettierignore                 # Prettier ignore
+```
+
+### 9.2 Modified Files
+
+- `requirements.txt` — no changes (production deps only)
+- `pyproject.toml` — add `[tool.ruff]` and `[tool.mypy]` sections
+- `ui/package.json` — add ESLint, Prettier, and related plugins to devDependencies
+
+### 9.3 Formatting Baseline Commits
+
+Two commits that touch many files but are cosmetic-only:
+1. `style: apply ruff formatting baseline` — Python files
+2. `style: apply eslint+prettier formatting baseline` — TypeScript/React files
+
+These commits should be reviewed quickly (formatting only, no logic changes).
+
+---
+
+## 10. Implementation Order
+
+### Phase 1: Python Quality Tooling
+1. Create `requirements-dev.txt`
+2. Add ruff config to `pyproject.toml`
+3. Add mypy config to `pyproject.toml`
+4. Run `ruff format .` and `ruff check --fix .` (auto-fix)
+5. Run `ruff check --add-noqa .` (baseline remaining violations)
+6. Commit: `style: apply ruff formatting baseline`
+7. Verify: `ruff check .` and `ruff format --check .` pass
+
+### Phase 2: TypeScript Quality Tooling
+8. Add ESLint config (`ui/eslint.config.js`)
+9. Add Prettier config (`ui/.prettierrc`, `ui/.prettierignore`)
+10. Install dev dependencies: `npm install -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh prettier`
+11. Run `npx prettier --write "src/**/*.{ts,tsx,css}"`
+12. Run `npx eslint src/ --fix`
+13. Commit: `style: apply eslint+prettier formatting baseline`
+14. Verify: `npx eslint src/` and `npx prettier --check "src/**/*.{ts,tsx,css}"` pass
+
+### Phase 3: Pre-Commit Hooks
+15. Create `.pre-commit-config.yaml`
+16. Test: `pre-commit run --all-files`
+17. Commit: `chore: add pre-commit hooks for ruff`
+
+### Phase 4: CI Pipeline
+18. Create `.github/workflows/ci.yml`
+19. Push and verify CI passes on GitHub
+20. Commit: `ci: add GitHub Actions CI pipeline`
+
+### Phase 5: Deploy Pipeline
+21. Create `deploy/rsi-bot.service`
+22. Create `.github/workflows/deploy.yml`
+23. Document VPS setup steps in `deploy/setup-vps.sh`
+24. Commit: `ci: add deploy workflow and systemd service`
+25. Set up GitHub Secrets (VPS_HOST, VPS_USER, VPS_SSH_KEY)
+26. Create first release tag and test deploy
+
+---
+
+## 11. Graceful Deploy (Future Improvement)
+
+Current: hard restart (acceptable for 15m timeframe).
+
+Future: Add SIGTERM handler to `main.py`:
+
+```python
+import signal
+
+def handle_sigterm(signum, frame):
+    log.info("SIGTERM received, finishing current candle cycle...")
+    runner.request_shutdown()  # finish current analyze() loop, then exit
+
+signal.signal(signal.SIGTERM, handle_sigterm)
+```
+
+This allows the bot to complete its current candle processing before shutting down. Deploy script would use `systemctl stop` (sends SIGTERM), wait for exit, then `systemctl start`.
+
+---
+
+## 12. Docker Migration (Future)
+
+When you need multiple bots on the same VPS:
+
+1. Add `docker-compose.yml` with per-bot service definitions
+2. Each bot service mounts its own `config.yaml` and `.env`
+3. Deploy workflow builds image, pushes to GitHub Container Registry (ghcr.io)
+4. VPS pulls new image and restarts via `docker compose up -d`
+5. Rollback: `docker compose up -d --force-recreate` with previous image tag
+
+This replaces the systemd approach entirely.
+
+---
+
+## 13. Out of Scope
+
+- File splitting / structural refactoring (deferred, done organically)
+- Backtest UI deployment (UI is local-only)
+- Docker containerization (planned for multi-bot future)
+- Test coverage gates (report only, no minimum threshold)
+- Security scanning (SAST/DAST)
+- Dependency vulnerability scanning (Dependabot — can add later trivially)
+- Staging environment
+- Database migrations tooling (Alembic)
+
+---
+
+## 14. Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Baseline `# noqa` comments add noise | Low | Run `ruff check --add-noqa` only for unfixable violations. Most issues are auto-fixed. |
+| Formatting baseline commit makes git blame noisy | Medium | Use `git blame --ignore-rev` with the formatting commit hash. Add to `.git-blame-ignore-revs`. |
+| CI fails on existing tests | High | Run `pytest tests/` locally before CI setup. Fix any broken tests first. |
+| Deploy interrupts active trade monitoring | Low | 15m timeframe = ~10-30s gap is negligible. Add SIGTERM handler later. |
+| VPS SSH key compromise | High | Use deploy keys (read-only repo access). Rotate keys periodically. |
+| ESLint/Prettier conflicts with existing code | Medium | Generous config (allow `any`, ignore shadcn). Auto-fix first, manual fixes only if needed. |
+
+---
+
+## 15. Success Criteria
+
+- [ ] `ruff check .` and `ruff format --check .` pass on all Python code
+- [ ] `mypy app/` passes with no errors
+- [ ] `npx eslint src/` passes with 0 warnings in `ui/`
+- [ ] `npx prettier --check "src/**/*.{ts,tsx,css}"` passes in `ui/`
+- [ ] `pytest tests/` passes with coverage report generated
+- [ ] GitHub Actions CI runs on every push/PR to `mua-tren-the-nang`
+- [ ] Creating a GitHub release deploys to VPS automatically
+- [ ] Bot runs as systemd service with auto-restart on crash
+- [ ] `pre-commit run --all-files` passes locally
+- [ ] `.git-blame-ignore-revs` contains formatting baseline commit hashes
+
+---
+
+*Previous spec (Backtest API & UI Redesign) archived to `docs/archive/SPEC_backtest_redesign.md`.*
