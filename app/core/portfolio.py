@@ -30,6 +30,11 @@ from datetime import datetime
 import structlog
 
 from app.core.exceptions import ExchangeError, InsufficientFundsError
+from app.core.actions import (
+    SIDE_BUY, SIDE_SELL, opposite_side,
+    EXIT_STOP_LOSS, EXIT_SOFT_SL, EXIT_BREAKEVEN, EXIT_LOCK_PROFIT,
+    EXIT_TP1, EXIT_TP2, EXIT_TP3, EXIT_MANUAL,
+)
 
 logger = structlog.get_logger()
 from app.core.interfaces import IExchange
@@ -45,7 +50,7 @@ class Position:
     symbol: str
     amount: Decimal
     entry_price: Decimal
-    side: str  # 'BUY' (Long)
+    side: str  # SIDE_BUY (Long) or SIDE_SELL (Short)
     timestamp: datetime
 
     # TP/SL prices (from SignalEvent)
@@ -64,6 +69,13 @@ class Position:
     tp1_hit: bool = False
     tp2_hit: bool = False
     tp3_hit: bool = False
+
+    def is_long(self) -> bool:
+        return self.side == SIDE_BUY
+
+    @property
+    def exit_side(self) -> str:
+        return opposite_side(self.side)
 
 
 class PortfolioManager:
@@ -206,20 +218,14 @@ class PortfolioManager:
         if symbol not in self.positions:
             return PositionSnapshot(has_position=False, symbol=symbol)
         pos = self.positions[symbol]
-        if pos.side == "BUY":
-            # LONG: lock profit when SL has moved above entry
+        if pos.sl_price is not None and pos.entry_price is not None:
+            # LONG: lock profit when SL above entry; SHORT: when SL below entry
             lock_profit_triggered = (
-                pos.sl_price is not None
-                and pos.entry_price is not None
-                and pos.sl_price > pos.entry_price
+                pos.sl_price > pos.entry_price if pos.is_long()
+                else pos.sl_price < pos.entry_price
             )
         else:
-            # SHORT: lock profit when SL has moved below entry
-            lock_profit_triggered = (
-                pos.sl_price is not None
-                and pos.entry_price is not None
-                and pos.sl_price < pos.entry_price
-            )
+            lock_profit_triggered = False
         return PositionSnapshot(
             has_position=True,
             symbol=symbol,
@@ -271,10 +277,10 @@ class PortfolioManager:
                 if order.get("status") in ("closed", "filled"):
                     filled_amount = to_decimal(order.get("filled", order.get("amount", 0)))
                     # For shorts, amount is negative; TP fills reduce it toward zero
-                    if pos.side == "SELL":
-                        pos.amount += filled_amount   # e.g. -10 + 5 = -5 remaining
-                    else:
+                    if pos.is_long():
                         pos.amount -= filled_amount
+                    else:
+                        pos.amount += filled_amount   # e.g. -10 + 5 = -5 remaining
                     setattr(pos, f"{tp_level.lower()}_hit", True)
                     del pos.tp_order_ids[tp_level]
 
@@ -333,9 +339,6 @@ class PortfolioManager:
         target_price = new_price if new_price is not None else pos.entry_price
         amount = new_amount if new_amount is not None else abs(pos.amount)
 
-        # Exit side is always opposite of position side
-        exit_side = "BUY" if pos.side == "SELL" else "SELL"
-
         # Cancel existing SL
         if pos.sl_order_id:
             try:
@@ -349,7 +352,7 @@ class PortfolioManager:
             sl_order = self.exchange.create_order(
                 symbol=symbol,
                 order_type="stop_market",
-                side=exit_side,
+                side=pos.exit_side,
                 amount=amount,
                 params={
                     "stopPrice": target_price,
@@ -359,7 +362,7 @@ class PortfolioManager:
             )
             if sl_order:
                 pos.sl_order_id = sl_order.get("id")
-                logger.info(f"[{symbol}] SL moved to {target_price} (stop_market, reduceOnly, side={exit_side})")
+                logger.info(f"[{symbol}] SL moved to {target_price} (stop_market, reduceOnly, side={pos.exit_side})")
                 return True
         except Exception as e:
             logger.error(f"Failed to place SL for {symbol}: {e}")
@@ -367,21 +370,21 @@ class PortfolioManager:
         return False
 
     @staticmethod
-    def _sl_exit_reason(sl_price: Decimal, entry_price: Decimal, position_side: str = "BUY") -> str:
+    def _sl_exit_reason(sl_price: Decimal, entry_price: Decimal, position_side: str = SIDE_BUY) -> str:
         """Dynamic exit reason based on SL price vs entry."""
         if sl_price == entry_price:
-            return "BREAKEVEN"
-        if position_side == "BUY":
+            return EXIT_BREAKEVEN
+        if position_side == SIDE_BUY:
             # LONG: lock profit = SL above entry
-            return "LOCK_PROFIT" if sl_price > entry_price else "STOP_LOSS"
+            return EXIT_LOCK_PROFIT if sl_price > entry_price else EXIT_STOP_LOSS
         else:
             # SHORT: lock profit = SL below entry (i.e. sl_price < entry_price)
-            return "LOCK_PROFIT" if sl_price < entry_price else "STOP_LOSS"
+            return EXIT_LOCK_PROFIT if sl_price < entry_price else EXIT_STOP_LOSS
 
     # -------------------------
     # TP Placement
     # -------------------------
-    def _place_tp_orders(self, signal: SignalEvent, total_amount: Decimal, position_side: str = "BUY") -> Dict[str, str]:
+    def _place_tp_orders(self, signal: SignalEvent, total_amount: Decimal, position_side: str = SIDE_BUY) -> Dict[str, str]:
         """Place TP1/TP2/TP3 as limit orders on exchange with reduceOnly=True.
 
         Exit side is always opposite of position side:
@@ -391,8 +394,7 @@ class PortfolioManager:
         tp_order_ids = {}
         remaining = total_amount
 
-        # Exit side is opposite of position side
-        exit_side = "BUY" if position_side == "SELL" else "SELL"
+        exit_side = opposite_side(position_side)
 
         allocs = signal.tp_allocations or {}
 
@@ -442,27 +444,27 @@ class PortfolioManager:
         # IMPORTANT: always sync first (SL may have closed the position)
         self.sync_from_exchange()
 
-        if signal.signal_type == "BUY":
+        if signal.signal_type == SIDE_BUY:
             balance = self.sync_balance()
-            return self._handle_entry_signal(signal, balance, entry_side="BUY")
+            return self._handle_entry_signal(signal, balance, entry_side=SIDE_BUY)
 
-        if signal.signal_type == "SELL":
+        if signal.signal_type == SIDE_SELL:
             # No existing position → this is a short entry signal
             if signal.symbol not in self.positions:
                 balance = self.sync_balance()
-                return self._handle_entry_signal(signal, balance, entry_side="SELL")
+                return self._handle_entry_signal(signal, balance, entry_side=SIDE_SELL)
 
             reason = (signal.reason or "").strip().upper()
 
             # --- Soft SL with pre-execution guard ---
-            if "SOFT_SL" in reason:
+            if EXIT_SOFT_SL in reason:
                 return self._handle_soft_sl_exit(signal)
 
             # --- special SELL: move SL only ---
             if (
                 "MOVE_SL_TO_ENTRY" in reason
                 or "SL_TO_ENTRY" in reason
-                or "BREAKEVEN" in reason
+                or EXIT_BREAKEVEN in reason
                 or reason.startswith("MOVE_SL")
             ):
                 new_sl_price = signal.price if signal.price else None
@@ -470,15 +472,15 @@ class PortfolioManager:
                 return None
 
             # --- TP partial closes (manual override for non-polling scenarios) ---
-            if reason.startswith("TP1"):
-                return self.execute_partial_close(signal.symbol, "TP1", new_sl_price=signal.sl_price)
-            if reason.startswith("TP2"):
-                return self.execute_partial_close(signal.symbol, "TP2", new_sl_price=signal.sl_price)
-            if reason.startswith("TP3"):
-                return self.execute_partial_close(signal.symbol, "TP3", new_sl_price=signal.sl_price)
+            if reason.startswith(EXIT_TP1):
+                return self.execute_partial_close(signal.symbol, EXIT_TP1, new_sl_price=signal.sl_price)
+            if reason.startswith(EXIT_TP2):
+                return self.execute_partial_close(signal.symbol, EXIT_TP2, new_sl_price=signal.sl_price)
+            if reason.startswith(EXIT_TP3):
+                return self.execute_partial_close(signal.symbol, EXIT_TP3, new_sl_price=signal.sl_price)
 
             # Any other SELL -> close full
-            exit_reason = signal.reason or "MANUAL"
+            exit_reason = signal.reason or EXIT_MANUAL
             return self._handle_full_exit(signal.symbol, price=signal.price, exit_reason=exit_reason)
 
         return None
@@ -486,12 +488,12 @@ class PortfolioManager:
     # -------------------------
     # Entry logic (LONG or SHORT)
     # -------------------------
-    def _handle_entry_signal(self, signal: SignalEvent, balance: Decimal, entry_side: str = "BUY"):
+    def _handle_entry_signal(self, signal: SignalEvent, balance: Decimal, entry_side: str = SIDE_BUY):
         """
         Open a new position (long or short).
 
-        entry_side = "BUY"  → long:  market BUY,  SL/TP as SELL orders
-        entry_side = "SELL" → short: market SELL, SL/TP as BUY  orders
+        entry_side = SIDE_BUY  → long:  market BUY,  SL/TP as SELL orders
+        entry_side = SIDE_SELL → short: market SELL, SL/TP as BUY  orders
         Position amount stored as positive for LONG, negative for SHORT.
         """
         if signal.symbol in self.positions:
@@ -511,8 +513,7 @@ class PortfolioManager:
             logger.warning(f"[{signal.symbol}] Skipping {entry_side}: zero position size")
             return None
 
-        # Exit side is always opposite of entry side
-        exit_side = "BUY" if entry_side == "SELL" else "SELL"
+        exit_side = opposite_side(entry_side)
 
         # 1. Market entry order
         try:
@@ -534,7 +535,7 @@ class PortfolioManager:
             return None
 
         # Signed position amount: positive for LONG, negative for SHORT
-        signed_amount = amount if entry_side == "BUY" else -amount
+        signed_amount = amount if entry_side == SIDE_BUY else -amount
 
         # Create position record
         self.positions[signal.symbol] = Position(
@@ -562,7 +563,7 @@ class PortfolioManager:
                     params={
                         "stopPrice": signal.sl_price,
                         "reduceOnly": True,
-                        "exit_reason": "STOP_LOSS",
+                        "exit_reason": EXIT_STOP_LOSS,
                     },
                 )
                 if sl_order:
@@ -576,7 +577,7 @@ class PortfolioManager:
 
         # 4. Notify on entry
         if self._notification_service and not getattr(self.exchange, "_fires_entry_notification", False):
-            notif_side = "LONG" if entry_side == "BUY" else "SHORT"
+            notif_side = "LONG" if entry_side == SIDE_BUY else "SHORT"
             tp_prices = {k: v for k, v in [
                 ("TP1", signal.tp1_price), ("TP2", signal.tp2_price), ("TP3", signal.tp3_price)
             ] if v is not None}
@@ -620,12 +621,12 @@ class PortfolioManager:
             return None
 
         # Position exists, safe to close
-        return self._handle_full_exit(symbol, price=signal.price, exit_reason="SOFT_SL")
+        return self._handle_full_exit(symbol, price=signal.price, exit_reason=EXIT_SOFT_SL)
 
     # -------------------------
     # Full exit logic (LONG or SHORT)
     # -------------------------
-    def _handle_full_exit(self, symbol: str, price: Decimal = None, exit_reason: str = "MANUAL"):
+    def _handle_full_exit(self, symbol: str, price: Decimal = None, exit_reason: str = EXIT_MANUAL):
         """Close entire remaining position at market and cleanup.
 
         For LONG  positions: market SELL order.
@@ -636,7 +637,6 @@ class PortfolioManager:
             return None
 
         pos = self.positions[symbol]
-        exit_side = "BUY" if pos.side == "SELL" else "SELL"
         exit_amount = abs(pos.amount)
 
         # Cancel all pending orders for this symbol (SL + TPs)
@@ -657,7 +657,7 @@ class PortfolioManager:
             order = self.exchange.create_order(
                 symbol=symbol,
                 order_type="market",
-                side=exit_side,
+                side=pos.exit_side,
                 amount=exit_amount,
                 price=price,
                 params={"reduceOnly": True, "exit_reason": exit_reason},
@@ -701,7 +701,6 @@ class PortfolioManager:
 
         pos = self.positions[symbol]
         tp_level = tp_level.upper().strip()
-        exit_side = "BUY" if pos.side == "SELL" else "SELL"
 
         if tp_level == "TP1" and pos.tp1_hit:
             if new_sl_price and abs(pos.amount) > Decimal("0"):
@@ -745,7 +744,7 @@ class PortfolioManager:
             order = self.exchange.create_order(
                 symbol=symbol,
                 order_type="market",
-                side=exit_side,
+                side=pos.exit_side,
                 amount=close_amount,
                 params={"reduceOnly": True, "exit_reason": tp_level},
             )
@@ -756,10 +755,10 @@ class PortfolioManager:
             return None
 
         # Update signed amount: LONG decrements, SHORT increments toward zero
-        if pos.side == "SELL":
-            pos.amount += close_amount
-        else:
+        if pos.is_long():
             pos.amount -= close_amount
+        else:
+            pos.amount += close_amount
 
         if abs(pos.amount) > Decimal("0"):
             self._move_sl_to_entry(symbol, new_price=new_sl_price)

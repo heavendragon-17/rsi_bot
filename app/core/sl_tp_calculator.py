@@ -13,6 +13,8 @@ from typing import Optional
 
 import pandas as pd
 
+from app.core.actions import SIDE_BUY
+
 
 class SLTPCalculator:
     """Static utility class for SL/TP/sizing calculations."""
@@ -45,7 +47,7 @@ class SLTPCalculator:
         window = df.iloc[-lookback:]
 
         try:
-            if side.upper() == "BUY":
+            if side.upper() == SIDE_BUY:
                 if mode == "close":
                     val = window["close"].min()
                 else:
@@ -84,7 +86,7 @@ class SLTPCalculator:
         Returns:
             Disaster SL price as Decimal.
         """
-        if side.upper() == "BUY":
+        if side.upper() == SIDE_BUY:
             distance = entry_price - soft_sl_price
             return entry_price - (distance * multiplier)
         else:
@@ -130,7 +132,7 @@ class SLTPCalculator:
         target_net = rr_ratio * risk
         denominator = Decimal("1") - exit_fee
 
-        if side.upper() == "BUY":
+        if side.upper() == SIDE_BUY:
             numerator = entry_price * (Decimal("1") + taker_fee) + target_net
         else:
             numerator = entry_price * (Decimal("1") - taker_fee) - target_net

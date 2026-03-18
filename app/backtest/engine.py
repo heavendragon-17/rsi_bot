@@ -21,9 +21,8 @@ from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot
 from app.backtest.backtest_event_source import BacktestEventSource
 from app.backtest.mock_exchange import MockExchange
+from app.core.actions import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
 from app.core.portfolio import PortfolioManager
-from app.backtest.download_data import calculate_candle_limit
-
 logger = structlog.get_logger()
 
 
@@ -51,6 +50,7 @@ class BacktestEngine(Engine):
         years = duration_cfg.get("years", 0)
         timeframe = config.get("timeframe", "15m")
         try:
+            from app.backtest.download_data import calculate_candle_limit
             limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
             if limit > 0:
                 data = data.tail(limit).reset_index(drop=True)
@@ -64,9 +64,8 @@ class BacktestEngine(Engine):
         risk_cfg = config.get("risk", {})
         leverage = risk_cfg.get("leverage", 1)
 
-        # Use same default fees as SimExchange (Binance futures)
-        taker_fee = float(risk_cfg.get("taker_fee", 0.0005))   # 0.05%
-        maker_fee = float(risk_cfg.get("maker_fee", 0.0002))   # 0.02%
+        taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
+        maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
 
         exchange = MockExchange(
             initial_balance=initial_balance,

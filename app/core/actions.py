@@ -10,15 +10,43 @@ from decimal import Decimal
 from typing import List, Optional, Union
 
 
+# ── Side constants ──────────────────────────────────────────────────
+# Use these instead of raw "BUY"/"SELL" strings to avoid typos.
+SIDE_BUY = "BUY"    # Long entry / short exit
+SIDE_SELL = "SELL"   # Short entry / long exit
+
+
+def opposite_side(side: str) -> str:
+    """Return the opposite side (BUY↔SELL)."""
+    return SIDE_BUY if side.upper() == SIDE_SELL else SIDE_SELL
+
+
+# ── Exit reason constants ───────────────────────────────────────────
+EXIT_STOP_LOSS = "STOP_LOSS"
+EXIT_SOFT_SL = "SOFT_SL"
+EXIT_BREAKEVEN = "BREAKEVEN"
+EXIT_LOCK_PROFIT = "LOCK_PROFIT"
+EXIT_LIQUIDATION = "LIQUIDATION"
+EXIT_TP1 = "TP1"
+EXIT_TP2 = "TP2"
+EXIT_TP3 = "TP3"
+EXIT_MANUAL = "MANUAL"
+EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"
+
+# ── Default fee rates (Binance futures) ────────────────────────────
+DEFAULT_TAKER_FEE = 0.0005   # 0.05%
+DEFAULT_MAKER_FEE = 0.0002   # 0.02%
+
+
 @dataclass(frozen=True)
 class OpenPosition:
     """Open a new position (long or short).
 
-    side = "BUY"  → long entry  (exit orders will be SELL)
-    side = "SELL" → short entry (exit orders will be BUY)
+    side = SIDE_BUY  → long entry  (exit orders will be SELL)
+    side = SIDE_SELL → short entry (exit orders will be BUY)
     """
     symbol: str
-    side: str          # "BUY" for long, "SELL" for short
+    side: str          # SIDE_BUY for long, SIDE_SELL for short
     entry_price: Decimal
     sl_price: Decimal  # hard/disaster SL (placed as stop_market on exchange)
     soft_sl_price: Optional[Decimal]
