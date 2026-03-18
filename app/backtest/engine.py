@@ -11,6 +11,7 @@ Subclasses the unified Engine. BacktestEngine adds:
 
 All action dispatch and strategy analysis are handled by the base Engine.
 """
+import math
 import numpy as np
 import pandas as pd
 import structlog
@@ -282,8 +283,9 @@ class BacktestEngine(Engine):
 
     @staticmethod
     def _build_round_trips(trades_df: pd.DataFrame) -> pd.DataFrame:
-        """Pair BUY entries with SELL exits to form complete round-trips.
+        """Pair entries with exits to form complete round-trips.
 
+        Handles both LONG (BUY entry, SELL exits) and SHORT (SELL entry, BUY exits).
         Groups by symbol first so that portfolio-mode interleaved trades
         from different symbols are never mixed into the same round-trip.
         """
@@ -305,25 +307,55 @@ class BacktestEngine(Engine):
             total_exit_amount = 0.0
 
             for _, trade in symbol_trades.iterrows():
-                if trade["side"] == "BUY":
-                    if current_entry is not None and partial_exits:
-                        round_trips.append(BacktestEngine._create_round_trip(
-                            current_entry, partial_exits, total_pnl, total_exit_amount
-                        ))
+                trade_pnl = trade.get("pnl")
+
+                # Distinguish entries from exits using PnL:
+                # - Entry trade: pnl is None/NaN (no realized PnL yet when opening)
+                # - Exit  trade: pnl has a numeric value (realized on close)
+                has_pnl = (
+                    trade_pnl is not None
+                    and not (isinstance(trade_pnl, float) and math.isnan(trade_pnl))
+                )
+                trade_is_exit = has_pnl
+
+                if current_entry is None or not trade_is_exit:
+                    # This is a new entry (no position open, or pnl is None = opening order)
+                    if current_entry is not None:
+                        if partial_exits:
+                            # Flush previous round trip before starting new one
+                            round_trips.append(BacktestEngine._create_round_trip(
+                                current_entry, partial_exits, total_pnl, total_exit_amount
+                            ))
+                        else:
+                            logger.warning(
+                                "round_trip_no_exits",
+                                symbol=_symbol,
+                                entry_time=current_entry.get("time"),
+                                entry_side=current_entry.get("side"),
+                            )
                     current_entry = trade
                     partial_exits = []
                     total_pnl = 0.0
                     total_exit_amount = 0.0
-                elif trade["side"] == "SELL" and current_entry is not None:
+                else:
+                    # This is an exit for the current position
                     partial_exits.append(trade)
-                    if trade["pnl"] is not None:
-                        total_pnl += trade["pnl"]
-                    total_exit_amount += trade["amount"]
+                    if trade_pnl is not None:
+                        total_pnl += float(trade_pnl)
+                    total_exit_amount += float(trade["amount"])
 
-            if current_entry is not None and partial_exits:
-                round_trips.append(BacktestEngine._create_round_trip(
-                    current_entry, partial_exits, total_pnl, total_exit_amount
-                ))
+            if current_entry is not None:
+                if partial_exits:
+                    round_trips.append(BacktestEngine._create_round_trip(
+                        current_entry, partial_exits, total_pnl, total_exit_amount
+                    ))
+                else:
+                    logger.warning(
+                        "round_trip_no_exits",
+                        symbol=_symbol,
+                        entry_time=current_entry.get("time"),
+                        entry_side=current_entry.get("side"),
+                    )
 
         # Sort by entry_time for chronological report order
         if round_trips:
@@ -357,10 +389,14 @@ class BacktestEngine(Engine):
         entry_notional = entry.get("notional", entry_margin)
         pnl_pct = (total_pnl / entry_margin) * 100 if entry_margin and entry_margin > 0 else 0
 
+        entry_side = entry.get("side", "BUY")
+        trade_side = "SHORT" if entry_side == "SELL" else "LONG"
+
         return {
             "entry_time": entry.get("time"),
             "exit_time": last_exit.get("time"),
             "symbol": entry.get("symbol"),
+            "side": trade_side,  # "LONG" or "SHORT"
             "entry_price": entry.get("price"),
             "exit_price": last_exit.get("price"),
             "avg_exit_price": float(avg_exit_price),
