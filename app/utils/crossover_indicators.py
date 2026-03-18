@@ -182,10 +182,10 @@ class CrossoverIndicators(IIndicators):
         curr = df.iloc[-1]
         prev = df.iloc[-2]
 
-        curr_ema = curr.get("rsi_ema9")
-        curr_wma = curr.get("rsi_wma45")
-        prev_ema = prev.get("rsi_ema9")
-        prev_wma = prev.get("rsi_wma45")
+        curr_ema = curr["rsi_ema9"]
+        curr_wma = curr["rsi_wma45"]
+        prev_ema = prev["rsi_ema9"]
+        prev_wma = prev["rsi_wma45"]
 
         if any(pd.isna(v) for v in [curr_ema, curr_wma, prev_ema, prev_wma]):
             return False
@@ -211,9 +211,9 @@ class CrossoverIndicators(IIndicators):
             return False
 
         last = df.iloc[-1]
-        rsi = last.get("rsi_14")
-        ema = last.get("rsi_ema9")
-        wma = last.get("rsi_wma45")
+        rsi = last["rsi_14"]
+        ema = last["rsi_ema9"]
+        wma = last["rsi_wma45"]
 
         if any(pd.isna(v) for v in [rsi, ema, wma]):
             return False

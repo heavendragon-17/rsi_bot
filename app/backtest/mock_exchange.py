@@ -601,10 +601,12 @@ class MockExchange(IExchange):
             # Exit side is opposite of position side
             exit_side = "BUY" if current_pos < 0 else "SELL"
 
-            # Find and cancel existing stop_market orders for this symbol (either side)
+            # Find and cancel existing stop_market orders for this symbol.
+            # Filter by exit_side so we don't accidentally cancel the wrong direction's SL.
             sl_order_ids = [
                 oid for oid, o in self.pending_orders.items()
                 if o.get("symbol") == symbol
+                and o.get("side") == exit_side
                 and o.get("order_subtype") in ("stop_market", "stop_loss")
             ]
 
@@ -727,9 +729,10 @@ class MockExchange(IExchange):
                 fee_cost = notional * fee_rate
 
                 if entry_price is not None:
-                    # SHORT PnL: profit when exit_price < entry_price
-                    # gross_pnl = (entry_price - exec_price) * amount
-                    gross_pnl = (entry_price - exec_price) * amount
+                    # Unified PnL formula: (exit - entry) * signed_amount
+                    # SHORT signed_amount < 0, so (exec - entry) * (-amount) = (entry - exec) * amount
+                    signed_amount = current_signed  # negative for short
+                    gross_pnl = (exec_price - entry_price) * signed_amount
                     entry_notional = entry_price * amount
                     entry_fee = entry_notional * self.taker_fee
                     pnl = float(gross_pnl - entry_fee - fee_cost)

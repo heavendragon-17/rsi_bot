@@ -97,7 +97,7 @@ class RsiMomentumStrategy(BaseStrategy):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.cfg = RsiMomentumConfig()
+        self.cfg = RsiMomentumConfig.from_dict(config) if config else RsiMomentumConfig()
         self.indicators = CrossoverIndicators(
             rsi_period=self.cfg.rsi_period,
             rsi_ema_period=self.cfg.ema_period,
