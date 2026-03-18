@@ -406,7 +406,7 @@ class TestEngineRoundTripBuilder:
     """Test that BacktestEngine._build_round_trips correctly handles SHORT trades."""
 
     def test_short_round_trip_has_sell_side(self):
-        """SELL entry + BUY exits produces a round trip with side='SELL'."""
+        """SELL entry + BUY exits produces a round trip with side='SHORT'."""
         from app.backtest.engine import BacktestEngine
 
         # Simulate trade history for a short trade
@@ -442,11 +442,11 @@ class TestEngineRoundTripBuilder:
         assert not round_trips.empty, "Should have 1 round trip"
         assert len(round_trips) == 1
         rt = round_trips.iloc[0]
-        assert rt["side"] == "SELL", f"Round trip side should be SELL, got {rt['side']}"
+        assert rt["side"] == "SHORT", f"Round trip side should be SHORT, got {rt['side']}"
         assert rt["pnl"] == pytest.approx(200.0)
 
     def test_long_round_trip_has_buy_side(self):
-        """BUY entry + SELL exits produces a round trip with side='BUY'."""
+        """BUY entry + SELL exits produces a round trip with side='LONG'."""
         from app.backtest.engine import BacktestEngine
 
         trades = pd.DataFrame([
@@ -480,7 +480,7 @@ class TestEngineRoundTripBuilder:
 
         assert not round_trips.empty
         rt = round_trips.iloc[0]
-        assert rt["side"] == "BUY", f"Long round trip should have side BUY, got {rt['side']}"
+        assert rt["side"] == "LONG", f"Long round trip should have side LONG, got {rt['side']}"
 
     def test_mixed_long_short_round_trips(self):
         """Mixed LONG and SHORT trades produce correct round trips with correct sides."""
@@ -499,5 +499,5 @@ class TestEngineRoundTripBuilder:
 
         assert len(round_trips) == 2
         sides = set(round_trips["side"].tolist())
-        assert "SELL" in sides, "Should have SHORT round trip"
-        assert "BUY" in sides, "Should have LONG round trip"
+        assert "SHORT" in sides, "Should have SHORT round trip"
+        assert "LONG" in sides, "Should have LONG round trip"

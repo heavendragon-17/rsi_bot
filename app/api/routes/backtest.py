@@ -465,11 +465,10 @@ def _persist_results(run_id: int, results: dict[str, Any]) -> None:
                 except Exception:
                     return None
 
-            rt_side = rt.get("side", "BUY")
             trade_row = Trade(
                 run_id=run_id,
                 symbol=rt.get("symbol", ""),
-                side="SHORT" if rt_side == "SELL" else "LONG",
+                side=rt.get("side", "LONG"),
                 entry_time=_parse_dt(entry_t),
                 exit_time=_parse_dt(exit_t),
                 hold_time_hours=rt.get("hold_duration_hours"),

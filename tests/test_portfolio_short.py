@@ -157,13 +157,13 @@ class TestShortPartialClose:
         # Execute partial close TP1
         pm.execute_partial_close(SYMBOL, "TP1")
 
-        # Amount should be closer to zero (less negative)
+        # TP1 closes 50% — position should still exist but with less negative amount
         remaining = pm.positions.get(SYMBOL)
-        if remaining is not None:
-            assert remaining.amount > initial_amount, (
-                f"Amount should increase toward zero after TP1: was {initial_amount}, now {remaining.amount}"
-            )
-            assert remaining.amount < Decimal("0"), "Should still be short after TP1"
+        assert remaining is not None, "Position should remain after TP1 (only 50% closed)"
+        assert remaining.amount > initial_amount, (
+            f"Amount should increase toward zero after TP1: was {initial_amount}, now {remaining.amount}"
+        )
+        assert remaining.amount < Decimal("0"), "Should still be short after TP1"
 
     def test_short_tp1_hit_flag(self):
         """tp1_hit flag is set after TP1 partial close"""
@@ -173,8 +173,8 @@ class TestShortPartialClose:
         pm.execute_partial_close(SYMBOL, "TP1")
 
         pos = pm.positions.get(SYMBOL)
-        if pos:
-            assert pos.tp1_hit is True
+        assert pos is not None, "Position should remain after TP1 (only 50% closed)"
+        assert pos.tp1_hit is True
 
 
 class TestShortLockProfit:
