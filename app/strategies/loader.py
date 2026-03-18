@@ -9,11 +9,13 @@ from typing import Type
 from app.core.interfaces import IStrategy
 from .rsi_wma_retest import RsiWmaRetestStrategy
 from .rsi_no_retest import RsiNoRetestStrategy
+from .rsi_momentum import RsiMomentumStrategy
 
 # Strategy name -> class mapping
 STRATEGY_MAP = {
     "rsi_wma_retest": RsiWmaRetestStrategy,
     "rsi_no_retest": RsiNoRetestStrategy,
+    "rsi_momentum": RsiMomentumStrategy,
 }
 
 

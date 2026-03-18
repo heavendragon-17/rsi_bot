@@ -12,9 +12,13 @@ from typing import List, Optional, Union
 
 @dataclass(frozen=True)
 class OpenPosition:
-    """Open a new long position."""
+    """Open a new position (long or short).
+
+    side = "BUY"  → long entry  (exit orders will be SELL)
+    side = "SELL" → short entry (exit orders will be BUY)
+    """
     symbol: str
-    side: str          # "BUY"
+    side: str          # "BUY" for long, "SELL" for short
     entry_price: Decimal
     sl_price: Decimal  # hard/disaster SL (placed as stop_market on exchange)
     soft_sl_price: Optional[Decimal]
