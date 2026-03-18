@@ -9,6 +9,7 @@ Simulates a futures exchange for backtesting with:
 - Wick-based SL/TP checking
 - Decimal precision
 - CCXT-compliant order structure
+- SHORT support: negative position amounts, BUY-side exit orders, signed PnL
 """
 
 from __future__ import annotations
@@ -120,7 +121,9 @@ class MockExchange(IExchange):
             usdt_balance = self.balance
             used_usdt = sum(self.margin_used.values())
             
-            # Calculate total unrealized PnL
+            # Calculate total unrealized PnL (signed amounts handle both LONG and SHORT)
+            # LONG  (amt > 0): uPnL = (curr - entry) * amt  → positive when price rises
+            # SHORT (amt < 0): uPnL = (curr - entry) * amt  → positive when price falls
             total_upnl = Decimal("0")
             for symbol, amt_dec in self.positions.items():
                 if amt_dec == 0:
@@ -128,7 +131,7 @@ class MockExchange(IExchange):
                 entry = self.entry_prices.get(symbol, Decimal("0"))
                 curr_data = self.current_prices.get(symbol, {})
                 curr = to_decimal(curr_data.get("price", entry))
-                upnl = (curr - entry) * amt_dec
+                upnl = (curr - entry) * amt_dec  # works for signed amounts
                 total_upnl += upnl
 
             # Total equity = balance + margin_used + unrealized_pnl
@@ -143,15 +146,19 @@ class MockExchange(IExchange):
                 # Close all positions at market price
                 symbols_to_close = list(self.positions.keys())
                 for symbol in symbols_to_close:
-                    amount = self.positions.get(symbol, Decimal("0"))
-                    if amount <= 0:
+                    signed_amount = self.positions.get(symbol, Decimal("0"))
+                    if signed_amount == 0:
                         continue
-                        
+
+                    # Exit side is opposite of position side
+                    exit_side = "BUY" if signed_amount < 0 else "SELL"
+                    abs_amount = abs(signed_amount)
+
                     curr_data = self.current_prices.get(symbol, {})
                     exec_price = to_decimal(curr_data.get("price", Decimal("0")))
                     if exec_price <= 0:
                         exec_price = self.entry_prices.get(symbol, Decimal("0"))
-                    
+
                     # Temporarily increase taker fee to simulate liquidation penalty
                     old_taker_fee = self.taker_fee
                     self.taker_fee = Decimal("0.005")  # 0.5% liquidation fee
@@ -159,8 +166,8 @@ class MockExchange(IExchange):
                     try:
                         self._execute_order(
                             symbol=symbol,
-                            side="SELL",  # Assuming we only have long positions for now
-                            amount=amount,
+                            side=exit_side,
+                            amount=abs_amount,
                             exec_price=exec_price,
                             timestamp=timestamp,
                             order_type="MARKET",
@@ -261,12 +268,20 @@ class MockExchange(IExchange):
                     # reduceOnly enforcement
                     if reduce_only:
                         current_pos = self.positions.get(symbol, Decimal("0"))
-                        if current_pos <= Decimal("0"):
-                            # No position to reduce — cancel order
-                            orders_to_remove.append(order_id)
-                            continue
-                        # Cap amount at current position
-                        fill_amount = min(to_decimal(order["amount"]), current_pos)
+                        if side == "SELL":
+                            # Closing LONG: need positive position
+                            if current_pos <= Decimal("0"):
+                                orders_to_remove.append(order_id)
+                                continue
+                            fill_amount = min(to_decimal(order["amount"]), current_pos)
+                        elif side == "BUY":
+                            # Closing SHORT: need negative position
+                            if current_pos >= Decimal("0"):
+                                orders_to_remove.append(order_id)
+                                continue
+                            fill_amount = min(to_decimal(order["amount"]), abs(current_pos))
+                        else:
+                            fill_amount = to_decimal(order["amount"])
                     else:
                         fill_amount = to_decimal(order["amount"])
 
@@ -382,10 +397,17 @@ class MockExchange(IExchange):
             if actual_type == "market":
                 if reduce_only:
                     current_pos = self.positions.get(symbol, Decimal("0"))
-                    if current_pos <= Decimal("0") and (side or "").upper() == "SELL":
-                        return None  # No position to reduce
-                    if (side or "").upper() == "SELL":
+                    order_side = (side or "").upper()
+                    if order_side == "SELL":
+                        # Closing a LONG: must have positive position
+                        if current_pos <= Decimal("0"):
+                            return None  # No long position to reduce
                         amount = min(amount, current_pos)
+                    elif order_side == "BUY":
+                        # Closing a SHORT: must have negative position
+                        if current_pos >= Decimal("0"):
+                            return None  # No short position to reduce
+                        amount = min(amount, abs(current_pos))
 
                 exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
                 timestamp = current_data["time"]
@@ -569,16 +591,22 @@ class MockExchange(IExchange):
         """
         Cancel existing SL + re-create as stop_market order.
         Thread-safe (RLock allows reentrant calls from create_order).
+        Side-aware: uses BUY stop_market for short positions.
         """
         with self._lock:
             new_price = to_decimal(new_trigger_price)
             new_amt = to_decimal(new_amount) if new_amount is not None else None
 
-            # Find and cancel existing stop_market orders for this symbol
+            current_pos = self.positions.get(symbol, Decimal("0"))
+            # Exit side is opposite of position side
+            exit_side = "BUY" if current_pos < 0 else "SELL"
+
+            # Find and cancel existing stop_market orders for this symbol.
+            # Filter by exit_side so we don't accidentally cancel the wrong direction's SL.
             sl_order_ids = [
                 oid for oid, o in self.pending_orders.items()
                 if o.get("symbol") == symbol
-                and o.get("side") == "SELL"
+                and o.get("side") == exit_side
                 and o.get("order_subtype") in ("stop_market", "stop_loss")
             ]
 
@@ -587,15 +615,13 @@ class MockExchange(IExchange):
 
             if not sl_order_ids and new_amt is None:
                 # No existing SL to update, and no amount specified
-                current_pos = self.positions.get(symbol, Decimal("0"))
-                if current_pos <= 0:
+                if current_pos == 0:
                     return False
-                new_amt = current_pos
+                new_amt = abs(current_pos)
 
             # Determine amount
             if new_amt is None:
-                current_pos = self.positions.get(symbol, Decimal("0"))
-                new_amt = current_pos
+                new_amt = abs(current_pos)
 
             if new_amt <= 0:
                 return False
@@ -604,7 +630,7 @@ class MockExchange(IExchange):
             result = self.create_order(
                 symbol=symbol,
                 order_type="stop_market",
-                side="SELL",
+                side=exit_side,
                 amount=new_amt,
                 params={
                     "stopPrice": new_price,
@@ -641,14 +667,16 @@ class MockExchange(IExchange):
 
         NOTE: This method assumes the lock is already held by the caller (RLock).
 
-        For BUY:
-          - notional = amount * price
-          - margin = notional / leverage
-          - Deduct margin from balance, not full notional
+        Position amounts are SIGNED:
+          LONG  entry (BUY market):  +amount stored → positions[symbol] += amount
+          SHORT entry (SELL market): -amount stored → positions[symbol] -= amount
+          LONG  exit  (SELL):        closes positive position
+          SHORT exit  (BUY):         closes negative position
 
-        For SELL:
-          - Calculate PnL = (exit_price - entry_price) * amount
-          - Return margin + PnL to balance
+        PnL formula (unified, handles both sides via signed amount):
+          gross_pnl = (exit_price - entry_price) * signed_amount
+          LONG  win:  exit > entry, positive amount  → positive PnL
+          SHORT win:  exit < entry, negative amount  → positive PnL
         """
         side = (side or "BUY").upper()
         notional = exec_price * amount
@@ -665,77 +693,150 @@ class MockExchange(IExchange):
         fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
         fee_cost = notional * fee_rate
 
-        if side == "BUY":
-            if margin > self.balance:
-                raise InsufficientFundsError(
-                    f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
-                )
+        current_signed = self.positions.get(symbol, Decimal("0"))
 
-            self.balance -= margin
-            self.positions[symbol] = self.positions.get(symbol, Decimal("0")) + amount
-            self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
-            self.entry_times[symbol] = timestamp
-            self.entry_prices[symbol] = exec_price
-            margin_used = margin
+        if side == "BUY":
+            if current_signed >= Decimal("0"):
+                # ── Opening a LONG position ───────────────────────────
+                if margin > self.balance:
+                    raise InsufficientFundsError(
+                        f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
+                    )
+                self.balance -= margin
+                self.positions[symbol] = current_signed + amount
+                self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
+                self.entry_times[symbol] = timestamp
+                self.entry_prices[symbol] = exec_price
+                margin_used = margin
+            else:
+                # ── Closing a SHORT position (BUY to cover) ───────────
+                short_amount = abs(current_signed)
+                # tolerance for floating rounding
+                if amount > short_amount * Decimal("1.001"):
+                    raise InsufficientFundsError(
+                        f"Insufficient short position for {symbol}: have {short_amount}, want {amount}"
+                    )
+                amount = min(amount, short_amount)
+
+                entry_price = self.entry_prices.get(symbol)
+                entry_time = self.entry_times.get(symbol)
+
+                close_ratio = amount / short_amount if short_amount > 0 else Decimal("1")
+                position_margin = self.margin_used.get(symbol, Decimal("0"))
+                margin_to_return = position_margin * close_ratio
+
+                notional = exec_price * amount
+                fee_cost = notional * fee_rate
+
+                if entry_price is not None:
+                    # Unified PnL formula: (exit - entry) * signed_amount
+                    # SHORT signed_amount < 0, so (exec - entry) * (-amount) = (entry - exec) * amount
+                    signed_amount = current_signed  # negative for short
+                    gross_pnl = (exec_price - entry_price) * signed_amount
+                    entry_notional = entry_price * amount
+                    entry_fee = entry_notional * self.taker_fee
+                    pnl = float(gross_pnl - entry_fee - fee_cost)
+                    pnl_pct = float((entry_price - exec_price) / entry_price * 100) if entry_price > 0 else 0.0
+                else:
+                    pnl = 0.0
+
+                self.balance += margin_to_return + Decimal(str(pnl or 0))
+                self.positions[symbol] = current_signed + amount  # moves toward 0
+
+                self.margin_used[symbol] = position_margin - margin_to_return
+
+                if entry_time is not None and timestamp is not None:
+                    try:
+                        if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
+                            hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
+                        elif hasattr(entry_time, "value") and hasattr(timestamp, "value"):
+                            hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
+                    except Exception:
+                        pass
+
+                remaining = self.positions[symbol]
+                if abs(remaining) <= Decimal("1e-8"):
+                    self.positions.pop(symbol, None)
+                    self.margin_used.pop(symbol, None)
+                    self.entry_times.pop(symbol, None)
+                    self.entry_prices.pop(symbol, None)
+
+                margin_used = margin_to_return
 
         elif side == "SELL":
-            current_pos = self.positions.get(symbol, Decimal("0"))
-
-            # tolerance for floating rounding
-            tolerance = current_pos * Decimal("1.001")
-            if amount > tolerance:
-                raise InsufficientFundsError(f"Insufficient position for {symbol}: have {current_pos}, want {amount}")
-
-            amount = min(amount, current_pos)
-
-            entry_price = self.entry_prices.get(symbol)
-            entry_time = self.entry_times.get(symbol)
-
-            close_ratio = amount / current_pos if current_pos > 0 else Decimal("1")
-
-            position_margin = self.margin_used.get(symbol, Decimal("0"))
-            margin_to_return = position_margin * close_ratio
-
-            # Recalculate exit notional & fee after potential amount adjustment
-            notional = exec_price * amount
-            fee_cost = notional * fee_rate
-
-            if entry_price is not None:
-                price_diff = exec_price - entry_price
-                gross_pnl = price_diff * amount
-                # Approximate entry fee for this portion of the position
-                entry_notional = entry_price * amount
-                entry_fee_rate = self.taker_fee  # entries are always market (taker)
-                entry_fee = entry_notional * entry_fee_rate
-                # Net PnL = gross - entry fee - exit fee
-                pnl = float(gross_pnl - entry_fee - fee_cost)
-                pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
+            if current_signed <= Decimal("0"):
+                # ── Opening a SHORT position ──────────────────────────
+                if margin > self.balance:
+                    raise InsufficientFundsError(
+                        f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
+                    )
+                self.balance -= margin
+                self.positions[symbol] = current_signed - amount  # store negative
+                self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
+                self.entry_times[symbol] = timestamp
+                self.entry_prices[symbol] = exec_price
+                margin_used = margin
             else:
-                pnl = 0.0
+                # ── Closing a LONG position (SELL to exit) ─────────────
+                current_pos = current_signed
 
-            self.balance += margin_to_return + Decimal(str(pnl or 0))
+                # tolerance for floating rounding
+                tolerance = current_pos * Decimal("1.001")
+                if amount > tolerance:
+                    raise InsufficientFundsError(
+                        f"Insufficient position for {symbol}: have {current_pos}, want {amount}"
+                    )
 
-            self.positions[symbol] = current_pos - amount
-            self.margin_used[symbol] = position_margin - margin_to_return
+                amount = min(amount, current_pos)
 
-            if entry_time is not None and timestamp is not None:
-                try:
-                    if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
-                        hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
-                    elif hasattr(entry_time, "value") and hasattr(timestamp, "value"):
-                        hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
-                except Exception:
-                    pass
+                entry_price = self.entry_prices.get(symbol)
+                entry_time = self.entry_times.get(symbol)
 
-            if self.positions[symbol] <= Decimal("1e-8"):
-                self.positions.pop(symbol, None)
-                self.margin_used.pop(symbol, None)
-                self.entry_times.pop(symbol, None)
-                self.entry_prices.pop(symbol, None)
+                close_ratio = amount / current_pos if current_pos > 0 else Decimal("1")
 
-            margin_used = margin_to_return
+                position_margin = self.margin_used.get(symbol, Decimal("0"))
+                margin_to_return = position_margin * close_ratio
 
-            # Exit fee already included in pnl, no separate deduction needed
+                # Recalculate exit notional & fee after potential amount adjustment
+                notional = exec_price * amount
+                fee_cost = notional * fee_rate
+
+                if entry_price is not None:
+                    price_diff = exec_price - entry_price
+                    gross_pnl = price_diff * amount
+                    # Approximate entry fee for this portion of the position
+                    entry_notional = entry_price * amount
+                    entry_fee_rate = self.taker_fee  # entries are always market (taker)
+                    entry_fee = entry_notional * entry_fee_rate
+                    # Net PnL = gross - entry fee - exit fee
+                    pnl = float(gross_pnl - entry_fee - fee_cost)
+                    pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
+                else:
+                    pnl = 0.0
+
+                self.balance += margin_to_return + Decimal(str(pnl or 0))
+
+                self.positions[symbol] = current_pos - amount
+                self.margin_used[symbol] = position_margin - margin_to_return
+
+                if entry_time is not None and timestamp is not None:
+                    try:
+                        if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
+                            hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
+                        elif hasattr(entry_time, "value") and hasattr(timestamp, "value"):
+                            hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
+                    except Exception:
+                        pass
+
+                if self.positions[symbol] <= Decimal("1e-8"):
+                    self.positions.pop(symbol, None)
+                    self.margin_used.pop(symbol, None)
+                    self.entry_times.pop(symbol, None)
+                    self.entry_prices.pop(symbol, None)
+
+                margin_used = margin_to_return
+
+                # Exit fee already included in pnl, no separate deduction needed
 
         # Recalculate notional after potential amount adjustment
         if side == "BUY":

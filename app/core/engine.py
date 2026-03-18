@@ -154,11 +154,16 @@ class Engine:
         # DoNothing: explicit no-op, nothing to dispatch
 
     def _action_to_signal(self, action: OpenPosition) -> SignalEvent:
-        """Convert an OpenPosition action to a SignalEvent for PortfolioManager."""
+        """Convert an OpenPosition action to a SignalEvent for PortfolioManager.
+
+        signal_type mirrors action.side:
+          "BUY"  → long  entry (PortfolioManager._handle_entry_signal BUY)
+          "SELL" → short entry (PortfolioManager._handle_entry_signal SELL)
+        """
         tp_prices = action.tp_prices or []
         return SignalEvent(
             symbol=action.symbol,
-            signal_type="BUY",
+            signal_type=action.side,  # "BUY" for long, "SELL" for short
             price=action.entry_price,
             timestamp=datetime.now(),
             reason=action.reason,
