@@ -19,9 +19,9 @@ Config lives in the RsiMomentumConfig dataclass in this file (NOT config.yaml).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, fields as dc_fields
+from dataclasses import dataclass, field, fields as dc_fields
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 import structlog
@@ -32,7 +32,11 @@ from app.core.sl_tp_calculator import SLTPCalculator
 from app.core.context import SCANNING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
-from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
+from app.core.actions import (
+    OpenPosition, ClosePosition, MoveSL, DoNothing,
+    SIDE_SELL, EXIT_CLOSE_BY_CANDLE_SL,
+    DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE,
+)
 
 logger = structlog.get_logger()
 
@@ -70,8 +74,8 @@ class RsiMomentumConfig:
     lock_profit_rr: float = 0.2     # New SL level: 0.2R below entry (lock profit)
 
     # Fees
-    taker_fee: float = 0.0005       # 0.05%
-    maker_fee: float = 0.0002       # 0.02%
+    taker_fee: float = DEFAULT_TAKER_FEE
+    maker_fee: float = DEFAULT_MAKER_FEE
 
     # Trade management
     use_active_trades: bool = True
@@ -81,6 +85,61 @@ class RsiMomentumConfig:
     def from_dict(cls, params: dict) -> "RsiMomentumConfig":
         valid = {f.name for f in dc_fields(cls)}
         return cls(**{k: v for k, v in params.items() if k in valid})
+
+
+@dataclass
+class TradeState:
+    """Typed trade state stored in ContextSnapshot.meta.
+
+    Replaces raw dict access with explicit fields to prevent typos
+    and make the meta schema discoverable.
+    """
+    entry_price: Optional[Decimal] = None
+    sl_price: Optional[Decimal] = None
+    soft_sl_price: Optional[Decimal] = None
+    original_soft_sl: Optional[Decimal] = None
+    disaster_sl_price: Optional[Decimal] = None
+    lock_profit_price: Optional[Decimal] = None
+    move_trigger: Optional[Decimal] = None
+    moved_sl_to_entry: bool = False
+    pending_candle_sl: bool = False
+    crossover_detected: bool = False
+    tp_allocations: Optional[dict] = field(default_factory=dict)
+
+    def to_meta(self) -> Dict[str, Any]:
+        """Serialize to a plain dict for ContextSnapshot.meta."""
+        return {
+            "entry_price": self.entry_price,
+            "sl_price": self.sl_price,
+            "soft_sl_price": self.soft_sl_price,
+            "original_soft_sl": self.original_soft_sl,
+            "disaster_sl_price": self.disaster_sl_price,
+            "lock_profit_price": self.lock_profit_price,
+            "move_trigger": self.move_trigger,
+            "moved_sl_to_entry": self.moved_sl_to_entry,
+            "pending_candle_sl": self.pending_candle_sl,
+            "crossover_detected": self.crossover_detected,
+            "tp_allocations": self.tp_allocations,
+        }
+
+    @classmethod
+    def from_meta(cls, meta: Optional[Dict[str, Any]]) -> "TradeState":
+        """Deserialize from ContextSnapshot.meta dict."""
+        if not meta:
+            return cls()
+        return cls(
+            entry_price=meta.get("entry_price"),
+            sl_price=meta.get("sl_price"),
+            soft_sl_price=meta.get("soft_sl_price"),
+            original_soft_sl=meta.get("original_soft_sl"),
+            disaster_sl_price=meta.get("disaster_sl_price"),
+            lock_profit_price=meta.get("lock_profit_price"),
+            move_trigger=meta.get("move_trigger"),
+            moved_sl_to_entry=bool(meta.get("moved_sl_to_entry", False)),
+            pending_candle_sl=bool(meta.get("pending_candle_sl", False)),
+            crossover_detected=bool(meta.get("crossover_detected", False)),
+            tp_allocations=meta.get("tp_allocations"),
+        )
 
 
 class RsiMomentumStrategy(BaseStrategy):
@@ -162,17 +221,17 @@ class RsiMomentumStrategy(BaseStrategy):
         position: PositionSnapshot,
         context: ContextSnapshot,
     ) -> AnalysisResult:
-        meta = dict(context.meta)
+        ts = TradeState.from_meta(context.meta)
 
-        entry_price = self._to_dec(meta.get("entry_price"))
+        entry_price = self._to_dec(ts.entry_price)
         if entry_price is None:
             return AnalysisResult(actions=[DoNothing()], new_context=context)
 
-        soft_sl = context.soft_sl_price or self._to_dec(meta.get("soft_sl_price"))
-        original_soft_sl = self._to_dec(meta.get("original_soft_sl")) or soft_sl
-        moved_sl = bool(meta.get("moved_sl_to_entry", False))
-        pending_candle_sl = bool(meta.get("pending_candle_sl", False))
-        lock_profit_price = self._to_dec(meta.get("lock_profit_price"))
+        soft_sl = context.soft_sl_price or self._to_dec(ts.soft_sl_price)
+        original_soft_sl = self._to_dec(ts.original_soft_sl) or soft_sl
+        moved_sl = ts.moved_sl_to_entry
+        pending_candle_sl = ts.pending_candle_sl
+        lock_profit_price = self._to_dec(ts.lock_profit_price)
 
         last = df_ind.iloc[-1]
         close = self._to_dec(last.get("close"))
@@ -184,7 +243,7 @@ class RsiMomentumStrategy(BaseStrategy):
             lock_profit_price = SLTPCalculator.compute_lock_profit_price(
                 entry_price=entry_price,
                 soft_sl_price=original_soft_sl,
-                side="SELL",
+                side=SIDE_SELL,
                 lock_profit_rr=Decimal(str(self.cfg.lock_profit_rr)),
                 taker_fee=self.taker_fee,
             )
@@ -192,30 +251,33 @@ class RsiMomentumStrategy(BaseStrategy):
         # ── STEP 0: pending candle SL — close at this candle's open ───
         if pending_candle_sl and open_price is not None:
             return AnalysisResult(
-                actions=[ClosePosition(symbol=symbol, reason="CLOSE_BY_CANDLE_SL", price=open_price)],
+                actions=[ClosePosition(symbol=symbol, reason=EXIT_CLOSE_BY_CANDLE_SL, price=open_price)],
                 new_context=ContextSnapshot(state=SCANNING),
             )
 
         # ── STEP 1: Move SL to lock-profit when price drops to trigger ─
         # For SHORT: price going DOWN is profitable → trigger when low <= move_trigger
         if not moved_sl and low is not None and soft_sl is not None and original_soft_sl is not None:
-            move_trigger = SLTPCalculator.compute_tp_price(
-                entry_price=entry_price,
-                sl_price=original_soft_sl,
-                side="SELL",
-                rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
-                taker_fee=self.taker_fee,
-                exit_fee=self.maker_fee,
-            )
+            move_trigger = self._to_dec(ts.move_trigger)
+            if move_trigger is None:
+                # Fallback: compute if not cached (e.g. older context)
+                move_trigger = SLTPCalculator.compute_tp_price(
+                    entry_price=entry_price,
+                    sl_price=original_soft_sl,
+                    side=SIDE_SELL,
+                    rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
+                    taker_fee=self.taker_fee,
+                    exit_fee=self.maker_fee,
+                )
             if move_trigger is not None and low <= move_trigger and lock_profit_price is not None:
-                new_meta = dict(meta)
-                new_meta["moved_sl_to_entry"] = True
-                new_meta["sl_price"] = lock_profit_price
-                new_meta["soft_sl_price"] = lock_profit_price
+                new_ts = TradeState.from_meta(context.meta)
+                new_ts.moved_sl_to_entry = True
+                new_ts.sl_price = lock_profit_price
+                new_ts.soft_sl_price = lock_profit_price
                 new_ctx = ContextSnapshot(
                     state=context.state,
                     soft_sl_price=lock_profit_price,
-                    meta=new_meta,
+                    meta=new_ts.to_meta(),
                 )
                 return AnalysisResult(
                     actions=[MoveSL(
@@ -229,9 +291,9 @@ class RsiMomentumStrategy(BaseStrategy):
         # ── STEP 2: Candle-close SL — flag exit for next candle ───────
         # For SHORT: close >= soft_sl means price went AGAINST us (up)
         if soft_sl is not None and close is not None and close >= soft_sl:
-            new_meta = dict(meta)
-            new_meta["pending_candle_sl"] = True
-            new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_meta)
+            new_ts = TradeState.from_meta(context.meta)
+            new_ts.pending_candle_sl = True
+            new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_ts.to_meta())
             return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
         return AnalysisResult(actions=[DoNothing()], new_context=context)
@@ -246,24 +308,23 @@ class RsiMomentumStrategy(BaseStrategy):
         df_ind: pd.DataFrame,
         context: ContextSnapshot,
     ) -> AnalysisResult:
-        meta = dict(context.meta) if context.meta else {}
+        ts = TradeState.from_meta(context.meta)
         _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
         # ── S2 + S3: Alignment check ────────────────────────────────────
         if not self.indicators.check_alignment(df_ind, direction="bearish"):
             # Alignment broken → reset crossover flag
-            if meta.get("crossover_detected"):
-                new_meta = dict(meta)
-                new_meta["crossover_detected"] = False
+            if ts.crossover_detected:
+                ts.crossover_detected = False
                 return AnalysisResult(
                     actions=[DoNothing()],
-                    new_context=ContextSnapshot(state=SCANNING, meta=new_meta),
+                    new_context=ContextSnapshot(state=SCANNING, meta=ts.to_meta()),
                 )
             return _noop
 
         # ── S1: Crossover or persistent alignment ───────────────────────
         crossover_now = self.indicators.detect_crossover(df_ind, direction="bearish")
-        crossover_before = bool(meta.get("crossover_detected", False))
+        crossover_before = ts.crossover_detected
 
         if not crossover_now and not crossover_before:
             return _noop
@@ -286,11 +347,10 @@ class RsiMomentumStrategy(BaseStrategy):
             pivot_strength=self.cfg.pivot_strength,
         ):
             # Preserve crossover flag so persistence still works
-            new_meta = dict(meta)
-            new_meta["crossover_detected"] = crossover_now or crossover_before
+            ts.crossover_detected = crossover_now or crossover_before
             return AnalysisResult(
                 actions=[DoNothing()],
-                new_context=ContextSnapshot(state=SCANNING, meta=new_meta),
+                new_context=ContextSnapshot(state=SCANNING, meta=ts.to_meta()),
             )
 
         # ── All conditions met — compute SL/TP ──────────────────────────
@@ -302,7 +362,7 @@ class RsiMomentumStrategy(BaseStrategy):
 
         # Soft SL: highest high of last sl_lookback candles
         soft_sl = SLTPCalculator.compute_soft_sl(
-            df_ind, side="SELL", lookback=self.cfg.sl_lookback
+            df_ind, side=SIDE_SELL, lookback=self.cfg.sl_lookback
         )
         if soft_sl is None:
             logger.warning("rsi_momentum.no_soft_sl", symbol=symbol)
@@ -322,7 +382,7 @@ class RsiMomentumStrategy(BaseStrategy):
         disaster_sl = SLTPCalculator.compute_disaster_sl(
             entry_price=entry_price,
             soft_sl_price=soft_sl,
-            side="SELL",
+            side=SIDE_SELL,
             multiplier=Decimal(str(self.cfg.disaster_sl_multiplier)),
         )
 
@@ -333,7 +393,7 @@ class RsiMomentumStrategy(BaseStrategy):
             tp = SLTPCalculator.compute_tp_price(
                 entry_price=entry_price,
                 sl_price=soft_sl,
-                side="SELL",
+                side=SIDE_SELL,
                 rr_ratio=Decimal(str(rr)),
                 taker_fee=self.taker_fee,
                 exit_fee=self.maker_fee,
@@ -360,28 +420,36 @@ class RsiMomentumStrategy(BaseStrategy):
         lock_profit_price = SLTPCalculator.compute_lock_profit_price(
             entry_price=entry_price,
             soft_sl_price=soft_sl,
-            side="SELL",
+            side=SIDE_SELL,
             lock_profit_rr=Decimal(str(self.cfg.lock_profit_rr)),
             taker_fee=self.taker_fee,
         )
 
+        # Pre-compute move_trigger so _manage_exit doesn't recompute every candle
+        move_trigger = SLTPCalculator.compute_tp_price(
+            entry_price=entry_price,
+            sl_price=soft_sl,
+            side=SIDE_SELL,
+            rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
+            taker_fee=self.taker_fee,
+            exit_fee=self.maker_fee,
+        )
+
         # Build new context for the trade
-        new_meta = {
-            "entry_price": entry_price,
-            "sl_price": soft_sl,
-            "soft_sl_price": soft_sl,
-            "original_soft_sl": soft_sl,
-            "disaster_sl_price": disaster_sl,
-            "lock_profit_price": lock_profit_price,
-            "moved_sl_to_entry": False,
-            "pending_candle_sl": False,
-            "crossover_detected": False,
-            "tp_allocations": tp_allocations,
-        }
+        new_ts = TradeState(
+            entry_price=entry_price,
+            sl_price=soft_sl,
+            soft_sl_price=soft_sl,
+            original_soft_sl=soft_sl,
+            disaster_sl_price=disaster_sl,
+            lock_profit_price=lock_profit_price,
+            move_trigger=move_trigger,
+            tp_allocations=tp_allocations,
+        )
         new_ctx = ContextSnapshot(
             state=SCANNING,
             soft_sl_price=soft_sl,
-            meta=new_meta,
+            meta=new_ts.to_meta(),
         )
 
         logger.info(
@@ -397,7 +465,7 @@ class RsiMomentumStrategy(BaseStrategy):
         return AnalysisResult(
             actions=[OpenPosition(
                 symbol=symbol,
-                side="SELL",
+                side=SIDE_SELL,
                 entry_price=entry_price,
                 sl_price=disaster_sl,
                 soft_sl_price=soft_sl,

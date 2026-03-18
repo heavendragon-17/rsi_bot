@@ -21,6 +21,7 @@ from decimal import Decimal
 from app.core.exceptions import InsufficientFundsError, OrderNotFoundError
 from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
+from app.core.actions import SIDE_BUY, SIDE_SELL, EXIT_STOP_LOSS, EXIT_LIQUIDATION
 
 logger = structlog.get_logger()
 
@@ -151,17 +152,13 @@ class MockExchange(IExchange):
                         continue
 
                     # Exit side is opposite of position side
-                    exit_side = "BUY" if signed_amount < 0 else "SELL"
+                    exit_side = SIDE_BUY if signed_amount < 0 else SIDE_SELL
                     abs_amount = abs(signed_amount)
 
                     curr_data = self.current_prices.get(symbol, {})
                     exec_price = to_decimal(curr_data.get("price", Decimal("0")))
                     if exec_price <= 0:
                         exec_price = self.entry_prices.get(symbol, Decimal("0"))
-
-                    # Temporarily increase taker fee to simulate liquidation penalty
-                    old_taker_fee = self.taker_fee
-                    self.taker_fee = Decimal("0.005")  # 0.5% liquidation fee
 
                     try:
                         self._execute_order(
@@ -171,12 +168,11 @@ class MockExchange(IExchange):
                             exec_price=exec_price,
                             timestamp=timestamp,
                             order_type="MARKET",
-                            exit_reason="LIQUIDATION",
+                            exit_reason=EXIT_LIQUIDATION,
+                            fee_override=Decimal("0.005"),  # 0.5% liquidation fee
                         )
                     except Exception as e:
                         logger.error("liquidation_error", symbol=symbol, error=str(e))
-                    finally:
-                        self.taker_fee = old_taker_fee
                         
                 # Ensure balance is strictly 0 (no negative balance)
                 self.balance = Decimal("0")
@@ -599,7 +595,7 @@ class MockExchange(IExchange):
 
             current_pos = self.positions.get(symbol, Decimal("0"))
             # Exit side is opposite of position side
-            exit_side = "BUY" if current_pos < 0 else "SELL"
+            exit_side = SIDE_BUY if current_pos < 0 else SIDE_SELL
 
             # Find and cancel existing stop_market orders for this symbol.
             # Filter by exit_side so we don't accidentally cancel the wrong direction's SL.
@@ -635,7 +631,7 @@ class MockExchange(IExchange):
                 params={
                     "stopPrice": new_price,
                     "reduceOnly": True,
-                    "exit_reason": exit_reason or "STOP_LOSS",
+                    "exit_reason": exit_reason or EXIT_STOP_LOSS,
                 },
             )
             return result is not None
@@ -661,6 +657,7 @@ class MockExchange(IExchange):
         timestamp,
         order_type: str = "MARKET",
         exit_reason: str = None,
+        fee_override: Optional[Decimal] = None,
     ) -> Optional[Dict]:
         """
         Execute an order with futures leverage support.
@@ -677,8 +674,11 @@ class MockExchange(IExchange):
           gross_pnl = (exit_price - entry_price) * signed_amount
           LONG  win:  exit > entry, positive amount  → positive PnL
           SHORT win:  exit < entry, negative amount  → positive PnL
+
+        Args:
+            fee_override: If set, use this fee rate instead of the normal taker/maker rate.
         """
-        side = (side or "BUY").upper()
+        side = (side or SIDE_BUY).upper()
         notional = exec_price * amount
         margin = notional / self.leverage
 
@@ -690,7 +690,10 @@ class MockExchange(IExchange):
         margin_used = Decimal("0")
 
         # Calculate fees early so we can include them in pnl
-        fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
+        if fee_override is not None:
+            fee_rate = fee_override
+        else:
+            fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
         fee_cost = notional * fee_rate
 
         current_signed = self.positions.get(symbol, Decimal("0"))
