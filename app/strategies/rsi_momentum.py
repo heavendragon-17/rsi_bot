@@ -199,14 +199,17 @@ class RsiMomentumStrategy(BaseStrategy):
         # ── STEP 1: Move SL to lock-profit when price drops to trigger ─
         # For SHORT: price going DOWN is profitable → trigger when low <= move_trigger
         if not moved_sl and low is not None and soft_sl is not None and original_soft_sl is not None:
-            move_trigger = SLTPCalculator.compute_tp_price(
-                entry_price=entry_price,
-                sl_price=original_soft_sl,
-                side="SELL",
-                rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
-                taker_fee=self.taker_fee,
-                exit_fee=self.maker_fee,
-            )
+            move_trigger = self._to_dec(meta.get("move_trigger"))
+            if move_trigger is None:
+                # Fallback: compute if not cached (e.g. older context)
+                move_trigger = SLTPCalculator.compute_tp_price(
+                    entry_price=entry_price,
+                    sl_price=original_soft_sl,
+                    side="SELL",
+                    rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
+                    taker_fee=self.taker_fee,
+                    exit_fee=self.maker_fee,
+                )
             if move_trigger is not None and low <= move_trigger and lock_profit_price is not None:
                 new_meta = dict(meta)
                 new_meta["moved_sl_to_entry"] = True
@@ -365,6 +368,16 @@ class RsiMomentumStrategy(BaseStrategy):
             taker_fee=self.taker_fee,
         )
 
+        # Pre-compute move_trigger so _manage_exit doesn't recompute every candle
+        move_trigger = SLTPCalculator.compute_tp_price(
+            entry_price=entry_price,
+            sl_price=soft_sl,
+            side="SELL",
+            rr_ratio=Decimal(str(self.cfg.move_sl_rr)),
+            taker_fee=self.taker_fee,
+            exit_fee=self.maker_fee,
+        )
+
         # Build new context for the trade
         new_meta = {
             "entry_price": entry_price,
@@ -373,6 +386,7 @@ class RsiMomentumStrategy(BaseStrategy):
             "original_soft_sl": soft_sl,
             "disaster_sl_price": disaster_sl,
             "lock_profit_price": lock_profit_price,
+            "move_trigger": move_trigger,
             "moved_sl_to_entry": False,
             "pending_candle_sl": False,
             "crossover_detected": False,

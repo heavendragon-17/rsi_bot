@@ -596,10 +596,6 @@ class PortfolioManager:
 
         return order
 
-    # Keep old name as alias for backward compatibility
-    def _handle_buy_signal(self, signal: SignalEvent, balance: Decimal):
-        return self._handle_entry_signal(signal, balance, entry_side="BUY")
-
     # -------------------------
     # Soft SL with pre-execution guard
     # -------------------------
@@ -690,10 +686,6 @@ class PortfolioManager:
             return None
 
         return None
-
-    # Backward-compat alias
-    def _handle_full_sell(self, symbol: str, price: Decimal = None, exit_reason: str = "MANUAL"):
-        return self._handle_full_exit(symbol, price=price, exit_reason=exit_reason)
 
     def execute_partial_close(self, symbol: str, tp_level: str, new_sl_price: Optional[Decimal] = None):
         """

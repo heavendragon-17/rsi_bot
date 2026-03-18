@@ -127,16 +127,19 @@ class CrossoverIndicators(IIndicators):
         if df is None or len(df) < lookback or not required_cols.issubset(df.columns):
             return False
 
-        window = df.iloc[-lookback:].copy().reset_index(drop=True)
+        # Use iloc with offset to avoid copy + reset_index
+        start = len(df) - lookback
         n = pivot_strength
+        highs = df["high"].values[start:]
+        rsis = df["rsi_14"].values[start:]
+        wlen = len(highs)
 
         # Identify swing-high indices within the window (excluding edges)
         swing_high_idxs = []
-        for i in range(n, len(window) - n):
-            center_high = window["high"].iloc[i]
-            left = window["high"].iloc[i - n : i]
-            right = window["high"].iloc[i + 1 : i + n + 1]
-            if (center_high > left).all() and (center_high > right).all():
+        for i in range(n, wlen - n):
+            center = highs[i]
+            if all(center > highs[i - j] for j in range(1, n + 1)) and \
+               all(center > highs[i + j] for j in range(1, n + 1)):
                 swing_high_idxs.append(i)
 
         if len(swing_high_idxs) < 2:
@@ -148,16 +151,14 @@ class CrossoverIndicators(IIndicators):
                 a_idx = swing_high_idxs[a_pos]
                 b_idx = swing_high_idxs[b_pos]
 
-                price_a = window["high"].iloc[a_idx]
-                price_b = window["high"].iloc[b_idx]
-                rsi_a = window["rsi_14"].iloc[a_idx]
-                rsi_b = window["rsi_14"].iloc[b_idx]
+                rsi_a = rsis[a_idx]
+                rsi_b = rsis[b_idx]
 
                 if pd.isna(rsi_a) or pd.isna(rsi_b):
                     continue
 
                 # Price HH + RSI LH → bearish divergence
-                if price_b > price_a and rsi_b < rsi_a:
+                if highs[b_idx] > highs[a_idx] and rsi_b < rsi_a:
                     return True
 
         return False
