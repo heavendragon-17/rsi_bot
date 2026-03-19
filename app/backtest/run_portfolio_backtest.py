@@ -28,6 +28,7 @@ from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.core.logging import setup_logging
 from app.strategies.loader import STRATEGY_MAP
+from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
 import structlog
 
 logger = structlog.get_logger()
@@ -184,8 +185,8 @@ def run_portfolio_analysis(config: dict, strategy_name: str, timeframe: str):
     
     risk_cfg = config.get("risk", {})
     leverage = risk_cfg.get("leverage", 10)
-    taker_fee = float(risk_cfg.get("taker_fee", 0.0005))   # 0.05%
-    maker_fee = float(risk_cfg.get("maker_fee", 0.0002))   # 0.02%
+    taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
+    maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
 
     exchange = MockExchange(
         initial_balance=balance,
