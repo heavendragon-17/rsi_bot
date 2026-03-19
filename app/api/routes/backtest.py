@@ -29,6 +29,7 @@ from app.api.schemas import (
     TimeseriesResponse,
 )
 from app.backtest.config_builder import build_backtest_config
+from app.strategies.loader import STRATEGY_MAP
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import (
     Run,
@@ -47,22 +48,6 @@ router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 DATA_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "app", "backtest", "data")
 )
-
-STRATEGY_MAP: dict[str, Any] = {}
-
-
-def _load_strategies():
-    global STRATEGY_MAP
-    if not STRATEGY_MAP:
-        from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-        from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-
-        STRATEGY_MAP = {
-            "rsi_no_retest": RsiNoRetestStrategy,
-            "rsi_wma_retest": RsiWmaRetestStrategy,
-        }
-    return STRATEGY_MAP
-
 
 def get_db():
     db = SessionLocal()
@@ -97,12 +82,11 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
             )
 
     # 2. Resolve strategy
-    strategies = _load_strategies()
-    strategy_class = strategies.get(body.strategy)
+    strategy_class = STRATEGY_MAP.get(body.strategy)
     if strategy_class is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown strategy: {body.strategy}. Available: {list(strategies)}",
+            detail=f"Unknown strategy: {body.strategy}. Available: {list(STRATEGY_MAP)}",
         )
 
     # 3. Resolve strategy DB row

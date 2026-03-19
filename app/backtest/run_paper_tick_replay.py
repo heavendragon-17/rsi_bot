@@ -62,14 +62,9 @@ from app.core.events import SignalEvent
 from app.core.portfolio import PortfolioManager
 from app.core.snapshots import ContextSnapshot
 from app.sim.exchange import SimExchange
-from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.strategies.loader import STRATEGY_MAP
 
 # ── constants ────────────────────────────────────────────────────────────────
-STRATEGY_MAP = {
-    "rsi_wma_retest": RsiWmaRetestStrategy,
-    "rsi_no_retest": RsiNoRetestStrategy,
-}
 WARMUP = 220   # candles to skip before strategy analysis (match BacktestEngine.WARMUP)
 
 

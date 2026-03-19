@@ -20,14 +20,7 @@ if PROJECT_ROOT not in sys.path:
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.backtest.config_builder import build_backtest_config
-from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-
-# Strategy mapping
-STRATEGY_MAP = {
-    "rsi_wma_retest": RsiWmaRetestStrategy,
-    "rsi_no_retest": RsiNoRetestStrategy,
-}
+from app.strategies.loader import STRATEGY_MAP
 # Path constants
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 

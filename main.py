@@ -30,7 +30,7 @@ import structlog
 
 from app.services.notification.notification_service import NotificationService
 from app.services.notification.null_notifier import NullNotifier
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.strategies.loader import load_strategy
 from app.services.execution.exchange_factory import create_exchange
 from app.core.runner import MultiSymbolRunner
 
@@ -73,7 +73,7 @@ def main():
     # 4. Create runner with execution
     runner = MultiSymbolRunner(
         config=config,
-        strategy_class=RsiNoRetestStrategy,
+        strategy_class=load_strategy(config),
         exchange=exchange,
         notification_service=ns,
     )
