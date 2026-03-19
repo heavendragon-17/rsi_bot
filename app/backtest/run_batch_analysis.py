@@ -20,17 +20,10 @@ if PROJECT_ROOT not in sys.path:
 
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
-from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.download_data import download_data, calculate_candle_limit
 from app.core.logging import setup_logging
+from app.strategies.loader import STRATEGY_MAP
 import logging
-
-# Strategy mapping
-STRATEGY_MAP = {
-    "rsi_wma_retest": RsiWmaRetestStrategy,
-    "rsi_no_retest": RsiNoRetestStrategy,
-}
 
 # Path constants
 SYMBOLS_PATH = os.path.join(SCRIPT_DIR, "symbols.txt")
@@ -257,14 +250,8 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
     setup_logging(level="INFO")
     
     try:
-        # Import strategy class here to avoid pickling issues
-        from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-        from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-        
-        strategy_map = {
-            "rsi_wma_retest": RsiWmaRetestStrategy,
-            "rsi_no_retest": RsiNoRetestStrategy,
-        }
+        # Import from central loader (avoids pickling issues with top-level ref)
+        from app.strategies.loader import STRATEGY_MAP as strategy_map
         strategy_class = strategy_map.get(strategy_name)
         if not strategy_class:
             return {"symbol": symbol, "error": f"Unknown strategy: {strategy_name}"}
