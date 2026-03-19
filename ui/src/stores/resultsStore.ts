@@ -129,7 +129,7 @@ export function mapApiToResults(
       entryTime: String(t["entry_time"] ?? ""),
       exitTime: String(t["exit_time"] ?? ""),
       symbol: String(t["symbol"] ?? ""),
-      side: "LONG" as const,
+      side: (String(t["side"] ?? "LONG").toUpperCase() === "SHORT" ? "SHORT" : "LONG") as Trade["side"],
       entryPrice: _str(t["entry_price"]),
       exitPrice: _str(t["exit_price"]),
       size: _str(t["size_usd"]),

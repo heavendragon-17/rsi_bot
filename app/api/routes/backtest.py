@@ -468,7 +468,7 @@ def _persist_results(run_id: int, results: dict[str, Any]) -> None:
             trade_row = Trade(
                 run_id=run_id,
                 symbol=rt.get("symbol", ""),
-                side="LONG",
+                side=rt.get("side", "LONG"),
                 entry_time=_parse_dt(entry_t),
                 exit_time=_parse_dt(exit_t),
                 hold_time_hours=rt.get("hold_duration_hours"),

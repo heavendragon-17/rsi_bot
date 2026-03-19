@@ -367,23 +367,30 @@ export function TradeDeepDive({ trade, onClose }: TradeDeepDiveProps) {
                   name="Trailing SL"
                 />
 
-                {/* Entry/Exit Markers */}
+                {/* Entry/Exit Markers — direction-aware for LONG vs SHORT */}
                 {chartData
                   .filter((d) => d.isEntry || d.isExit)
-                  .map((point, i) => (
-                    <ReferenceLine
-                      key={i}
-                      x={point.time}
-                      stroke={point.isEntry ? "#10B981" : "#F43F5E"}
-                      strokeWidth={2}
-                      label={{
-                        value: point.isEntry ? "▲" : "▼",
-                        fill: point.isEntry ? "#10B981" : "#F43F5E",
-                        fontSize: 16,
-                        position: point.isEntry ? "bottom" : "top",
-                      }}
-                    />
-                  ))}
+                  .map((point, i) => {
+                    const isShort = trade.side === "SHORT";
+                    // LONG entry: green ▲ (buying)   SHORT entry: red ▼ (selling)
+                    // LONG exit:  red ▼ (selling)    SHORT exit: green ▲ (buying)
+                    const isUpArrow = point.isEntry ? !isShort : isShort;
+                    const color = isUpArrow ? "#10B981" : "#F43F5E";
+                    return (
+                      <ReferenceLine
+                        key={i}
+                        x={point.time}
+                        stroke={color}
+                        strokeWidth={2}
+                        label={{
+                          value: isUpArrow ? "▲" : "▼",
+                          fill: color,
+                          fontSize: 16,
+                          position: isUpArrow ? "bottom" : "top",
+                        }}
+                      />
+                    );
+                  })}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
