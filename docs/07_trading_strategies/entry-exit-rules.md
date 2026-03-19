@@ -1,6 +1,6 @@
 # Entry & Exit Rules
 
-> Detailed entry state machine, SL/TP placement logic, and position management for `rsi_no_retest`.
+> Detailed entry state machine, SL/TP placement logic, and position management for `rsi_no_retest` and `rsi_momentum`.
 
 ---
 
@@ -140,5 +140,141 @@ The strategy stores these in `ContextSnapshot.meta`:
 | `rsi_spread` | float | RSI spread at entry |
 | `sl_mode` | str | SL mode used |
 | `tp_allocations` | dict | TP allocation fractions |
+
+TP hit flags (`tp1_hit`, `tp2_hit`, `tp3_hit`) come from `PositionSnapshot` (PortfolioManager is source of truth), not from context.
+
+---
+
+# rsi_momentum — Entry & Exit Rules (SHORT Only)
+
+> SHORT-only strategy using RSI crossover indicators with bearish divergence confirmation.
+
+## Entry Logic
+
+All five conditions must hold simultaneously on the current candle:
+
+```
+S1 (Crossover/Persistence) ──┐
+S2 (RSI < EMA9)              ├── ALL TRUE ──► Compute SL/TP ──► OpenPosition(side="SELL")
+S3 (EMA9 < WMA45)            │
+S4 (WMA45 − EMA9 > 2.5)     │
+S5 (Bearish divergence)  ────┘
+```
+
+### S1: Crossover or Signal Persistence
+
+**Crossover**: EMA9-of-RSI crosses below WMA45-of-RSI on the current candle:
+- `EMA9[prev] >= WMA45[prev]` AND `EMA9[current] < WMA45[current]`
+
+**Persistence**: If a crossover was detected on a prior candle (stored as `crossover_detected=True` in context), the signal persists on subsequent candles as long as S2+S3+S4 alignment holds. This prevents missing entries due to divergence appearing one candle late.
+
+If alignment (S2+S3) breaks, `crossover_detected` resets to `False`.
+
+### S2: RSI Below EMA9
+
+`RSI_14 < EMA9-of-RSI` on the current candle. Confirms bearish RSI momentum.
+
+### S3: EMA9 Below WMA45
+
+`EMA9-of-RSI < WMA45-of-RSI` on the current candle. Confirms bearish trend alignment.
+
+### S4: Spread Constraint
+
+`(WMA45 - EMA9) > spread_threshold` (default 2.5 RSI units). Filters out noise when the two lines are too close together.
+
+### S5: Bearish RSI Divergence
+
+Price makes a Higher High while RSI makes a Lower High within the `divergence_lookback` window (default 30 candles).
+
+Detection uses pivot swing highs (N=`pivot_strength`, default 5, meaning 11-bar pivots):
+1. Find the two most recent swing highs in price within lookback
+2. Find the two most recent swing highs in RSI within lookback
+3. If `price_high[-1] > price_high[-2]` AND `rsi_high[-1] < rsi_high[-2]` → divergence confirmed
+
+---
+
+## SL Computation (Short)
+
+For SHORT positions, SL is placed **above** entry:
+
+| Component | Computation | Description |
+|-----------|-------------|-------------|
+| **Soft SL** | `max(high)` over last `sl_lookback` candles (default 30) | Highest high as resistance level |
+| **Hard SL** | `entry + disaster_sl_multiplier × (soft_sl - entry)` | 3× the soft SL distance above entry |
+
+The soft SL must be above entry price (`soft_sl > entry`), otherwise the trade is skipped (zero risk distance).
+
+---
+
+## TP Computation (Short)
+
+TP levels are placed **below** entry at multiples of risk distance. Fee-aware calculation via `SLTPCalculator.compute_tp_price()`:
+
+```
+risk = soft_sl - entry          (positive, since soft_sl > entry for SHORT)
+tp1 ≈ entry - tp1_rr × risk    (default: entry - 1.0 × risk)
+tp2 ≈ entry - tp2_rr × risk    (default: entry - 2.0 × risk)
+tp3 ≈ entry - tp3_rr × risk    (default: entry - 3.0 × risk)
+```
+
+The actual TP prices account for entry taker fee and exit maker fee to ensure the net profit matches the target R:R ratio.
+
+### Dynamic Allocations
+
+Same as `rsi_no_retest` — based on `tp_count`:
+
+| tp_count | TP1 | TP2 | TP3 |
+|----------|-----|-----|-----|
+| 1 | 100% | — | — |
+| 2 | `tp1_close_pct` (50%) | 100% remaining | — |
+| 3 | `tp1_close_pct` (50%) | `tp2_close_pct` (50% of remaining) | 100% remaining |
+
+---
+
+## Position Management (Short Exit Logic)
+
+Checked every candle in this priority order:
+
+### 1. Pending Candle SL (highest priority)
+If `pending_candle_sl=True` in context (set on previous candle):
+- Exit at current candle's `open` price
+- Emit `ClosePosition(reason="CLOSE_BY_CANDLE_SL")`
+- Reset to SCANNING
+
+### 2. Lock-Profit Trigger
+If `low <= move_trigger` (price dropped 0.5R in our favor) and SL not yet moved:
+- `move_trigger = entry - move_sl_rr × risk` (fee-adjusted)
+- Emit `MoveSL(new_sl_price=lock_profit_price)`
+- `lock_profit_price = entry - lock_profit_rr × risk` (below entry, locking profit)
+- Set `moved_sl_to_entry=True`
+
+Note: For SHORT positions, price going **down** is profitable. The lock-profit SL is placed **below** entry price (unlike LONG where it's above entry).
+
+### 3. Soft SL (candle-close based)
+If `close >= soft_sl_price` (price went against us — up):
+- Set `pending_candle_sl=True` in context
+- Emit `DoNothing` (exit happens next candle at open)
+
+This 2-candle pattern prevents false exits from wick-only touches.
+
+---
+
+## rsi_momentum Context Meta Keys
+
+The strategy stores these in `ContextSnapshot.meta` via the `TradeState` dataclass:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `entry_price` | Decimal | Entry price |
+| `sl_price` | Decimal | Current SL price (may move to lock-profit level) |
+| `soft_sl_price` | Decimal | Current soft SL (candle-close monitored) |
+| `original_soft_sl` | Decimal | Original soft SL before any moves |
+| `disaster_sl_price` | Decimal | Hard SL on exchange (stop_market BUY order) |
+| `lock_profit_price` | Decimal | SL moved here after lock-profit trigger |
+| `move_trigger` | Decimal | Pre-computed price level to trigger lock-profit |
+| `moved_sl_to_entry` | bool | Whether SL has been moved to lock-profit level |
+| `pending_candle_sl` | bool | Candle SL flagged, exit next candle |
+| `crossover_detected` | bool | Whether a bearish crossover has been detected (signal persistence) |
+| `tp_allocations` | dict | TP allocation fractions, e.g. `{"TP1": 0.5, "TP2": 0.5, "TP3": 1.0}` |
 
 TP hit flags (`tp1_hit`, `tp2_hit`, `tp3_hit`) come from `PositionSnapshot` (PortfolioManager is source of truth), not from context.

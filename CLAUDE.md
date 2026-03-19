@@ -73,7 +73,14 @@ React/Zustand → FastAPI REST + SSE → ProcessPoolExecutor → BacktestEngine 
 analyze(symbol, df, position=PositionSnapshot, context=ContextSnapshot) -> AnalysisResult
 ```
 
-Actions: `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`
+Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`
+
+### Key Utilities
+
+- `SLTPCalculator` (`app/core/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
+- `CrossoverIndicators` (`app/utils/crossover_indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies
+- `opposite_side()` (`app/core/actions.py`) — BUY↔SELL, used for exit orders
+- Position amounts are **signed**: positive=LONG, negative=SHORT
 
 ### Order Vocabulary
 

@@ -106,7 +106,8 @@ rsi_bot/
 │   │   └── logging.py               # structlog setup
 │   ├── strategies/                   # Trading strategies
 │   │   ├── loader.py                # Dynamic strategy loading
-│   │   ├── rsi_no_retest.py         # Primary strategy
+│   │   ├── rsi_no_retest.py         # Primary long strategy
+│   │   ├── rsi_momentum.py          # Short strategy (RSI crossover + divergence)
 │   │   └── rsi_wma_retest.py        # Legacy strategy
 │   ├── services/
 │   │   ├── market_data/             # WebSocket, data store
@@ -130,14 +131,15 @@ rsi_bot/
 
 ## Strategies
 
-Two strategies are available, selected via `config.yaml`:
+Three strategies are available, selected via `config.yaml`:
 
-| Strategy | Key Difference |
-|----------|---------------|
-| `rsi_no_retest` | Entry on EMA21 reclaim + RSI momentum spread. Primary strategy. |
-| `rsi_wma_retest` | Requires RSI to retest WMA45 before entry. More conservative. |
+| Strategy | Side | Key Difference |
+|----------|------|---------------|
+| `rsi_no_retest` | LONG | Entry on EMA21 reclaim + RSI momentum spread. Primary long strategy. |
+| `rsi_wma_retest` | LONG | Requires RSI to retest WMA45 before entry. Legacy, more conservative. |
+| `rsi_momentum` | SHORT | RSI crossover + bearish divergence. Uses `CrossoverIndicators` and `SLTPCalculator`. |
 
-Both share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism.
+All strategies share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism. SHORT positions use signed amounts (negative) and `opposite_side()` for exit orders.
 
 ## Database
 

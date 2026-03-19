@@ -88,6 +88,10 @@ def seed_strategies(session) -> None:
         session.commit()
 ```
 
+### SHORT Strategy Note
+
+For SHORT strategies, use `side="SELL"` in `OpenPosition`. SL goes above entry (`stop_market BUY`), TP goes below entry (`limit BUY`). See `app/strategies/rsi_momentum.py` for a complete example. Use `SLTPCalculator` (`app/core/sl_tp_calculator.py`) for direction-aware SL/TP calculations.
+
 ### That's it!
 
 When you restart your Python bot server, the `init_db()` function will automatically run `seed.py`. Your new strategy will be inserted into the database, and the UI will dynamically list it in the Strategy dropdown menus!

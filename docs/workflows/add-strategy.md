@@ -1,7 +1,7 @@
 # Add a Trading Strategy
 
 > Add a new `IStrategy` implementation following the stateless analyze pattern.
-> Reference implementation: `app/strategies/rsi_no_retest.py`
+> Reference implementations: `app/strategies/rsi_no_retest.py` (LONG), `app/strategies/rsi_momentum.py` (SHORT)
 
 ## Prerequisites
 
@@ -132,9 +132,22 @@ strategy_params:
   param_b: 0.5
 ```
 
+## SHORT Strategy Considerations
+
+If your strategy opens SHORT positions (selling to enter, buying to exit):
+
+1. **Entry side**: Use `side="SELL"` in `OpenPosition`. The engine maps this to `signal_type="SELL"` in `SignalEvent`.
+2. **SL placement**: SL goes **above** entry for SHORT (price going up = loss). Use `stop_market BUY` with `reduceOnly=True`.
+3. **TP placement**: TP goes **below** entry for SHORT (price going down = profit). Use `limit BUY` with `reduceOnly=True`.
+4. **SLTPCalculator**: Use `app/core/sl_tp_calculator.py` for direction-aware SL/TP/sizing. All methods accept a `side` parameter.
+5. **CrossoverIndicators**: If you need RSI crossover indicators instead of the standard `Indicators`, use `app/utils/crossover_indicators.py`.
+6. **Position amounts**: PortfolioManager stores SHORT positions with **negative** amounts. PnL formula `amount × (exit - entry)` handles both directions.
+
+See `app/strategies/rsi_momentum.py` and its test files for a complete SHORT strategy example.
+
 ## Testing
 
-Write `tests/test_{your_strategy_name}.py` modeled on `tests/test_stateless_strategy.py`.
+Write `tests/test_{your_strategy_name}.py` modeled on `tests/test_stateless_strategy.py` (LONG) or `tests/test_rsi_momentum.py` (SHORT).
 
 **Key invariants to verify:**
 1. `analyze()` never returns `None`

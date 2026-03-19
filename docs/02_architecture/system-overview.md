@@ -141,6 +141,7 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 │                                                                  │
 │  Implementations:                 Implementations:               │
 │  - Indicators                    - RsiNoRetestStrategy           │
+│  - CrossoverIndicators           - RsiMomentumStrategy (SHORT)   │
 ├──────────────────────────────────────────────────────────────────┤
 │ Layer 3: Execution                                               │
 │                                                                  │
@@ -324,7 +325,7 @@ All order types are normalized across every exchange adapter. The adapter transl
 
 ### Order Type Translation Examples
 
-**Entry (market buy)**:
+**LONG entry (market buy)**:
 ```python
 exchange.create_order(
     symbol="BTC/USDT",
@@ -334,7 +335,17 @@ exchange.create_order(
 )
 ```
 
-**Take-profit (limit sell with reduceOnly)**:
+**SHORT entry (market sell)**:
+```python
+exchange.create_order(
+    symbol="BTC/USDT",
+    order_type="market",
+    side="SELL",
+    amount=Decimal("0.001"),
+)
+```
+
+**Take-profit for LONG (limit sell with reduceOnly)**:
 ```python
 exchange.create_order(
     symbol="BTC/USDT",
@@ -346,14 +357,36 @@ exchange.create_order(
 )
 ```
 
+**Take-profit for SHORT (limit buy with reduceOnly)**:
+```python
+exchange.create_order(
+    symbol="BTC/USDT",
+    order_type="limit",
+    side="BUY",
+    amount=Decimal("0.001"),
+    price=Decimal("95000"),
+    params={"reduceOnly": True},
+)
+```
+
 **Stop loss (stop_market with reduceOnly)**:
 ```python
+# LONG SL: SELL stop_market
 exchange.create_order(
     symbol="BTC/USDT",
     order_type="stop_market",
     side="SELL",
     amount=Decimal("0.001"),
     params={"stopPrice": Decimal("95000"), "reduceOnly": True},
+)
+
+# SHORT SL: BUY stop_market
+exchange.create_order(
+    symbol="BTC/USDT",
+    order_type="stop_market",
+    side="BUY",
+    amount=Decimal("0.001"),
+    params={"stopPrice": Decimal("105000"), "reduceOnly": True},
 )
 ```
 

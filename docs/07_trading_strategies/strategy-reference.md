@@ -10,6 +10,7 @@
 |------|--------|--------|-------------|
 | `rsi_no_retest` | `app/strategies/rsi_no_retest.py` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
 | `rsi_wma_retest` | `app/strategies/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
+| `rsi_momentum` | `app/strategies/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
 
 Loaded dynamically by `app/strategies/loader.py` via `STRATEGY_MAP`.
 
@@ -89,6 +90,85 @@ In priority order (checked each candle):
 4. **TP1 check**: If `high >= tp1_price` → partial close (50%), move SL to `lock_profit_price`
 5. **Breakeven trigger**: If `high >= entry + move_sl_rr × risk` → move SL to `lock_profit_price`
 6. **Soft SL check**: If `close <= soft_sl_price` → flag `pending_candle_sl`, wait for next candle
+
+---
+
+## rsi_momentum — Complete Parameter Reference
+
+SHORT-only strategy using RSI momentum crossover with bearish divergence confirmation. Uses `CrossoverIndicators` (RSI14 + EMA9-of-RSI + WMA45-of-RSI) and the reusable `SLTPCalculator` utility.
+
+**Files**: `app/strategies/rsi_momentum.py`, `app/utils/crossover_indicators.py`, `app/core/sl_tp_calculator.py`
+
+### Indicator Settings
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `rsi_period` | 14 | RSI calculation length |
+| `ema_period` | 9 | EMA smoothing of RSI (signal line) |
+| `wma_period` | 45 | WMA smoothing of RSI (trend baseline) |
+
+### Entry Conditions
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `spread_threshold` | 2.5 | S4: Minimum (WMA45 − EMA9) RSI-unit spread |
+| `divergence_lookback` | 30 | S5: Candles to search for bearish divergence |
+| `pivot_strength` | 5 | S5: N for swing high detection (11-bar pivot, N bars each side) |
+| `min_candles` | 75 | Warm-up requirement (14 RSI + 45 WMA + 16 buffer) |
+
+### Stop Loss Settings
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `sl_lookback` | 30 | Highest high lookback for soft SL |
+| `disaster_sl_multiplier` | 3.0 | Hard SL = entry + multiplier × (soft_sl − entry) |
+
+### Take Profit Settings
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `tp_count` | 3 | TP levels to use (1, 2, or 3) |
+| `tp1_rr` | 1.0 | TP1 at 1.0× risk distance below entry |
+| `tp2_rr` | 2.0 | TP2 at 2.0× risk distance below entry |
+| `tp3_rr` | 3.0 | TP3 at 3.0× risk distance below entry |
+| `tp1_close_pct` | 0.50 | Position fraction closed at TP1 |
+| `tp2_close_pct` | 0.50 | Remaining fraction closed at TP2 |
+
+### Trade Management
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `move_sl_rr` | 0.5 | Lock-profit trigger: price drops 0.5R (in our favor for SHORT) |
+| `lock_profit_rr` | 0.2 | Lock-profit SL level: 0.2R above entry (locking profit for SHORT) |
+| `use_active_trades` | True | Whether strategy manages open positions |
+| `candle_close_slippage_pct` | 0.0 | Slippage on candle-close exits |
+| `taker_fee` | 0.0005 | Taker fee rate (market/stop orders) |
+| `maker_fee` | 0.0002 | Maker fee rate (limit orders) |
+
+---
+
+## rsi_momentum — Dual SL System (Short)
+
+Every SHORT trade uses two SL levels:
+
+| SL Type | Price | Mechanism | Purpose |
+|---------|-------|-----------|---------|
+| **Soft SL** | Highest high of last `sl_lookback` candles | Strategy checks on candle close. If `close >= soft_sl` → set `pending_candle_sl` flag → next candle open → market exit | Tight SL for risk management |
+| **Hard SL** | `entry + disaster_sl_multiplier × (soft_sl - entry)` | `stop_market` BUY order placed on exchange immediately | Disaster protection for flash pumps |
+
+Position sizing uses soft SL distance, not hard SL.
+
+---
+
+## rsi_momentum — Management Flow (Short)
+
+In priority order (checked each candle):
+
+1. **Pending candle SL**: If flagged on previous candle → exit at current open
+2. **Lock-profit trigger**: If `low <= entry - move_sl_rr × risk` and SL not yet moved → move SL to `lock_profit_price` (entry − lock_profit_rr × risk)
+3. **Soft SL check**: If `close >= soft_sl_price` → flag `pending_candle_sl`, wait for next candle
+
+TP fills are handled by `PortfolioManager` via exchange limit orders (not strategy-managed). The hard (disaster) SL is a `stop_market` BUY order on the exchange.
 
 ---
 

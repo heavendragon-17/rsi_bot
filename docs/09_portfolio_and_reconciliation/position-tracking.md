@@ -13,9 +13,9 @@
 | Field | Type | Description |
 |-------|------|-------------|
 | `symbol` | str | Trading pair |
-| `amount` | Decimal | Current position size (decreases with partial closes) |
+| `amount` | Decimal | Current position size — **signed**: positive for LONG, negative for SHORT. Magnitude decreases with partial closes. |
 | `entry_price` | Decimal | Entry fill price |
-| `side` | str | `"BUY"` (long) |
+| `side` | str | `"BUY"` (long) or `"SELL"` (short) |
 | `timestamp` | datetime | Entry timestamp |
 | `tp1_price` | Optional[Decimal] | TP1 target price |
 | `tp2_price` | Optional[Decimal] | TP2 target price |
@@ -75,9 +75,11 @@ PositionSnapshot(
     tp1_hit: bool,
     tp2_hit: bool,
     tp3_hit: bool,
-    lock_profit_triggered: bool,  # True if current_sl > entry_price
+    lock_profit_triggered: bool,  # True if SL moved to lock profit (direction-aware)
     unrealized_pnl: Optional[Decimal]
 )
 ```
 
-The strategy uses this to decide on management actions (TP checks, SL moves) without accessing mutable state.
+The `Position` dataclass also exposes an `exit_side` property that returns `opposite_side(side)` — `"SELL"` for LONG positions, `"BUY"` for SHORT positions. This is used for all exit orders (SL, TP, market close).
+
+The strategy uses the snapshot to decide on management actions (TP checks, SL moves) without accessing mutable state.
