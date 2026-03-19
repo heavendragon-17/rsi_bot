@@ -65,7 +65,7 @@ class PositionSnapshot:
 |-------|------|---------|-------------|---------|
 | `has_position` | `bool` | (required) | Whether there is an active position for this symbol | `True` |
 | `symbol` | `str` | (required) | Trading pair identifier | `"BTC/USDT"` |
-| `side` | `str` | `"BUY"` | Position side. Currently long-only strategy, always `"BUY"` | `"BUY"` |
+| `side` | `str` | `"BUY"` | Position side: `"BUY"` (long) or `"SELL"` (short) | `"BUY"` or `"SELL"` |
 | `entry_price` | `Decimal` | `Decimal("0")` | Average entry price of the position | `Decimal("97500.50")` |
 | `current_sl` | `Decimal` | `Decimal("0")` | Current hard stop-loss price (on exchange as `stop_market` order) | `Decimal("96000.00")` |
 | `soft_sl` | `Optional[Decimal]` | `None` | Soft stop-loss price (candle-close based exit, not an exchange order) | `Decimal("96500.00")` |
@@ -133,6 +133,15 @@ The `meta` dict is owned by the strategy. Common keys used by `RsiNoRetestStrate
 | `tp_allocations` | `dict` | Dynamic TP allocation percentages, e.g. `{"TP1": 0.5, "TP2": 1.0}` |
 | `signal_class` | `int` | Quality classification of the signal (1=optimal, 2=acceptable) |
 
+**Additional keys used by `RsiMomentumStrategy`** (stored via `TradeState` dataclass):
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `original_soft_sl` | `Decimal` | Original soft SL before any moves |
+| `disaster_sl_price` | `Decimal` | Hard SL on exchange (stop_market BUY order for shorts) |
+| `move_trigger` | `Decimal` | Pre-computed price level to trigger lock-profit |
+| `crossover_detected` | `bool` | Whether a bearish crossover has been detected (signal persistence) |
+
 ---
 
 ## AnalysisResult (Strategy Output)
@@ -179,7 +188,7 @@ All action types are frozen dataclasses. Each is self-describing and carries all
 
 ### OpenPosition
 
-Open a new long position. Converted to `SignalEvent` by the runner before passing to `PortfolioManager.on_signal()`.
+Open a new position (long or short). Converted to `SignalEvent` by the runner before passing to `PortfolioManager.on_signal()`.
 
 ```python
 @dataclass(frozen=True)
@@ -199,7 +208,7 @@ class OpenPosition:
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
 | `symbol` | `str` | Trading pair | `"BTC/USDT"` |
-| `side` | `str` | Position side (always `"BUY"` for long-only) | `"BUY"` |
+| `side` | `str` | Position side: `"BUY"` for long, `"SELL"` for short | `"BUY"` or `"SELL"` |
 | `entry_price` | `Decimal` | Current market price at signal time | `Decimal("97500.00")` |
 | `sl_price` | `Decimal` | Hard/disaster SL price (placed as `stop_market` on exchange) | `Decimal("94500.00")` |
 | `soft_sl_price` | `Optional[Decimal]` | Soft SL price (candle-close exit level, R40 - buffer) | `Decimal("96500.00")` |
@@ -278,6 +287,18 @@ class DoNothing:
 ```
 
 No fields. The runner ignores this action type entirely.
+
+### Side Constants and Utilities
+
+```python
+SIDE_BUY = "BUY"
+SIDE_SELL = "SELL"
+
+def opposite_side(side: str) -> str:
+    """Return the opposite side. BUY→SELL, SELL→BUY."""
+```
+
+Exit reason constants: `EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"` (used by `rsi_momentum` for candle-close SL exits).
 
 ### Action Union Type
 
@@ -374,7 +395,7 @@ class SignalEvent:
 | Field | Type | Default | Description | Example |
 |-------|------|---------|-------------|---------|
 | `symbol` | `str` | (required) | Trading pair | `"BTC/USDT"` |
-| `signal_type` | `str` | (required) | `"BUY"` for entry, `"SELL"` for exit | `"BUY"` |
+| `signal_type` | `str` | (required) | `"BUY"` for long entry, `"SELL"` for short entry | `"BUY"` or `"SELL"` |
 | `price` | `Decimal` | (required) | Signal price (entry price) | `Decimal("97500.00")` |
 | `timestamp` | `datetime` | (required) | When the signal was generated | `datetime.now()` |
 | `reason` | `str` | `""` | Human-readable reason | `"RSI bounced off WMA45"` |
@@ -612,13 +633,23 @@ The `MarketDataStore.get_dataframe(symbol)` returns a pandas DataFrame with the 
 
 ### Computed Indicator Columns (after IIndicators.compute())
 
-These columns are added by the `Indicators.compute()` call before the DataFrame is passed to `Strategy.analyze()`. The exact set depends on the strategy, but the standard RSI strategy adds:
+These columns are added by the `IIndicators.compute()` call before the DataFrame is passed to `Strategy.analyze()`. The exact set depends on the strategy's indicator implementation.
+
+**Standard Indicators** (used by `rsi_no_retest`):
 
 | Column | dtype | Description |
 |--------|-------|-------------|
 | `rsi` | `float64` | Relative Strength Index (14-period by default) |
 | `wma45` | `float64` | Weighted Moving Average of RSI (45-period) |
 | `ema200` | `float64` | Exponential Moving Average of price (200-period, trend filter) |
+
+**CrossoverIndicators** (used by `rsi_momentum`):
+
+| Column | dtype | Description |
+|--------|-------|-------------|
+| `rsi_14` | `float64` | RSI (14-period) |
+| `rsi_ema9` | `float64` | EMA(9) of RSI (signal line) |
+| `rsi_wma45` | `float64` | WMA(45) of RSI (trend baseline) |
 
 ### Memory Constraints
 
@@ -642,7 +673,7 @@ This means the last row in the DataFrame may represent a still-forming candle (`
 |------|---------------|
 | `app/core/snapshots.py` | `PositionSnapshot`, `ContextSnapshot` |
 | `app/core/analysis_result.py` | `AnalysisResult` |
-| `app/core/actions.py` | `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`, `Action` |
+| `app/core/actions.py` | `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`, `Action`, `SIDE_BUY`, `SIDE_SELL`, `opposite_side()` |
 | `app/core/events.py` | `Candle`, `EventType`, `MarketEvent`, `SignalEvent`, `OrderEvent`, `TPSLEvent`, `TickEvent`, `CandleCloseEvent`, `EngineStopEvent`, `EngineEvent` |
 | `app/core/config.py` | `AppConfig`, `ExchangeConfig`, `RiskConfig`, `NotificationConfig`, `BacktestConfig`, `PaperSimConfig` |
 | `app/services/market_data/store.py` | `MarketDataStore` (DataFrame schema) |

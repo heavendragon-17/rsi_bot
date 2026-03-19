@@ -116,12 +116,36 @@ The `meta` dict in `ContextSnapshot` carries strategy-specific data (entry price
 
 ---
 
+## Reusable Utilities
+
+### SLTPCalculator (`app/core/sl_tp_calculator.py`)
+
+Static utility for direction-aware SL/TP/sizing calculations. All methods accept a `side` parameter (`"BUY"` or `"SELL"`):
+
+- `compute_soft_sl(df, side, lookback)` — Soft SL from swing high/low
+- `compute_disaster_sl(entry_price, soft_sl_price, side, multiplier)` — Hard SL at N× distance
+- `compute_tp_price(entry_price, sl_price, side, rr_ratio, taker_fee, exit_fee)` — Fee-aware TP
+- `compute_lock_profit_price(entry_price, soft_sl_price, side, lock_profit_rr, taker_fee)` — Lock-profit SL level
+- `compute_position_size(...)` — Risk-based sizing (direction-agnostic)
+
+### CrossoverIndicators (`app/utils/crossover_indicators.py`)
+
+Alternative `IIndicators` implementation for crossover-based strategies. Adds `rsi_14`, `rsi_ema9`, `rsi_wma45` columns:
+
+- `compute(df)` — Add indicator columns
+- `check_alignment(df, direction)` — Check RSI < EMA9 < WMA45 (bearish) or inverse (bullish)
+- `detect_crossover(df, direction)` — Detect EMA9/WMA45 crossover on current candle
+- `detect_bearish_divergence(df, lookback, pivot_strength)` — Price HH + RSI LH
+
+---
+
 ## Implementing a New Strategy
 
 See `docs/workflows/add-strategy.md` for the complete step-by-step guide. Key requirements:
 
 1. Inherit from `BaseStrategy`
-2. Define `DEFAULT_CONFIG` dict with all tunable parameters
+2. Define a config dataclass (e.g., `RsiMomentumConfig`) with all tunable parameters
 3. Implement `analyze()` returning `AnalysisResult` with `new_context`
 4. Never mutate `self` — all state goes through `ContextSnapshot`
 5. Handle both "no position" and "has position" cases
+6. For SHORT strategies: use `side="SELL"` in `OpenPosition`, place SL above entry, TP below entry

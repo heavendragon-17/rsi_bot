@@ -53,7 +53,7 @@ On complete:
 1. Read CSV, parse timestamps
 2. Create `MockExchange(initial_balance, leverage, taker_fee=0.05%, maker_fee=0.02%)`
 3. Create strategy instance and `PortfolioManager`
-4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `Indicators.compute()` once for full dataset
+4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `strategy.indicators.compute()` once for the full dataset (O(n) pre-computation instead of per-candle O(n²)). Works with any `IIndicators` implementation (`Indicators` or `CrossoverIndicators`).
 
 ### WARMUP = 220 candles
 
@@ -61,8 +61,10 @@ First 220 candles are skipped (indicators need warmup). Events start from candle
 
 ### Candle Processing (`_handle_candle_close()`)
 
-1. `exchange.update_candle(symbol, o, h, l, c, ts)` — MockExchange checks wicks against pending SL/TP orders
-2. If SELL orders executed and symbol not in exchange.positions → position fully closed → clean up local state, reset context to SCANNING
+1. `exchange.update_candle(symbol, o, h, l, c, ts)` — MockExchange checks wicks against pending SL/TP orders. Supports both LONG and SHORT positions:
+   - LONG: SELL limit (TP) triggers when `low <= price`; SELL stop_market (SL) triggers when `low <= stopPrice`
+   - SHORT: BUY limit (TP) triggers when `low <= price`; BUY stop_market (SL) triggers when `high >= stopPrice`
+2. If exit orders executed and symbol no longer in exchange.positions → position fully closed → clean up local state, reset context to SCANNING. Position amounts are **signed** (positive=LONG, negative=SHORT). PnL: `amount × (exit - entry)` works for both directions.
 3. `portfolio.sync_from_exchange()`
 4. `strategy.analyze(symbol, df_slice, position, context)` → dispatch actions
 5. Report progress every 2%

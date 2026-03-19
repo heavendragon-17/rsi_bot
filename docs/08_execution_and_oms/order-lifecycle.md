@@ -37,11 +37,13 @@ IExchange.create_order(
 
 ## Order Flow
 
-### Entry
+All flows use `entry_side` for entry and `exit_side = opposite_side(entry_side)` for exits. LONG: entry=BUY, exit=SELL. SHORT: entry=SELL, exit=BUY.
+
+### Entry (LONG)
 
 ```
-Strategy: OpenPosition action
-    → Engine: _action_to_signal() → SignalEvent
+Strategy: OpenPosition(side="BUY")
+    → Engine: _action_to_signal() → SignalEvent(signal_type="BUY")
     → PortfolioManager: on_signal()
         → _calculate_position_size()
         → exchange.set_leverage(leverage, symbol)
@@ -52,13 +54,28 @@ Strategy: OpenPosition action
         → exchange.create_order(symbol, "limit", "SELL", tp3_amount, tp3_price, params={"reduceOnly": True})  ← TP3
 ```
 
+### Entry (SHORT)
+
+```
+Strategy: OpenPosition(side="SELL")
+    → Engine: _action_to_signal() → SignalEvent(signal_type="SELL")
+    → PortfolioManager: on_signal()
+        → _calculate_position_size()
+        → exchange.set_leverage(leverage, symbol)
+        → exchange.create_order(symbol, "market", "SELL", amount)     ← Entry
+        → exchange.create_order(symbol, "stop_market", "BUY", amount, params={"stopPrice": sl, "reduceOnly": True})  ← Hard SL
+        → exchange.create_order(symbol, "limit", "BUY", tp1_amount, tp1_price, params={"reduceOnly": True})  ← TP1
+        → exchange.create_order(symbol, "limit", "BUY", tp2_amount, tp2_price, params={"reduceOnly": True})  ← TP2
+        → exchange.create_order(symbol, "limit", "BUY", tp3_amount, tp3_price, params={"reduceOnly": True})  ← TP3
+```
+
 ### SL Movement
 
 ```
 Strategy: MoveSL action
     → PortfolioManager: move_stop_loss()
         → exchange.cancel_order(old_sl_order_id)
-        → exchange.create_order(symbol, "stop_market", "SELL", amount, params={"stopPrice": new_sl, "reduceOnly": True})
+        → exchange.create_order(symbol, "stop_market", exit_side, amount, params={"stopPrice": new_sl, "reduceOnly": True})
 ```
 
 ### Partial Close (TP Hit)
@@ -67,7 +84,7 @@ Strategy: MoveSL action
 Strategy: PartialClose action
     → PortfolioManager: execute_partial_close()
         → exchange.cancel_order(tp_order_id)
-        → exchange.create_order(symbol, "market", "SELL", partial_amount, params={"reduceOnly": True})
+        → exchange.create_order(symbol, "market", exit_side, partial_amount, params={"reduceOnly": True})
         → move_stop_loss() if new_sl_price provided
 ```
 
@@ -77,7 +94,7 @@ Strategy: PartialClose action
 Strategy: ClosePosition action
     → PortfolioManager: close_position()
         → exchange.cancel_all_orders(symbol)
-        → exchange.create_order(symbol, "market", "SELL", full_amount, params={"reduceOnly": True})
+        → exchange.create_order(symbol, "market", exit_side, full_amount, params={"reduceOnly": True})
 ```
 
 ---
