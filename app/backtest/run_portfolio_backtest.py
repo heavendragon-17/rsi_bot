@@ -22,22 +22,15 @@ if PROJECT_ROOT not in sys.path:
 from app.backtest.portfolio_engine import PortfolioEngine
 from app.backtest.portfolio_event_source import PortfolioEventSource
 from app.backtest.mock_exchange import MockExchange
-from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 import ccxt
 from app.backtest.download_data import download_data, calculate_candle_limit
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.core.logging import setup_logging
+from app.strategies.loader import STRATEGY_MAP
 import structlog
 
 logger = structlog.get_logger()
-
-# Strategy mapping
-STRATEGY_MAP = {
-    "rsi_wma_retest": RsiWmaRetestStrategy,
-    "rsi_no_retest": RsiNoRetestStrategy,
-}
 
 # Path constants
 SYMBOLS_PATH = os.path.join(SCRIPT_DIR, "symbols.txt")
