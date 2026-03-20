@@ -14,7 +14,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import backtest, data, history, strategies
+from app.api.routes import backtest_run, backtest_results, backtest_stream, data, history, strategies
 from app.repository.backtest.database import SessionLocal, init_db
 from app.repository.backtest.seed import seed_strategies
 
@@ -51,7 +51,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(backtest.router)
+app.include_router(backtest_run.router)
+app.include_router(backtest_results.router)
+app.include_router(backtest_stream.router)
 app.include_router(history.router)
 app.include_router(strategies.router)
 app.include_router(data.router)

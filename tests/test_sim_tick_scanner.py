@@ -16,8 +16,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.sim.exchange import SimExchange
-from app.sim.state import SimTradeState
+from app.trading.exchange.sim.sim_exchange import SimExchange
+from app.trading.exchange.sim.sim_state import SimTradeState
 
 
 # ---------------------------------------------------------------------------

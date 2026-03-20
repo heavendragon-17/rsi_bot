@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import requests
 
 if TYPE_CHECKING:
-    from app.sim.state import SimTradeState
+    from app.trading.exchange.sim.sim_state import SimTradeState
 
 logger = logging.getLogger(__name__)
 

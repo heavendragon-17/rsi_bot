@@ -17,7 +17,7 @@ import logging
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core.portfolio import PortfolioManager, Position
+from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.events import SignalEvent
 from app.backtest.mock_exchange import MockExchange
 

@@ -20,7 +20,7 @@ from decimal import Decimal
 from typing import Dict, Optional
 
 from app.core.interfaces import INotifier, IExchange
-from app.services.notification.telegram_bot import TelegramBot
+from app.notification.telegram_bot import TelegramBot
 
 logger = logging.getLogger(__name__)
 

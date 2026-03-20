@@ -11,7 +11,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager, Position
+from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.events import SignalEvent
 
 

@@ -34,8 +34,8 @@ EXIT_MANUAL = "MANUAL"
 EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"
 
 # ── Default fee rates (Binance futures) ────────────────────────────
-DEFAULT_TAKER_FEE = 0.0005   # 0.05%
-DEFAULT_MAKER_FEE = 0.0002   # 0.02%
+# Canonical values in app.core.constants; re-exported here for compatibility.
+from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE  # noqa: E402
 
 
 @dataclass(frozen=True)

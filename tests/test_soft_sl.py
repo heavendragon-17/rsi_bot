@@ -10,9 +10,9 @@ from datetime import datetime
 sys.path.append(os.getcwd())
 
 from app.core.context import StrategyContext
-from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
+from app.trading.strategy.rsi_wma_retest import RsiWmaRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.events import SignalEvent
 
 class TestSoftSL(unittest.TestCase):

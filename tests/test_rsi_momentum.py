@@ -13,9 +13,9 @@ import pandas as pd
 import numpy as np
 from decimal import Decimal
 
-from app.strategies.rsi_momentum import RsiMomentumStrategy, RsiMomentumConfig
-from app.utils.crossover_indicators import CrossoverIndicators
-from app.core.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.rsi_momentum import RsiMomentumStrategy, RsiMomentumConfig
+from app.data.indicators import CrossoverIndicators
+from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
 from app.core.context import SCANNING
@@ -606,9 +606,9 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_loader_registers_rsi_momentum(self):
         """rsi_momentum should be available in the strategy loader."""
-        from app.strategies.loader import STRATEGY_MAP
+        from app.trading.strategy.loader import STRATEGY_MAP
         self.assertIn("rsi_momentum", STRATEGY_MAP)
-        from app.strategies.rsi_momentum import RsiMomentumStrategy
+        from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
         self.assertIs(STRATEGY_MAP["rsi_momentum"], RsiMomentumStrategy)
 
     def test_open_position_action_supports_sell_side(self):

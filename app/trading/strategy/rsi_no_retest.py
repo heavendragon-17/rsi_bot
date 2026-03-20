@@ -24,9 +24,9 @@ from typing import Optional, Any
 import pandas as pd
 import structlog
 
-from app.strategies.base import BaseStrategy
-from app.utils.indicators import Indicators
-from app.utils.resampler import resample_dataframe
+from app.trading.strategy.base import BaseStrategy
+from app.data.indicators import Indicators
+from app.data.resampler import resample_dataframe
 from app.core.context import SCANNING, CONFIRMING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult

@@ -21,9 +21,9 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from app.strategies.rsi_momentum import RsiMomentumStrategy
+from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import OpenPosition, DoNothing
 from app.core.context import SCANNING

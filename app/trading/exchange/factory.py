@@ -108,7 +108,7 @@ def create_exchange(config: Dict[str, Any], notification_service=None) -> IExcha
 
     # ===== 1. Sim Mode =====
     if mode == "sim":
-        from app.sim.exchange import SimExchange
+        from app.trading.exchange.sim.sim_exchange import SimExchange
         sim_cfg = config.get("sim", config.get("paper_sim", {}))
         initial_balance = sim_cfg.get("initial_balance", 10000)
         logger.info(f"Factory: Created SimExchange (sim mode, balance={initial_balance})")
@@ -133,7 +133,7 @@ def create_exchange(config: Dict[str, Any], notification_service=None) -> IExcha
     # Return BinanceAdapter (wraps CCXT, implements IExchange)
     # instead of raw CCXT — ensures normalized order type translation
     if exchange_name in EXCHANGE_CONFIG:
-        from app.services.execution.cex.binance_adapter import BinanceAdapter
+        from app.trading.exchange.binance_adapter import BinanceAdapter
 
         if mode == "live":
             logger.warning("=" * 60)

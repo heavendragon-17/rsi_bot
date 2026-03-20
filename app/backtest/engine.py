@@ -16,13 +16,14 @@ import numpy as np
 import pandas as pd
 import structlog
 
-from app.core.engine import Engine
+from app.trading.engine import Engine
 from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot
-from app.backtest.backtest_event_source import BacktestEventSource
+from app.backtest.event_source import BacktestEventSource
 from app.backtest.mock_exchange import MockExchange
 from app.core.actions import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
-from app.core.portfolio import PortfolioManager
+from app.core.constants import WARMUP as _WARMUP_CONST
+from app.trading.portfolio.manager import PortfolioManager
 logger = structlog.get_logger()
 
 
@@ -39,7 +40,7 @@ class BacktestEngine(Engine):
     """
 
     # Number of warm-up candles skipped before strategy analysis begins.
-    WARMUP = 220
+    WARMUP = _WARMUP_CONST
 
     def __init__(self, data_path: str, strategy_class, config: dict) -> None:
         data = pd.read_csv(data_path)

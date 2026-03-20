@@ -15,7 +15,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Callable, Dict, List, Optional
 
-from app.core.event_source import IEventSource
+from app.trading.event_source import IEventSource
 from app.core.events import CandleCloseEvent, EngineStopEvent, SignalEvent, TickEvent
 from app.core.interfaces import IExchange, IStrategy
 from app.core.snapshots import ContextSnapshot

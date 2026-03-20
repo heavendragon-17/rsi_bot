@@ -30,7 +30,7 @@ except ImportError:
     print("Warning: python-dotenv not installed")
 
 import pytest
-from app.services.execution.cex.binance_adapter import BinanceAdapter
+from app.trading.exchange.binance_adapter import BinanceAdapter
 
 # Skip the entire module unless explicitly opted in.
 # These are live-network integration tests that require testnet credentials and
@@ -377,7 +377,7 @@ except ImportError:
     print("Warning: python-dotenv not installed")
 
 import pytest
-from app.services.execution.cex.binance_adapter import BinanceAdapter
+from app.trading.exchange.binance_adapter import BinanceAdapter
 
 
 class TestBinanceTestnetIntegration:

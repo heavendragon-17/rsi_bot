@@ -26,9 +26,9 @@ from typing import Any, Dict, Optional
 import pandas as pd
 import structlog
 
-from app.strategies.base import BaseStrategy
-from app.utils.crossover_indicators import CrossoverIndicators
-from app.core.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.base import BaseStrategy
+from app.data.indicators import CrossoverIndicators
+from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.context import SCANNING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult

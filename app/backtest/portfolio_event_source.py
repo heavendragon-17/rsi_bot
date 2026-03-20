@@ -14,7 +14,7 @@ from typing import Dict, Iterator, List, Tuple
 import pandas as pd
 from typing import Any
 
-from app.core.event_source import IEventSource
+from app.trading.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
 
 class PortfolioEventSource(IEventSource):

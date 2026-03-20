@@ -39,7 +39,7 @@ from app.core.actions import (
 logger = structlog.get_logger()
 from app.core.interfaces import IExchange
 from app.core.events import SignalEvent
-from .utils import to_decimal
+from app.core.utils import to_decimal
 
 
 @dataclass

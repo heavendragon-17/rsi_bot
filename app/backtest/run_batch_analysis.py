@@ -22,7 +22,7 @@ from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.backtest.download_data import download_data, calculate_candle_limit
 from app.core.logging import setup_logging
-from app.strategies.loader import STRATEGY_MAP
+from app.trading.strategy.loader import STRATEGY_MAP
 import logging
 
 # Path constants
@@ -251,7 +251,7 @@ def run_single_backtest(symbol: str, config: dict, timeframe: str, balance: floa
     
     try:
         # Import from central loader (avoids pickling issues with top-level ref)
-        from app.strategies.loader import STRATEGY_MAP as strategy_map
+        from app.trading.strategy.loader import STRATEGY_MAP as strategy_map
         strategy_class = strategy_map.get(strategy_name)
         if not strategy_class:
             return {"symbol": symbol, "error": f"Unknown strategy: {strategy_name}"}
