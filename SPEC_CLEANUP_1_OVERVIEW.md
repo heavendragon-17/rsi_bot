@@ -13,7 +13,7 @@ The codebase has grown organically and accumulated structural debt:
 
 - **God classes**: `PortfolioManager` (769 lines), `MockExchange` (879 lines), `run_batch_analysis.py` (962 lines)
 - **Misplaced files**: exchange adapters split across `app/services/execution/` and `app/core/`, Telegram handler buried in `app/services/notification/`, sim exchange isolated in `app/sim/`
-- **Duplicate logic**: 3 RSI strategies share config dataclasses, TradeState serialization, crossover detection; 2 indicator files (`indicators.py` 273 lines + `crossover_indicators.py` 225 lines) compute overlapping RSI/EMA/WMA
+- **Duplicate logic**: 3 RSI strategies share config dataclasses, TradeState serialization, crossover detection; 2 indicator files (`indicators.py` 273 lines + `crossover_indicators.py` 225 lines) compute identical RSI/EMA9/WMA45 with different column names. Down cross (SHORT entry) and up cross (LONG setup) use the same detection logic — no reason for separate classes
 - **Scattered config**: strategy parameters in `config.yaml`, hardcoded magic numbers (`WARMUP=220` in 3 places, `MAX_CANDLES_IN_RAM=6000`), fee defaults scattered across 4 files
 - **Mixed concerns**: backtest API routes (491 lines) contain business logic, SSE streaming, and HTTP handling in one file
 - **Deep nesting**: `app/services/execution/cex/binance_adapter.py` is 5 levels deep
@@ -46,7 +46,7 @@ All decisions were made through a detailed interview. This is the authoritative 
 |---|-------|----------|-----------|
 | 1 | Strategy duplication | **Keep separate, share utils** via `app/trading/strategy/utils/` | Strategies may diverge; shared utils prevent copy-paste without forcing inheritance |
 | 2 | PortfolioManager (769 lines) | **Full decomposition** → TradeExecutor, PositionSizer, SLTPManager, NotificationDispatcher | Each concern testable independently; execution path clearer |
-| 3 | Indicators (2 files, overlapping) | **Merge into one module** | One was for long setups, one for short — no reason to keep separate |
+| 3 | Indicators (2 files, overlapping) | **Consolidate into one `Indicators` class** — absorb `CrossoverIndicators` methods (`detect_crossover`, `check_alignment`, `detect_bearish_divergence`) into `Indicators`. Down cross = SHORT entry, up cross = LONG setup. Delete `CrossoverIndicators`. | Same RSI/EMA9/WMA45 logic and params; crossover direction param handles both sides |
 | 4 | MockExchange / SimExchange | **Pluggable FillSimulator** with wick-based + tick-based modes | Shared order matching, divergent fill logic made explicit |
 | 5 | Backtest API (491 lines) | **Service layer + split routes** | Business logic in service, thin route handlers per domain |
 | 6 | Config strategy params | **Move into strategy code**; YAML keeps general config only | Breaking change allowed; each strategy owns its parameters |

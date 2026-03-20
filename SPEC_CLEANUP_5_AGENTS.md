@@ -46,7 +46,7 @@ This document describes how to use multiple Claude Code agents to execute the cl
 |-------|------|---------------|-----------------|
 | Agent-Portfolio | Refactor 1: PortfolioManager decomposition | `app/trading/portfolio/*` | `refactor/portfolio` |
 | Agent-Exchange | Refactor 2: FillSimulator extraction | `app/trading/exchange/fill_simulator.py`, `app/backtest/mock_exchange.py`, `app/trading/exchange/sim/sim_exchange.py` | `refactor/exchange` |
-| Agent-Indicators | Refactor 3: Indicator merge + Refactor 6: Strategy utils | `app/data/indicators.py`, `app/trading/strategy/utils/*`, `app/trading/strategy/rsi_*.py` | `refactor/indicators` |
+| Agent-Indicators | Refactor 3: Remove CrossoverIndicators (absorb into Indicators) + Refactor 6: Strategy utils | `app/data/indicators.py`, `app/trading/strategy/utils/*`, `app/trading/strategy/rsi_*.py` | `refactor/indicators` |
 | Agent-Backtest | Refactor 4: Backtest service + Refactor 5: Config cleanup | `app/backtest/service.py`, `app/api/routes/backtest_*.py`, `app/core/constants.py`, `app/core/config.py` | `refactor/backtest` |
 
 **Merge order**: Portfolio → Exchange → Indicators → Backtest (each merge may require conflict resolution).
@@ -125,22 +125,32 @@ Steps:
 
 ### Agent-Indicators (Phase 2, Worktree)
 ```
-You are merging indicators and creating strategy shared utils. Follow Refactors 3 and 6 in SPEC_CLEANUP_3_REFACTORS.md.
+You are consolidating indicators (removing CrossoverIndicators) and creating strategy shared utils.
+Follow Refactors 3 and 6 in SPEC_CLEANUP_3_REFACTORS.md.
 
-Part A — Indicator Merge:
+Part A — Indicator Consolidation (Remove CrossoverIndicators):
 1. Read app/data/indicators.py (was app/utils/indicators.py)
-2. Read the old crossover_indicators.py content (merged during structure phase)
-3. Ensure unified Indicators class has both compute_all() and compute_crossover()
-4. Verify column names match what each strategy expects
-5. Update strategy imports
+2. Add crossover methods from CrossoverIndicators into the unified Indicators class:
+   - detect_crossover(df, direction) — direction="bearish" = down cross (SHORT entry),
+     direction="bullish" = up cross (LONG setup). Same logic, same params.
+   - check_alignment(df, direction) — bearish: RSI < EMA9 < WMA45, bullish: inverse
+   - detect_bearish_divergence(df, lookback, pivot_strength) — price HH + RSI LH
+3. Standardize column names to rsi_14, rsi_ema9, rsi_wma45 for ALL strategies
+4. Add include_price_emas flag (default False) — only long strategies need EMA21/EMA200
+5. Update rsi_momentum.py: import Indicators instead of CrossoverIndicators
+6. Update rsi_no_retest.py, rsi_wma_retest.py: update column refs (rsi → rsi_14)
+7. Delete crossover_indicators.py — all its logic now lives in Indicators
+8. Update tests: remove all CrossoverIndicators imports from test_rsi_momentum.py
 
 Part B — Strategy Shared Utils:
 1. Create app/trading/strategy/utils/config_helpers.py — extract config merge logic duplicated across strategies
 2. Create trade_state.py — extract TradeState serialization
-3. Create signal_detection.py — extract crossover detection wrappers
+3. Create signal_detection.py — extract crossover detection wrappers (thin wrappers over Indicators methods)
 4. Create sl_tp_builders.py — extract SL/TP ladder builders
 5. Update all 3 strategies to use shared utils
 6. Run tests: test_rsi_momentum.py, test_stateless_strategy.py
+
+After all changes, run `python scripts/arch_lint.py` and confirm no NEW violations were introduced.
 ```
 
 ### Agent-Backtest (Phase 2, Worktree)

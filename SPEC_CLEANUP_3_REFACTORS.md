@@ -197,49 +197,103 @@ class SimExchange(IExchange):
 
 ---
 
-## Refactor 3: Indicator Merge
+## Refactor 3: Indicator Consolidation (Remove CrossoverIndicators)
 
 ### Current State
-- `app/utils/indicators.py` (273 lines) — `Indicators` class with `compute_all()`, used by `rsi_no_retest` and `rsi_wma_retest` (long strategies)
+- `app/utils/indicators.py` (273 lines) — `Indicators` class with `compute()`, used by `rsi_no_retest` and `rsi_wma_retest` (long strategies)
 - `app/utils/crossover_indicators.py` (225 lines) — `CrossoverIndicators` class with `compute()`, used by `rsi_momentum` (short strategy)
-- **Overlap**: Both compute RSI, EMA of RSI, WMA of RSI. Subtle differences in column naming and parameter handling.
+- **Overlap**: Both compute RSI, EMA9-of-RSI, WMA45-of-RSI with identical logic. The only real differences are:
+  - Column naming (`rsi` vs `rsi_14`)
+  - Default RSI period (`rsi_length=21` vs `rsi_period=14`)
+  - `Indicators` adds price EMAs (EMA21, EMA200) and price-at-RSI calculation
+  - `CrossoverIndicators` adds `detect_crossover()`, `check_alignment()`, `detect_bearish_divergence()`
+- **Key insight**: Short entry = down cross (EMA9 crosses below WMA45), Long setup = up cross (EMA9 crosses above WMA45). Both sides use the same crossover detection — just with `direction="bearish"` vs `direction="bullish"`. There is no reason for two classes.
 
 ### Target State
-`app/data/indicators.py` (~350 lines) — single `Indicators` class:
+`app/data/indicators.py` (~380 lines) — single `Indicators` class that serves ALL strategies:
+
 ```python
-class Indicators:
-    """Unified indicator computation for all RSI strategies."""
+class Indicators(IIndicators):
+    """Unified indicator computation for all RSI strategies.
 
-    @staticmethod
-    def compute_all(df: pd.DataFrame, rsi_period=14, ema_length=9,
-                    wma_length=45, price_ema_fast=21, price_ema_slow=200,
-                    include_crossover=False) -> pd.DataFrame:
-        """Full indicator suite for long strategies (no_retest, wma_retest)."""
+    Computes RSI, EMA9-of-RSI, WMA45-of-RSI (shared by all strategies),
+    plus optional price EMAs for long strategies.
+
+    Crossover detection:
+    - direction="bearish" (down cross) → SHORT entry signal
+    - direction="bullish" (up cross)   → LONG setup signal
+    """
+
+    def __init__(
+        self,
+        rsi_period: int = 14,
+        rsi_ema_period: int = 9,
+        rsi_wma_period: int = 45,
+        price_ema_fast: int = 21,
+        price_ema_slow: int = 200,
+        include_price_emas: bool = False,
+        enable_cache: bool = True,
+    ):
         ...
 
-    @staticmethod
-    def compute_crossover(df: pd.DataFrame, rsi_period=14, ema_period=9,
-                          wma_period=45) -> pd.DataFrame:
-        """Crossover-specific indicators for short strategy (momentum)."""
+    # --- IIndicators interface ---
+    def compute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Adds: rsi_14, rsi_ema9, rsi_wma45. Optionally: ema21, ema200."""
         ...
 
-    @staticmethod
-    def rsi(series: pd.Series, period: int) -> pd.Series: ...
+    def get_mode(self, df: pd.DataFrame) -> str: ...
+    def check_wma_retest(self, df: pd.DataFrame, distance: float = 1.0) -> bool: ...
+    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Optional[Decimal]: ...
 
-    @staticmethod
-    def ema(series: pd.Series, period: int) -> pd.Series: ...
+    # --- Crossover detection (shared by SHORT and LONG strategies) ---
+    def detect_crossover(self, df: pd.DataFrame, direction: str = "bearish") -> bool:
+        """Detect EMA9/WMA45 crossover on the most recent closed candle.
+        direction='bearish' (down cross) → SHORT entry.
+        direction='bullish' (up cross)   → LONG setup."""
+        ...
 
-    @staticmethod
-    def wma(series: pd.Series, period: int) -> pd.Series: ...
+    def check_alignment(self, df: pd.DataFrame, direction: str = "bearish") -> bool:
+        """Check indicator alignment: bearish = RSI < EMA9 < WMA45, bullish = inverse."""
+        ...
+
+    def detect_bearish_divergence(self, df: pd.DataFrame, lookback: int = 30,
+                                   pivot_strength: int = 5) -> bool:
+        """Price HH + RSI LH in lookback window."""
+        ...
+
+    # --- Price ladder (long strategies only, requires include_price_emas=True) ---
+    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Optional[Decimal]: ...
+    def check_r40_floor(self, df: pd.DataFrame, lookback: int = 5) -> bool: ...
+```
+
+**Column naming**: Standardize on `rsi_14`, `rsi_ema9`, `rsi_wma45` for all strategies. Update long strategy code to use these column names (currently uses `rsi`).
+
+### Strategy Usage After Merge
+
+```python
+# rsi_momentum.py (SHORT) — down cross entry
+self.indicators = Indicators(rsi_period=14, rsi_ema_period=9, rsi_wma_period=45)
+crossover_now = self.indicators.detect_crossover(df, direction="bearish")  # down cross
+
+# rsi_no_retest.py (LONG) — up cross setup
+self.indicators = Indicators(rsi_period=21, rsi_ema_period=9, rsi_wma_period=45,
+                              include_price_emas=True)
+# Can now also use: self.indicators.detect_crossover(df, direction="bullish")
+
+# rsi_wma_retest.py (LONG) — same as no_retest
+self.indicators = Indicators(rsi_period=21, rsi_ema_period=9, rsi_wma_period=45,
+                              include_price_emas=True)
 ```
 
 ### Migration Steps
-1. Create `app/data/indicators.py` with merged class
-2. Ensure column names match what strategies expect (map any differences)
-3. Update `rsi_momentum.py`: `from app.data.indicators import Indicators`
-4. Update `rsi_no_retest.py`, `rsi_wma_retest.py`: same
-5. Delete old `app/utils/indicators.py` and `app/utils/crossover_indicators.py`
-6. Verify: `test_rsi_momentum.py`, `test_stateless_strategy.py` pass
+1. Add crossover methods (`detect_crossover`, `check_alignment`, `detect_bearish_divergence`) from `CrossoverIndicators` into `Indicators`
+2. Standardize column names to `rsi_14`, `rsi_ema9`, `rsi_wma45` everywhere
+3. Add `include_price_emas` flag (default `False`) — only long strategies need EMA21/EMA200
+4. Update `rsi_momentum.py`: `from app.data.indicators import Indicators` (was `CrossoverIndicators`)
+5. Update `rsi_no_retest.py`, `rsi_wma_retest.py`: update column name references (`rsi` → `rsi_14`)
+6. Delete `app/utils/crossover_indicators.py`
+7. Update tests: `test_rsi_momentum.py` (remove `CrossoverIndicators` imports), `test_stateless_strategy.py`
+8. Verify: all strategy tests pass, no references to `CrossoverIndicators` remain
 
 ---
 
