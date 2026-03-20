@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Dict, Optional
 
 from app.core.interfaces import INotifier, IExchange
-from app.services.notification.notification_worker import NotificationWorker
+from app.notification.notification_worker import NotificationWorker
 
 
 class NotificationService(INotifier):

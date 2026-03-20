@@ -116,8 +116,8 @@ def _action_to_signal(action: OpenPosition) -> SignalEvent:
 
 def _make_sim_exchange(config: dict) -> SimExchange:
     """Create a SimExchange with notifications silenced (replay uses summary only)."""
-    from app.services.notification.null_notifier import NullNotifier
-    from app.services.notification.notification_service import NotificationService
+    from app.notification.null_notifier import NullNotifier
+    from app.notification.notification_service import NotificationService
     ns = NotificationService(NullNotifier(), mode="mock")
     ex = SimExchange(config, notification_service=ns)
     return ex
@@ -284,7 +284,7 @@ def _send_telegram_summary(
 ) -> None:
     """Send a single Telegram message summarising the entire tick replay."""
     try:
-        from app.services.notification.telegram_bot import TelegramBot
+        from app.notification.telegram_bot import TelegramBot
         sim_cfg = config.get("sim", config.get("paper_sim", {}))
         token_override = sim_cfg.get("telegram_token", "").strip()
         token_env = "SIM_TELEGRAM_BOT_TOKEN" if token_override else "TELEGRAM_BOT_TOKEN"

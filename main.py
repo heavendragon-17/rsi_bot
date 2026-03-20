@@ -28,8 +28,8 @@ setup_logging(level="INFO")
 
 import structlog
 
-from app.services.notification.notification_service import NotificationService
-from app.services.notification.null_notifier import NullNotifier
+from app.notification.notification_service import NotificationService
+from app.notification.null_notifier import NullNotifier
 from app.trading.strategy.loader import load_strategy
 from app.trading.exchange.factory import create_exchange
 from app.trading.runner import MultiSymbolRunner
@@ -57,7 +57,7 @@ def main():
     # 2. Build NotificationService (wraps TelegramNotifier or NullNotifier)
     if app_config.notification.telegram_enabled:
         try:
-            from app.services.notification.telegram_notifier import TelegramNotifier
+            from app.notification.telegram_notifier import TelegramNotifier
             ns = NotificationService(TelegramNotifier(mode=bot_mode), mode=bot_mode)
             ns.send_message(f"🤖 RSI Bot Started\nMode: {bot_mode.upper()}")
             logger.info("telegram_initialized")

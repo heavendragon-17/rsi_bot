@@ -5,7 +5,7 @@ from typing import Dict, Callable
 from unittest.mock import MagicMock, patch
 from requests.exceptions import Timeout
 
-from app.services.notification.telegram_bot import TelegramBot
+from app.notification.telegram_bot import TelegramBot
 
 class MockResponse:
     def __init__(self, json_data, status_code=200):
