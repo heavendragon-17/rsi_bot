@@ -277,6 +277,75 @@ You are updating documentation to reflect the new codebase structure.
 6. Update docs/workflows/adding-a-strategy.md — new file locations for strategies
 ```
 
+### Agent-Tests (Phase 3)
+```
+You are filling test coverage gaps identified in the tech debt inventory (M12-M16).
+Run after all Phase 2 refactors are merged — test against the final directory structure.
+
+Existing test files (DO NOT delete or rewrite — extend where needed):
+  test_api_backtest.py, test_config.py, test_config_validation.py,
+  test_mock_exchange_short.py, test_sim_exchange.py, test_sim_tick_scanner.py,
+  test_portfolio_short.py, test_position_sizing.py, test_soft_sl.py,
+  test_rsi_momentum.py, test_stateless_strategy.py, test_telegram_polling.py,
+  test_partial_tp_sl.py, test_actions.py, test_exceptions.py, test_factory.py,
+  test_binance_adapter.py, test_normalized_orders.py, test_engine_events.py,
+  test_engine_results.py, test_backtest_short_integration.py, test_concurrency.py,
+  test_dynamic_tp.py, test_candle_close_sl.py, test_recency.py,
+  test_soft_sl_noretest.py, test_hyperliquid_adapter.py
+
+Priority 1 — Portfolio decomposition tests (M12):
+1. tests/test_position_sizer.py — PositionSizer edge cases:
+   - Zero balance → returns 0 size
+   - Max position limit → caps at max_position_size_pct
+   - Very small balance with high leverage
+2. tests/test_sl_tp_manager.py — SLTPManager edge cases:
+   - SL/TP ladder with 0-distance SL
+   - Direction-aware TP for SHORT positions
+   - Partial close percentages sum to 100%
+3. tests/test_notification_dispatch.py — NotificationDispatcher:
+   - Notifier failure doesn't crash trade execution
+   - NullNotifier path (notifications disabled)
+
+Priority 2 — API route tests (M13):
+4. tests/test_api_data.py — data availability + download routes:
+   - GET /api/data/status/{symbol}/{timeframe}
+   - POST /api/data/download
+5. tests/test_api_history.py — history/listing routes:
+   - GET /api/backtest/history (pagination, filtering)
+6. tests/test_api_strategies.py — strategy info routes:
+   - GET /api/strategies
+7. Update test_api_backtest.py — add tests for batch and tick_replay modes:
+   - POST /api/backtest/run with mode="batch" + symbols list
+   - POST /api/backtest/run with mode="tick_replay" + symbol + tick_data_path
+
+Priority 3 — Indicator tests (M14):
+8. tests/test_indicators.py — Indicators class (after CrossoverIndicators merge):
+   - compute() returns expected columns (rsi_14, rsi_ema9, rsi_wma45)
+   - detect_crossover(direction="bullish") and detect_crossover(direction="bearish")
+   - check_alignment(direction="bullish") and check_alignment(direction="bearish")
+   - detect_bearish_divergence with known divergence pattern
+   - Edge case: DataFrame with fewer rows than lookback period
+
+Priority 4 — Config tests (M15):
+9. Update tests/test_config.py:
+   - Verify config.yaml no longer contains strategy params
+   - Verify AppConfig loads without to_legacy_dict()
+   - Verify constants.py values match expected defaults (WARMUP_CANDLES, fees)
+
+Priority 5 — Notification tests (M16):
+10. tests/test_notification_worker.py — basic notification worker tests:
+    - Queue processes messages in order
+    - Worker handles notifier exceptions gracefully
+    - NullNotifier returns without error
+
+Rules:
+- Use pytest fixtures, no unittest.TestCase
+- Mock external services (Binance, Telegram) — never make real API calls
+- Each test file ≤ 200 lines
+- Run full suite after each new test file: pytest tests/ -v
+- Final check: pytest tests/ --tb=short — ALL tests must pass (old + new)
+```
+
 ### Agent-Types (Phase 3)
 ```
 You are setting up auto-generation of TypeScript types from Python Pydantic models.
