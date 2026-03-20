@@ -85,7 +85,7 @@ class TestSoftSL(unittest.TestCase):
         for i in range(219):
             data.append({
                 "close": 100.0, "high": 100.0, "low": 100.0, "open": 100.0,
-                "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
+                "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
                 "ema21": 100.0, "ema200": 100.0, "closed": True
             })
             
@@ -95,7 +95,7 @@ class TestSoftSL(unittest.TestCase):
             "high": 99.0,
             "low": 92.0,
             "open": 98.0,
-            "rsi": 45.0,
+            "rsi_14": 45.0,
             "rsi_ema9": 50.0,
             "rsi_wma45": 55.0, # Just filler
             "ema21": 100.0,

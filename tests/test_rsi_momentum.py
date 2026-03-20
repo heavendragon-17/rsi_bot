@@ -14,7 +14,7 @@ import numpy as np
 from decimal import Decimal
 
 from app.trading.strategy.rsi_momentum import RsiMomentumStrategy, RsiMomentumConfig
-from app.data.indicators import CrossoverIndicators
+from app.data.indicators import Indicators
 from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
@@ -272,7 +272,7 @@ class TestEntryConditions(unittest.TestCase):
 class TestDivergenceDetection(unittest.TestCase):
 
     def setUp(self):
-        self.ind = CrossoverIndicators()
+        self.ind = Indicators()
 
     def test_bearish_divergence_detected(self):
         """Price HH + RSI LH → True"""
@@ -596,7 +596,7 @@ class TestEdgeCases(unittest.TestCase):
 
     def test_crossover_detection_requires_strict_inequality(self):
         """EMA9 == WMA45 on both candles → not a crossover."""
-        ind = CrossoverIndicators()
+        ind = Indicators()
         df = _make_df(n=10)
         df["rsi_14"] = 50.0
         df["rsi_ema9"] = 50.0   # EMA == WMA: no crossover

@@ -71,11 +71,12 @@ class RsiWmaRetestStrategy(BaseStrategy):
         self.timeframe = bot_cfg.get("timeframe", "1h")
 
         self.indicators = Indicators(
-            rsi_length=cfg.get("rsi_period", 14),
-            rsi_ema_length=cfg.get("rsi_ema_length", 9),
-            rsi_wma_length=cfg.get("rsi_wma_length", 45),
+            rsi_period=cfg.get("rsi_period", 14),
+            rsi_ema_period=cfg.get("rsi_ema_length", 9),
+            rsi_wma_period=cfg.get("rsi_wma_length", 45),
             price_ema_fast=cfg.get("price_ema_fast", 21),
             price_ema_slow=cfg.get("price_ema_slow", 200),
+            include_price_emas=True,
         )
 
         # Retest threshold (RSI points)
@@ -131,7 +132,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
         if not last:
             return None
 
-        rsi = last.get("rsi")
+        rsi = last.get("rsi_14")
         if rsi is None:
             return None
 
