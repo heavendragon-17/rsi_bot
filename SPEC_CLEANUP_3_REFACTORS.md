@@ -308,15 +308,75 @@ self.indicators = Indicators(rsi_period=21, rsi_ema_period=9, rsi_wma_period=45,
 - Result aggregation and formatting
 - Database queries
 
+**Missing API support**: The API only supports `single` and `portfolio` modes (auto-detected via `symbol` vs `symbols` fields). Two other backtest modes — `batch` (N independent backtests with separate balances, parallel execution) and `tick_replay` (tick-level simulation with SimExchange) — are CLI-only with no API routes. All 4 modes are core functionality and must be accessible from the UI.
+
+#### Backtest Mode Differences
+
+| | Single | Portfolio | Batch | Tick Replay |
+|---|---|---|---|---|
+| **Balance** | One symbol | Shared across symbols | Separate per symbol | One symbol |
+| **Execution** | Sequential | Interleaved timeline | Parallel (ProcessPool) | Tick-by-tick replay |
+| **Liquidation** | Per-symbol | Global (cross-symbol) | Per-symbol | Per-symbol |
+| **Equity curve** | Per-symbol | Real-time portfolio-wide | Stitched post-hoc | Per-symbol |
+| **Capital competition** | N/A | Yes — symbols compete for margin | None | N/A |
+| **Use case** | Quick single test | Realistic multi-asset sim | Symbol/param screening | High-fidelity SL/TP fills |
+
 ### Target State
 
-#### `app/backtest/service.py` (~200 lines)
+#### Updated `BacktestRequest` schema (`app/api/schemas.py`)
+```python
+from enum import Enum
+
+class BacktestMode(str, Enum):
+    SINGLE = "single"
+    PORTFOLIO = "portfolio"
+    BATCH = "batch"
+    TICK_REPLAY = "tick_replay"
+
+class BacktestRequest(BaseModel):
+    """Unified backtest request with explicit mode selection."""
+    mode: BacktestMode = BacktestMode.SINGLE   # Explicit mode (replaces auto-detection)
+    symbol: str | None = None                   # single, tick_replay
+    symbols: list[str] | None = None            # portfolio, batch
+    timeframe: str
+    strategy: str
+    start_date: str
+    end_date: str
+    initial_capital: str = "10000.00"
+    leverage: int = 10
+    risk_per_trade_pct: str = "0.02"
+    fee_tier: str = "0.001"
+    slippage_model: str = "none"
+    slippage_pct: str = "0.0"
+    params: dict[str, Any] = {}
+    # Batch-specific
+    max_workers: int | None = None              # batch only (default: CPU count)
+    # Tick replay-specific
+    tick_data_path: str | None = None           # tick_replay only (path to aggTrades CSV)
+
+    @model_validator(mode="after")
+    def _validate_mode_fields(self) -> "BacktestRequest":
+        if self.mode in (BacktestMode.SINGLE, BacktestMode.TICK_REPLAY):
+            if not self.symbol:
+                raise ValueError(f"mode={self.mode.value} requires 'symbol'")
+        elif self.mode in (BacktestMode.PORTFOLIO, BacktestMode.BATCH):
+            if not self.symbols:
+                raise ValueError(f"mode={self.mode.value} requires 'symbols'")
+        # Backward compat: infer mode from symbol/symbols if mode not explicitly set
+        return self
+```
+
+#### `app/backtest/service.py` (~250 lines)
 ```python
 class BacktestService:
-    """Business logic for backtest operations."""
+    """Business logic for backtest operations. Routes to the correct runner by mode."""
 
     def start_run(self, request: BacktestRequest) -> str:
-        """Validate params, create DB run, submit to executor. Returns run_id."""
+        """Validate params, create DB run, route to correct runner, submit to executor. Returns run_id."""
+
+    def _route_to_runner(self, request: BacktestRequest) -> callable:
+        """Select runner based on mode: single → BacktestEngine, portfolio → PortfolioRunner,
+        batch → BatchRunner, tick_replay → TickReplayRunner."""
 
     def get_run_detail(self, run_id: str) -> RunDetail:
         """Fetch run metrics + trades from DB."""
@@ -362,10 +422,12 @@ async def progress_stream(run_id: str):
 ```
 
 ### Migration Steps
-1. Create `BacktestService` with logic extracted from route handlers
-2. Split `backtest.py` into 3 route files
-3. Update `app/api/main.py` to register new routers
-4. Verify: `test_api_backtest.py` passes
+1. Add `BacktestMode` enum and update `BacktestRequest` schema with explicit `mode` field
+2. Create `BacktestService` with mode-routing logic extracted from route handlers
+3. Split `backtest.py` into 3 route files
+4. Wire `BatchRunner` and `TickReplayRunner` into `BacktestService._route_to_runner()`
+5. Update `app/api/main.py` to register new routers
+6. Verify: `test_api_backtest.py` passes (update tests to cover all 4 modes)
 
 ---
 
@@ -635,9 +697,14 @@ app/backtest/
 7. Refactor `run_portfolio_backtest.py` → `runners/portfolio_runner.py` (PortfolioRunner class, ~200 lines). Add `run_portfolio_backtest()` API entry point.
 8. Refactor `run_paper_tick_replay.py` → `runners/tick_replay.py` (TickReplayRunner class, ~300 lines)
 9. Delete original 3 files after confirming all imports are updated
-10. Update API routes to import from `runners/` instead of old paths
-11. Create empty `optimization/` and `statistics/` directories with `__init__.py` for future work
-12. Verify: backtest API routes work, CLI entry points work, all tests pass
+10. Wire ALL runners into `BacktestService._route_to_runner()` (from Refactor 4):
+    - `mode=single` → `BacktestEngine` (existing)
+    - `mode=portfolio` → `PortfolioRunner.run()`
+    - `mode=batch` → `BatchRunner.run()` (**NEW** — was CLI-only)
+    - `mode=tick_replay` → `TickReplayRunner.run()` (**NEW** — was CLI-only)
+11. Update API routes to import from `runners/` instead of old paths
+12. Create empty `optimization/` and `statistics/` directories with `__init__.py` for future work
+13. Verify: all 4 backtest modes work via API, CLI entry points work, all tests pass
 
 ---
 

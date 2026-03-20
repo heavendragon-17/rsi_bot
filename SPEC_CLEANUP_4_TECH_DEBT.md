@@ -107,55 +107,63 @@ Full inventory of technical debt discovered during codebase analysis. Items are 
 **Problem**: Duplicates `_enrich_round_trips()` and data download logic from batch analysis. Missing API entry point function. Core backtest function used by UI.
 **Fix**: Refactor into `runners/portfolio_runner.py` (PortfolioRunner class). Dedupe shared code. Add `run_portfolio_backtest()` API entry point. See Refactor 7.
 
-### M10: Queue Size Hardcoded
+### M10: Backtest API Missing 2 of 4 Modes
+**Files**: `app/api/routes/backtest.py`, `app/api/schemas.py`
+**Problem**: The backtest API only supports `single` and `portfolio` modes (auto-detected via `symbol` vs `symbols` fields). Two core backtest modes are CLI-only with no API routes:
+- **Batch mode** (`run_batch_analysis.py`): N independent backtests with separate balances, parallel execution via ProcessPoolExecutor. Used for symbol/parameter screening.
+- **Tick replay mode** (`run_paper_tick_replay.py`): tick-level aggTrades simulation with SimExchange for high-fidelity SL/TP fills.
+Additionally, there is no explicit `mode` field — the API auto-detects single vs portfolio, which makes it impossible to distinguish "portfolio" (shared balance, interleaved) from "batch" (separate balances, independent).
+**Fix**: Add `BacktestMode` enum (`single`, `portfolio`, `batch`, `tick_replay`) to `BacktestRequest`. Wire `BatchRunner` and `TickReplayRunner` into `BacktestService._route_to_runner()`. See Refactors 4 and 7.
+
+### M11: Queue Size Hardcoded
 **File**: `app/services/notification/notification_worker.py`
 **Problem**: Notification queue size likely hardcoded.
 **Fix**: Move to constants or make configurable.
 
-### M11: Test Coverage Gaps — Portfolio
+### M12: Test Coverage Gaps — Portfolio
 **Problem**: No dedicated tests for: position sizing edge cases (zero balance, max position limit), SL/TP ladder with 0-distance SL, notification dispatch failure handling.
 **Fix**: Add tests during Portfolio decomposition (each component gets its own test file).
 
-### M12: Test Coverage Gaps — API
+### M13: Test Coverage Gaps — API
 **Problem**: Only `test_api_backtest.py` exists. No tests for data routes, history routes, strategy routes.
 **Fix**: Add basic route tests during API restructure.
 
-### M13: Test Coverage Gaps — Indicators
+### M14: Test Coverage Gaps — Indicators
 **Problem**: No dedicated indicator tests. Indicator correctness is only tested implicitly through strategy tests.
 **Fix**: Add `tests/test_indicators.py` during indicator merge.
 
-### M14: Test Coverage Gaps — Config
+### M15: Test Coverage Gaps — Config
 **Problem**: `test_config.py` and `test_config_validation.py` exist but may not cover the new config structure after strategy params are removed.
 **Fix**: Update config tests during config cleanup.
 
-### M15: Test Coverage Gaps — Notification
+### M16: Test Coverage Gaps — Notification
 **Problem**: Only `test_telegram_polling.py`. No tests for notification worker, null notifier, or notification service.
 **Fix**: Add basic tests during notification move.
 
-### M16: Late Imports in Exchange Adapters
+### M17: Late Imports in Exchange Adapters
 **Files**: `app/services/execution/cex/binance_adapter.py:24`, `app/services/execution/dex/hyperliquid_adapter.py:28`
 **Problem**: `from dotenv import load_dotenv` inside `__init__` method. Non-standard pattern.
 **Fix**: Top-level import after .env loading is centralized.
 
-### M17: SimExchange State Complexity
+### M18: SimExchange State Complexity
 **File**: `app/sim/state.py`
 **Problem**: `SimOrder`, `SimPosition`, `SimTradeState` — parallel data model to `Position` in portfolio. Two representations of the same concept.
 **Fix**: During FillSimulator extraction, consider unifying position models where possible.
 
-### M18: Percentage Calculations Scattered
+### M19: Percentage Calculations Scattered
 **Problem**: TP close percentages calculated differently in portfolio (Decimal-based) vs strategy (float-based). Potential precision mismatch.
 **Fix**: Standardize: Decimal in live path, float in backtest (acceptable per conventions).
 
-### M19: Strategy Loader Hardcoded Map
+### M20: Strategy Loader Hardcoded Map
 **File**: `app/strategies/loader.py`
 **Problem**: `STRATEGY_MAP` is a hardcoded dict. Adding a strategy requires editing this file.
 **Fix**: Low priority. Could use entry points or auto-discovery, but current approach is explicit and fine for 3 strategies.
 
-### M20: Unused `app/services/__init__.py` After Move
+### M21: Unused `app/services/__init__.py` After Move
 **Problem**: After moving all subdirs out of `app/services/`, the directory and its `__init__.py` become empty.
 **Fix**: Delete `app/services/` entirely after Phase 7.
 
-### M21: Backtest Engine Duplicate Config Building
+### M22: Backtest Engine Duplicate Config Building
 **Files**: `app/backtest/engine.py:55-75`, `app/backtest/config_builder.py`
 **Problem**: `BacktestEngine.__init__` reads risk_cfg dict manually. `config_builder.py` also builds config for API-triggered backtests. Two entry points with slightly different config handling.
 **Fix**: Unify through `config_builder.py` for all backtest entry points.
@@ -193,8 +201,8 @@ Fix these while moving files:
 - **H8**: Symbol normalization dedup (Phase 6)
 - **M1**: Centralize dotenv loading (Phase 4)
 - **M2**: MAX_CANDLES_IN_RAM (Phase 1)
-- **M16**: Late imports cleanup (Phase 4)
-- **M20**: Delete empty services/ (Phase 7)
+- **M17**: Late imports cleanup (Phase 4)
+- **M21**: Delete empty services/ (Phase 7)
 - **L1**: HTTP status constants (Phase 8)
 - **L4**: __init__.py exports (all phases)
 
@@ -211,16 +219,17 @@ Fix these during the relevant refactor:
 - **M6**: Error handling standardization → Refactor 2
 - **M8**: Tick replay cleanup → Refactor 7
 - **M9**: Portfolio backtest dedup → Refactor 7
-- **M17**: Position model unification → Refactor 2
-- **M18**: Percentage precision → Refactor 1
-- **M21**: Config building unification → Refactor 4
+- **M10**: Backtest API missing batch + tick_replay modes → Refactors 4 + 7
+- **M18**: Position model unification → Refactor 2
+- **M19**: Percentage precision → Refactor 1
+- **M22**: Config building unification → Refactor 4
 
 ### Phase C: Post-Refactor (Cleanup Pass)
 Fix these after structure is stable:
 - **M7**: Reporting split (optional, only if needed)
-- **M10**: Queue size constant
-- **M11-M15**: Test coverage gaps (ongoing)
-- **M19**: Strategy loader (leave as-is)
+- **M11**: Queue size constant
+- **M12-M16**: Test coverage gaps (ongoing)
+- **M20**: Strategy loader (leave as-is)
 - **L2**, **L3**: Cosmetic fixes
 
 ---
@@ -230,9 +239,9 @@ Fix these after structure is stable:
 | Category | Count | Fixed During Cleanup | Remaining |
 |----------|-------|---------------------|-----------|
 | HIGH | 8 | 8 (all — H3/H4 fixed in Refactor 7, not deprecated) | 0 |
-| MEDIUM | 21 | 19 (M8/M9 fixed in Refactor 7) | 2 (M7, M10) |
+| MEDIUM | 22 | 20 (M8/M9 fixed in Refactor 7, M10 fixed in Refactors 4+7) | 2 (M7, M11) |
 | LOW | 4 | 2 | 2 (L2, L3) |
-| **Total** | **33** | **29** | **4** |
+| **Total** | **34** | **30** | **4** |
 
 Post-cleanup, 4 items remain as acceptable tech debt — none are HIGH severity.
 

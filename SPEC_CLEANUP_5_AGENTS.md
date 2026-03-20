@@ -47,7 +47,7 @@ This document describes how to use multiple Claude Code agents to execute the cl
 | Agent-Portfolio | Refactor 1: PortfolioManager decomposition | `app/trading/portfolio/*` | `refactor/portfolio` |
 | Agent-Exchange | Refactor 2: FillSimulator extraction | `app/trading/exchange/fill_simulator.py`, `app/backtest/mock_exchange.py`, `app/trading/exchange/sim/sim_exchange.py` | `refactor/exchange` |
 | Agent-Indicators | Refactor 3: Remove CrossoverIndicators (absorb into Indicators) + Refactor 6: Strategy utils | `app/data/indicators.py`, `app/trading/strategy/utils/*`, `app/trading/strategy/rsi_*.py` | `refactor/indicators` |
-| Agent-Backtest | Refactor 4: Backtest service + Refactor 5: Config cleanup | `app/backtest/service.py`, `app/api/routes/backtest_*.py`, `app/core/constants.py`, `app/core/config.py` | `refactor/backtest` |
+| Agent-Backtest | Refactor 4: Backtest service (with 4-mode API routing) + Refactor 5: Config cleanup | `app/backtest/service.py`, `app/api/schemas.py`, `app/api/routes/backtest_*.py`, `app/core/constants.py`, `app/core/config.py` | `refactor/backtest` |
 | Agent-Runners | Refactor 7: Backtest runners decomposition | `app/backtest/runners/*`, `app/backtest/batch_report.py`, `app/backtest/export.py`, `app/backtest/data_manager.py`, `app/backtest/enrichment.py` | `refactor/runners` |
 
 **Merge order**: Portfolio → Exchange → Indicators → Backtest → Runners (Runners depends on Backtest for API integration).
@@ -158,18 +158,35 @@ After all changes, run `python scripts/arch_lint.py` and confirm no NEW violatio
 ```
 You are extracting the BacktestService and cleaning up config. Follow Refactors 4 and 5 in SPEC_CLEANUP_3_REFACTORS.md.
 
-Part A — Backtest Service:
-1. Create app/backtest/service.py (BacktestService class)
-2. Extract business logic from the split route files (backtest_run.py, backtest_results.py, backtest_stream.py)
-3. Routes become thin HTTP handlers delegating to BacktestService
-4. Run test_api_backtest.py
+Part A — Backtest Mode Schema:
+1. Add BacktestMode enum to app/api/schemas.py: "single", "portfolio", "batch", "tick_replay"
+2. Add explicit `mode` field to BacktestRequest (default: "single")
+3. Add mode-specific fields: `max_workers` (batch), `tick_data_path` (tick_replay)
+4. Update validator: validate symbol/symbols based on mode, not auto-detect
+5. Keep backward compat: if mode not provided, infer from symbol/symbols
 
-Part B — Config Cleanup:
+Part B — Backtest Service:
+1. Create app/backtest/service.py (BacktestService class)
+2. Add _route_to_runner() method that dispatches by mode:
+   - single → BacktestEngine (existing)
+   - portfolio → PortfolioRunner (from Agent-Runners)
+   - batch → BatchRunner (from Agent-Runners) — NEW API support
+   - tick_replay → TickReplayRunner (from Agent-Runners) — NEW API support
+3. Extract remaining business logic from split route files
+4. Routes become thin HTTP handlers delegating to BacktestService
+5. Run test_api_backtest.py
+
+Part C — Config Cleanup:
 1. Ensure app/core/constants.py has all magic numbers centralized
 2. Remove strategy params from config.yaml
 3. Update AppConfig to not expect strategy-specific keys
 4. Remove to_legacy_dict() if all consumers use typed config
 5. Update test_config.py, test_config_validation.py
+
+IMPORTANT: batch and portfolio are fundamentally different modes:
+- Batch = N independent backtests with separate balances (parallel, for screening)
+- Portfolio = 1 unified simulation with shared balance (interleaved timeline, for realistic sim)
+Both must be supported as distinct modes in the API.
 ```
 
 ### Agent-Runners (Phase 2, Worktree — depends on Agent-Backtest completing first)
@@ -180,6 +197,13 @@ Follow Refactor 7 in SPEC_CLEANUP_3_REFACTORS.md.
 These files are core backtest functions used by the backtest UI — NOT dead code.
 The architecture must support future additions: probability/statistics analysis,
 Monte Carlo simulation, and AI-based strategy optimization.
+
+IMPORTANT: All 4 backtest modes must be wirable to the API via BacktestService:
+- single: one symbol, one balance (BacktestEngine — already wired)
+- portfolio: multiple symbols, SHARED balance, interleaved timeline, global liquidation
+- batch: multiple symbols, SEPARATE balances, parallel execution, independent backtests
+- tick_replay: one symbol, tick-level aggTrades data, SimExchange for precise fills
+Batch ≠ Portfolio. They answer different questions and must remain distinct.
 
 Step 1 — Extract shared utilities:
 1. Create app/backtest/data_manager.py (DataManager class) — dedupe data download/validation
@@ -198,22 +222,29 @@ Step 3 — Create runners/ package:
 6. Refactor run_batch_analysis.py → runners/batch_runner.py (BatchRunner class, ≤200 lines)
    - Uses DataManager, enrichment, export, BatchHtmlGenerator
    - Fix bare except clauses (H3) → except Exception with structlog
+   - Must expose run() with progress_callback for API integration
 7. Refactor run_portfolio_backtest.py → runners/portfolio_runner.py (PortfolioRunner class, ≤200 lines)
    - Add run_portfolio_backtest() function as API entry point (currently missing!)
    - Uses DataManager, enrichment
 8. Refactor run_paper_tick_replay.py → runners/tick_replay.py (TickReplayRunner class, ≤300 lines)
    - Uses DataManager, centralized WARMUP constant
+   - Must expose run() with progress_callback for API integration
 
-Step 4 — Wire to API:
-9. Update app/api/routes/ to import from runners/ instead of old paths
-10. Delete the original 3 files after all imports are updated
+Step 4 — Wire ALL runners to BacktestService:
+9. Update BacktestService._route_to_runner() (from Agent-Backtest) to dispatch all 4 modes:
+   - mode=single → BacktestEngine (existing)
+   - mode=portfolio → PortfolioRunner.run()
+   - mode=batch → BatchRunner.run() (NEW API support — was CLI-only)
+   - mode=tick_replay → TickReplayRunner.run() (NEW API support — was CLI-only)
+10. Update app/api/routes/ to import from runners/ instead of old paths
+11. Delete the original 3 files after all imports are updated
 
 Step 5 — Future extensibility:
-11. Create empty app/backtest/optimization/__init__.py (future: param sweeps, AI)
-12. Create empty app/backtest/statistics/__init__.py (future: Monte Carlo, confidence intervals)
+12. Create empty app/backtest/optimization/__init__.py (future: param sweeps, AI)
+13. Create empty app/backtest/statistics/__init__.py (future: Monte Carlo, confidence intervals)
 
 Verification:
-- All backtest API routes work (test_api_backtest.py)
+- All 4 backtest modes work via API (test_api_backtest.py — single, portfolio, batch, tick_replay)
 - CLI entry points work (python -m app.backtest.runners.batch_runner, etc.)
 - No file exceeds 400 lines
 - run `python scripts/arch_lint.py` — no NEW violations
