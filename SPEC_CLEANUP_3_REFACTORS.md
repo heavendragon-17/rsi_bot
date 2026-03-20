@@ -517,12 +517,136 @@ def build_sl_from_lookback(df: pd.DataFrame, lookback: int, side: str,
 
 ---
 
+## Refactor 7: Backtest Runners Decomposition
+
+### Context
+These 3 files are **core backtest functions** used by the backtest UI — they are NOT dead code. The user plans to add probability/statistics analysis and AI-based strategy optimization in the near future, so the refactored structure must be extensible.
+
+### Current State
+- `app/backtest/run_batch_analysis.py` (962 lines) — multi-symbol parallel backtest + HTML report + CSV export. God file mixing CLI logic, data download, execution, reporting, and export.
+- `app/backtest/run_paper_tick_replay.py` (553 lines) — tick-level simulation using SimExchange. Reasonably structured but has duplicated result computation.
+- `app/backtest/run_portfolio_backtest.py` (317 lines) — unified multi-symbol portfolio backtest. Has duplicated `_enrich_round_trips()` and data download logic. Missing `_run_portfolio_backtest()` function that API routes expect.
+- **Duplications**: `_enrich_round_trips()` (100% duplicate between batch + portfolio), data download/validation (~40 lines each, ~70% similar), `load_config()` (3 identical copies across backtest scripts).
+
+### Target State
+
+#### `app/backtest/runners/` — execution modes
+
+##### `batch_runner.py` (~200 lines)
+```python
+class BatchRunner:
+    """Multi-symbol parallel backtest orchestration."""
+
+    def __init__(self, symbols: List[str], config: dict,
+                 data_manager: DataManager): ...
+
+    def run(self, max_workers: int = 4,
+            progress_callback: Optional[Callable] = None) -> BatchResult: ...
+
+    def _run_single_symbol(self, symbol: str) -> SymbolResult: ...
+```
+
+##### `portfolio_runner.py` (~200 lines)
+```python
+class PortfolioRunner:
+    """Unified multi-symbol portfolio backtest."""
+
+    def __init__(self, symbols: List[str], config: dict,
+                 data_manager: DataManager): ...
+
+    def run(self, progress_callback: Optional[Callable] = None) -> PortfolioResult: ...
+
+    # API entry point (called from backtest routes)
+    def run_portfolio_backtest(request: BacktestRequest) -> PortfolioResult: ...
+```
+
+##### `tick_replay.py` (~300 lines)
+```python
+class TickReplayRunner:
+    """Tick-level simulation backtest using SimExchange."""
+
+    def __init__(self, symbol: str, config: dict,
+                 ohlc_path: str, tick_path: str): ...
+
+    def run(self, progress_callback: Optional[Callable] = None) -> ReplayResult: ...
+
+    def _compute_results(self) -> dict: ...
+```
+
+#### Shared utilities (extracted from runners)
+
+##### `app/backtest/data_manager.py` (~100 lines)
+```python
+class DataManager:
+    """Download, validate, and cache backtest data. Deduped from runners."""
+
+    def ensure_data_available(self, symbol: str, timeframe: str,
+                               limit: int = 5000) -> Path: ...
+    def validate_csv(self, path: Path, min_rows: int = 100) -> bool: ...
+    def get_csv_path(self, symbol: str, timeframe: str) -> Path: ...
+```
+
+##### `app/backtest/enrichment.py` (~60 lines)
+```python
+def enrich_round_trips(round_trips: List[dict], df: pd.DataFrame) -> List[dict]:
+    """Add entry RSI/EMA/spread fields to round trip records. Shared by batch + portfolio."""
+    ...
+```
+
+##### `app/backtest/export.py` (~120 lines)
+```python
+def export_signals_to_csv(trades: List[dict], path: Path, symbol: str) -> None:
+    """Export per-symbol trade signals with timestamp handling."""
+    ...
+
+def export_combined_signals(symbol_csvs: List[Path], output_path: Path) -> None:
+    """Combine individual signal CSVs into master CSV."""
+    ...
+
+def export_json_report(result: dict, path: Path) -> None:
+    """Export JSON report for AI debugging."""
+    ...
+```
+
+##### `app/backtest/batch_report.py` (~300 lines)
+```python
+class BatchHtmlGenerator:
+    """Generate combined batch HTML report with portfolio overview.
+    Extracted from run_batch_analysis.py."""
+    ...
+```
+
+#### Future extensibility hooks (directories created but empty)
+```
+app/backtest/
+├── optimization/          # Future: parameter sweeps, genetic algorithms, AI strategy finder
+│   └── __init__.py
+└── statistics/            # Future: Monte Carlo, probability analysis, confidence intervals
+    └── __init__.py
+```
+
+### Migration Steps
+1. Create `app/backtest/runners/` directory with `__init__.py`
+2. Extract `DataManager` from download/validation logic duplicated across runners → `data_manager.py`
+3. Extract `enrich_round_trips()` → `enrichment.py` (dedupe batch + portfolio)
+4. Extract CSV/JSON export functions → `export.py`
+5. Extract `BatchHtmlGenerator` → `batch_report.py`
+6. Refactor `run_batch_analysis.py` → `runners/batch_runner.py` (BatchRunner class, ~200 lines)
+7. Refactor `run_portfolio_backtest.py` → `runners/portfolio_runner.py` (PortfolioRunner class, ~200 lines). Add `run_portfolio_backtest()` API entry point.
+8. Refactor `run_paper_tick_replay.py` → `runners/tick_replay.py` (TickReplayRunner class, ~300 lines)
+9. Delete original 3 files after confirming all imports are updated
+10. Update API routes to import from `runners/` instead of old paths
+11. Create empty `optimization/` and `statistics/` directories with `__init__.py` for future work
+12. Verify: backtest API routes work, CLI entry points work, all tests pass
+
+---
+
 ## Refactor Execution Order
 
 These refactors can be parallelized in two groups:
 
 **Group A (independent)**:
-- Refactor 3: Indicator Merge
+- Refactor 3: Indicator Consolidation
 - Refactor 5: Config Cleanup
 - Refactor 6: Strategy Shared Utils
 
@@ -530,8 +654,10 @@ These refactors can be parallelized in two groups:
 - Refactor 1: PortfolioManager Decomposition
 - Refactor 2: FillSimulator Extraction
 - Refactor 4: Backtest Service Extraction
+- Refactor 7: Backtest Runners Decomposition
 
 Group A can run in parallel with Group B since they touch different files.
+Refactor 7 depends on Refactor 4 (BacktestService) being done first, since they share the API integration point.
 
 ---
 

@@ -52,7 +52,7 @@ All decisions were made through a detailed interview. This is the authoritative 
 | 6 | Config strategy params | **Move into strategy code**; YAML keeps general config only | Breaking change allowed; each strategy owns its parameters |
 | 7 | Directory layout | **Coarser grouping**, singular nouns | Balance between flat and organized |
 | 8 | Interfaces location | **Stay centralized** in `app/core/interfaces.py` | Single source of truth for system contracts |
-| 9 | Dead code | **Soft deprecate** to top-level `deprecated/` | Recoverable; delete in follow-up after confirming nothing breaks |
+| 9 | Dead code | **Soft deprecate** to top-level `deprecated/` | Recoverable; delete in follow-up after confirming nothing breaks. Note: `run_batch_analysis.py`, `run_paper_tick_replay.py`, `run_portfolio_backtest.py` are NOT dead code — they are core backtest runners used by the UI and are refactored, not deprecated |
 | 10 | Import migration | **Incremental moves** — one module at a time, test after each | Safest for a live trading bot |
 | 11 | Execution order | **Structure first**, then internal refactors | Establishes clean layout before deep changes |
 | 12 | Backtest coupling | **Shared codebase** with live bot | Strategies, models, interfaces reused; only execution differs |
@@ -146,7 +146,19 @@ app/
 │   ├── config_builder.py          # Build config from API request
 │   ├── service.py                 # NEW: BacktestService (business logic)
 │   ├── download_data.py           # OHLCV data downloader
-│   └── download_tick_data.py      # Tick data downloader
+│   ├── download_tick_data.py      # Tick data downloader
+│   ├── runners/                   # REFACTORED: backtest execution modes
+│   │   ├── __init__.py
+│   │   ├── batch_runner.py        # Multi-symbol parallel backtest orchestration
+│   │   ├── portfolio_runner.py    # Unified multi-symbol portfolio backtest
+│   │   └── tick_replay.py         # Tick-level simulation with SimExchange
+│   ├── export.py                  # NEW: CSV/JSON signal export utilities
+│   ├── data_manager.py            # NEW: data download/validation (deduped)
+│   ├── batch_report.py            # NEW: BatchHtmlGenerator (from run_batch_analysis)
+│   └── enrichment.py              # NEW: _enrich_round_trips + shared helpers
+│   # Future directories (planned):
+│   # ├── optimization/            # Parameter sweeps, genetic algorithms, AI strategy finder
+│   # └── statistics/              # Monte Carlo, probability analysis, confidence intervals
 │
 ├── api/                           # FastAPI backend
 │   ├── __init__.py
@@ -182,9 +194,7 @@ app/
         └── seed.py
 
 deprecated/                        # Soft-deprecated code (top-level)
-├── run_batch_analysis.py          # 962-line god file
-├── run_paper_tick_replay.py       # 553-line experimental file
-└── run_portfolio_backtest.py      # 317-line experimental file
+└── (only truly dead code goes here — backtest runners are NOT deprecated)
 ```
 
 ---

@@ -31,12 +31,12 @@ Full inventory of technical debt discovered during codebase analysis. Items are 
 ### H3: Bare Except Clauses
 **Files**: `app/backtest/run_batch_analysis.py:213`, `app/backtest/run_batch_analysis.py:957`
 **Problem**: `except:` catches everything including `KeyboardInterrupt` and `SystemExit`. Silent failure.
-**Fix**: File is being deprecated. If kept, change to `except Exception:` with logging.
+**Fix**: Change to `except Exception:` with structlog logging during Refactor 7 decomposition.
 
 ### H4: God File — run_batch_analysis.py (962 lines)
 **File**: `app/backtest/run_batch_analysis.py`
 **Problem**: 962 lines, bare excepts, combines batch orchestration, parameter sweeps, result aggregation, and reporting in one file. No tests.
-**Fix**: Move to `deprecated/`. If functionality is needed later, rewrite as proper batch service.
+**Fix**: Decompose into `runners/batch_runner.py` + `batch_report.py` + `export.py` (see Refactor 7 in Part 3). This is a core backtest function used by the UI — NOT deprecated.
 
 ### H5: PortfolioManager God Class (769 lines)
 **File**: `app/core/portfolio.py`
@@ -99,13 +99,13 @@ Full inventory of technical debt discovered during codebase analysis. Items are 
 
 ### M8: run_paper_tick_replay.py (553 lines)
 **File**: `app/backtest/run_paper_tick_replay.py`
-**Problem**: Experimental file mixing replay logic, data loading, and live simulation. Uses `WARMUP=220` hardcoded.
-**Fix**: Move to `deprecated/`.
+**Problem**: Mixes replay logic, data loading, and live simulation. Uses `WARMUP=220` hardcoded. Core backtest function used by UI.
+**Fix**: Refactor into `runners/tick_replay.py` (TickReplayRunner class). Extract shared data management to `data_manager.py`. Use centralized WARMUP constant. See Refactor 7.
 
 ### M9: run_portfolio_backtest.py (317 lines)
 **File**: `app/backtest/run_portfolio_backtest.py`
-**Problem**: Standalone script duplicating backtest engine logic with slight variations.
-**Fix**: Move to `deprecated/`.
+**Problem**: Duplicates `_enrich_round_trips()` and data download logic from batch analysis. Missing API entry point function. Core backtest function used by UI.
+**Fix**: Refactor into `runners/portfolio_runner.py` (PortfolioRunner class). Dedupe shared code. Add `run_portfolio_backtest()` API entry point. See Refactor 7.
 
 ### M10: Queue Size Hardcoded
 **File**: `app/services/notification/notification_worker.py`
@@ -200,6 +200,8 @@ Fix these while moving files:
 
 ### Phase B: During Internal Refactors (Part 3)
 Fix these during the relevant refactor:
+- **H3**: Bare excepts → Refactor 7 (fix during batch_runner decomposition)
+- **H4**: God file → Refactor 7 (decompose into runners/ + batch_report + export)
 - **H5**: Portfolio decomposition → Refactor 1
 - **H6**: MockExchange → Refactor 2
 - **H7**: Strategy config inconsistency → Refactor 5
@@ -207,16 +209,15 @@ Fix these during the relevant refactor:
 - **M4**: Type hints → Refactor 2
 - **M5**: Indicator validation → Refactor 3
 - **M6**: Error handling standardization → Refactor 2
+- **M8**: Tick replay cleanup → Refactor 7
+- **M9**: Portfolio backtest dedup → Refactor 7
 - **M17**: Position model unification → Refactor 2
 - **M18**: Percentage precision → Refactor 1
 - **M21**: Config building unification → Refactor 4
 
 ### Phase C: Post-Refactor (Cleanup Pass)
 Fix these after structure is stable:
-- **H3**: Bare excepts (file deprecated, so auto-fixed)
-- **H4**: God file deprecated
 - **M7**: Reporting split (optional, only if needed)
-- **M8**, **M9**: Deprecated files moved
 - **M10**: Queue size constant
 - **M11-M15**: Test coverage gaps (ongoing)
 - **M19**: Strategy loader (leave as-is)
@@ -228,12 +229,12 @@ Fix these after structure is stable:
 
 | Category | Count | Fixed During Cleanup | Remaining |
 |----------|-------|---------------------|-----------|
-| HIGH | 8 | 8 (all) | 0 |
-| MEDIUM | 21 | 17 | 4 (M7, M10, M15, M19) |
+| HIGH | 8 | 8 (all — H3/H4 fixed in Refactor 7, not deprecated) | 0 |
+| MEDIUM | 21 | 19 (M8/M9 fixed in Refactor 7) | 2 (M7, M10) |
 | LOW | 4 | 2 | 2 (L2, L3) |
-| **Total** | **33** | **27** | **6** |
+| **Total** | **33** | **29** | **4** |
 
-Post-cleanup, 6 items remain as acceptable tech debt — none are HIGH severity.
+Post-cleanup, 4 items remain as acceptable tech debt — none are HIGH severity.
 
 ---
 

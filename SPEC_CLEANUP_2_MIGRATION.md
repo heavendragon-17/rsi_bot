@@ -7,7 +7,7 @@
 ## 1. Complete Migration Table
 
 Every Python file and its destination. Files marked **NEW** are created during refactoring (see Part 3).
-Files marked **DEPRECATED** move to `deprecated/`.
+Files marked **REFACTORED** are decomposed into smaller modules (see Part 3).
 
 ### app/core/ → app/core/ (stays, with removals)
 
@@ -116,9 +116,11 @@ Files marked **DEPRECATED** move to `deprecated/`.
 | `app/backtest/portfolio_event_source.py` | `app/backtest/portfolio_event_source.py` | Stays |
 | `app/backtest/reporting.py` | `app/backtest/reporting.py` | Stays |
 | — | `app/backtest/service.py` | **NEW**: BacktestService (extracted from routes) |
-| `app/backtest/run_batch_analysis.py` | `deprecated/run_batch_analysis.py` | **DEPRECATED** |
-| `app/backtest/run_paper_tick_replay.py` | `deprecated/run_paper_tick_replay.py` | **DEPRECATED** |
-| `app/backtest/run_portfolio_backtest.py` | `deprecated/run_portfolio_backtest.py` | **DEPRECATED** |
+| `app/backtest/run_batch_analysis.py` | `app/backtest/runners/batch_runner.py` + `app/backtest/batch_report.py` + `app/backtest/export.py` | **REFACTORED**: decompose 962-line god file (see Refactor 7 in Part 3) |
+| `app/backtest/run_paper_tick_replay.py` | `app/backtest/runners/tick_replay.py` | **REFACTORED**: clean up, extract shared utils |
+| `app/backtest/run_portfolio_backtest.py` | `app/backtest/runners/portfolio_runner.py` | **REFACTORED**: extract shared utils, add API entry point |
+| — | `app/backtest/data_manager.py` | **NEW**: shared data download/validation (deduped from runners) |
+| — | `app/backtest/enrichment.py` | **NEW**: `enrich_round_trips()` and shared helpers (deduped) |
 
 ### app/api/ → app/api/ (routes split)
 
@@ -295,15 +297,14 @@ Imports to update:
 
 ---
 
-### Phase 8: Restructure API routes + deprecate dead code
-**Split backtest routes, move deprecated files**
+### Phase 8: Restructure API routes
+**Split backtest routes**
 
 Files changed:
 - `app/api/routes/backtest.py` → split into `backtest_run.py`, `backtest_results.py`, `backtest_stream.py`
 - `app/api/main.py` — update router imports
-- `app/backtest/run_batch_analysis.py` → `deprecated/run_batch_analysis.py`
-- `app/backtest/run_paper_tick_replay.py` → `deprecated/run_paper_tick_replay.py`
-- `app/backtest/run_portfolio_backtest.py` → `deprecated/run_portfolio_backtest.py`
+
+Note: Backtest runners (`run_batch_analysis.py`, `run_paper_tick_replay.py`, `run_portfolio_backtest.py`) are **NOT deprecated**. They are core backtest functions used by the UI and will be decomposed in Phase 2 Refactor 7 (see Part 3).
 
 **Verification gate**: `pytest tests/` + `python -c "from app.api.main import app"`
 

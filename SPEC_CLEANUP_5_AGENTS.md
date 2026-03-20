@@ -48,8 +48,9 @@ This document describes how to use multiple Claude Code agents to execute the cl
 | Agent-Exchange | Refactor 2: FillSimulator extraction | `app/trading/exchange/fill_simulator.py`, `app/backtest/mock_exchange.py`, `app/trading/exchange/sim/sim_exchange.py` | `refactor/exchange` |
 | Agent-Indicators | Refactor 3: Remove CrossoverIndicators (absorb into Indicators) + Refactor 6: Strategy utils | `app/data/indicators.py`, `app/trading/strategy/utils/*`, `app/trading/strategy/rsi_*.py` | `refactor/indicators` |
 | Agent-Backtest | Refactor 4: Backtest service + Refactor 5: Config cleanup | `app/backtest/service.py`, `app/api/routes/backtest_*.py`, `app/core/constants.py`, `app/core/config.py` | `refactor/backtest` |
+| Agent-Runners | Refactor 7: Backtest runners decomposition | `app/backtest/runners/*`, `app/backtest/batch_report.py`, `app/backtest/export.py`, `app/backtest/data_manager.py`, `app/backtest/enrichment.py` | `refactor/runners` |
 
-**Merge order**: Portfolio → Exchange → Indicators → Backtest (each merge may require conflict resolution).
+**Merge order**: Portfolio → Exchange → Indicators → Backtest → Runners (Runners depends on Backtest for API integration).
 
 ### Phase 3: Polish (Parallel Agents)
 After all refactors are merged:
@@ -171,6 +172,53 @@ Part B — Config Cleanup:
 5. Update test_config.py, test_config_validation.py
 ```
 
+### Agent-Runners (Phase 2, Worktree — depends on Agent-Backtest completing first)
+```
+You are decomposing the 3 backtest runner scripts into clean, extensible modules.
+Follow Refactor 7 in SPEC_CLEANUP_3_REFACTORS.md.
+
+These files are core backtest functions used by the backtest UI — NOT dead code.
+The architecture must support future additions: probability/statistics analysis,
+Monte Carlo simulation, and AI-based strategy optimization.
+
+Step 1 — Extract shared utilities:
+1. Create app/backtest/data_manager.py (DataManager class) — dedupe data download/validation
+   logic from all 3 runners into one place
+2. Create app/backtest/enrichment.py — extract _enrich_round_trips() (duplicated in
+   batch + portfolio). Single source of truth.
+3. Create app/backtest/export.py — extract CSV/JSON signal export utilities from
+   run_batch_analysis.py
+
+Step 2 — Extract BatchHtmlGenerator:
+4. Create app/backtest/batch_report.py — move BatchHtmlGenerator class out of
+   run_batch_analysis.py (this is ~300 lines of HTML/CSS/JS generation)
+
+Step 3 — Create runners/ package:
+5. Create app/backtest/runners/__init__.py
+6. Refactor run_batch_analysis.py → runners/batch_runner.py (BatchRunner class, ≤200 lines)
+   - Uses DataManager, enrichment, export, BatchHtmlGenerator
+   - Fix bare except clauses (H3) → except Exception with structlog
+7. Refactor run_portfolio_backtest.py → runners/portfolio_runner.py (PortfolioRunner class, ≤200 lines)
+   - Add run_portfolio_backtest() function as API entry point (currently missing!)
+   - Uses DataManager, enrichment
+8. Refactor run_paper_tick_replay.py → runners/tick_replay.py (TickReplayRunner class, ≤300 lines)
+   - Uses DataManager, centralized WARMUP constant
+
+Step 4 — Wire to API:
+9. Update app/api/routes/ to import from runners/ instead of old paths
+10. Delete the original 3 files after all imports are updated
+
+Step 5 — Future extensibility:
+11. Create empty app/backtest/optimization/__init__.py (future: param sweeps, AI)
+12. Create empty app/backtest/statistics/__init__.py (future: Monte Carlo, confidence intervals)
+
+Verification:
+- All backtest API routes work (test_api_backtest.py)
+- CLI entry points work (python -m app.backtest.runners.batch_runner, etc.)
+- No file exceeds 400 lines
+- run `python scripts/arch_lint.py` — no NEW violations
+```
+
 ### Agent-Docs (Phase 3)
 ```
 You are updating documentation to reflect the new codebase structure.
@@ -229,10 +277,10 @@ Day 1: Phase 1 — Structure Migration
 ├── Agent-Structure: Phases 5-8 (sim, data, notification, API)
 └── Verify gate: pytest passes, smoke test
 
-Day 2: Phase 2 — Internal Refactors (parallel)
+Day 2: Phase 2a — Internal Refactors (parallel)
 ├── Agent-Portfolio: PortfolioManager decomposition     ─┐
 ├── Agent-Exchange: FillSimulator extraction             ├── parallel
-├── Agent-Indicators: Indicator merge + strategy utils   │
+├── Agent-Indicators: Indicator consolidation + utils    │
 └── Agent-Backtest: Backtest service + config cleanup   ─┘
     │
     ├── Merge Agent-Portfolio → main (least conflicts)
@@ -241,6 +289,14 @@ Day 2: Phase 2 — Internal Refactors (parallel)
     └── Merge Agent-Backtest → main
     │
     └── Verify gate: full pytest + smoke test
+
+Day 2-3: Phase 2b — Backtest Runners (after Agent-Backtest merged)
+├── Agent-Runners: Decompose 3 backtest runners into runners/ package
+│   (depends on BacktestService being in place for API integration)
+    │
+    └── Merge Agent-Runners → main
+    │
+    └── Verify gate: pytest + backtest API routes + CLI entry points
 
 Day 3: Phase 3 — Polish (parallel)
 ├── Agent-Docs: Documentation updates    ─┐
@@ -261,11 +317,15 @@ git worktree add ../rsi_bot_exchange refactor/exchange
 git worktree add ../rsi_bot_indicators refactor/indicators
 git worktree add ../rsi_bot_backtest refactor/backtest-service
 
+# After Phase 2a merges, create runners worktree (depends on backtest merge)
+git worktree add ../rsi_bot_runners refactor/runners
+
 # After merge, clean up
 git worktree remove ../rsi_bot_portfolio
 git worktree remove ../rsi_bot_exchange
 git worktree remove ../rsi_bot_indicators
 git worktree remove ../rsi_bot_backtest
+git worktree remove ../rsi_bot_runners
 ```
 
 ---
@@ -279,9 +339,11 @@ Phase 2 agents work in parallel on different files, but some conflicts are expec
 | Portfolio | Exchange | Both touch `IExchange` calls | Portfolio merges first; Exchange adapts |
 | Portfolio | Indicators | Strategy files import from both | Indicators merges second; fix strategy imports |
 | Backtest | Exchange | MockExchange refactored by Exchange agent | Exchange merges first; Backtest adapts |
-| Backtest | Portfolio | Config changes affect portfolio | Backtest merges last |
+| Backtest | Portfolio | Config changes affect portfolio | Backtest merges last (of Phase 2a) |
+| Runners | Backtest | Runners depends on BacktestService API integration | Runners starts after Backtest merged |
+| Runners | Exchange | Runners uses MockExchange + SimExchange | Exchange merged before Runners starts |
 
-**Recommended merge order**: Portfolio → Indicators → Exchange → Backtest
+**Recommended merge order**: Portfolio → Indicators → Exchange → Backtest → Runners
 
 After each merge:
 1. `pytest tests/` must pass
