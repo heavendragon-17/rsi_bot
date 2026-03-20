@@ -21,7 +21,7 @@ from app.core.events import (
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.analysis_result import AnalysisResult
 from app.core.actions import DoNothing, OpenPosition
-from app.backtest.backtest_event_source import BacktestEventSource
+from app.backtest.event_source import BacktestEventSource
 
 
 # ---------------------------------------------------------------------------

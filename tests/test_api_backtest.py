@@ -5,7 +5,7 @@ import os
 import json
 
 from app.api.main import app
-from app.api.routes.backtest import get_db
+from app.api.routes.backtest_run import get_db
 from app.repository.backtest.database import Base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine

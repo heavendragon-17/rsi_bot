@@ -19,7 +19,7 @@ import structlog
 from app.trading.engine import Engine
 from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot
-from app.backtest.backtest_event_source import BacktestEventSource
+from app.backtest.event_source import BacktestEventSource
 from app.backtest.mock_exchange import MockExchange
 from app.core.actions import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
 from app.core.constants import WARMUP as _WARMUP_CONST
