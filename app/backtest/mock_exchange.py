@@ -6,12 +6,11 @@ Simulates a futures exchange for backtesting with:
 - Leverage support (margin-based trading)
 - Normalized order type vocabulary (market, limit, stop_market, stop_limit, trailing_stop)
 - reduceOnly enforcement
-- Wick-based SL/TP checking
+- Wick-based SL/TP checking via FillSimulator(WickFillMode)
 - Decimal precision
 - CCXT-compliant order structure
 - SHORT support: negative position amounts, BUY-side exit orders, signed PnL
 """
-
 from __future__ import annotations
 
 import threading
@@ -22,359 +21,213 @@ from app.core.exceptions import InsufficientFundsError, OrderNotFoundError
 from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
 from app.core.actions import SIDE_BUY, SIDE_SELL, EXIT_STOP_LOSS, EXIT_LIQUIDATION
+from app.trading.exchange.fill_simulator import (
+    FillSimulator, WickFillMode, PendingOrder,
+)
 
 logger = structlog.get_logger()
 
 
-def _base_asset(symbol: str) -> str:
-    """
-    Extract base asset from pair.
-    Examples:
-      "BTC/USDT" -> "BTC"
-      "RIVER/USDT" -> "RIVER"
-      "BTCUSDT" -> "BTCUSDT" (fallback)
-    """
-    if not symbol:
-        return ""
-    s = str(symbol).upper()
-    if "/" in s:
-        return s.split("/")[0].strip()
-    return s.strip()
-
-
 class MockExchange(IExchange):
     """
-    Thread-safe mock exchange for backtesting and paper trading.
-    Uses RLock to protect all internal state for concurrent access.
-    Supports the normalized order type vocabulary shared with BinanceAdapter.
+    Thread-safe mock exchange for backtesting.
+    Delegates order management and fill detection to FillSimulator(WickFillMode).
+    Owns position/margin/balance state internally.
     """
 
-    def __init__(self, initial_balance: float = 1000.0, leverage: int = 1, maker_fee: float = 0.0, taker_fee: float = 0.0):
-        # Thread safety lock (RLock allows reentrant calls)
+    def __init__(
+        self,
+        initial_balance: float = 1000.0,
+        leverage: int = 1,
+        maker_fee: float = 0.0,
+        taker_fee: float = 0.0,
+    ) -> None:
         self._lock = threading.RLock()
 
-        self.balance = to_decimal(initial_balance)  # Quote currency (USDT)
-        self.leverage = Decimal(str(leverage))  # Futures leverage
+        self.balance: Decimal = to_decimal(initial_balance)
+        self.leverage: Decimal = Decimal(str(leverage))
+        self.maker_fee: Decimal = Decimal(str(maker_fee))
+        self.taker_fee: Decimal = Decimal(str(taker_fee))
 
-        # Fee configuration (rates as float, e.g. 0.0002 for 0.02%)
-        self.maker_fee = Decimal(str(maker_fee))
-        self.taker_fee = Decimal(str(taker_fee))
-
-        # positions: symbol -> amount (base amount, notional position)
+        # Positions: symbol → signed amount (+long, -short)
         self.positions: Dict[str, Decimal] = {}
-
-        # Margin tracking for futures
-        self.margin_used: Dict[str, Decimal] = {}  # symbol -> margin locked
-
-        # entry tracking
-        self.entry_times: Dict[str, Any] = {}        # symbol -> entry timestamp
-        self.entry_prices: Dict[str, Decimal] = {}   # symbol -> entry price
+        self.margin_used: Dict[str, Decimal] = {}
+        self.entry_times: Dict[str, Any] = {}
+        self.entry_prices: Dict[str, Decimal] = {}
 
         self.trade_history: List[Dict] = []
-        self.current_prices: Dict[str, Dict] = {}  # symbol -> {price, time}
+        self.current_prices: Dict[str, Dict] = {}
 
-        # Pending orders: order_id -> order details
-        self.pending_orders: Dict[str, Dict] = {}
-        self._order_counter = 0
+        # Fill simulator owns pending orders and fill detection
+        self._sim = FillSimulator(
+            WickFillMode(),
+            maker_fee=self.maker_fee,
+            taker_fee=self.taker_fee,
+        )
 
-    def _next_order_id(self) -> str:
-        """Generate next order ID. Assumes lock is held by caller."""
-        self._order_counter += 1
-        return f"mock_order_{self._order_counter}"
+    # ── Backward-compat property ─────────────────────────────────
 
-    # ============================================================
-    # IExchange required balance methods
-    # ============================================================
+    @property
+    def pending_orders(self) -> Dict[str, Dict]:
+        """Dict view of pending orders for backward compatibility with tests."""
+        result: Dict[str, Dict] = {}
+        for oid, o in self._sim.pending_orders.items():
+            result[oid] = {
+                "id": o.id,
+                "symbol": o.symbol,
+                "side": o.side,
+                "amount": o.amount,
+                "price": o.price,
+                "triggerPrice": o.trigger_price or o.price,
+                "type": o.order_type,
+                "order_subtype": o.order_type,
+                "status": "open",
+                "reduce_only": o.reduce_only,
+                "info": dict(o.info),
+                "limit_price": o.limit_price,
+                "callback_rate": o.callback_rate,
+                "peak_price": o.peak_price,
+            }
+        return result
+
+    # ── Position amount callback for FillSimulator ───────────────
+
+    def _get_position_amount(self, symbol: str) -> Decimal:
+        return self.positions.get(symbol, Decimal("0"))
+
+    # ── IExchange: balance ───────────────────────────────────────
 
     def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
-        """
-        CCXT-compliant balance fetch. Thread-safe.
-        Returns: {'free': {}, 'used': {}, 'total': {}, 'USDT': {...}}
-        """
         with self._lock:
-            usdt_balance = self.balance
-            used_usdt = sum(self.margin_used.values())
-            total_usdt = usdt_balance + used_usdt
-
+            used = sum(self.margin_used.values())
+            total = self.balance + used
             return {
-                'free': {'USDT': usdt_balance},
-                'used': {'USDT': used_usdt},
-                'total': {'USDT': total_usdt},
-                'USDT': {'free': usdt_balance, 'used': used_usdt, 'total': total_usdt}
+                "free": {"USDT": self.balance},
+                "used": {"USDT": used},
+                "total": {"USDT": total},
+                "USDT": {"free": self.balance, "used": used, "total": total},
             }
 
-    # ============================================================
-    # Liquidation Management
-    # ============================================================
+    # ── Liquidation ──────────────────────────────────────────────
 
     def check_liquidation(self, timestamp: Any) -> bool:
-        """
-        Check if the portfolio margin has been exhausted.
-        If equity drops <= 0, force close all positions at current prices
-        and charge a liquidation fee. Thread-safe.
-        
-        Returns True if liquidation occurred, False otherwise.
-        """
         with self._lock:
             if not self.positions:
                 return False
-
-            usdt_balance = self.balance
-            used_usdt = sum(self.margin_used.values())
-            
-            # Calculate total unrealized PnL (signed amounts handle both LONG and SHORT)
-            # LONG  (amt > 0): uPnL = (curr - entry) * amt  → positive when price rises
-            # SHORT (amt < 0): uPnL = (curr - entry) * amt  → positive when price falls
+            used = sum(self.margin_used.values())
             total_upnl = Decimal("0")
-            for symbol, amt_dec in self.positions.items():
-                if amt_dec == 0:
+            for symbol, amt in self.positions.items():
+                if amt == 0:
                     continue
                 entry = self.entry_prices.get(symbol, Decimal("0"))
-                curr_data = self.current_prices.get(symbol, {})
-                curr = to_decimal(curr_data.get("price", entry))
-                upnl = (curr - entry) * amt_dec  # works for signed amounts
-                total_upnl += upnl
-
-            # Total equity = balance + margin_used + unrealized_pnl
-            # Note: balance is unencumbered cash. To get total equity:
-            # Equity = (Balance + Margin Used) + UPNL
-            total_equity = usdt_balance + used_usdt + total_upnl
-            
-            # Simple liquidation: if equity <= 0
-            if total_equity <= Decimal("0"):
-                logger.warning("portfolio_liquidated", equity=float(total_equity), timestamp=timestamp)
-                
-                # Close all positions at market price
-                symbols_to_close = list(self.positions.keys())
-                for symbol in symbols_to_close:
-                    signed_amount = self.positions.get(symbol, Decimal("0"))
-                    if signed_amount == 0:
+                curr = to_decimal(self.current_prices.get(symbol, {}).get("price", entry))
+                total_upnl += (curr - entry) * amt
+            equity = self.balance + used + total_upnl
+            if equity <= Decimal("0"):
+                logger.warning("portfolio_liquidated", equity=float(equity), timestamp=timestamp)
+                for symbol in list(self.positions.keys()):
+                    signed = self.positions.get(symbol, Decimal("0"))
+                    if signed == 0:
                         continue
-
-                    # Exit side is opposite of position side
-                    exit_side = SIDE_BUY if signed_amount < 0 else SIDE_SELL
-                    abs_amount = abs(signed_amount)
-
-                    curr_data = self.current_prices.get(symbol, {})
-                    exec_price = to_decimal(curr_data.get("price", Decimal("0")))
-                    if exec_price <= 0:
-                        exec_price = self.entry_prices.get(symbol, Decimal("0"))
-
+                    exit_side = SIDE_BUY if signed < 0 else SIDE_SELL
+                    abs_amt = abs(signed)
+                    price = to_decimal(self.current_prices.get(symbol, {}).get("price", Decimal("0")))
+                    if price <= 0:
+                        price = self.entry_prices.get(symbol, Decimal("0"))
                     try:
-                        self._execute_order(
-                            symbol=symbol,
-                            side=exit_side,
-                            amount=abs_amount,
-                            exec_price=exec_price,
-                            timestamp=timestamp,
-                            order_type="MARKET",
-                            exit_reason=EXIT_LIQUIDATION,
-                            fee_override=Decimal("0.005"),  # 0.5% liquidation fee
-                        )
+                        self._execute_order(symbol, exit_side, abs_amt, price,
+                                            timestamp, "MARKET", EXIT_LIQUIDATION,
+                                            fee_override=Decimal("0.005"))
                     except Exception as e:
                         logger.error("liquidation_error", symbol=symbol, error=str(e))
-                        
-                # Ensure balance is strictly 0 (no negative balance)
                 self.balance = Decimal("0")
                 return True
-                
             return False
 
-    # ============================================================
-    # Market data update (OHLC) — Trigger logic for pending orders
-    # ============================================================
+    # ── Candle update → fill detection ───────────────────────────
 
-    def update_candle(self, symbol: str, open_, high, low, close, timestamp) -> List[Dict]:
-        """
-        Update exchange with full OHLC candle data. Thread-safe.
-        Checks pending orders against High/Low wicks using proper trigger logic:
-
-        - limit (TP, SELL side): triggers when high >= price (price reached target)
-        - stop_market (SL, SELL side): triggers when low <= stopPrice (price fell to stop)
-        - stop_limit: triggers at stopPrice → becomes limit order at limit_price
-        - trailing_stop: tracks peak, triggers when price drops by callback_rate% from peak
-
-        Returns list of executed orders.
-        """
+    def update_candle(
+        self,
+        symbol: str,
+        open_: Any,
+        high: Any,
+        low: Any,
+        close: Any,
+        timestamp: Any,
+    ) -> List[Dict]:
         with self._lock:
             high_dec = to_decimal(high)
             low_dec = to_decimal(low)
             close_dec = to_decimal(close)
-
             self.current_prices[symbol] = {"price": close_dec, "time": timestamp}
 
+            candle_data = {"high": high_dec, "low": low_dec}
+            fill_results = self._sim.process_market_data(
+                symbol, candle_data, self._get_position_amount,
+            )
+
             executed: List[Dict] = []
-            orders_to_remove: List[str] = []
-
-            for order_id, order in list(self.pending_orders.items()):
-                if order.get("symbol") != symbol:
-                    continue
-
-                order_subtype = order.get("order_subtype", "limit")
-                side = order.get("side", "").upper()
-                trigger_price = to_decimal(order.get("triggerPrice") or order.get("price"))
-                reduce_only = order.get("reduce_only", False)
-
-                triggered = False
-                fill_price: Optional[Decimal] = None
-
-                if side == "SELL":
-                    if order_subtype == "stop_market":
-                        # SL: triggers when low <= stopPrice
-                        if low_dec <= trigger_price:
-                            triggered = True
-                            fill_price = trigger_price
-                    elif order_subtype == "limit":
-                        # TP: triggers when high >= price
-                        if high_dec >= trigger_price:
-                            triggered = True
-                            fill_price = trigger_price
-                    elif order_subtype == "stop_limit":
-                        limit_price = to_decimal(order.get("limit_price", trigger_price))
-                        if low_dec <= trigger_price:
-                            # Convert to limit order (simplified: fill at limit_price)
-                            triggered = True
-                            fill_price = limit_price
-                    elif order_subtype == "trailing_stop":
-                        callback_rate = to_decimal(order.get("callback_rate", Decimal("1")))
-                        peak = to_decimal(order.get("peak_price", high_dec))
-                        # Update peak
-                        if high_dec > peak:
-                            order["peak_price"] = high_dec
-                            peak = high_dec
-                        # Check if price dropped by callback_rate% from peak
-                        trigger_level = peak * (Decimal("1") - callback_rate / Decimal("100"))
-                        if low_dec <= trigger_level:
-                            triggered = True
-                            fill_price = trigger_level
-
-                elif side == "BUY":
-                    if order_subtype == "limit":
-                        # BUY limit: triggers when low <= price
-                        if low_dec <= trigger_price:
-                            triggered = True
-                            fill_price = trigger_price
-                    elif order_subtype == "stop_market":
-                        # BUY stop: triggers when high >= stopPrice
-                        if high_dec >= trigger_price:
-                            triggered = True
-                            fill_price = trigger_price
-
-                if triggered and fill_price is not None:
-                    # reduceOnly enforcement
-                    if reduce_only:
-                        current_pos = self.positions.get(symbol, Decimal("0"))
-                        if side == "SELL":
-                            # Closing LONG: need positive position
-                            if current_pos <= Decimal("0"):
-                                orders_to_remove.append(order_id)
-                                continue
-                            fill_amount = min(to_decimal(order["amount"]), current_pos)
-                        elif side == "BUY":
-                            # Closing SHORT: need negative position
-                            if current_pos >= Decimal("0"):
-                                orders_to_remove.append(order_id)
-                                continue
-                            fill_amount = min(to_decimal(order["amount"]), abs(current_pos))
-                        else:
-                            fill_amount = to_decimal(order["amount"])
-                    else:
-                        fill_amount = to_decimal(order["amount"])
-
-                    exit_reason = order.get("info", {}).get("exit_reason") or order_subtype.upper()
-                    result = self._execute_order(
-                        symbol=order["symbol"],
-                        side=side,
-                        amount=fill_amount,
-                        exec_price=fill_price,
-                        timestamp=timestamp,
-                        order_type=order_subtype.upper(),
-                        exit_reason=exit_reason,
-                    )
-                    if result:
-                        # Mark the order as filled in trade history reference
-                        result["triggering_order_id"] = order_id
-                        executed.append(result)
-                        orders_to_remove.append(order_id)
-
-            for oid in orders_to_remove:
-                self.pending_orders.pop(oid, None)
-
+            for fr in fill_results:
+                exit_reason = fr.info.get("exit_reason") or fr.order_type.upper()
+                result = self._execute_order(
+                    symbol=fr.symbol,
+                    side=fr.side,
+                    amount=fr.fill_amount,
+                    exec_price=fr.fill_price,
+                    timestamp=timestamp,
+                    order_type=fr.order_type.upper(),
+                    exit_reason=exit_reason,
+                )
+                if result:
+                    result["triggering_order_id"] = fr.order_id
+                    executed.append(result)
             return executed
 
-    # ============================================================
-    # IExchange methods
-    # ============================================================
+    # ── IExchange: leverage / positions / ohlcv ──────────────────
 
     def set_leverage(self, leverage: int, symbol: str) -> bool:
-        """Set leverage for a symbol (mock uses global leverage). Thread-safe."""
         with self._lock:
             self.leverage = Decimal(str(leverage))
             return True
 
     def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
-        """Fetch open positions in CCXT format. Thread-safe."""
         with self._lock:
             pos_list = []
             for s, amt in self.positions.items():
                 if symbols and s not in symbols:
                     continue
-                amt_dec = to_decimal(amt)
-                if amt_dec == 0:
+                if amt == 0:
                     continue
-
                 entry = self.entry_prices.get(s, Decimal("0"))
-                curr_data = self.current_prices.get(s, {})
-                curr = to_decimal(curr_data.get("price", entry))
-
-                upnl = (curr - entry) * amt_dec
-
-                p = {
+                curr = to_decimal(self.current_prices.get(s, {}).get("price", entry))
+                upnl = (curr - entry) * amt
+                pos_list.append({
                     "symbol": s,
-                    "contracts": float(amt_dec),
+                    "contracts": float(amt),
                     "contractSize": 1.0,
                     "unrealizedPnl": float(upnl),
                     "leverage": float(self.leverage),
                     "entryPrice": float(entry),
-                    "side": "long" if amt_dec > 0 else "short",
-                    "notional": float(amt_dec * curr),
-                    "info": {"marginUsed": float(self.margin_used.get(s, 0))}
-                }
-                pos_list.append(p)
+                    "side": "long" if amt > 0 else "short",
+                    "notional": float(amt * curr),
+                    "info": {"marginUsed": float(self.margin_used.get(s, 0))},
+                })
             return pos_list.copy()
 
-    # ============================================================
-    # Order Management — Normalized Order Type Vocabulary
-    # ============================================================
-
     def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> Sequence[Sequence[Any]]:
-        return []  # not used in push-based backtest
+        return []
+
+    # ── Order creation ───────────────────────────────────────────
 
     def create_order(
         self,
         symbol: str,
         order_type: str = None,
         side: str = None,
-        amount=None,
-        price=None,
+        amount: Any = None,
+        price: Any = None,
         params: Optional[Dict] = None,
     ) -> Optional[Dict]:
-        """
-        Create an order using normalized order types. Thread-safe.
-
-        Supported types:
-        - market: immediate fill at current/signal price
-        - limit: pending, fill when price crosses (TP for SELL side)
-        - stop_market: pending, trigger when price crosses stop (SL for SELL side)
-        - stop_limit: pending, trigger at stopPrice → fill at price
-        - trailing_stop: pending, dynamic trigger based on callbackRate
-
-        Params:
-        - stopPrice: trigger price for stop_market/stop_limit
-        - reduceOnly: if True, caps sell at current position, skips if no position
-        - callbackRate: percentage for trailing_stop
-        - exit_reason: label for trade history
-        """
         with self._lock:
             params = params or {}
             actual_type = (order_type or "market").lower()
@@ -387,493 +240,265 @@ class MockExchange(IExchange):
                 logger.warning(f"MockExchange: No price data for {symbol}")
                 return None
 
-            # ----------------------------------------------------------
-            # MARKET → immediate fill
-            # ----------------------------------------------------------
+            # ── MARKET → immediate fill ─────────────────────────
             if actual_type == "market":
                 if reduce_only:
                     current_pos = self.positions.get(symbol, Decimal("0"))
-                    order_side = (side or "").upper()
-                    if order_side == "SELL":
-                        # Closing a LONG: must have positive position
+                    s = (side or "").upper()
+                    if s == "SELL":
                         if current_pos <= Decimal("0"):
-                            return None  # No long position to reduce
+                            return None
                         amount = min(amount, current_pos)
-                    elif order_side == "BUY":
-                        # Closing a SHORT: must have negative position
+                    elif s == "BUY":
                         if current_pos >= Decimal("0"):
-                            return None  # No short position to reduce
+                            return None
                         amount = min(amount, abs(current_pos))
-
                 exec_price = to_decimal(price) if price is not None else to_decimal(current_data["price"])
-                timestamp = current_data["time"]
                 return self._execute_order(
-                    symbol, side, amount, exec_price, timestamp,
-                    order_type="MARKET", exit_reason=exit_reason,
+                    symbol, side, amount, exec_price,
+                    current_data["time"], "MARKET", exit_reason,
                 )
 
-            # ----------------------------------------------------------
-            # LIMIT → pending order
-            # ----------------------------------------------------------
+            # ── Pending order types ─────────────────────────────
+            order_id = self._sim.next_order_id(prefix="mock")
+            order_side = (side or "SELL").upper()
+
             if actual_type == "limit":
-                order_id = self._next_order_id()
                 price_dec = to_decimal(price)
-                order = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "side": (side or "BUY").upper(),
-                    "amount": amount,
-                    "price": price_dec,
-                    "triggerPrice": price_dec,
-                    "type": "limit",
-                    "order_subtype": "limit",
-                    "status": "open",
-                    "reduce_only": reduce_only,
-                    "info": {"exit_reason": exit_reason},
-                }
-                self.pending_orders[order_id] = order
+                order = PendingOrder(
+                    id=order_id, symbol=symbol, order_type="limit",
+                    side=order_side, amount=amount, price=price_dec,
+                    trigger_price=price_dec, reduce_only=reduce_only,
+                    info={"exit_reason": exit_reason},
+                )
+                self._sim.add_order(order)
                 return {"id": order_id, "status": "open", "type": "limit"}
 
-            # ----------------------------------------------------------
-            # STOP_MARKET → pending, triggers at stopPrice
-            # ----------------------------------------------------------
             if actual_type == "stop_market":
                 stop_price = to_decimal(params.get("stopPrice", price))
-                order_id = self._next_order_id()
-                order = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "side": (side or "SELL").upper(),
-                    "amount": amount,
-                    "price": stop_price,
-                    "triggerPrice": stop_price,
-                    "type": "stop_market",
-                    "order_subtype": "stop_market",
-                    "status": "open",
-                    "reduce_only": reduce_only,
-                    "info": {"exit_reason": exit_reason or "STOP_LOSS"},
-                }
-                self.pending_orders[order_id] = order
+                order = PendingOrder(
+                    id=order_id, symbol=symbol, order_type="stop_market",
+                    side=order_side, amount=amount, trigger_price=stop_price,
+                    price=stop_price, reduce_only=reduce_only,
+                    info={"exit_reason": exit_reason or "STOP_LOSS"},
+                )
+                self._sim.add_order(order)
                 return {"id": order_id, "status": "open", "type": "stop_market"}
 
-            # ----------------------------------------------------------
-            # STOP_LIMIT → pending, triggers at stopPrice → limit at price
-            # ----------------------------------------------------------
             if actual_type == "stop_limit":
                 stop_price = to_decimal(params.get("stopPrice"))
-                limit_price = to_decimal(price)
-                order_id = self._next_order_id()
-                order = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "side": (side or "SELL").upper(),
-                    "amount": amount,
-                    "price": limit_price,
-                    "triggerPrice": stop_price,
-                    "limit_price": limit_price,
-                    "type": "stop_limit",
-                    "order_subtype": "stop_limit",
-                    "status": "open",
-                    "reduce_only": reduce_only,
-                    "info": {"exit_reason": exit_reason},
-                }
-                self.pending_orders[order_id] = order
+                limit_p = to_decimal(price)
+                order = PendingOrder(
+                    id=order_id, symbol=symbol, order_type="stop_limit",
+                    side=order_side, amount=amount, trigger_price=stop_price,
+                    price=limit_p, limit_price=limit_p, reduce_only=reduce_only,
+                    info={"exit_reason": exit_reason},
+                )
+                self._sim.add_order(order)
                 return {"id": order_id, "status": "open", "type": "stop_limit"}
 
-            # ----------------------------------------------------------
-            # TRAILING_STOP → pending, dynamic trigger
-            # ----------------------------------------------------------
             if actual_type == "trailing_stop":
-                callback_rate = Decimal(str(params.get("callbackRate", 1)))
-                current_price = to_decimal(current_data["price"])
-                order_id = self._next_order_id()
-                order = {
-                    "id": order_id,
-                    "symbol": symbol,
-                    "side": (side or "SELL").upper(),
-                    "amount": amount,
-                    "type": "trailing_stop",
-                    "order_subtype": "trailing_stop",
-                    "status": "open",
-                    "reduce_only": reduce_only,
-                    "callback_rate": callback_rate,
-                    "peak_price": current_price,
-                    "info": {"exit_reason": exit_reason or "TRAILING_STOP"},
-                }
-                self.pending_orders[order_id] = order
+                cb_rate = Decimal(str(params.get("callbackRate", 1)))
+                curr_price = to_decimal(current_data["price"])
+                order = PendingOrder(
+                    id=order_id, symbol=symbol, order_type="trailing_stop",
+                    side=order_side, amount=amount, reduce_only=reduce_only,
+                    callback_rate=cb_rate, peak_price=curr_price,
+                    info={"exit_reason": exit_reason or "TRAILING_STOP"},
+                )
+                self._sim.add_order(order)
                 return {"id": order_id, "status": "open", "type": "trailing_stop"}
 
             logger.warning(f"MockExchange: Unknown order type '{actual_type}'")
             return None
 
-    # ============================================================
-    # Order Query & Cancellation
-    # ============================================================
+    # ── Order query & cancellation ───────────────────────────────
 
     def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
-        """Fetch order status. Checks pending orders first, then trade history."""
         with self._lock:
-            # Check pending orders
-            if order_id in self.pending_orders:
-                order = self.pending_orders[order_id]
+            po = self._sim.get_order(order_id)
+            if po:
                 return {
-                    "id": order_id,
-                    "symbol": order.get("symbol"),
-                    "status": "open",
-                    "type": order.get("type"),
-                    "side": order.get("side"),
-                    "amount": float(order.get("amount", 0)),
-                    "filled": 0,
-                    "info": order.get("info", {}),
+                    "id": order_id, "symbol": po.symbol, "status": "open",
+                    "type": po.order_type, "side": po.side,
+                    "amount": float(po.amount), "filled": 0,
+                    "info": dict(po.info),
                 }
-
-            # Check trade history for filled orders
             for trade in self.trade_history:
                 if trade.get("triggering_order_id") == order_id:
                     return {
-                        "id": order_id,
-                        "symbol": trade.get("symbol"),
-                        "status": "closed",
-                        "type": trade.get("type"),
+                        "id": order_id, "symbol": trade.get("symbol"),
+                        "status": "closed", "type": trade.get("type"),
                         "side": trade.get("side"),
                         "amount": trade.get("amount", 0),
                         "filled": trade.get("filled", 0),
                         "price": trade.get("price", 0),
                         "info": trade.get("info", {}),
                     }
-
             return {"id": order_id, "symbol": symbol, "status": "unknown"}
 
     def cancel_order(self, order_id: str, symbol: str) -> bool:
-        """Cancel a specific pending order. Thread-safe."""
         with self._lock:
-            if order_id in self.pending_orders:
-                self.pending_orders.pop(order_id, None)
+            if self._sim.cancel_order(order_id):
                 return True
             raise OrderNotFoundError(f"Order {order_id} not found")
 
     def cancel_all_orders(self, symbol: str) -> int:
-        """Cancel all pending orders for a symbol. Thread-safe."""
         with self._lock:
-            to_cancel = [oid for oid, o in self.pending_orders.items() if o.get("symbol") == symbol]
-            for oid in to_cancel:
-                self.pending_orders.pop(oid)
-            return len(to_cancel)
+            return self._sim.cancel_all_orders(symbol)
 
     def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Fetch all open/pending orders, optionally filtered by symbol."""
         with self._lock:
             orders = []
-            for oid, o in self.pending_orders.items():
-                if symbol and o.get("symbol") != symbol:
-                    continue
+            for o in self._sim.get_pending_orders(symbol):
                 orders.append({
-                    "id": oid,
-                    "symbol": o.get("symbol"),
-                    "side": o.get("side"),
-                    "type": o.get("type"),
-                    "amount": float(o.get("amount", 0)),
-                    "price": float(o.get("triggerPrice", 0)),
-                    "status": "open",
-                    "info": o.get("info", {}),
+                    "id": o.id, "symbol": o.symbol, "side": o.side,
+                    "type": o.order_type, "amount": float(o.amount),
+                    "price": float(o.trigger_price or Decimal("0")),
+                    "status": "open", "info": dict(o.info),
                 })
             return orders
 
-    # ============================================================
-    # SL Convenience Methods
-    # ============================================================
+    # ── SL convenience ───────────────────────────────────────────
 
-    def update_stop_loss(self, symbol: str, new_trigger_price, new_amount=None, exit_reason: str = None) -> bool:
-        """
-        Cancel existing SL + re-create as stop_market order.
-        Thread-safe (RLock allows reentrant calls from create_order).
-        Side-aware: uses BUY stop_market for short positions.
-        """
+    def update_stop_loss(
+        self, symbol: str, new_trigger_price: Any,
+        new_amount: Any = None, exit_reason: Optional[str] = None,
+    ) -> bool:
         with self._lock:
             new_price = to_decimal(new_trigger_price)
             new_amt = to_decimal(new_amount) if new_amount is not None else None
-
             current_pos = self.positions.get(symbol, Decimal("0"))
-            # Exit side is opposite of position side
             exit_side = SIDE_BUY if current_pos < 0 else SIDE_SELL
 
-            # Find and cancel existing stop_market orders for this symbol.
-            # Filter by exit_side so we don't accidentally cancel the wrong direction's SL.
-            sl_order_ids = [
-                oid for oid, o in self.pending_orders.items()
-                if o.get("symbol") == symbol
-                and o.get("side") == exit_side
-                and o.get("order_subtype") in ("stop_market", "stop_loss")
+            sl_ids = [
+                oid for oid, o in self._sim.pending_orders.items()
+                if o.symbol == symbol and o.side == exit_side
+                and o.order_type in ("stop_market", "stop_loss")
             ]
+            for oid in sl_ids:
+                self._sim.cancel_order(oid)
 
-            for oid in sl_order_ids:
-                self.pending_orders.pop(oid, None)
-
-            if not sl_order_ids and new_amt is None:
-                # No existing SL to update, and no amount specified
-                if current_pos == 0:
-                    return False
-                new_amt = abs(current_pos)
-
-            # Determine amount
+            if not sl_ids and new_amt is None and current_pos == 0:
+                return False
             if new_amt is None:
                 new_amt = abs(current_pos)
-
             if new_amt <= 0:
                 return False
 
-            # Place new stop_market order
             result = self.create_order(
-                symbol=symbol,
-                order_type="stop_market",
-                side=exit_side,
+                symbol=symbol, order_type="stop_market", side=exit_side,
                 amount=new_amt,
-                params={
-                    "stopPrice": new_price,
-                    "reduceOnly": True,
-                    "exit_reason": exit_reason or EXIT_STOP_LOSS,
-                },
+                params={"stopPrice": new_price, "reduceOnly": True,
+                        "exit_reason": exit_reason or EXIT_STOP_LOSS},
             )
             return result is not None
 
     def update_stop_loss_to_entry(self, symbol: str) -> bool:
-        """Move existing SL order to entry price for this symbol. Thread-safe."""
         with self._lock:
             entry = self.entry_prices.get(symbol)
             if entry is None:
                 return False
             return self.update_stop_loss(symbol, entry, exit_reason="BREAKEVEN")
 
-    # ============================================================
-    # Internal Execution
-    # ============================================================
+    # ── Internal execution (position / margin / balance) ─────────
 
     def _execute_order(
-        self,
-        symbol: str,
-        side: str,
-        amount: Decimal,
-        exec_price: Decimal,
-        timestamp,
-        order_type: str = "MARKET",
-        exit_reason: str = None,
-        fee_override: Optional[Decimal] = None,
+        self, symbol: str, side: str, amount: Decimal, exec_price: Decimal,
+        timestamp: Any, order_type: str = "MARKET",
+        exit_reason: Optional[str] = None, fee_override: Optional[Decimal] = None,
     ) -> Optional[Dict]:
-        """
-        Execute an order with futures leverage support.
-
-        NOTE: This method assumes the lock is already held by the caller (RLock).
-
-        Position amounts are SIGNED:
-          LONG  entry (BUY market):  +amount stored → positions[symbol] += amount
-          SHORT entry (SELL market): -amount stored → positions[symbol] -= amount
-          LONG  exit  (SELL):        closes positive position
-          SHORT exit  (BUY):         closes negative position
-
-        PnL formula (unified, handles both sides via signed amount):
-          gross_pnl = (exit_price - entry_price) * signed_amount
-          LONG  win:  exit > entry, positive amount  → positive PnL
-          SHORT win:  exit < entry, negative amount  → positive PnL
-
-        Args:
-            fee_override: If set, use this fee rate instead of the normal taker/maker rate.
-        """
         side = (side or SIDE_BUY).upper()
         notional = exec_price * amount
-        margin = notional / self.leverage
+        fee_rate = fee_override if fee_override is not None else (
+            self.taker_fee if order_type.upper() in ("MARKET", "STOP_MARKET") else self.maker_fee)
+        fee_cost = notional * fee_rate
+        current_signed = self.positions.get(symbol, Decimal("0"))
 
         entry_price = None
-        entry_time = None
-        hold_duration_seconds = None
+        hold_secs = None
         pnl = None
         pnl_pct = None
         margin_used = Decimal("0")
 
-        # Calculate fees early so we can include them in pnl
-        if fee_override is not None:
-            fee_rate = fee_override
+        is_opening = (side == "BUY" and current_signed >= 0) or (side == "SELL" and current_signed <= 0)
+        if is_opening:
+            margin = notional / self.leverage
+            if margin > self.balance:
+                raise InsufficientFundsError(
+                    f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}")
+            self.balance -= margin
+            delta = amount if side == "BUY" else -amount
+            self.positions[symbol] = current_signed + delta
+            self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
+            self.entry_times[symbol] = timestamp
+            self.entry_prices[symbol] = exec_price
+            margin_used = margin
         else:
-            fee_rate = self.taker_fee if order_type.upper() in ('MARKET', 'STOP_MARKET') else self.maker_fee
-        fee_cost = notional * fee_rate
-
-        current_signed = self.positions.get(symbol, Decimal("0"))
-
-        if side == "BUY":
-            if current_signed >= Decimal("0"):
-                # ── Opening a LONG position ───────────────────────────
-                if margin > self.balance:
-                    raise InsufficientFundsError(
-                        f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
-                    )
-                self.balance -= margin
-                self.positions[symbol] = current_signed + amount
-                self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
-                self.entry_times[symbol] = timestamp
-                self.entry_prices[symbol] = exec_price
-                margin_used = margin
-            else:
-                # ── Closing a SHORT position (BUY to cover) ───────────
-                short_amount = abs(current_signed)
-                # tolerance for floating rounding
-                if amount > short_amount * Decimal("1.001"):
-                    raise InsufficientFundsError(
-                        f"Insufficient short position for {symbol}: have {short_amount}, want {amount}"
-                    )
-                amount = min(amount, short_amount)
-
-                entry_price = self.entry_prices.get(symbol)
-                entry_time = self.entry_times.get(symbol)
-
-                close_ratio = amount / short_amount if short_amount > 0 else Decimal("1")
-                position_margin = self.margin_used.get(symbol, Decimal("0"))
-                margin_to_return = position_margin * close_ratio
-
-                notional = exec_price * amount
-                fee_cost = notional * fee_rate
-
-                if entry_price is not None:
-                    # Unified PnL formula: (exit - entry) * signed_amount
-                    # SHORT signed_amount < 0, so (exec - entry) * (-amount) = (entry - exec) * amount
-                    signed_amount = current_signed  # negative for short
-                    gross_pnl = (exec_price - entry_price) * signed_amount
-                    entry_notional = entry_price * amount
-                    entry_fee = entry_notional * self.taker_fee
-                    pnl = float(gross_pnl - entry_fee - fee_cost)
+            # Closing: unified for LONG exit (SELL) and SHORT exit (BUY)
+            pos_size = abs(current_signed)
+            if amount > pos_size * Decimal("1.001"):
+                raise InsufficientFundsError(
+                    f"Insufficient position for {symbol}: have {pos_size}, want {amount}")
+            amount = min(amount, pos_size)
+            entry_price = self.entry_prices.get(symbol)
+            entry_time = self.entry_times.get(symbol)
+            close_ratio = amount / pos_size if pos_size > 0 else Decimal("1")
+            pos_margin = self.margin_used.get(symbol, Decimal("0"))
+            margin_to_return = pos_margin * close_ratio
+            notional = exec_price * amount
+            fee_cost = notional * fee_rate
+            if entry_price is not None:
+                # Unified PnL: (exit - entry) * signed_amount for shorts,
+                # (exit - entry) * amount for longs
+                if current_signed < 0:
+                    gross_pnl = (exec_price - entry_price) * current_signed
                     pnl_pct = float((entry_price - exec_price) / entry_price * 100) if entry_price > 0 else 0.0
                 else:
-                    pnl = 0.0
-
-                self.balance += margin_to_return + Decimal(str(pnl or 0))
-                self.positions[symbol] = current_signed + amount  # moves toward 0
-
-                self.margin_used[symbol] = position_margin - margin_to_return
-
-                if entry_time is not None and timestamp is not None:
-                    try:
-                        if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
-                            hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
-                        elif hasattr(entry_time, "value") and hasattr(timestamp, "value"):
-                            hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
-                    except Exception:
-                        pass
-
-                remaining = self.positions[symbol]
-                if abs(remaining) <= Decimal("1e-8"):
-                    self.positions.pop(symbol, None)
-                    self.margin_used.pop(symbol, None)
-                    self.entry_times.pop(symbol, None)
-                    self.entry_prices.pop(symbol, None)
-
-                margin_used = margin_to_return
-
-        elif side == "SELL":
-            if current_signed <= Decimal("0"):
-                # ── Opening a SHORT position ──────────────────────────
-                if margin > self.balance:
-                    raise InsufficientFundsError(
-                        f"Insufficient balance for {symbol}. Required: {margin:.2f}, Available: {self.balance:.2f}"
-                    )
-                self.balance -= margin
-                self.positions[symbol] = current_signed - amount  # store negative
-                self.margin_used[symbol] = self.margin_used.get(symbol, Decimal("0")) + margin
-                self.entry_times[symbol] = timestamp
-                self.entry_prices[symbol] = exec_price
-                margin_used = margin
-            else:
-                # ── Closing a LONG position (SELL to exit) ─────────────
-                current_pos = current_signed
-
-                # tolerance for floating rounding
-                tolerance = current_pos * Decimal("1.001")
-                if amount > tolerance:
-                    raise InsufficientFundsError(
-                        f"Insufficient position for {symbol}: have {current_pos}, want {amount}"
-                    )
-
-                amount = min(amount, current_pos)
-
-                entry_price = self.entry_prices.get(symbol)
-                entry_time = self.entry_times.get(symbol)
-
-                close_ratio = amount / current_pos if current_pos > 0 else Decimal("1")
-
-                position_margin = self.margin_used.get(symbol, Decimal("0"))
-                margin_to_return = position_margin * close_ratio
-
-                # Recalculate exit notional & fee after potential amount adjustment
-                notional = exec_price * amount
-                fee_cost = notional * fee_rate
-
-                if entry_price is not None:
-                    price_diff = exec_price - entry_price
-                    gross_pnl = price_diff * amount
-                    # Approximate entry fee for this portion of the position
-                    entry_notional = entry_price * amount
-                    entry_fee_rate = self.taker_fee  # entries are always market (taker)
-                    entry_fee = entry_notional * entry_fee_rate
-                    # Net PnL = gross - entry fee - exit fee
-                    pnl = float(gross_pnl - entry_fee - fee_cost)
+                    gross_pnl = (exec_price - entry_price) * amount
                     pnl_pct = float((exec_price - entry_price) / entry_price * 100) if entry_price > 0 else 0.0
-                else:
-                    pnl = 0.0
-
-                self.balance += margin_to_return + Decimal(str(pnl or 0))
-
-                self.positions[symbol] = current_pos - amount
-                self.margin_used[symbol] = position_margin - margin_to_return
-
-                if entry_time is not None and timestamp is not None:
-                    try:
-                        if hasattr(entry_time, "timestamp") and hasattr(timestamp, "timestamp"):
-                            hold_duration_seconds = (timestamp.timestamp() - entry_time.timestamp())
-                        elif hasattr(entry_time, "value") and hasattr(timestamp, "value"):
-                            hold_duration_seconds = (timestamp.value - entry_time.value) / 1e9
-                    except Exception:
-                        pass
-
-                if self.positions[symbol] <= Decimal("1e-8"):
-                    self.positions.pop(symbol, None)
-                    self.margin_used.pop(symbol, None)
-                    self.entry_times.pop(symbol, None)
-                    self.entry_prices.pop(symbol, None)
-
-                margin_used = margin_to_return
-
-                # Exit fee already included in pnl, no separate deduction needed
-
-        # Recalculate notional after potential amount adjustment
-        if side == "BUY":
+                entry_fee = entry_price * amount * self.taker_fee
+                pnl = float(gross_pnl - entry_fee - fee_cost)
+            else:
+                pnl = 0.0
+            self.balance += margin_to_return + Decimal(str(pnl or 0))
+            delta = amount if side == "BUY" else -amount
+            self.positions[symbol] = current_signed + delta
+            self.margin_used[symbol] = pos_margin - margin_to_return
+            hold_secs = self._calc_hold_duration(entry_time, timestamp)
+            if abs(self.positions.get(symbol, Decimal("0"))) <= Decimal("1e-8"):
+                for d in (self.positions, self.margin_used, self.entry_times, self.entry_prices):
+                    d.pop(symbol, None)
+            margin_used = margin_to_return
             notional = exec_price * amount
 
-        order_id = self._next_order_id()
-
+        order_id = self._sim.next_order_id(prefix="mock")
         order = {
-            # CCXT standard fields
-            "id": order_id,
-            "clientOrderId": f"client_{order_id}",
-            "status": "closed",
-            "type": order_type.lower(),
-            "side": side,
-            "symbol": symbol,
-            "price": float(exec_price),
-            "amount": float(amount),
-            "filled": float(amount),
-            "remaining": 0.0,
-            "cost": float(notional),
-            "average": float(exec_price),
+            "id": order_id, "clientOrderId": f"client_{order_id}",
+            "status": "closed", "type": order_type.lower(),
+            "side": side, "symbol": symbol,
+            "price": float(exec_price), "amount": float(amount),
+            "filled": float(amount), "remaining": 0.0,
+            "cost": float(notional), "average": float(exec_price),
             "fee": {"currency": "USDT", "cost": float(fee_cost), "rate": float(fee_rate)},
             "info": {"exit_reason": exit_reason or ""},
-
-            # Extended fields for reporting
-            "time": timestamp,
-            "notional": float(notional),
-            "margin": float(margin_used),
-            "leverage": float(self.leverage),
+            "time": timestamp, "notional": float(notional),
+            "margin": float(margin_used), "leverage": float(self.leverage),
             "balance_after": float(self.balance),
             "entry_price": float(entry_price) if entry_price is not None else None,
-            "pnl": pnl,
-            "pnl_pct": pnl_pct,
-            "hold_duration_seconds": hold_duration_seconds,
+            "pnl": pnl, "pnl_pct": pnl_pct, "hold_duration_seconds": hold_secs,
         }
         self.trade_history.append(order)
         return order
+
+    @staticmethod
+    def _calc_hold_duration(entry_time: Any, exit_time: Any) -> Optional[float]:
+        if entry_time is None or exit_time is None:
+            return None
+        try:
+            if hasattr(entry_time, "timestamp") and hasattr(exit_time, "timestamp"):
+                return exit_time.timestamp() - entry_time.timestamp()
+            if hasattr(entry_time, "value") and hasattr(exit_time, "value"):
+                return (exit_time.value - entry_time.value) / 1e9
+        except Exception:
+            return None
