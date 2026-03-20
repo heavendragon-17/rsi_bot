@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import ClosePosition, DoNothing
 from app.utils.indicators import Indicators

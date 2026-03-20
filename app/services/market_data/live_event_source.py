@@ -22,7 +22,7 @@ from typing import Iterator, List
 
 import structlog
 
-from app.core.event_source import IEventSource
+from app.trading.event_source import IEventSource
 from app.core.events import CandleCloseEvent, EngineEvent, EngineStopEvent
 
 logger = structlog.get_logger()

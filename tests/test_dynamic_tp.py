@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.events import SignalEvent
 from app.core.snapshots import ContextSnapshot
 from app.core.actions import OpenPosition

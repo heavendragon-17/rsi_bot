@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 
 from app.strategies.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager, Position
+from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import PartialClose, MoveSL
 from app.utils.indicators import Indicators

@@ -59,7 +59,7 @@ from app.backtest.config_builder import build_backtest_config
 from app.backtest.engine import BacktestEngine  # for compute_results helpers
 from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition, PartialClose
 from app.core.events import SignalEvent
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot
 from app.sim.exchange import SimExchange
 from app.strategies.loader import STRATEGY_MAP

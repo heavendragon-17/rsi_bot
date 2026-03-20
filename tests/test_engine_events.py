@@ -13,8 +13,8 @@ from decimal import Decimal
 from datetime import datetime
 from unittest.mock import MagicMock, call
 
-from app.core.engine import Engine
-from app.core.event_source import IEventSource
+from app.trading.engine import Engine
+from app.trading.event_source import IEventSource
 from app.core.events import (
     Candle, CandleCloseEvent, EngineStopEvent, TickEvent,
 )

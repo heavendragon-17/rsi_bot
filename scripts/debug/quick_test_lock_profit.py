@@ -9,7 +9,7 @@ from decimal import Decimal
 from datetime import datetime
 
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.core.events import SignalEvent
 
 def test_lock_profit_price():

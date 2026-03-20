@@ -9,11 +9,11 @@ from __future__ import annotations
 import pandas as pd
 import structlog
 
-from app.core.engine import Engine
+from app.trading.engine import Engine
 from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot
 from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+from app.trading.portfolio.manager import PortfolioManager
 from app.backtest.engine import BacktestEngine
 
 logger = structlog.get_logger()

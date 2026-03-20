@@ -17,7 +17,7 @@ from typing import Iterator
 
 import pandas as pd
 
-from app.core.event_source import IEventSource
+from app.trading.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
 
 

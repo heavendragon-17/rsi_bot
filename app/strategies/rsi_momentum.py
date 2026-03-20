@@ -28,7 +28,7 @@ import structlog
 
 from app.strategies.base import BaseStrategy
 from app.utils.crossover_indicators import CrossoverIndicators
-from app.core.sl_tp_calculator import SLTPCalculator
+from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.context import SCANNING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
