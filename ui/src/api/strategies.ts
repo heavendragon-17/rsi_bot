@@ -3,7 +3,7 @@
  */
 
 import { apiFetch } from "./client";
-import type { StrategyInfo } from "../types/api-types";
+import type { StrategyInfo } from "../types/generated";
 
 // ---------------------------------------------------------------------------
 // fetchStrategies

@@ -1,4 +1,4 @@
-import type { RunDetail, TimeseriesResponse } from "../types/api-types";
+import type { RunDetail, TimeseriesResponse } from "../types/generated";
 import type { BatchSymbolResult, CorrelationCell } from "../stores/batchResultsStore";
 import type { Trade } from "../stores/resultsStore";
 

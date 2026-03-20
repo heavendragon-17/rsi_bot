@@ -67,6 +67,6 @@
             "dev": "vite",
             "build": "tsc --noEmit && vite build",
             "type-check": "tsc --noEmit",
-            "generate-types": "cd .. && python -m app.api.export_schema"
+            "generate-types": "cd .. && python scripts/gen_ts_types.py"
       }
 }

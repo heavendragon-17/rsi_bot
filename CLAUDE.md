@@ -34,6 +34,9 @@ pytest tests/test_binance_adapter.py::test_name  # single test
 
 # Regenerate database docs
 python scripts/gen_db_docs.py
+
+# Regenerate TypeScript types from Pydantic models
+python scripts/gen_ts_types.py
 ```
 
 ## Architecture (Quick Reference)
