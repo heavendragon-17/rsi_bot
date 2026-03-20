@@ -65,7 +65,7 @@ from app.sim.exchange import SimExchange
 from app.strategies.loader import STRATEGY_MAP
 
 # ── constants ────────────────────────────────────────────────────────────────
-from app.core.constants import WARMUP  # candles to skip before strategy analysis
+WARMUP = 220   # candles to skip before strategy analysis (match BacktestEngine.WARMUP)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

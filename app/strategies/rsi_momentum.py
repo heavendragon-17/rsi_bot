@@ -35,8 +35,8 @@ from app.core.analysis_result import AnalysisResult
 from app.core.actions import (
     OpenPosition, ClosePosition, MoveSL, DoNothing,
     SIDE_SELL, EXIT_CLOSE_BY_CANDLE_SL,
+    DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE,
 )
-from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
 
 logger = structlog.get_logger()
 

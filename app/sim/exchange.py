@@ -41,10 +41,8 @@ from app.sim.state import ClosedTrade, SimOrder, SimPosition, SimTradeState
 
 logger = structlog.get_logger()
 
-from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
-
-TAKER_FEE = Decimal(str(DEFAULT_TAKER_FEE))   # 0.05%
-MAKER_FEE = Decimal(str(DEFAULT_MAKER_FEE))   # 0.02%
+TAKER_FEE = Decimal("0.0005")   # 0.05%
+MAKER_FEE = Decimal("0.0002")   # 0.02%
 
 
 def _to_dec(val) -> Decimal:

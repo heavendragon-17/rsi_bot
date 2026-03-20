@@ -24,8 +24,7 @@ venv/
 # Data
 *.csv
 *.db
-/data/
-!/app/data/
+data/
 
 # Logs
 *.log

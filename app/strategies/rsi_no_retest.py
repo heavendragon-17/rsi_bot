@@ -31,7 +31,6 @@ from app.core.context import SCANNING, CONFIRMING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
-from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
 
 logger = structlog.get_logger()
 
@@ -144,8 +143,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         if not isinstance(risk_cfg, dict):
              risk_cfg = risk_cfg.dict() if hasattr(risk_cfg, "dict") else {}
              
-        self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE)))
-        self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE)))
+        self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", 0.0005)))
+        self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", 0.0002)))
 
         # ================================
         # Strategy parameters

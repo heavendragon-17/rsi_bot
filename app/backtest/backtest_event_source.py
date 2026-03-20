@@ -17,7 +17,6 @@ from typing import Iterator
 
 import pandas as pd
 
-from app.core.constants import WARMUP
 from app.core.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
 
@@ -35,7 +34,7 @@ class BacktestEventSource(IEventSource):
                    indicators are accurate, but no strategy call is made for them.
     """
 
-    def __init__(self, df: pd.DataFrame, symbol: str, start_idx: int = WARMUP) -> None:
+    def __init__(self, df: pd.DataFrame, symbol: str, start_idx: int = 220) -> None:
         self.df = df
         self.symbol = symbol
         self.start_idx = start_idx
