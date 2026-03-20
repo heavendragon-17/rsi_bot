@@ -140,3 +140,58 @@ def test_get_nonexistent_run():
     """Test 404 for missing run."""
     response = client.get("/api/backtest/99999")
     assert response.status_code == 404
+
+
+@patch("app.backtest.service.os.path.exists")
+@patch("app.backtest.service.exc_mod.submit_backtest")
+def test_run_backtest_portfolio_mode(mock_submit, mock_exists):
+    """Test mode='portfolio' with symbols list (multi-symbol backtest)."""
+    mock_exists.return_value = True
+
+    payload = {
+        "mode": "portfolio",
+        "symbols": ["BTC/USDT", "ETH/USDT"],
+        "timeframe": "1h",
+        "strategy": "rsi_no_retest",
+        "start_date": "2023-01-01",
+        "end_date": "2023-01-02",
+    }
+
+    response = client.post("/api/backtest/run", json=payload)
+    assert response.status_code == 201
+    assert response.json()["status"] == "running"
+
+
+@patch("app.backtest.service.os.path.exists")
+@patch("app.backtest.service.exc_mod.submit_backtest")
+def test_run_backtest_tick_replay_mode(mock_submit, mock_exists):
+    """Test mode='tick_replay' with symbol + tick_data_path."""
+    mock_exists.return_value = True
+
+    payload = {
+        "mode": "tick_replay",
+        "symbol": "BTC/USDT",
+        "timeframe": "1m",
+        "strategy": "rsi_no_retest",
+        "start_date": "2023-01-01",
+        "end_date": "2023-01-02",
+        "tick_data_path": "/data/ticks/BTCUSDT.csv",
+    }
+
+    response = client.post("/api/backtest/run", json=payload)
+    assert response.status_code == 201
+    assert response.json()["status"] == "running"
+
+
+def test_batch_mode_requires_symbols():
+    """Test 422 when mode='batch' but symbols not provided."""
+    payload = {
+        "mode": "batch",
+        "timeframe": "1h",
+        "strategy": "rsi_no_retest",
+        "start_date": "2023-01-01",
+        "end_date": "2023-01-02",
+    }
+
+    response = client.post("/api/backtest/run", json=payload)
+    assert response.status_code == 422
