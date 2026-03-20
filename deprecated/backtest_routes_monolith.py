@@ -133,7 +133,7 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
         symbols = body.symbols
 
         def _run_backtest():
-            from app.backtest.run_portfolio_backtest import _run_portfolio_backtest
+            from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
 
             try:
                 results = _run_portfolio_backtest(

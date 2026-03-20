@@ -254,7 +254,7 @@ class BacktestService:
         """Create worker fn for portfolio backtest."""
 
         def _run():
-            from app.backtest.run_portfolio_backtest import _run_portfolio_backtest
+            from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
 
             try:
                 results = _run_portfolio_backtest(
