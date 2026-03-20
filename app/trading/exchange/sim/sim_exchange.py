@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from app.core.exceptions import OrderRejectedError
 from app.core.interfaces import IExchange
-from app.sim.state import ClosedTrade, SimOrder, SimPosition, SimTradeState
+from app.trading.exchange.sim.sim_state import ClosedTrade, SimOrder, SimPosition, SimTradeState
 
 logger = structlog.get_logger()
 

@@ -131,8 +131,8 @@ class MultiSymbolRunner:
         self._sim_stream = None
         self._funding_scheduler = None
         if self.config.get("bot", {}).get("mode") == "sim":
-            from app.sim.stream_manager import SimTradeStreamManager
-            from app.sim.funding import SimFundingScheduler
+            from app.trading.exchange.sim.sim_stream import SimTradeStreamManager
+            from app.trading.exchange.sim.sim_funding import SimFundingScheduler
             self._sim_stream = SimTradeStreamManager(
                 symbols=self.symbols,
                 sim_exchange=self.exchange,

@@ -61,7 +61,7 @@ from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition, Par
 from app.core.events import SignalEvent
 from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot
-from app.sim.exchange import SimExchange
+from app.trading.exchange.sim.sim_exchange import SimExchange
 from app.trading.strategy.loader import STRATEGY_MAP
 
 # ── constants ────────────────────────────────────────────────────────────────

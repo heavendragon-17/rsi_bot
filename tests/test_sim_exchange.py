@@ -14,8 +14,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.core.exceptions import OrderRejectedError
-from app.sim.exchange import MAKER_FEE, TAKER_FEE, SimExchange
-from app.sim.state import SimTradeState
+from app.trading.exchange.sim.sim_exchange import MAKER_FEE, TAKER_FEE, SimExchange
+from app.trading.exchange.sim.sim_state import SimTradeState
 
 
 # ---------------------------------------------------------------------------
