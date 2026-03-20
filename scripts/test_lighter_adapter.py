@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.services.execution.dex.lighter_adapter import LighterAdapter
+from app.trading.exchange.lighter_adapter import LighterAdapter
 
 from dotenv import load_dotenv, find_dotenv
 

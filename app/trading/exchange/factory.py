@@ -133,7 +133,7 @@ def create_exchange(config: Dict[str, Any], notification_service=None) -> IExcha
     # Return BinanceAdapter (wraps CCXT, implements IExchange)
     # instead of raw CCXT — ensures normalized order type translation
     if exchange_name in EXCHANGE_CONFIG:
-        from app.services.execution.cex.binance_adapter import BinanceAdapter
+        from app.trading.exchange.binance_adapter import BinanceAdapter
 
         if mode == "live":
             logger.warning("=" * 60)

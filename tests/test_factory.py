@@ -2,7 +2,7 @@
 import sys
 sys.path.insert(0, '.')
 
-from app.services.execution.exchange_factory import create_exchange
+from app.trading.exchange.factory import create_exchange
 
 # Test mock mode
 config = {

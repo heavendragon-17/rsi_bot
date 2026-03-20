@@ -8,7 +8,7 @@ from app.core.exceptions import (
     ConnectionError, ExchangeError, InsufficientFundsError, 
     OrderNotFoundError, OrderRejectedError, RateLimitError
 )
-from app.services.execution.dex.hyperliquid_adapter import HyperliquidAdapter, _to_external_symbol
+from app.trading.exchange.hyperliquid_adapter import HyperliquidAdapter, _to_external_symbol
 
 # ==============================================================================
 # Normalization Tests
