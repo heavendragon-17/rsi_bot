@@ -15,7 +15,7 @@ from app.trading.portfolio.manager import PortfolioManager
 from app.core.events import SignalEvent
 from app.core.snapshots import ContextSnapshot
 from app.core.actions import OpenPosition
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
 
 
 def _create_mock_data():

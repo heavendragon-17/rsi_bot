@@ -14,7 +14,7 @@ import numpy as np
 from decimal import Decimal
 
 from app.trading.strategy.rsi_momentum import RsiMomentumStrategy, RsiMomentumConfig
-from app.utils.crossover_indicators import CrossoverIndicators
+from app.data.indicators import CrossoverIndicators
 from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing

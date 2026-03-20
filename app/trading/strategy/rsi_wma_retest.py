@@ -17,8 +17,8 @@ from decimal import Decimal
 from typing import Optional
 
 from app.trading.strategy.base import BaseStrategy
-from app.utils.indicators import Indicators
-from app.utils.resampler import resample_dataframe
+from app.data.indicators import Indicators
+from app.data.resampler import resample_dataframe
 from app.core.events import SignalEvent
 from app.core.context import SCANNING, RETESTING, CONFIRMING
 

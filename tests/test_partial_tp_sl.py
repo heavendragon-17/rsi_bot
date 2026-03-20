@@ -14,7 +14,7 @@ from app.backtest.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import PartialClose, MoveSL
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
 
 class TestPartialTPSL(unittest.TestCase):
     def setUp(self):

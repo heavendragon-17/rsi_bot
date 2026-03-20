@@ -16,7 +16,7 @@ from app.backtest.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import ClosePosition, DoNothing
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
 
 
 class TestSoftSLNoRetest(unittest.TestCase):

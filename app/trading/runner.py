@@ -21,9 +21,9 @@ from typing import Any, Dict, List, Optional, Type
 
 from app.core.interfaces import IExchange, IStrategy
 from app.trading.portfolio.manager import PortfolioManager
-from app.services.market_data.store import MarketDataStore
-from app.services.market_data.stream_manager import BinanceStreamManager
-from app.services.market_data.normalizer import DataNormalizer
+from app.data.store import MarketDataStore
+from app.data.stream_manager import BinanceStreamManager
+from app.data.normalizer import DataNormalizer
 from app.core.snapshots import ContextSnapshot
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing
 from app.core.events import SignalEvent

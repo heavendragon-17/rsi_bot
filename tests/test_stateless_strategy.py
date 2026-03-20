@@ -16,7 +16,7 @@ from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.analysis_result import AnalysisResult
 from app.core.actions import DoNothing
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
 
 
 CONFIG = {

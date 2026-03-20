@@ -27,7 +27,7 @@ import pandas as pd
 import structlog
 
 from app.trading.strategy.base import BaseStrategy
-from app.utils.crossover_indicators import CrossoverIndicators
+from app.data.indicators import CrossoverIndicators
 from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.context import SCANNING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot

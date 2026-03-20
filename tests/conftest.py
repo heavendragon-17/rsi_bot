@@ -16,7 +16,7 @@ def reset_indicators_global_state():
     (e.g. ``Indicators.last = lambda df: last``). Without cleanup this leaks
     into subsequent tests and causes spurious failures.
     """
-    from app.utils.indicators import Indicators
+    from app.data.indicators import Indicators
 
     original_last = Indicators.last
     yield

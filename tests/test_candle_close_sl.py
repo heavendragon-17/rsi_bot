@@ -17,7 +17,7 @@ from decimal import Decimal
 from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import ClosePosition, DoNothing
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
 
 CONFIG = {
     "strategy_params": {
