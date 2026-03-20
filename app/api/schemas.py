@@ -6,9 +6,22 @@ Do NOT add hand-written TypeScript interfaces for these models.
 """
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, model_validator
+
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+
+class BacktestMode(str, Enum):
+    SINGLE = "single"
+    PORTFOLIO = "portfolio"
+    BATCH = "batch"
+    TICK_REPLAY = "tick_replay"
 
 
 # ---------------------------------------------------------------------------
@@ -17,9 +30,10 @@ from pydantic import BaseModel, model_validator
 
 
 class BacktestRequest(BaseModel):
-    """Unified backtest request. Provide exactly one of `symbol` (single) or `symbols` (portfolio)."""
-    symbol: str | None = None           # Single-symbol mode
-    symbols: list[str] | None = None    # Portfolio mode
+    """Unified backtest request with explicit mode selection."""
+    mode: BacktestMode | None = None    # Explicit mode (auto-detected if omitted)
+    symbol: str | None = None           # single, tick_replay
+    symbols: list[str] | None = None    # portfolio, batch
     timeframe: str
     strategy: str
     start_date: str
@@ -31,13 +45,23 @@ class BacktestRequest(BaseModel):
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}
+    max_workers: int | None = None      # batch only
+    tick_data_path: str | None = None   # tick_replay only
 
     @model_validator(mode="after")
-    def _check_symbol_xor_symbols(self) -> "BacktestRequest":
-        has_single = bool(self.symbol)
-        has_multi = bool(self.symbols)
-        if has_single == has_multi:
-            raise ValueError("Provide exactly one of 'symbol' (single) or 'symbols' (portfolio)")
+    def _validate_mode_fields(self) -> "BacktestRequest":
+        if self.mode in (BacktestMode.SINGLE, BacktestMode.TICK_REPLAY):
+            if not self.symbol:
+                raise ValueError(f"mode={self.mode.value} requires 'symbol'")
+        elif self.mode in (BacktestMode.PORTFOLIO, BacktestMode.BATCH):
+            if not self.symbols:
+                raise ValueError(f"mode={self.mode.value} requires 'symbols'")
+        elif self.mode is None:
+            # Backward compat: infer mode from symbol/symbols
+            has_single = bool(self.symbol)
+            has_multi = bool(self.symbols)
+            if has_single == has_multi:
+                raise ValueError("Provide exactly one of 'symbol' (single) or 'symbols' (portfolio)")
         return self
 
 
