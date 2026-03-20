@@ -27,7 +27,7 @@ from app.backtest.download_data import download_data, calculate_candle_limit
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.core.logging import setup_logging
-from app.strategies.loader import STRATEGY_MAP
+from app.trading.strategy.loader import STRATEGY_MAP
 import structlog
 
 logger = structlog.get_logger()

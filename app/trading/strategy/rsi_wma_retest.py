@@ -16,7 +16,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Optional
 
-from app.strategies.base import BaseStrategy
+from app.trading.strategy.base import BaseStrategy
 from app.utils.indicators import Indicators
 from app.utils.resampler import resample_dataframe
 from app.core.events import SignalEvent

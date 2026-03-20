@@ -62,7 +62,7 @@ from app.core.events import SignalEvent
 from app.trading.portfolio.manager import PortfolioManager
 from app.core.snapshots import ContextSnapshot
 from app.sim.exchange import SimExchange
-from app.strategies.loader import STRATEGY_MAP
+from app.trading.strategy.loader import STRATEGY_MAP
 
 # ── constants ────────────────────────────────────────────────────────────────
 from app.core.constants import WARMUP

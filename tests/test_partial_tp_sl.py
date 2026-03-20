@@ -9,7 +9,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.snapshots import ContextSnapshot, PositionSnapshot

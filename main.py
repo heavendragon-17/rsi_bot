@@ -30,7 +30,7 @@ import structlog
 
 from app.services.notification.notification_service import NotificationService
 from app.services.notification.null_notifier import NullNotifier
-from app.strategies.loader import load_strategy
+from app.trading.strategy.loader import load_strategy
 from app.services.execution.exchange_factory import create_exchange
 from app.trading.runner import MultiSymbolRunner
 

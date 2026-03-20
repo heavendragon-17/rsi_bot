@@ -12,7 +12,7 @@ import pandas as pd
 from decimal import Decimal
 from datetime import datetime
 
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.analysis_result import AnalysisResult
 from app.core.actions import DoNothing

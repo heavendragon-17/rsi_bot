@@ -20,7 +20,7 @@ if PROJECT_ROOT not in sys.path:
 from app.backtest.engine import BacktestEngine
 from app.backtest.reporting import BacktestReporter
 from app.backtest.config_builder import build_backtest_config
-from app.strategies.loader import STRATEGY_MAP
+from app.trading.strategy.loader import STRATEGY_MAP
 # Path constants
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 

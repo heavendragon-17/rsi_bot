@@ -29,7 +29,7 @@ from app.api.schemas import (
     TimeseriesResponse,
 )
 from app.backtest.config_builder import build_backtest_config
-from app.strategies.loader import STRATEGY_MAP
+from app.trading.strategy.loader import STRATEGY_MAP
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import (
     Run,

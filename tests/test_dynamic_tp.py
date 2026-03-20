@@ -9,7 +9,7 @@ import pytest
 from datetime import datetime
 from decimal import Decimal
 
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager
 from app.core.events import SignalEvent
