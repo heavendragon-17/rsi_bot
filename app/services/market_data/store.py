@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Optional, Dict
 from app.core.events import Candle
 
-MAX_CANDLES_IN_RAM = 6000  # Increased for backtest support
+from app.core.constants import MAX_CANDLES_IN_RAM
 
 
 class MarketDataStore:
