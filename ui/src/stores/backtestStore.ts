@@ -11,7 +11,7 @@ import {
 import { mapApiToResults, useResultsStore } from "./resultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
-import type { StrategyInfo } from "../types/api-types";
+import type { StrategyInfo } from "../types/generated";
 
 export interface BacktestState {
   // Navigation State

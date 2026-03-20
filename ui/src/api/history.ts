@@ -3,7 +3,7 @@
  */
 
 import { apiFetch } from "./client";
-import type { HistoryResponse } from "../types/api-types";
+import type { HistoryResponse } from "../types/generated";
 
 export interface HistoryFilters {
   page?: number;

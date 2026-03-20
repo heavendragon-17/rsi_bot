@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { RunDetail, TimeseriesResponse } from "../types/api-types";
+import type { RunDetail, TimeseriesResponse } from "../types/generated";
 
 export interface Trade {
   id: number;
