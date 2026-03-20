@@ -2,7 +2,7 @@
 
 > Add a new metric, optimization mode, or quant analysis feature to the backtest system.
 > Reference implementations:
->   - Engine: `app/core/engine.py`, `app/backtest/backtest_event_source.py`
+>   - Engine: `app/trading/engine.py`, `app/backtest/event_source.py`
 >   - API (SSE pattern): `app/api/routes/backtest.py`, `app/api/executor.py`
 >   - Optimization spec: `docs/optimization.md`
 >   - UI stores: `ui/src/stores/backtestStore.ts`
@@ -118,7 +118,7 @@ Follow existing store patterns. The store needs:
 
 ### C1. Extend or subclass the Engine
 
-File: `app/core/engine.py` (base) or create a new subclass
+File: `app/trading/engine.py` (base) or create a new subclass
 
 The base `Engine` processes events from an `IEventSource` and dispatches to handlers. You can:
 - **Subclass `Engine`**: Override `_handle_candle_close()` or add new event handlers
@@ -128,7 +128,7 @@ The base `Engine` processes events from an `IEventSource` and dispatches to hand
 
 File: `app/backtest/{name}_event_source.py`
 
-Implement `IEventSource` from `app/core/event_source.py`. Model on `app/backtest/backtest_event_source.py`.
+Implement `IEventSource` from `app/trading/event_source.py`. Model on `app/backtest/event_source.py`.
 
 The `IEventSource` interface requires:
 - `events()` → `Iterator[EngineEvent]`: yields events in chronological order
@@ -163,7 +163,7 @@ Follow the same API pattern as Branch B (SSE route + executor). The API routes c
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/core/engine.py` or `app/backtest/` modified → update **`docs/backtest-engine.md`**
+- `app/trading/engine.py` or `app/backtest/` modified → update **`docs/backtest-engine.md`**
 - New optimization mode → update **`docs/optimization.md`** with the new mode's specification
 - `app/api/` modified → update **`docs/api-reference.md`** with the new endpoints
 - `app/repository/` modified → run **`python scripts/gen_db_docs.py`**

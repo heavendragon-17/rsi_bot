@@ -1,7 +1,7 @@
 # Add a CEX Exchange (CCXT)
 
 > Add a new centralized exchange supported by the CCXT library (e.g., OKX, Bybit, KuCoin).
-> Reference implementation: `app/services/execution/cex/binance_adapter.py`
+> Reference implementation: `app/trading/exchange/binance_adapter.py`
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ Check [CCXT docs](https://docs.ccxt.com/) for the exchange's futures class name 
 
 ### 2. Register in EXCHANGE_CONFIG
 
-File: `app/services/execution/exchange_factory.py`
+File: `app/trading/exchange/factory.py`
 
 Add an entry to the `EXCHANGE_CONFIG` dict (line ~33):
 
@@ -33,9 +33,9 @@ The key must match what the user sets in `config.yaml` under `exchange.name`.
 
 ### 3. Create an adapter class
 
-File: `app/services/execution/cex/{name}_adapter.py`
+File: `app/trading/exchange/{name}_adapter.py`
 
-Model on `app/services/execution/cex/binance_adapter.py`. The adapter must:
+Model on `app/trading/exchange/binance_adapter.py`. The adapter must:
 
 - **Implement `IExchange`** from `app/core/interfaces.py` — all 9 abstract methods:
   - `fetch_ohlcv`, `create_order`, `fetch_order`, `cancel_order`
@@ -55,7 +55,7 @@ Model on `app/services/execution/cex/binance_adapter.py`. The adapter must:
 
 ### 4. Update factory routing
 
-File: `app/services/execution/exchange_factory.py`
+File: `app/trading/exchange/factory.py`
 
 Currently line ~126 always creates `BinanceAdapter` for any CCXT exchange. To support multiple CEX adapters, update the `if exchange_name in EXCHANGE_CONFIG:` block to route to the correct adapter class. Options:
 
@@ -87,13 +87,13 @@ bot:
 3. Test that `reduceOnly=True` is passed through for exit orders
 4. Test that CCXT exceptions are caught and re-raised as `ExchangeError`
 5. Test thread safety: concurrent `create_order` calls don't crash
-6. Verify factory routing: `python -c "from app.services.execution.exchange_factory import create_exchange; print(create_exchange({'bot': {'mode': 'mock'}, 'exchange': {'name': 'okx'}}))"` — should fail gracefully in mock mode (mock doesn't use adapters)
+6. Verify factory routing: `python -c "from app.trading.exchange.factory import create_exchange; print(create_exchange({'bot': {'mode': 'mock'}, 'exchange': {'name': 'okx'}}))"` — should fail gracefully in mock mode (mock doesn't use adapters)
 7. Run `pytest tests/ -v` — all existing tests must still pass
 
 ## Documentation Impact
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/services/execution/cex/` modified → update **`docs/live-bot.md`**: add a row to the Exchange Adapters table for the new adapter, document any exchange-specific quirks
-- `app/services/execution/exchange_factory.py` modified → update **`docs/live-bot.md`**: note the new `EXCHANGE_CONFIG` entry
+- `app/trading/exchange/` modified → update **`docs/live-bot.md`**: add a row to the Exchange Adapters table for the new adapter, document any exchange-specific quirks
+- `app/trading/exchange/factory.py` modified → update **`docs/live-bot.md`**: note the new `EXCHANGE_CONFIG` entry
 - If `app/core/interfaces.py` was modified → also update **`docs/architecture.md`**

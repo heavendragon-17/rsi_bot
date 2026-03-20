@@ -268,7 +268,7 @@ The factory reads `config["bot"]["mode"]` and instantiates the appropriate adapt
 
 ## Exchange Factory Pattern
 
-**File**: `app/services/execution/exchange_factory.py`
+**File**: `app/trading/exchange/factory.py`
 
 The factory function `create_exchange(config) -> IExchange` selects the adapter based on mode and exchange name.
 
@@ -287,16 +287,16 @@ The factory function `create_exchange(config) -> IExchange` selects the adapter 
 
 To add a new DEX exchange (e.g., Hyperliquid, Lighter):
 
-1. Create `app/services/execution/dex/{name}_adapter.py`
+1. Create `app/trading/exchange/{name}_adapter.py`
 2. Define class `{Name}Adapter` (first letter capitalized)
-3. The factory calls `importlib.import_module(f"app.services.execution.dex.{name}_adapter")` and instantiates `{Name}Adapter(config)`
+3. The factory calls `importlib.import_module(f"app.trading.exchange.{name}_adapter")` and instantiates `{Name}Adapter(config)`
 
 No code changes to the factory are required. The naming convention is:
 
 | Exchange Name (in config) | Module Path | Class Name |
 |---------------------------|-------------|------------|
-| `lighter` | `app.services.execution.dex.lighter_adapter` | `LighterAdapter` |
-| `hyperliquid` | `app.services.execution.dex.hyperliquid_adapter` | `HyperliquidAdapter` |
+| `lighter` | `app.trading.exchange.lighter_adapter` | `LighterAdapter` |
+| `hyperliquid` | `app.trading.exchange.hyperliquid_adapter` | `HyperliquidAdapter` |
 
 ### CCXT Exchange Mapping
 
@@ -627,10 +627,10 @@ paper_sim:
 | `app/core/analysis_result.py` | AnalysisResult (returned by analyze()) |
 | `app/core/exceptions.py` | Custom exception hierarchy |
 | `app/core/logging.py` | structlog setup and context binding |
-| `app/core/runner.py` | MultiSymbolRunner (threading orchestration) |
-| `app/services/execution/exchange_factory.py` | Exchange factory with auto-discovery |
-| `app/services/execution/cex/binance_adapter.py` | BinanceAdapter (CCXT wrapper) |
-| `app/services/market_data/store.py` | MarketDataStore (thread-safe candle storage) |
-| `app/services/market_data/stream_manager.py` | BinanceStreamManager (WebSocket daemon) |
+| `app/trading/runner.py` | MultiSymbolRunner (threading orchestration) |
+| `app/trading/exchange/factory.py` | Exchange factory with auto-discovery |
+| `app/trading/exchange/binance_adapter.py` | BinanceAdapter (CCXT wrapper) |
+| `app/data/store.py` | MarketDataStore (thread-safe candle storage) |
+| `app/data/stream_manager.py` | BinanceStreamManager (WebSocket daemon) |
 | `main.py` | Live bot entry point |
 | `app/api/main.py` | FastAPI entry point for backtest UI |

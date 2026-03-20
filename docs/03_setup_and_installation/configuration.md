@@ -233,7 +233,7 @@ Environment variables are loaded from `.env` in the project root via `python-dot
 
 ### Credential Loading Behavior
 
-Credentials are loaded by `BinanceAdapter` at construction time (`app/services/execution/cex/binance_adapter.py`):
+Credentials are loaded by `BinanceAdapter` at construction time (`app/trading/exchange/binance_adapter.py`):
 
 - **Paper mode:** Reads `BINANCE_TESTNET_API_KEY` and `BINANCE_TESTNET_SECRET_KEY`. Raises `RuntimeError` if either is missing.
 - **Live mode:** Reads `BINANCE_API_KEY` and `BINANCE_SECRET_KEY`. Raises `RuntimeError` if either is missing.

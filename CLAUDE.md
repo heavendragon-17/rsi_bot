@@ -77,8 +77,8 @@ Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`
 
 ### Key Utilities
 
-- `SLTPCalculator` (`app/core/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
-- `CrossoverIndicators` (`app/utils/crossover_indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies
+- `SLTPCalculator` (`app/trading/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
+- `CrossoverIndicators` (`app/data/indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies (consolidated indicators module)
 - `opposite_side()` (`app/core/actions.py`) — BUY↔SELL, used for exit orders
 - Position amounts are **signed**: positive=LONG, negative=SHORT
 

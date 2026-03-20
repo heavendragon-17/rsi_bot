@@ -28,7 +28,7 @@ No other code changes are needed. The factory pattern handles adapter selection 
 
 ## Factory Pattern
 
-**File:** `app/services/execution/exchange_factory.py`
+**File:** `app/trading/exchange/factory.py`
 
 **Entry point:** `create_exchange(config: Dict) -> IExchange`
 
@@ -70,22 +70,22 @@ Both `binanceusdm` and `binance` resolve to the same CCXT class (`binanceusdm`) 
 For exchanges not in the CCXT registry (e.g., Lighter, Hyperliquid), the factory uses dynamic module loading via `importlib`.
 
 **Convention:**
-- Module path: `app/services/execution/dex/{name}_adapter.py`
+- Module path: `app/trading/exchange/{name}_adapter.py`
 - Class name: `{Name}Adapter` (first letter capitalized)
 
 **Examples:**
-- `lighter` resolves to `app.services.execution.dex.lighter_adapter.LighterAdapter`
-- `hyperliquid` resolves to `app.services.execution.dex.hyperliquid_adapter.HyperliquidAdapter`
+- `lighter` resolves to `app.trading.exchange.lighter_adapter.LighterAdapter`
+- `hyperliquid` resolves to `app.trading.exchange.hyperliquid_adapter.HyperliquidAdapter`
 
 **To add a new DEX:**
 
-1. Create `app/services/execution/dex/{name}_adapter.py`.
+1. Create `app/trading/exchange/{name}_adapter.py`.
 2. Define class `{Name}Adapter` implementing `IExchange`.
 3. Set `exchange.name: '{name}'` in `config.yaml`.
 4. No changes to `exchange_factory.py` are needed.
 
 The factory calls `_load_custom_adapter(exchange_name, config)` which will:
-- `importlib.import_module(f"app.services.execution.dex.{exchange_name}_adapter")`
+- `importlib.import_module(f"app.trading.exchange.{exchange_name}_adapter")`
 - `getattr(module, f"{exchange_name.capitalize()}Adapter")`
 - Instantiate with `adapter_class(config)`
 
@@ -135,7 +135,7 @@ MockExchange(
 
 ## PaperExchange (sim mode)
 
-**File:** `app/paper/exchange.py`
+**File:** `app/trading/exchange/sim/paper_exchange.py`
 
 **Purpose:** Local order simulation against live Binance aggTrade WebSocket data. Behaves identically to BinanceAdapter from PortfolioManager's perspective.
 
@@ -145,7 +145,7 @@ MockExchange(
 - **Tick-by-tick SL/TP checking:** Unlike MockExchange which checks on candle close, PaperExchange evaluates pending orders on every tick for higher fidelity.
 - **Entry fill on kline open:** Market entry orders get `status=pending_open` and fill at the next kline open price via `on_kline_open()`.
 - **Realistic fees:** Applies `TAKER_FEE = 0.05%` and `MAKER_FEE = 0.02%`.
-- **State management:** Uses `PaperTradeState` (defined in `app/paper/state.py`) with typed dataclasses (`PaperOrder`, `PaperPosition`, `ClosedTrade`).
+- **State management:** Uses `PaperTradeState` (defined in `app/trading/exchange/sim/state.py`) with typed dataclasses (`PaperOrder`, `PaperPosition`, `ClosedTrade`).
 - **Notifications:** Initializes `PaperTelegramNotifier` and a `NotificationWorker` for real-time trade alerts. Can be silenced via `silence_notifications()` for replay mode.
 - **Thread-safe:** Protected via `PaperTradeState.lock`.
 
@@ -187,7 +187,7 @@ Reads `paper_sim.initial_balance` from config. Telegram override credentials (`P
 
 ## BinanceAdapter (paper and live modes)
 
-**File:** `app/services/execution/cex/binance_adapter.py`
+**File:** `app/trading/exchange/binance_adapter.py`
 
 **Purpose:** Production exchange adapter wrapping CCXT `binanceusdm`. Used for both paper (testnet) and live (mainnet) trading.
 

@@ -21,7 +21,7 @@ Higher levels override lower levels. The merge produces the final config passed 
 ## Level 1: Dataclass Defaults
 
 ```python
-# app/strategies/rsi_no_retest.py
+# app/trading/strategy/rsi_no_retest.py
 @dataclass(frozen=True)
 class RsiNoRetestConfig:
     rsi_period: int = 21
