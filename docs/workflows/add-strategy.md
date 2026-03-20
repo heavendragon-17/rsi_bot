@@ -1,7 +1,7 @@
 # Add a Trading Strategy
 
 > Add a new `IStrategy` implementation following the stateless analyze pattern.
-> Reference implementations: `app/strategies/rsi_no_retest.py` (LONG), `app/strategies/rsi_momentum.py` (SHORT)
+> Reference implementations: `app/trading/strategy/rsi_no_retest.py` (LONG), `app/trading/strategy/rsi_momentum.py` (SHORT)
 
 ## Prerequisites
 
@@ -15,9 +15,9 @@
 
 ### 1. Create the strategy file
 
-File: `app/strategies/{your_strategy_name}.py`
+File: `app/trading/strategy/{your_strategy_name}.py`
 
-Model on `app/strategies/rsi_no_retest.py`. Required structure:
+Model on `app/trading/strategy/rsi_no_retest.py`. Required structure:
 
 **Config dataclass**: A frozen `@dataclass` with typed fields and a `from_dict()` classmethod that filters unknown keys. This allows the backtest UI to pass arbitrary JSON params without crashing:
 
@@ -33,7 +33,7 @@ class YourStrategyConfig:
         return cls(**{k: v for k, v in d.items() if k in valid})
 ```
 
-**Strategy class**: Inherits from `BaseStrategy` (`app/strategies/base.py`).
+**Strategy class**: Inherits from `BaseStrategy` (`app/trading/strategy/base.py`).
 
 **`__init__(self, config: dict)`**: Extract `strategy_params` sub-dict. Instantiate `Indicators` with your indicator settings. Set parameter attributes.
 
@@ -59,9 +59,11 @@ tp_allocations = {"TP1": 0.5, "TP2": 0.5, "TP3": 1.0}
 # Keys: "TP1"/"TP2"/"TP3". Values: fraction of remaining position to close.
 ```
 
-### 2. Register in the live bot strategy loader
+**Shared utilities**: If your strategy needs logic that already exists in another strategy, check `app/trading/strategy/utils/` first. Common helpers for config merging, signal detection, SL/TP building, and trade state serialization live there. Add new shared logic to `utils/` rather than duplicating across strategies.
 
-File: `app/strategies/loader.py`
+### 2. Register in the strategy loader
+
+File: `app/trading/strategy/loader.py`
 
 Add import and entry to `STRATEGY_MAP`:
 ```python
@@ -74,56 +76,28 @@ STRATEGY_MAP = {
 }
 ```
 
-### 3. Register in the backtest API route
+This is the **single registration point**. The backtest service (`app/backtest/service.py`) and database seed (`app/repository/backtest/seed.py`) both import `STRATEGY_MAP` from this loader, so your strategy will automatically be available in:
+- The live bot (via `loader.py`)
+- The backtest API (via `app/backtest/service.py`)
+- The backtest UI dropdown (via `app/repository/backtest/seed.py`)
 
-File: `app/api/routes/backtest.py`
-
-In the `_load_strategies()` function (line ~54):
-```python
-def _load_strategies():
-    global STRATEGY_MAP
-    if not STRATEGY_MAP:
-        from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-        from app.strategies.rsi_wma_retest import RsiWmaRetestStrategy
-        from app.strategies.your_strategy import YourStrategy    # add
-
-        STRATEGY_MAP = {
-            "rsi_no_retest": RsiNoRetestStrategy,
-            "rsi_wma_retest": RsiWmaRetestStrategy,
-            "your_strategy": YourStrategy,                       # add
-        }
-    return STRATEGY_MAP
-```
-
-**Why two maps?** The live bot loader (`loader.py`) and the backtest API (`backtest.py`) load strategies independently. Both must know about the strategy, or it will be available in one mode but not the other.
-
-### 4. Seed the database
+### 3. Seed the database
 
 File: `app/repository/backtest/seed.py`
 
-Add a default config dict and seed call. This is required for the strategy to appear in the backtest UI dropdown (`GET /api/strategies`):
+The seed function iterates over `STRATEGY_MAP` and auto-creates DB records. If your strategy class has a `DEFAULT_CONFIG` class attribute, it will be used as the default config in the UI:
 
 ```python
-YOUR_STRATEGY_CONFIG = {
-    "param_a": 21,
-    "param_b": 0.5,
-    # all strategy_params keys with their defaults
-}
-
-def seed_strategies(session) -> None:
-    # ... existing seeds ...
-    if session.query(Strategy).filter_by(name="your_strategy").first() is None:
-        session.add(Strategy(
-            name="your_strategy",
-            description="Brief description of your strategy",
-            default_config=YOUR_STRATEGY_CONFIG,
-        ))
-        session.commit()
+class YourStrategy(BaseStrategy):
+    DEFAULT_CONFIG = {
+        "param_a": 21,
+        "param_b": 0.5,
+    }
 ```
 
 The seed runs on every server startup (`app/api/main.py` → `lifespan` → `seed_strategies`). It is idempotent — the `filter_by(name=...).first() is None` check prevents duplicates.
 
-### 5. Update `config.yaml` (for live bot)
+### 4. Update `config.yaml` (for live bot)
 
 ```yaml
 strategy: your_strategy   # must match key in STRATEGY_MAP
@@ -139,11 +113,11 @@ If your strategy opens SHORT positions (selling to enter, buying to exit):
 1. **Entry side**: Use `side="SELL"` in `OpenPosition`. The engine maps this to `signal_type="SELL"` in `SignalEvent`.
 2. **SL placement**: SL goes **above** entry for SHORT (price going up = loss). Use `stop_market BUY` with `reduceOnly=True`.
 3. **TP placement**: TP goes **below** entry for SHORT (price going down = profit). Use `limit BUY` with `reduceOnly=True`.
-4. **SLTPCalculator**: Use `app/core/sl_tp_calculator.py` for direction-aware SL/TP/sizing. All methods accept a `side` parameter.
-5. **CrossoverIndicators**: If you need RSI crossover indicators instead of the standard `Indicators`, use `app/utils/crossover_indicators.py`.
+4. **SLTPCalculator**: Use `app/trading/sl_tp_calculator.py` for direction-aware SL/TP/sizing. All methods accept a `side` parameter.
+5. **CrossoverIndicators**: If you need RSI crossover indicators instead of the standard `Indicators`, use `app/data/indicators.py` (consolidated module with both `Indicators` and `CrossoverIndicators`).
 6. **Position amounts**: PortfolioManager stores SHORT positions with **negative** amounts. PnL formula `amount × (exit - entry)` handles both directions.
 
-See `app/strategies/rsi_momentum.py` and its test files for a complete SHORT strategy example.
+See `app/trading/strategy/rsi_momentum.py` and its test files for a complete SHORT strategy example.
 
 ## Testing
 
@@ -158,13 +132,10 @@ Write `tests/test_{your_strategy_name}.py` modeled on `tests/test_stateless_stra
 6. With `position.has_position=True` → position management runs
 7. `new_context` is always a frozen `ContextSnapshot`
 
-**Verify the 3 registration points:**
+**Verify registration:**
 ```bash
-# Live bot loader
-python -c "from app.strategies.loader import STRATEGY_MAP; assert 'your_strategy' in STRATEGY_MAP"
-
-# Backtest API route
-python -c "from app.api.routes.backtest import _load_strategies; assert 'your_strategy' in _load_strategies()"
+# Strategy loader (single registration point)
+python -c "from app.trading.strategy.loader import STRATEGY_MAP; assert 'your_strategy' in STRATEGY_MAP"
 
 # DB seed (start the server, then check)
 python -m uvicorn app.api.main:app --port 8000 &
@@ -178,6 +149,6 @@ Run `pytest tests/ -v` — all existing tests must pass.
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/strategies/` modified → update **`docs/strategy-reference.md`**: add a new section for the strategy with its parameter table, entry logic, SL/TP logic, and context state machine description
+- `app/trading/strategy/` modified → update **`docs/strategy-reference.md`**: add a new section for the strategy with its parameter table, entry logic, SL/TP logic, and context state machine description
 - `app/repository/backtest/seed.py` modified → run **`python scripts/gen_db_docs.py`** to regenerate `docs/database.md`
 - If `app/core/interfaces.py` or `app/core/actions.py` modified → also update **`docs/architecture.md`**

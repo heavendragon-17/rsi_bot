@@ -4,7 +4,7 @@
 
 ---
 
-## BinanceAdapter (`app/services/execution/cex/binance_adapter.py`)
+## BinanceAdapter (`app/trading/exchange/binance_adapter.py`)
 
 CCXT wrapper implementing `IExchange`. Used for `paper` and `live` modes.
 
@@ -53,7 +53,7 @@ CCXT exceptions are caught and re-raised as custom types:
 
 ---
 
-## MockExchange (`app/services/execution/mock_exchange.py`)
+## MockExchange (`app/backtest/mock_exchange.py`)
 
 In-memory order simulation for backtesting. Implements `IExchange`.
 
@@ -82,7 +82,7 @@ Each candle, MockExchange checks all pending orders against OHLC:
 
 ---
 
-## PaperExchange (`app/paper/exchange.py`)
+## PaperExchange (`app/trading/exchange/sim/sim_exchange.py`)
 
 Tick-by-tick order simulation against live aggTrade data. Implements `IExchange`.
 
@@ -104,7 +104,7 @@ Used in `sim` mode for realistic simulation against live market data without ris
 Custom DEX adapters are auto-discovered by the exchange factory via `importlib`:
 
 ```
-app/services/execution/dex/{name}_adapter.py → class {Name}Adapter
+app/trading/exchange/{name}_adapter.py → class {Name}Adapter
 ```
 
 **Convention**: `lighter` → `lighter_adapter.py` → `LighterAdapter`
@@ -115,17 +115,17 @@ No factory modification needed. The adapter just needs to:
 2. Implement `IExchange`
 3. Accept `config` in constructor
 
-### LighterAdapter (`app/services/execution/dex/lighter_adapter.py`)
+### LighterAdapter (`app/trading/exchange/lighter_adapter.py`)
 
 Lighter DEX adapter using the Lighter SDK. Credentials via `LIGHTER_*` env vars. Supports testnet and mainnet via `LIGHTER_BASE_URL` or automatic URL selection based on `config.bot.mode`.
 
-### HyperliquidAdapter (`app/services/execution/dex/hyperliquid_adapter.py`)
+### HyperliquidAdapter (`app/trading/exchange/hyperliquid_adapter.py`)
 
 Hyperliquid DEX adapter built via CCXT. Treats Hyperliquid as a DEX module. Credentials via `HYPERLIQUID_WALLET_ADDRESS` and `HYPERLIQUID_PRIVATE_KEY` env vars. Explicitly rejects `trailing_stop` orders as they are unsupported natively by CCXT for this exchange.
 
 ---
 
-## Factory (`app/services/execution/exchange_factory.py`)
+## Factory (`app/trading/exchange/factory.py`)
 
 `create_exchange(config) → IExchange`
 

@@ -118,7 +118,7 @@ The `meta` dict in `ContextSnapshot` carries strategy-specific data (entry price
 
 ## Reusable Utilities
 
-### SLTPCalculator (`app/core/sl_tp_calculator.py`)
+### SLTPCalculator (`app/trading/sl_tp_calculator.py`)
 
 Static utility for direction-aware SL/TP/sizing calculations. All methods accept a `side` parameter (`"BUY"` or `"SELL"`):
 
@@ -128,7 +128,7 @@ Static utility for direction-aware SL/TP/sizing calculations. All methods accept
 - `compute_lock_profit_price(entry_price, soft_sl_price, side, lock_profit_rr, taker_fee)` — Lock-profit SL level
 - `compute_position_size(...)` — Risk-based sizing (direction-agnostic)
 
-### CrossoverIndicators (`app/utils/crossover_indicators.py`)
+### CrossoverIndicators (`app/data/indicators.py`)
 
 Alternative `IIndicators` implementation for crossover-based strategies. Adds `rsi_14`, `rsi_ema9`, `rsi_wma45` columns:
 

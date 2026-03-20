@@ -35,10 +35,10 @@
 | [00_onboarding/](00_onboarding/) | Agent bootstrap: reading order, conventions, do/don't rules, context budget guidance | **First time in this repo** — read once, then skip |
 | [02_architecture/](02_architecture/) | System overview, 3-layer architecture, data types, threading model | Starting any task — provides context for the whole system |
 | [03_setup_and_installation/](03_setup_and_installation/) | Environment setup, config.yaml schema, .env vars, exchange modes | Setting up or modifying configuration |
-| [05_data_pipeline/](05_data_pipeline/) | WebSocket streaming, CSV downloads, DataFrame schemas, data normalization | Working on data ingestion (`app/services/market_data/`) |
+| [05_data_pipeline/](05_data_pipeline/) | WebSocket streaming, CSV downloads, DataFrame schemas, data normalization | Working on data ingestion (`app/data/`) |
 | [06_quant_research/](06_quant_research/) | Research workflow, recommended stack, signal evaluation, notebook conventions | Researching new trading signals or strategies |
-| [07_trading_strategies/](07_trading_strategies/) | Stateless analyze() pattern, strategy params, entry/exit rules, SL/TP logic | Working on strategies (`app/strategies/`) |
-| [08_execution_and_oms/](08_execution_and_oms/) | Order lifecycle, PortfolioManager flow, exchange adapters | Working on execution (`app/services/execution/`, `app/core/portfolio/`) |
+| [07_trading_strategies/](07_trading_strategies/) | Stateless analyze() pattern, strategy params, entry/exit rules, SL/TP logic | Working on strategies (`app/trading/strategy/`) |
+| [08_execution_and_oms/](08_execution_and_oms/) | Order lifecycle, PortfolioManager flow, exchange adapters | Working on execution (`app/trading/exchange/`, `app/trading/portfolio/`) |
 | [09_portfolio_and_reconciliation/](09_portfolio_and_reconciliation/) | Position tracking, PnL calculation, capital allocation, known gaps | Working on position/portfolio logic |
 | [10_frontend_dashboard/](10_frontend_dashboard/) | React UI architecture, Zustand stores, charts, themes | Working on the frontend (`ui/src/`) |
 | [11_testing_and_backtesting/](11_testing_and_backtesting/) | Testing strategy, backtest engine, optimization (grid/walk-forward/sensitivity) | Working on tests or backtest (`tests/`, `app/backtest/`) |
@@ -98,13 +98,13 @@ Skip doc updates only for trivial changes (typo fixes, log message tweaks, comme
 |---|---|
 | `app/core/interfaces.py` | `02_architecture/` |
 | `app/core/config.py` | `03_setup_and_installation/configuration.md` |
-| `app/services/market_data/` | `05_data_pipeline/` |
-| `app/strategies/` | `07_trading_strategies/` |
-| `app/services/execution/` | `08_execution_and_oms/` |
-| `app/core/portfolio/` | `08_execution_and_oms/` + `09_portfolio_and_reconciliation/` |
+| `app/data/` | `05_data_pipeline/` |
+| `app/trading/strategy/` | `07_trading_strategies/` |
+| `app/trading/exchange/` | `08_execution_and_oms/` |
+| `app/trading/portfolio/` | `08_execution_and_oms/` + `09_portfolio_and_reconciliation/` |
 | `app/backtest/` | `11_testing_and_backtesting/` |
 | `app/api/` | `14_api_reference/` |
-| `app/services/notification/` | [`08_execution_and_oms/notifications.md`](08_execution_and_oms/notifications.md) |
+| `app/notification/` | [`08_execution_and_oms/notifications.md`](08_execution_and_oms/notifications.md) |
 | `app/repository/` | `14_api_reference/` (run `python scripts/gen_db_docs.py`) |
 | `ui/src/` | `10_frontend_dashboard/` |
 | `config.yaml` schema changes | `03_setup_and_installation/configuration.md` |

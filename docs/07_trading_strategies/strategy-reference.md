@@ -8,11 +8,11 @@
 
 | Name | Module | Status | Description |
 |------|--------|--------|-------------|
-| `rsi_no_retest` | `app/strategies/rsi_no_retest.py` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
-| `rsi_wma_retest` | `app/strategies/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
-| `rsi_momentum` | `app/strategies/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
+| `rsi_no_retest` | `app/trading/strategy/rsi_no_retest.py` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
+| `rsi_wma_retest` | `app/trading/strategy/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
+| `rsi_momentum` | `app/trading/strategy/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
 
-Loaded dynamically by `app/strategies/loader.py` via `STRATEGY_MAP`.
+Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`.
 
 ---
 
@@ -97,7 +97,7 @@ In priority order (checked each candle):
 
 SHORT-only strategy using RSI momentum crossover with bearish divergence confirmation. Uses `CrossoverIndicators` (RSI14 + EMA9-of-RSI + WMA45-of-RSI) and the reusable `SLTPCalculator` utility.
 
-**Files**: `app/strategies/rsi_momentum.py`, `app/utils/crossover_indicators.py`, `app/core/sl_tp_calculator.py`
+**Files**: `app/trading/strategy/rsi_momentum.py`, `app/data/indicators.py`, `app/trading/sl_tp_calculator.py`
 
 ### Indicator Settings
 
@@ -196,7 +196,7 @@ strategy_params:
 ```
 
 **Option B — Strategy DEFAULT_CONFIG (permanent)**:
-Edit `app/strategies/rsi_no_retest.py` → `RsiNoRetestConfig` dataclass defaults.
+Edit `app/trading/strategy/rsi_no_retest.py` → `RsiNoRetestConfig` dataclass defaults.
 
 **Option C — Backtest UI sidebar (per-run)**:
 Override parameters in the UI for individual backtest runs.

@@ -8,7 +8,7 @@
 
 - Read `docs/08_execution_and_oms/notifications.md` — full architecture, event table, and message format examples
 - Read `app/core/interfaces.py` — `INotifier` abstract class (lines ~196–266) for the exact method signatures
-- Read `app/services/notification/telegram_notifier.py` — reference implementation with error handling patterns
+- Read `app/notification/telegram_notifier.py` — reference implementation with error handling patterns
 
 ## Steps
 
@@ -67,9 +67,9 @@ class MyNotifier(INotifier):
 
 ### 2. Create the notifier file
 
-File: `app/services/notification/{name}_notifier.py`
+File: `app/notification/{name}_notifier.py`
 
-Model on `app/services/notification/telegram_notifier.py`. Key patterns:
+Model on `app/notification/telegram_notifier.py`. Key patterns:
 
 - Subclass `INotifier` (enforces the contract at class definition time)
 - Read credentials from environment variables in `__init__` (`os.getenv`)
@@ -86,8 +86,8 @@ The bot creates a `NotificationService` wrapping either `TelegramNotifier` or `N
 
 ```python
 from app.services.notification.notification_service import NotificationService
-from app.services.notification.telegram_notifier import TelegramNotifier
-from app.services.notification.null_notifier import NullNotifier
+from app.notification.telegram_notifier import TelegramNotifier
+from app.notification.null_notifier import NullNotifier
 
 try:
     notifier = TelegramNotifier(mode=config.bot.mode)
@@ -137,4 +137,4 @@ Document all required env vars in the module docstring of your notifier file.
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/services/notification/` modified → update **`docs/08_execution_and_oms/notifications.md`**: add the new channel to the Key Files table and update the Configuration section with its env vars and fallback behavior
+- `app/notification/` modified → update **`docs/08_execution_and_oms/notifications.md`**: add the new channel to the Key Files table and update the Configuration section with its env vars and fallback behavior

@@ -99,7 +99,7 @@ All non-main threads are **daemon threads** (`daemon=True`). If the main thread 
 
 ## BinanceStreamManager (WebSocket Daemon)
 
-**File**: `app/services/market_data/stream_manager.py`
+**File**: `app/data/stream_manager.py`
 
 A single daemon thread that maintains a persistent WebSocket connection to Binance Futures.
 
@@ -167,7 +167,7 @@ The `on_tick` and `on_kline_close` callbacks are optional hooks set by `LiveEven
 
 ## MarketDataStore (Thread-Safe Storage)
 
-**File**: `app/services/market_data/store.py`
+**File**: `app/data/store.py`
 
 Thread-safe in-memory storage for candle data. Uses a **two-level locking scheme**: a global lock for creating new per-symbol locks, and per-symbol locks for all data access.
 
@@ -233,7 +233,7 @@ def update_candle(self, candle: Candle) -> None:
 
 ## Per-Symbol Threads
 
-**File**: `app/core/runner.py` -- `MultiSymbolRunner._run_symbol_loop()`
+**File**: `app/trading/runner.py` -- `MultiSymbolRunner._run_symbol_loop()`
 
 Each symbol runs in its own daemon thread named `"Symbol-{symbol}"` (e.g., `"Symbol-BTC/USDT"`).
 
@@ -314,7 +314,7 @@ This means a transient exchange error (network timeout, rate limit) does not kil
 
 ## BinanceAdapter (Exchange Lock)
 
-**File**: `app/services/execution/cex/binance_adapter.py`
+**File**: `app/trading/exchange/binance_adapter.py`
 
 The adapter uses a single `threading.Lock` to serialize all CCXT API calls. This is necessary because the underlying CCXT library is not thread-safe.
 
@@ -542,7 +542,7 @@ When `mode == "sim"`, the runner spawns two additional daemon threads beyond the
 
 ### PaperTradeStreamManager
 
-**File**: `app/paper/stream_manager.py`
+**File**: `app/trading/exchange/sim/sim_stream.py`
 
 Streams real-time aggTrade data from Binance mainnet to feed `PaperExchange` for order matching at realistic prices.
 
@@ -640,10 +640,10 @@ If you need to add a new resource that multiple threads access:
 
 | File | Threading Role |
 |------|---------------|
-| `app/core/runner.py` | `MultiSymbolRunner` -- spawns and manages all live bot threads |
-| `app/services/market_data/stream_manager.py` | `BinanceStreamManager` -- WebSocket daemon thread |
-| `app/services/market_data/store.py` | `MarketDataStore` -- thread-safe candle storage |
-| `app/services/execution/cex/binance_adapter.py` | `BinanceAdapter` -- single lock for all CCXT calls |
+| `app/trading/runner.py` | `MultiSymbolRunner` -- spawns and manages all live bot threads |
+| `app/data/stream_manager.py` | `BinanceStreamManager` -- WebSocket daemon thread |
+| `app/data/store.py` | `MarketDataStore` -- thread-safe candle storage |
+| `app/trading/exchange/binance_adapter.py` | `BinanceAdapter` -- single lock for all CCXT calls |
 | `app/api/executor.py` | `ThreadPoolExecutor` + SSE bridge for backtest concurrency |
-| `app/paper/stream_manager.py` | `PaperTradeStreamManager` -- aggTrade WebSocket for sim mode |
+| `app/trading/exchange/sim/sim_stream.py` | `PaperTradeStreamManager` -- aggTrade WebSocket for sim mode |
 | `main.py` | Entry point; main thread lifecycle |
