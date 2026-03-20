@@ -19,7 +19,7 @@ Config lives in the RsiMomentumConfig dataclass in this file (NOT config.yaml).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields as dc_fields
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
@@ -27,7 +27,10 @@ import pandas as pd
 import structlog
 
 from app.trading.strategy.base import BaseStrategy
-from app.data.indicators import CrossoverIndicators
+from app.trading.strategy.utils.config_helpers import merge_config
+from app.trading.strategy.utils.trade_state import TradeState
+from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
+from app.data.indicators import Indicators
 from app.trading.sl_tp_calculator import SLTPCalculator
 from app.core.context import SCANNING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
@@ -81,65 +84,7 @@ class RsiMomentumConfig:
     use_active_trades: bool = True
     candle_close_slippage_pct: float = 0.0
 
-    @classmethod
-    def from_dict(cls, params: dict) -> "RsiMomentumConfig":
-        valid = {f.name for f in dc_fields(cls)}
-        return cls(**{k: v for k, v in params.items() if k in valid})
-
-
-@dataclass
-class TradeState:
-    """Typed trade state stored in ContextSnapshot.meta.
-
-    Replaces raw dict access with explicit fields to prevent typos
-    and make the meta schema discoverable.
-    """
-    entry_price: Optional[Decimal] = None
-    sl_price: Optional[Decimal] = None
-    soft_sl_price: Optional[Decimal] = None
-    original_soft_sl: Optional[Decimal] = None
-    disaster_sl_price: Optional[Decimal] = None
-    lock_profit_price: Optional[Decimal] = None
-    move_trigger: Optional[Decimal] = None
-    moved_sl_to_entry: bool = False
-    pending_candle_sl: bool = False
-    crossover_detected: bool = False
-    tp_allocations: Optional[dict] = field(default_factory=dict)
-
-    def to_meta(self) -> Dict[str, Any]:
-        """Serialize to a plain dict for ContextSnapshot.meta."""
-        return {
-            "entry_price": self.entry_price,
-            "sl_price": self.sl_price,
-            "soft_sl_price": self.soft_sl_price,
-            "original_soft_sl": self.original_soft_sl,
-            "disaster_sl_price": self.disaster_sl_price,
-            "lock_profit_price": self.lock_profit_price,
-            "move_trigger": self.move_trigger,
-            "moved_sl_to_entry": self.moved_sl_to_entry,
-            "pending_candle_sl": self.pending_candle_sl,
-            "crossover_detected": self.crossover_detected,
-            "tp_allocations": self.tp_allocations,
-        }
-
-    @classmethod
-    def from_meta(cls, meta: Optional[Dict[str, Any]]) -> "TradeState":
-        """Deserialize from ContextSnapshot.meta dict."""
-        if not meta:
-            return cls()
-        return cls(
-            entry_price=meta.get("entry_price"),
-            sl_price=meta.get("sl_price"),
-            soft_sl_price=meta.get("soft_sl_price"),
-            original_soft_sl=meta.get("original_soft_sl"),
-            disaster_sl_price=meta.get("disaster_sl_price"),
-            lock_profit_price=meta.get("lock_profit_price"),
-            move_trigger=meta.get("move_trigger"),
-            moved_sl_to_entry=bool(meta.get("moved_sl_to_entry", False)),
-            pending_candle_sl=bool(meta.get("pending_candle_sl", False)),
-            crossover_detected=bool(meta.get("crossover_detected", False)),
-            tp_allocations=meta.get("tp_allocations"),
-        )
+    # TradeState and merge_config imported from app.trading.strategy.utils
 
 
 class RsiMomentumStrategy(BaseStrategy):
@@ -156,8 +101,8 @@ class RsiMomentumStrategy(BaseStrategy):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.cfg = RsiMomentumConfig.from_dict(config) if config else RsiMomentumConfig()
-        self.indicators = CrossoverIndicators(
+        self.cfg = merge_config(RsiMomentumConfig, config) if config else RsiMomentumConfig()
+        self.indicators = Indicators(
             rsi_period=self.cfg.rsi_period,
             rsi_ema_period=self.cfg.ema_period,
             rsi_wma_period=self.cfg.wma_period,
@@ -405,16 +350,9 @@ class RsiMomentumStrategy(BaseStrategy):
             return _noop
 
         # TP allocations
-        tp_allocations = {}
-        if self.cfg.tp_count == 1:
-            tp_allocations["TP1"] = 1.0
-        elif self.cfg.tp_count == 2:
-            tp_allocations["TP1"] = self.cfg.tp1_close_pct
-            tp_allocations["TP2"] = 1.0
-        else:
-            tp_allocations["TP1"] = self.cfg.tp1_close_pct
-            tp_allocations["TP2"] = self.cfg.tp2_close_pct
-            tp_allocations["TP3"] = 1.0
+        tp_allocations = build_tp_allocations(
+            self.cfg.tp_count, self.cfg.tp1_close_pct, self.cfg.tp2_close_pct
+        )
 
         # Lock-profit price (stop_market → taker fee)
         lock_profit_price = SLTPCalculator.compute_lock_profit_price(

@@ -17,7 +17,7 @@ No cooldown / no waiting / no SL lock
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields as dc_fields
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional, Any
 
@@ -25,6 +25,8 @@ import pandas as pd
 import structlog
 
 from app.trading.strategy.base import BaseStrategy
+from app.trading.strategy.utils.config_helpers import merge_config
+from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.core.context import SCANNING, CONFIRMING
@@ -62,12 +64,7 @@ class RsiNoRetestConfig:
     nr_lock_profit_rr: float = 0.2
     use_active_trades: bool = True
 
-    @classmethod
-    def from_dict(cls, params: dict) -> "RsiNoRetestConfig":
-        """Construct from strategy_params dict, ignoring unknown keys."""
-        valid_keys = {f.name for f in dc_fields(cls)}
-        filtered = {k: v for k, v in params.items() if k in valid_keys}
-        return cls(**filtered)
+    # Construction via merge_config from app.trading.strategy.utils
 
 
 class RsiNoRetestStrategy(BaseStrategy):
@@ -123,7 +120,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             else config.get("strategy_params", {})
         ) or {}
         cfg = {**self.DEFAULT_CONFIG, **strategy_params}
-        self.strategy_cfg = RsiNoRetestConfig.from_dict(cfg)
+        self.strategy_cfg = merge_config(RsiNoRetestConfig, cfg)
         bot_cfg = config.get("bot", {}) if not isinstance(config, AppConfig) else {}
 
         # Try top-level first, then bot-level
@@ -132,11 +129,12 @@ class RsiNoRetestStrategy(BaseStrategy):
             self.timeframe = bot_cfg.get("timeframe", "15m")
 
         self.indicators = Indicators(
-            rsi_length=cfg.get("rsi_period", 14),
-            rsi_ema_length=cfg.get("rsi_ema_length", 9),
-            rsi_wma_length=cfg.get("rsi_wma_length", 45),
+            rsi_period=cfg.get("rsi_period", 14),
+            rsi_ema_period=cfg.get("rsi_ema_length", 9),
+            rsi_wma_period=cfg.get("rsi_wma_length", 45),
             price_ema_fast=cfg.get("price_ema_fast", 21),
             price_ema_slow=cfg.get("price_ema_slow", 200),
+            include_price_emas=True,
         )
 
         risk_cfg = config.get("risk", {}) if not hasattr(config, "get") or isinstance(config, dict) else getattr(config, "risk", {})
@@ -505,19 +503,13 @@ class RsiNoRetestStrategy(BaseStrategy):
             tp3_price = self._compute_price_at_rr(entry_price, sl_price, self.tp3_rr, is_taker_exit=False)
 
             # Dynamic TP allocations
-            tp_allocations = {}
+            tp2_pct = self.tp2_close_pct if self.tp2_close_pct < 1.0 else 0.5
+            tp_allocations = build_tp_allocations(self.tp_count, self.tp1_close_pct, tp2_pct)
             if self.tp_count == 1:
-                tp_allocations["TP1"] = 1.0
                 tp2_price = None
                 tp3_price = None
             elif self.tp_count == 2:
-                tp_allocations["TP1"] = self.tp1_close_pct
-                tp_allocations["TP2"] = 1.0
                 tp3_price = None
-            else:
-                tp_allocations["TP1"] = self.tp1_close_pct
-                tp_allocations["TP2"] = self.tp2_close_pct if self.tp2_close_pct < 1.0 else 0.5
-                tp_allocations["TP3"] = 1.0
 
             if tp1_price is None:
                 if self.debug_enabled:

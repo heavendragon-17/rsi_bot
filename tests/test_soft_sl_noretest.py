@@ -53,7 +53,7 @@ class TestSoftSLNoRetest(unittest.TestCase):
             rows.append(
                 {
                     "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                    "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
+                    "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
                     "ema21": 100.0, "ema200": 100.0, "closed": True,
                 }
             )
@@ -99,7 +99,7 @@ class TestSoftSLNoRetest(unittest.TestCase):
         }
         df1 = self._make_df(
             {"open": 98.0, "high": 99.0, "low": 92.0, "close": 94.0,
-             "rsi": 45.0, "rsi_ema9": 50.0, "rsi_wma45": 55.0,
+             "rsi_14": 45.0, "rsi_ema9": 50.0, "rsi_wma45": 55.0,
              "ema21": 100.0, "ema200": 90.0, "closed": True}
         )
         self.strategy.indicators.compute = lambda df, **kw: df1
@@ -127,7 +127,7 @@ class TestSoftSLNoRetest(unittest.TestCase):
         }
         df2 = self._make_df(
             {"open": float(next_open), "high": 97.0, "low": 95.0, "close": 97.0,
-             "rsi": 48.0, "rsi_ema9": 49.0, "rsi_wma45": 50.0,
+             "rsi_14": 48.0, "rsi_ema9": 49.0, "rsi_wma45": 50.0,
              "ema21": 100.0, "ema200": 90.0, "closed": True}
         )
         self.strategy.indicators.compute = lambda df, **kw: df2
@@ -183,7 +183,7 @@ class TestSoftSLNoRetest(unittest.TestCase):
         }
         df = self._make_df(
             {"open": 98.0, "high": 99.0, "low": 93.0, "close": 97.0,
-             "rsi": 52.0, "rsi_ema9": 52.0, "rsi_wma45": 50.0,
+             "rsi_14": 52.0, "rsi_ema9": 52.0, "rsi_wma45": 50.0,
              "ema21": 100.0, "ema200": 90.0, "closed": True}
         )
         self.strategy.indicators.compute = lambda df, **kw: df

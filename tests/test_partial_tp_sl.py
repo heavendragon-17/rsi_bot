@@ -115,7 +115,7 @@ class TestPartialTPSL(unittest.TestCase):
             data.append({
                 "date": timestamps[i],
                 "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
+                "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
                 "ema21": 100.0, "ema200": 90.0, "closed": True
             })
 
@@ -123,7 +123,7 @@ class TestPartialTPSL(unittest.TestCase):
         data.append({
             "date": timestamps[-1],
             "open": 105.0, "high": 111.0, "low": 105.0, "close": 108.0,
-            "rsi": 60.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
+            "rsi_14": 60.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
             "ema21": 100.0, "ema200": 90.0, "closed": True
         })
 

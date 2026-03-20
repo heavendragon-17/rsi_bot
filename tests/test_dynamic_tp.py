@@ -28,7 +28,7 @@ def _create_mock_data():
             {
                 "date": timestamps[0],
                 "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
+                "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
                 "ema21": 100.0, "closed": True,
             }
         )
