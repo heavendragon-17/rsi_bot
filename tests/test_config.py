@@ -76,3 +76,33 @@ class TestAppConfig:
         cfg = AppConfig()
         with pytest.raises(Exception):
             cfg.strategy_name = "other"  # type: ignore[misc]
+
+    def test_loads_without_legacy_dict(self):
+        """AppConfig fields are accessible directly, no to_legacy_dict needed."""
+        cfg = AppConfig()
+        assert cfg.exchange.mode == "mock"
+        assert cfg.risk.risk_per_trade_pct == Decimal("0.02")
+        assert isinstance(cfg.symbols, list)
+        assert cfg.strategy_name is not None
+
+
+class TestConstants:
+    """Verify constants.py values match expected defaults (M15 coverage)."""
+
+    def test_warmup_value(self):
+        from app.core.constants import WARMUP
+        assert WARMUP == 220
+
+    def test_fee_defaults(self):
+        from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
+        assert DEFAULT_TAKER_FEE == 0.0005
+        assert DEFAULT_MAKER_FEE == 0.0002
+
+    def test_decimal_fee_variants(self):
+        from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL
+        assert DEFAULT_TAKER_FEE_DECIMAL == Decimal("0.0005")
+        assert DEFAULT_MAKER_FEE_DECIMAL == Decimal("0.0002")
+
+    def test_max_candles_in_ram(self):
+        from app.core.constants import MAX_CANDLES_IN_RAM
+        assert MAX_CANDLES_IN_RAM == 6000
