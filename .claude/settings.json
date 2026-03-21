@@ -12,6 +12,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/arch_lint_post_edit.sh",
+            "timeout": 30,
+            "statusMessage": "Checking architecture rules..."
+          }
+        ]
+      }
     ]
   }
 }
