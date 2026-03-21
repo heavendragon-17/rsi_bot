@@ -40,6 +40,7 @@ from app.core.actions import (
     SIDE_SELL, EXIT_CLOSE_BY_CANDLE_SL,
     DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE,
 )
+from app.core.utils import to_decimal_or_none
 
 logger = structlog.get_logger()
 
@@ -114,11 +115,6 @@ class RsiMomentumStrategy(BaseStrategy):
     # Helpers
     # ------------------------------------------------------------------
 
-    def _to_dec(self, x) -> Optional[Decimal]:
-        if x is None:
-            return None
-        return x if isinstance(x, Decimal) else Decimal(str(x))
-
     # ------------------------------------------------------------------
     # Main analysis entry point
     # ------------------------------------------------------------------
@@ -168,20 +164,20 @@ class RsiMomentumStrategy(BaseStrategy):
     ) -> AnalysisResult:
         ts = TradeState.from_meta(context.meta)
 
-        entry_price = self._to_dec(ts.entry_price)
+        entry_price = to_decimal_or_none(ts.entry_price)
         if entry_price is None:
             return AnalysisResult(actions=[DoNothing()], new_context=context)
 
-        soft_sl = context.soft_sl_price or self._to_dec(ts.soft_sl_price)
-        original_soft_sl = self._to_dec(ts.original_soft_sl) or soft_sl
+        soft_sl = context.soft_sl_price or to_decimal_or_none(ts.soft_sl_price)
+        original_soft_sl = to_decimal_or_none(ts.original_soft_sl) or soft_sl
         moved_sl = ts.moved_sl_to_entry
         pending_candle_sl = ts.pending_candle_sl
-        lock_profit_price = self._to_dec(ts.lock_profit_price)
+        lock_profit_price = to_decimal_or_none(ts.lock_profit_price)
 
         last = df_ind.iloc[-1]
-        close = self._to_dec(last.get("close"))
-        low = self._to_dec(last.get("low"))
-        open_price = self._to_dec(last.get("open"))
+        close = to_decimal_or_none(last.get("close"))
+        low = to_decimal_or_none(last.get("low"))
+        open_price = to_decimal_or_none(last.get("open"))
 
         if lock_profit_price is None and original_soft_sl and entry_price:
             # Compute lock-profit level from original soft SL distance
@@ -203,7 +199,7 @@ class RsiMomentumStrategy(BaseStrategy):
         # ── STEP 1: Move SL to lock-profit when price drops to trigger ─
         # For SHORT: price going DOWN is profitable → trigger when low <= move_trigger
         if not moved_sl and low is not None and soft_sl is not None and original_soft_sl is not None:
-            move_trigger = self._to_dec(ts.move_trigger)
+            move_trigger = to_decimal_or_none(ts.move_trigger)
             if move_trigger is None:
                 # Fallback: compute if not cached (e.g. older context)
                 move_trigger = SLTPCalculator.compute_tp_price(
@@ -299,7 +295,7 @@ class RsiMomentumStrategy(BaseStrategy):
             )
 
         # ── All conditions met — compute SL/TP ──────────────────────────
-        close = self._to_dec(last.get("close"))
+        close = to_decimal_or_none(last.get("close"))
         if close is None:
             return _noop
 

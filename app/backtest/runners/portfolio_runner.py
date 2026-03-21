@@ -24,6 +24,7 @@ from app.backtest.mock_exchange import MockExchange
 from app.backtest.portfolio_engine import PortfolioEngine
 from app.backtest.portfolio_event_source import PortfolioEventSource
 from app.backtest.reporting import BacktestReporter
+from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE, WARMUP
 from app.core.logging import setup_logging
 from app.trading.strategy.loader import STRATEGY_MAP
 
@@ -92,14 +93,14 @@ class PortfolioRunner:
         balance = self.config.get("backtest", {}).get("initial_balance", 10000)
         risk_cfg = self.config.get("risk", {})
         leverage = risk_cfg.get("leverage", 10)
-        taker_fee = float(risk_cfg.get("taker_fee", 0.0005))
-        maker_fee = float(risk_cfg.get("maker_fee", 0.0002))
+        taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
+        maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
 
         exchange = MockExchange(
             initial_balance=balance, leverage=leverage,
             taker_fee=taker_fee, maker_fee=maker_fee,
         )
-        event_source = PortfolioEventSource(dfs, start_idx=220)
+        event_source = PortfolioEventSource(dfs, start_idx=WARMUP)
         engine = PortfolioEngine(
             event_source=event_source, strategy_class=strategy_class,
             exchange=exchange, config=self.config, symbols=self.symbols,
@@ -174,8 +175,8 @@ def _run_portfolio_backtest(
         "risk": {
             "leverage": leverage,
             "risk_per_trade_pct": risk_per_trade_pct,
-            "taker_fee": 0.0005,
-            "maker_fee": 0.0002,
+            "taker_fee": DEFAULT_TAKER_FEE,
+            "maker_fee": DEFAULT_MAKER_FEE,
         },
         "strategy_params": params or {},
     }

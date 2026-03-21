@@ -4,6 +4,7 @@ Layer 1: Data Ingestion - DataNormalizer
 Normalizes raw exchange data into Candle objects with Decimal precision.
 """
 from app.core.events import MarketEvent, Candle, EventType
+from app.core.utils import to_decimal
 from datetime import datetime
 from decimal import Decimal
 import pandas as pd
@@ -15,16 +16,6 @@ class DataNormalizer:
     All prices are converted to Decimal for financial precision.
     """
     
-    @staticmethod
-    def _to_decimal(value) -> Decimal:
-        """
-        Convert any numeric value to Decimal for price precision.
-        Handles strings, floats, ints, and existing Decimals.
-        """
-        if isinstance(value, Decimal):
-            return value
-        return Decimal(str(value))
-
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
         """
@@ -58,11 +49,11 @@ class DataNormalizer:
         candle = Candle(
             symbol=symbol,
             timestamp=pd.to_datetime(kline['t'], unit='ms') + pd.Timedelta(hours=7),
-            open=DataNormalizer._to_decimal(kline['o']),
-            high=DataNormalizer._to_decimal(kline['h']),
-            low=DataNormalizer._to_decimal(kline['l']),
-            close=DataNormalizer._to_decimal(kline['c']),
-            volume=DataNormalizer._to_decimal(kline['v']),
+            open=to_decimal(kline['o']),
+            high=to_decimal(kline['h']),
+            low=to_decimal(kline['l']),
+            close=to_decimal(kline['c']),
+            volume=to_decimal(kline['v']),
             closed=is_closed
         )
         
@@ -90,11 +81,11 @@ class DataNormalizer:
         return Candle(
             symbol=normalized_symbol,
             timestamp=timestamp,
-            open=DataNormalizer._to_decimal(ohlcv[1]),
-            high=DataNormalizer._to_decimal(ohlcv[2]),
-            low=DataNormalizer._to_decimal(ohlcv[3]),
-            close=DataNormalizer._to_decimal(ohlcv[4]),
-            volume=DataNormalizer._to_decimal(ohlcv[5]),
+            open=to_decimal(ohlcv[1]),
+            high=to_decimal(ohlcv[2]),
+            low=to_decimal(ohlcv[3]),
+            close=to_decimal(ohlcv[4]),
+            volume=to_decimal(ohlcv[5]),
             closed=True  # Historical data is always closed
         )
     

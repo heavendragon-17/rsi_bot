@@ -7,7 +7,6 @@ import os
 import threading
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Sequence
-from pathlib import Path
 
 import ccxt
 import structlog
@@ -18,17 +17,6 @@ from app.core.exceptions import (
 )
 from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
-
-# Load environment variables
-try:
-    from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent.parent.parent / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-    else:
-        load_dotenv()
-except ImportError:
-    pass
 
 logger = structlog.get_logger()
 

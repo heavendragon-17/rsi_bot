@@ -6,6 +6,7 @@ Exits 0 if clean, 1 if violations found.
 """
 import ast
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -36,6 +37,16 @@ FORBIDDEN_PATTERNS = [
     ("load_dotenv()", "dotenv loaded outside main.py — load once at entry point", ["main.py"]),
 ]
 
+# ─── Rule 3b: Fee magic number patterns (regex-based) ───────────────────────
+# Catches hardcoded fee defaults like get("taker_fee", 0.0005) or "taker_fee": 0.0005
+FEE_PATTERNS = [
+    (
+        re.compile(r"""(?:["'](?:taker_fee|maker_fee)["']\s*[,:]\s*0\.000[25])"""),
+        "Hardcoded fee value — use DEFAULT_TAKER_FEE/DEFAULT_MAKER_FEE from app.core.constants",
+        ["app/core/constants.py"],
+    ),
+]
+
 # ─── Rule 4: Directory whitelist ─────────────────────────────────────────────
 # Only these top-level dirs allowed under app/. Prevents new dirs appearing.
 ALLOWED_APP_DIRS = {
@@ -50,6 +61,21 @@ ALLOWED_CORE_FILES = {
     "config.py", "constants.py", "context.py", "events.py", "exceptions.py",
     "logging.py", "snapshots.py", "utils.py",
 }
+
+# ─── Rule 7: Duplicate helper functions ──────────────────────────────────────
+# Functions that have canonical implementations and should not be redefined.
+DUPLICATE_HELPER_PATTERNS = [
+    (
+        re.compile(r"def\s+_to_dec(?:imal)?\s*\("),
+        "Duplicate Decimal helper — use to_decimal/to_decimal_or_none from app.core.utils",
+        ["app/core/utils.py"],
+    ),
+    (
+        re.compile(r"def\s+_base_asset\s*\("),
+        "Duplicate symbol helper — use helpers from app.core.utils",
+        ["app/core/utils.py"],
+    ),
+]
 
 
 def get_imports(filepath: Path) -> list[str]:
@@ -110,9 +136,17 @@ def check_forbidden_patterns() -> list[str]:
             continue
         rel = str(py_file.relative_to(REPO_ROOT))
         content = py_file.read_text()
+
+        # Exact string matches
         for pattern, desc, allowed in FORBIDDEN_PATTERNS:
             if pattern in content and rel not in allowed:
                 violations.append(f"  {rel}: '{pattern}' — {desc}")
+
+        # Regex-based fee patterns
+        for regex, desc, allowed in FEE_PATTERNS:
+            if rel not in allowed and regex.search(content):
+                violations.append(f"  {rel}: hardcoded fee value — {desc}")
+
     return violations
 
 
@@ -188,6 +222,20 @@ def check_class_count(max_classes: int = 1) -> list[str]:
     return violations
 
 
+def check_duplicate_helpers() -> list[str]:
+    """Detect redefined utility functions that have canonical implementations."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        content = py_file.read_text()
+        for regex, desc, allowed in DUPLICATE_HELPER_PATTERNS:
+            if rel not in allowed and regex.search(content):
+                violations.append(f"  {rel}: {desc}")
+    return violations
+
+
 def main():
     all_violations = []
     checks = [
@@ -197,6 +245,7 @@ def main():
         ("Checking directory whitelist...", "Unauthorized directories:", check_directory_whitelist),
         ("Checking core/ whitelist...", "Unauthorized files in core/:", check_core_file_whitelist),
         ("Checking class count per file...", "Files with too many classes:", check_class_count),
+        ("Checking duplicate helpers...", "Duplicate utility functions:", check_duplicate_helpers),
     ]
 
     for msg, header, check_fn in checks:

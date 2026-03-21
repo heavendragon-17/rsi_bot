@@ -37,6 +37,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL
 from app.core.exceptions import OrderRejectedError
 from app.core.interfaces import IExchange
+from app.core.utils import to_decimal
 from app.trading.exchange.fill_simulator import (
     FillSimulator, TickFillMode, PendingOrder,
 )
@@ -48,10 +49,6 @@ TAKER_FEE = DEFAULT_TAKER_FEE_DECIMAL
 MAKER_FEE = DEFAULT_MAKER_FEE_DECIMAL
 
 
-def _to_dec(val: Any) -> Decimal:
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val)) if val is not None else Decimal("0")
 
 
 class SimExchange(IExchange):
@@ -62,7 +59,7 @@ class SimExchange(IExchange):
 
     def __init__(self, config: dict, notification_service: Any = None) -> None:
         sim_cfg = config.get("sim", config.get("paper_sim", {}))
-        initial_balance = _to_dec(sim_cfg.get("initial_balance", 10000))
+        initial_balance = to_decimal(sim_cfg.get("initial_balance", 10000))
 
         self.state = SimTradeState(initial_balance)
         self._config = config
@@ -161,9 +158,9 @@ class SimExchange(IExchange):
     ) -> Optional[Dict[str, Any]]:
         params = params or {}
         reduce_only = bool(params.get("reduceOnly", False))
-        stop_price = _to_dec(params.get("stopPrice")) if params.get("stopPrice") else None
-        amount = _to_dec(amount)
-        price = _to_dec(price) if price else None
+        stop_price = to_decimal(params.get("stopPrice")) if params.get("stopPrice") else None
+        amount = to_decimal(amount)
+        price = to_decimal(price) if price else None
 
         # reduceOnly guard: skip if no position exists
         if reduce_only:
@@ -216,7 +213,7 @@ class SimExchange(IExchange):
     # ── Sim-specific hooks ───────────────────────────────────────
 
     def on_kline_open(self, symbol: str, open_price: Decimal) -> None:
-        open_price = _to_dec(open_price)
+        open_price = to_decimal(open_price)
         with self.state.lock:
             orders = [o for o in self._sim.get_pending_orders(symbol)
                       if o.status == "pending_open"]
@@ -225,7 +222,7 @@ class SimExchange(IExchange):
             self._execute_fill_from_order(order, open_price)
 
     def on_tick(self, symbol: str, price: Decimal, timestamp: float) -> None:
-        price = _to_dec(price)
+        price = to_decimal(price)
         self._last_prices[symbol] = price
 
         fill_results = self._sim.process_market_data(

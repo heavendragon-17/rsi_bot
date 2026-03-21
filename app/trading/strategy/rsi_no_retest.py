@@ -33,6 +33,8 @@ from app.core.context import SCANNING, CONFIRMING
 from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
 from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
+from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL, WARMUP
+from app.core.utils import to_decimal_or_none
 
 logger = structlog.get_logger()
 
@@ -141,8 +143,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         if not isinstance(risk_cfg, dict):
              risk_cfg = risk_cfg.dict() if hasattr(risk_cfg, "dict") else {}
              
-        self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", 0.0005)))
-        self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", 0.0002)))
+        self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE_DECIMAL)))
+        self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE_DECIMAL)))
 
         # ================================
         # Strategy parameters
@@ -193,11 +195,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             except Exception:
                 return None
         return ts
-
-    def _to_dec(self, x) -> Optional[Decimal]:
-        if x is None:
-            return None
-        return x if isinstance(x, Decimal) else Decimal(str(x))
 
     def _detect_reclaim(self, df_ind: pd.DataFrame) -> bool:
         if len(df_ind) < 3:
@@ -257,12 +254,12 @@ class RsiNoRetestStrategy(BaseStrategy):
             window = df_ind.iloc[-(self.lookback + 1) : -1]
             if "low" not in window.columns:
                 return None
-            sl = self._to_dec(window["low"].min())
+            sl = to_decimal_or_none(window["low"].min())
         elif self.sl_mode == "lowest_close":
             window = df_ind.iloc[-(self.lookback + 1) : -1]
             if "close" not in window.columns:
                 return None
-            sl = self._to_dec(window["close"].min())
+            sl = to_decimal_or_none(window["close"].min())
         else:
             # SL = price_at_rsi(RSI_EMA9)
             last = Indicators.last(df_ind)
@@ -311,7 +308,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
-        if df is None or len(df) < max(220, self.lookback + 10):
+        if df is None or len(df) < max(WARMUP, self.lookback + 10):
             return _noop
 
         if "closed" in df.columns and not bool(df.iloc[-1]["closed"]):
@@ -326,10 +323,10 @@ class RsiNoRetestStrategy(BaseStrategy):
             return _noop
 
         # prices (Decimals)
-        close = self._to_dec(last.get("close"))
-        high = self._to_dec(last.get("high"))
-        open_price = self._to_dec(last.get("open"))
-        ema21 = self._to_dec(last.get("ema21"))
+        close = to_decimal_or_none(last.get("close"))
+        high = to_decimal_or_none(last.get("high"))
+        open_price = to_decimal_or_none(last.get("open"))
+        ema21 = to_decimal_or_none(last.get("ema21"))
 
         if close is None or ema21 is None:
             return _noop
@@ -344,19 +341,19 @@ class RsiNoRetestStrategy(BaseStrategy):
         if self.use_active_trades and position and position.has_position:
             meta = dict(context.meta)  # mutable copy — never mutate context.meta directly
 
-            entry_price = self._to_dec(meta.get("entry_price"))
+            entry_price = to_decimal_or_none(meta.get("entry_price"))
             if entry_price is None:
                 return _noop
 
             # Soft SL: prefer the ContextSnapshot direct field, fall back to meta
-            soft_sl = context.soft_sl_price or self._to_dec(meta.get("soft_sl_price"))
-            original_soft_sl = self._to_dec(meta.get("original_soft_sl")) or soft_sl
+            soft_sl = context.soft_sl_price or to_decimal_or_none(meta.get("soft_sl_price"))
+            original_soft_sl = to_decimal_or_none(meta.get("original_soft_sl")) or soft_sl
 
             moved_sl = bool(meta.get("moved_sl_to_entry", False))
             pending_candle_sl = bool(meta.get("pending_candle_sl", False))
 
             # Lock profit price: precompute from original SL (never changes)
-            lock_profit_price = self._to_dec(meta.get("lock_profit_price"))
+            lock_profit_price = to_decimal_or_none(meta.get("lock_profit_price"))
             if lock_profit_price is None and original_soft_sl and entry_price:
                 # Stop loss acts as a TAKER order when hit
                 lock_profit_price = self._compute_price_at_rr(entry_price, original_soft_sl, self.lock_profit_rr, is_taker_exit=True)

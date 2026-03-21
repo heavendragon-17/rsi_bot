@@ -19,6 +19,7 @@ from typing import Optional
 from app.trading.strategy.base import BaseStrategy
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
+from app.core.constants import WARMUP
 from app.core.events import SignalEvent
 from app.core.context import SCANNING, RETESTING, CONFIRMING
 
@@ -118,7 +119,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
         return trade.meta
 
     def analyze(self, symbol: str, df) -> Optional[SignalEvent]:
-        if df is None or len(df) < 220:
+        if df is None or len(df) < WARMUP:
             return None
 
         # Only evaluate on closed candles

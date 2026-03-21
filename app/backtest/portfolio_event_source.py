@@ -14,6 +14,7 @@ from typing import Dict, Iterator, List, Tuple
 import pandas as pd
 from typing import Any
 
+from app.core.constants import WARMUP
 from app.trading.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
 
@@ -31,7 +32,7 @@ class PortfolioEventSource(IEventSource):
             *per symbol*.
     """
 
-    def __init__(self, dfs: Dict[str, pd.DataFrame], start_idx: int = 220) -> None:
+    def __init__(self, dfs: Dict[str, pd.DataFrame], start_idx: int = WARMUP) -> None:
         self.dfs = dfs
         self.start_idx = start_idx
         self._stopped = False
