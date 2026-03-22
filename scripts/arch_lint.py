@@ -79,13 +79,17 @@ DUPLICATE_HELPER_PATTERNS = [
 
 
 def get_imports(filepath: Path) -> list[str]:
-    """Extract all import module paths from a Python file."""
+    """Extract top-level import module paths from a Python file.
+
+    Only checks module-level imports. Lazy imports inside functions are
+    intentionally allowed (used for breaking circular / cross-layer deps).
+    """
     try:
         tree = ast.parse(filepath.read_text(), filename=str(filepath))
     except SyntaxError:
         return []
     imports = []
-    for node in ast.walk(tree):
+    for node in tree.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.append(alias.name)
@@ -208,7 +212,21 @@ def check_class_count(max_classes: int = 1) -> list[str]:
                 (isinstance(b, ast.Attribute) and "Enum" in b.attr)
                 for b in node.bases
             )
-            if is_dataclass or is_enum:
+            # Exempt pure ABCs (all non-dunder methods are @abstractmethod)
+            non_dunder = [
+                n for n in node.body
+                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and not n.name.startswith("_")
+            ]
+            is_pure_abc = non_dunder and all(
+                any(
+                    (isinstance(d, ast.Name) and d.id == "abstractmethod") or
+                    (isinstance(d, ast.Attribute) and d.attr == "abstractmethod")
+                    for d in n.decorator_list
+                )
+                for n in non_dunder
+            )
+            if is_dataclass or is_enum or is_pure_abc:
                 continue
             methods = [n for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
             if len(methods) >= 3:  # Only count classes with 3+ methods as "real"

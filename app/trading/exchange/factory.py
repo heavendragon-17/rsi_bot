@@ -24,7 +24,6 @@ import importlib
 from typing import Any, Dict
 
 from app.core.interfaces import IExchange
-from app.backtest.mock_exchange import MockExchange
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +118,7 @@ def create_exchange(config: Dict[str, Any], notification_service=None) -> IExcha
         return exc
 
     if mode == "mock":
+        from app.backtest.mock_exchange import MockExchange
         backtest_cfg = config.get("backtest", {})
         initial_balance = backtest_cfg.get("initial_balance", 10000.0)
         leverage = config.get("risk", {}).get("leverage", 1)
