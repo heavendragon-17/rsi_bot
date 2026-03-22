@@ -4,7 +4,9 @@ Tests for BacktestEngine.run() results dict contract.
 Verifies that run() returns a dict with the canonical structure expected by
 BacktestReporter and the DB layer, regardless of whether trades occurred.
 """
+
 import os
+
 import pytest
 
 from app.backtest.engine import BacktestEngine

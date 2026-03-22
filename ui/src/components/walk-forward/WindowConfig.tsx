@@ -25,7 +25,7 @@ export const WindowConfig: React.FC = () => {
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-text-primary mb-3">Window Configuration</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="is-window" className="text-xs text-text-secondary">

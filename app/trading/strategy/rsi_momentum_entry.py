@@ -12,6 +12,7 @@ Entry conditions (all must hold simultaneously):
   S4: (WMA45 - EMA9) > spread_threshold  (default 2.5)
   S5: Bearish RSI divergence in last 30 candles
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -20,18 +21,19 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import structlog
 
-from app.trading.strategy.utils.trade_state import TradeState
-from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
-from app.data.indicators import Indicators
-from app.trading.sl_tp_calculator import SLTPCalculator
+from app.core.actions import (
+    SIDE_SELL,
+    DoNothing,
+    OpenPosition,
+)
+from app.core.analysis_result import AnalysisResult
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot
-from app.core.analysis_result import AnalysisResult
-from app.core.actions import (
-    OpenPosition, DoNothing,
-    SIDE_SELL,
-)
 from app.core.utils import to_decimal_or_none
+from app.data.indicators import Indicators
+from app.trading.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
+from app.trading.strategy.utils.trade_state import TradeState
 
 if TYPE_CHECKING:
     from app.trading.strategy.rsi_momentum import RsiMomentumConfig
@@ -121,9 +123,7 @@ def check_entry(
     entry_price = close
 
     # Soft SL: highest high of last sl_lookback candles
-    soft_sl = SLTPCalculator.compute_soft_sl(
-        df_ind, side=SIDE_SELL, lookback=cfg.sl_lookback
-    )
+    soft_sl = SLTPCalculator.compute_soft_sl(df_ind, side=SIDE_SELL, lookback=cfg.sl_lookback)
     if soft_sl is None:
         logger.warning("rsi_momentum.no_soft_sl", symbol=symbol)
         return _noop
@@ -149,7 +149,7 @@ def check_entry(
     # TP prices (limit orders -> maker fee for exit)
     tp_rrs = [cfg.tp1_rr, cfg.tp2_rr, cfg.tp3_rr]
     tp_prices_all = []
-    for rr in tp_rrs[:cfg.tp_count]:
+    for rr in tp_rrs[: cfg.tp_count]:
         tp = SLTPCalculator.compute_tp_price(
             entry_price=entry_price,
             sl_price=soft_sl,
@@ -165,9 +165,7 @@ def check_entry(
         return _noop
 
     # TP allocations
-    tp_allocations = build_tp_allocations(
-        cfg.tp_count, cfg.tp1_close_pct, cfg.tp2_close_pct
-    )
+    tp_allocations = build_tp_allocations(cfg.tp_count, cfg.tp1_close_pct, cfg.tp2_close_pct)
 
     # Lock-profit price (stop_market -> taker fee)
     lock_profit_price = SLTPCalculator.compute_lock_profit_price(
@@ -216,17 +214,19 @@ def check_entry(
     )
 
     return AnalysisResult(
-        actions=[OpenPosition(
-            symbol=symbol,
-            side=SIDE_SELL,
-            entry_price=entry_price,
-            sl_price=disaster_sl,
-            soft_sl_price=soft_sl,
-            tp_prices=tp_prices_all,
-            tp_allocations=tp_allocations,
-            lock_profit_price=lock_profit_price,
-            signal_class=1,
-            reason=f"RSI_MOMENTUM SHORT (spread={spread:.2f} > {cfg.spread_threshold})",
-        )],
+        actions=[
+            OpenPosition(
+                symbol=symbol,
+                side=SIDE_SELL,
+                entry_price=entry_price,
+                sl_price=disaster_sl,
+                soft_sl_price=soft_sl,
+                tp_prices=tp_prices_all,
+                tp_allocations=tp_allocations,
+                lock_profit_price=lock_profit_price,
+                signal_class=1,
+                reason=f"RSI_MOMENTUM SHORT (spread={spread:.2f} > {cfg.spread_threshold})",
+            )
+        ],
         new_context=new_ctx,
     )

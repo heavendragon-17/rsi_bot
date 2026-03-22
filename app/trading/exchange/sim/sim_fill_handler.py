@@ -8,14 +8,16 @@ position open/close, notification capture, and position linking helpers.
 All functions receive the SimExchange instance (``sim_ex``) as their first
 parameter so they can access ``sim_ex.state``, ``sim_ex._sim``, etc.
 """
+
 from __future__ import annotations
 
 import time
-import structlog
 from decimal import Decimal
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL
+import structlog
+
+from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL
 from app.trading.exchange.fill_simulator import PendingOrder
 from app.trading.exchange.sim.sim_state import ClosedTrade, SimPosition
 
@@ -30,8 +32,11 @@ MAKER_FEE = DEFAULT_MAKER_FEE_DECIMAL
 
 # ── Fill entry points ─────────────────────────────────────────
 
+
 def execute_fill_from_order(
-    sim_ex: SimExchange, order: PendingOrder, fill_price: Decimal,
+    sim_ex: SimExchange,
+    order: PendingOrder,
+    fill_price: Decimal,
 ) -> None:
     """Fill a PendingOrder directly (market entries, soft SL, kline_open)."""
     notify_entry = None
@@ -52,16 +57,30 @@ def execute_fill_from_order(
             sim_ex.state.balance -= fee
             sim_ex.state.total_fees_paid += fee
             open_position_locked(
-                sim_ex, order.id, order.symbol, order.amount,
-                fill_price, filled_at, fee,
+                sim_ex,
+                order.id,
+                order.symbol,
+                order.amount,
+                fill_price,
+                filled_at,
+                fee,
             )
             notify_entry = capture_entry_notification(
-                sim_ex, order.symbol, fill_price, order.amount,
+                sim_ex,
+                order.symbol,
+                fill_price,
+                order.amount,
             )
         elif order.side == "SELL":
             notify_fill = close_position_locked(
-                sim_ex, order.id, order.symbol, order.amount,
-                fill_price, order.order_type, order.reduce_only, filled_at,
+                sim_ex,
+                order.id,
+                order.symbol,
+                order.amount,
+                fill_price,
+                order.order_type,
+                order.reduce_only,
+                filled_at,
             )
 
     emit_notifications(sim_ex, notify_entry, notify_fill)
@@ -80,20 +99,37 @@ def execute_fill_from_result(sim_ex: SimExchange, fr: Any) -> None:
             sim_ex.state.balance -= fee
             sim_ex.state.total_fees_paid += fee
             open_position_locked(
-                sim_ex, fr.order_id, fr.symbol, fr.fill_amount,
-                fr.fill_price, filled_at, fee,
+                sim_ex,
+                fr.order_id,
+                fr.symbol,
+                fr.fill_amount,
+                fr.fill_price,
+                filled_at,
+                fee,
             )
             notify_entry = capture_entry_notification(
-                sim_ex, fr.symbol, fr.fill_price, fr.fill_amount,
+                sim_ex,
+                fr.symbol,
+                fr.fill_price,
+                fr.fill_amount,
             )
         elif fr.side == "SELL":
             notify_fill = close_position_locked(
-                sim_ex, fr.order_id, fr.symbol, fr.fill_amount,
-                fr.fill_price, fr.order_type, fr.reduce_only, filled_at,
+                sim_ex,
+                fr.order_id,
+                fr.symbol,
+                fr.fill_amount,
+                fr.fill_price,
+                fr.order_type,
+                fr.reduce_only,
+                filled_at,
             )
             post_fill_hook(
-                sim_ex, fr.order_id, fr.symbol,
-                fr.order_type, fr.reduce_only,
+                sim_ex,
+                fr.order_id,
+                fr.symbol,
+                fr.order_type,
+                fr.reduce_only,
             )
 
     emit_notifications(sim_ex, notify_entry, notify_fill)
@@ -101,15 +137,23 @@ def execute_fill_from_result(sim_ex: SimExchange, fr: Any) -> None:
 
 # ── Position open / close (must be called under state.lock) ───
 
+
 def open_position_locked(
     sim_ex: SimExchange,
-    order_id: str, symbol: str, amount: Decimal,
-    fill_price: Decimal, filled_at: float, entry_fee: Decimal,
+    order_id: str,
+    symbol: str,
+    amount: Decimal,
+    fill_price: Decimal,
+    filled_at: float,
+    entry_fee: Decimal,
 ) -> None:
     """Create a new SimPosition in state (caller holds the lock)."""
     pos = SimPosition(
-        symbol=symbol, side="long", amount=amount,
-        entry_price=fill_price, initial_amount=amount,
+        symbol=symbol,
+        side="long",
+        amount=amount,
+        entry_price=fill_price,
+        initial_amount=amount,
         initial_risk=Decimal("0"),
     )
     pos._opened_at = filled_at  # type: ignore[attr-defined]
@@ -119,10 +163,14 @@ def open_position_locked(
 
 def close_position_locked(
     sim_ex: SimExchange,
-    order_id: str, symbol: str, amount: Decimal,
-    fill_price: Decimal, order_type: str, reduce_only: bool,
+    order_id: str,
+    symbol: str,
+    amount: Decimal,
+    fill_price: Decimal,
+    order_type: str,
+    reduce_only: bool,
     filled_at: float,
-) -> Optional[tuple]:
+) -> tuple | None:
     """Close (fully or partially) an existing position (caller holds the lock)."""
     position = sim_ex.state.positions.get(symbol)
     if not position:
@@ -142,13 +190,19 @@ def close_position_locked(
     exit_reason = exit_reason_from_fields(order_id, order_type, reduce_only, position)
 
     trade = ClosedTrade(
-        symbol=symbol, entry_price=position.entry_price,
-        exit_price=fill_price, amount=close_amount, side="long",
-        pnl_gross=pnl_gross, fees_paid=fee, funding_paid=Decimal("0"),
+        symbol=symbol,
+        entry_price=position.entry_price,
+        exit_price=fill_price,
+        amount=close_amount,
+        side="long",
+        pnl_gross=pnl_gross,
+        fees_paid=fee,
+        funding_paid=Decimal("0"),
         pnl_net=pnl_net,
         r_multiple=(pnl_net / position.initial_risk) if position.initial_risk else Decimal("0"),
         exit_reason=exit_reason,
-        opened_at=0.0, closed_at=filled_at,
+        opened_at=0.0,
+        closed_at=filled_at,
     )
 
     position.amount -= close_amount
@@ -159,8 +213,14 @@ def close_position_locked(
 
     balance_after = sim_ex.state.balance
     return (
-        symbol, exit_reason, fill_price, close_amount,
-        pnl_gross, pnl_net, fee, trade.r_multiple,
+        symbol,
+        exit_reason,
+        fill_price,
+        close_amount,
+        pnl_gross,
+        pnl_net,
+        fee,
+        trade.r_multiple,
         remaining if remaining > Decimal("0.000001") else Decimal("0"),
         balance_after,
     )
@@ -168,27 +228,29 @@ def close_position_locked(
 
 # ── Notification capture / emit ───────────────────────────────
 
+
 def capture_entry_notification(
     sim_ex: SimExchange,
-    symbol: str, fill_price: Decimal, amount: Decimal,
-) -> Optional[tuple]:
+    symbol: str,
+    fill_price: Decimal,
+    amount: Decimal,
+) -> tuple | None:
     """Build an entry notification tuple (caller holds the lock)."""
     _sl_price = None
-    _tp_prices: Dict[str, Decimal] = {}
+    _tp_prices: dict[str, Decimal] = {}
     for o in sim_ex._sim.get_pending_orders(symbol):
         if o.side == "SELL":
             if o.order_type == "stop_market" and o.trigger_price:
                 _sl_price = o.trigger_price
             elif o.order_type == "limit" and o.price:
                 _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
-    return (symbol, "LONG", fill_price, amount,
-            sim_ex.state.balance, _sl_price, _tp_prices or None)
+    return (symbol, "LONG", fill_price, amount, sim_ex.state.balance, _sl_price, _tp_prices or None)
 
 
 def emit_notifications(
     sim_ex: SimExchange,
-    notify_entry: Optional[tuple],
-    notify_fill: Optional[tuple],
+    notify_entry: tuple | None,
+    notify_fill: tuple | None,
 ) -> None:
     """Dispatch entry/fill notifications to the notification service."""
     if notify_entry and sim_ex._notification_service:
@@ -196,9 +258,14 @@ def emit_notifications(
         leverage = sim_ex._config.get("risk", {}).get("leverage", 1)
         try:
             sim_ex._notification_service.on_entry(
-                symbol=sym, side=side, entry_price=ep, amount=amt,
-                sl_price=sl_price, tp_prices=tp_prices,
-                leverage=leverage, balance=bal,
+                symbol=sym,
+                side=side,
+                entry_price=ep,
+                amount=amt,
+                sl_price=sl_price,
+                tp_prices=tp_prices,
+                leverage=leverage,
+                balance=bal,
             )
         except Exception:
             logger.exception("notification on_entry failed")
@@ -207,9 +274,16 @@ def emit_notifications(
         sym, reason, fp, amt, pnl_g, pnl_n, fees, r_mult, rem, bal = notify_fill
         try:
             sim_ex._notification_service.on_fill(
-                symbol=sym, exit_reason=reason, fill_price=fp, amount=amt,
-                pnl_gross=pnl_g, pnl_net=pnl_n, fees=fees,
-                r_multiple=r_mult, remaining_amount=rem, balance=bal,
+                symbol=sym,
+                exit_reason=reason,
+                fill_price=fp,
+                amount=amt,
+                pnl_gross=pnl_g,
+                pnl_net=pnl_n,
+                fees=fees,
+                r_multiple=r_mult,
+                remaining_amount=rem,
+                balance=bal,
             )
         except Exception:
             logger.exception("notification on_fill failed")
@@ -217,8 +291,12 @@ def emit_notifications(
 
 # ── Position metadata helpers ─────────────────────────────────
 
+
 def link_sl_to_position(
-    sim_ex: SimExchange, symbol: str, sl_order_id: str, sl_price: Decimal,
+    sim_ex: SimExchange,
+    symbol: str,
+    sl_order_id: str,
+    sl_price: Decimal,
 ) -> None:
     """Attach SL order ID and compute initial_risk on the position."""
     with sim_ex.state.lock:
@@ -230,7 +308,10 @@ def link_sl_to_position(
 
 
 def link_tp_to_position(
-    sim_ex: SimExchange, symbol: str, tp_label: str, tp_order_id: str,
+    sim_ex: SimExchange,
+    symbol: str,
+    tp_label: str,
+    tp_order_id: str,
 ) -> None:
     """Attach TP order ID to the position."""
     with sim_ex.state.lock:
@@ -241,7 +322,10 @@ def link_tp_to_position(
 
 def post_fill_hook(
     sim_ex: SimExchange,
-    order_id: str, symbol: str, order_type: str, reduce_only: bool,
+    order_id: str,
+    symbol: str,
+    order_type: str,
+    reduce_only: bool,
 ) -> None:
     """Mark TP1/TP2 hit flags on the position after a partial close."""
     pos = sim_ex.state.positions.get(symbol)
@@ -255,7 +339,9 @@ def post_fill_hook(
 
 
 def exit_reason_from_fields(
-    order_id: str, order_type: str, reduce_only: bool,
+    order_id: str,
+    order_type: str,
+    reduce_only: bool,
     position: SimPosition,
 ) -> str:
     """Determine the exit reason string from order fields and position state."""

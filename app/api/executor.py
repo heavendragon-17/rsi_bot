@@ -5,15 +5,17 @@ Thread-to-async bridge: BacktestEngine.run(on_progress=callback) runs in a
 worker thread. The callback pushes events onto an asyncio.Queue via
 loop.call_soon_threadsafe so the async SSE generator can stream them.
 """
+
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, Dict
+from typing import Any
 
 _executor = ThreadPoolExecutor(max_workers=2)
-_jobs: Dict[int, Future] = {}
-_progress_queues: Dict[int, asyncio.Queue] = {}
+_jobs: dict[int, Future] = {}
+_progress_queues: dict[int, asyncio.Queue] = {}
 
 
 def submit_backtest(run_id: int, fn: Callable, *args, **kwargs) -> Future:
@@ -51,9 +53,7 @@ def cleanup_job(run_id: int) -> None:
     _progress_queues.pop(run_id, None)
 
 
-def make_progress_callback(
-    run_id: int, loop: asyncio.AbstractEventLoop
-) -> Callable[[dict[str, Any]], None]:
+def make_progress_callback(run_id: int, loop: asyncio.AbstractEventLoop) -> Callable[[dict[str, Any]], None]:
     """
     Return a thread-safe callback that pushes progress events onto the
     asyncio.Queue so the async SSE generator can yield them.
@@ -69,9 +69,7 @@ def make_progress_callback(
     return callback
 
 
-def publish_event(
-    run_id: int, loop: asyncio.AbstractEventLoop, event: str, data: dict[str, Any]
-) -> None:
+def publish_event(run_id: int, loop: asyncio.AbstractEventLoop, event: str, data: dict[str, Any]) -> None:
     """Push a named event (e.g. 'complete', 'error') onto the queue from any thread."""
     q = _progress_queues.get(run_id)
     if q is not None:

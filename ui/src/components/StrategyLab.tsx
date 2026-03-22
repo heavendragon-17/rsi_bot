@@ -22,19 +22,19 @@ interface StrategyLabProps {
 
 export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: StrategyLabProps) {
   const [strategyName, setStrategyName] = useState(config.strategyName);
-  
+
   // Oscillators
   const [rsiPeriod, setRsiPeriod] = useState(config.rsiPeriod.toString());
   const [rsiEmaLength, setRsiEmaLength] = useState(config.rsiEmaLength.toString());
   const [rsiWmaLength, setRsiWmaLength] = useState(config.rsiWmaLength.toString());
   const [priceEmaFast, setPriceEmaFast] = useState(config.priceEmaFast.toString());
   const [priceEmaSlow, setPriceEmaSlow] = useState(config.priceEmaSlow.toString());
-  
+
   // Entry Conditions
   const [lookback, setLookback] = useState(config.lookback.toString());
   const [maxAboveEma21, setMaxAboveEma21] = useState(config.maxAboveEma21.toString());
   const [minRsiSpread, setMinRsiSpread] = useState(config.minRsiSpread.toString());
-  
+
   // Risk & Exit
   const [slMode, setSlMode] = useState(config.slMode);
   const [slBuffer, setSlBuffer] = useState(config.slBuffer.toString());
@@ -115,7 +115,7 @@ export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: 
             <div className="bg-slate-800/40 backdrop-blur-xl rounded-xl px-6 py-3 border border-white/10">
               <div className="text-xs text-slate-400">Testing Mode</div>
               <div className="text-white font-medium">
-                {launchpadConfig.mode === 'single' 
+                {launchpadConfig.mode === 'single'
                   ? `${launchpadConfig.symbol} · ${launchpadConfig.timeframe}`
                   : `Batch · ${launchpadConfig.timeframe}`}
               </div>
@@ -165,7 +165,7 @@ export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: 
               <Sliders className="w-5 h-5 text-cyan-400" />
               <h3 className="font-bold text-white">Oscillators (Indicators)</h3>
             </div>
-            
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-300 text-sm">RSI Period</Label>
@@ -235,7 +235,7 @@ export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: 
               <Activity className="w-5 h-5 text-violet-400" />
               <h3 className="font-bold text-white">Entry Conditions</h3>
             </div>
-            
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-300 text-sm">Lookback Period</Label>
@@ -284,7 +284,7 @@ export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: 
               <Shield className="w-5 h-5 text-rose-400" />
               <h3 className="font-bold text-white">Stop Loss Config</h3>
             </div>
-            
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-300 text-sm">SL Mode</Label>
@@ -462,7 +462,7 @@ export function StrategyLab({ onRunBacktest, config, launchpadConfig, onBack }: 
             <Save className="w-5 h-5" />
             Save Config Template
           </button>
-          
+
           <button
             onClick={handleRunBacktest}
             className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-violet-600 via-purple-600 to-cyan-600 hover:from-violet-500 hover:via-purple-500 hover:to-cyan-500 text-white shadow-[0_0_40px_rgba(139,92,246,0.4)] hover:shadow-[0_0_60px_rgba(139,92,246,0.6)] transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group active:scale-95"

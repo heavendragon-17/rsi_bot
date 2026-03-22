@@ -1,6 +1,8 @@
 """Tests for history/listing routes (M13 coverage gap)."""
-import pytest
+
 from datetime import date, datetime
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.main import app
 from app.api.routes import history as history_mod
 from app.repository.backtest.database import Base
-from app.repository.backtest.models import Run, RunConfig, RunResult, Strategy
+from app.repository.backtest.models import Run, RunConfig, Strategy
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -52,8 +54,12 @@ def _seed_run(db, strategy_id, symbol="BTC/USDT", status="completed"):
     db.commit()
     db.refresh(run)
     cfg = RunConfig(
-        run_id=run.id, symbol=symbol, timeframe="1h",
-        start_date=date(2023, 1, 1), end_date=date(2023, 6, 1), params={},
+        run_id=run.id,
+        symbol=symbol,
+        timeframe="1h",
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 6, 1),
+        params={},
     )
     db.add(cfg)
     db.commit()

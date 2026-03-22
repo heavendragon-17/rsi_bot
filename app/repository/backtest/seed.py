@@ -3,6 +3,7 @@ Seed data for the backtest database.
 
 Called by init_db() on startup — idempotent (skips if row already exists).
 """
+
 from app.repository.backtest.models import Strategy
 from app.trading.strategy.loader import STRATEGY_MAP
 

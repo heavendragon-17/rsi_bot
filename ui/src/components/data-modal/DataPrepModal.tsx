@@ -12,13 +12,13 @@ import { X, Play, RefreshCw, AlertTriangle, ArrowRight, CheckCircle } from "luci
 import { getRandomFact } from "../../lib/data-utils";
 
 export const DataPrepModal: React.FC = () => {
-  const { 
-      isOpen, 
-      state, 
-      closeModal, 
-      symbols, 
-      overallProgress, 
-      currentDownload, 
+  const {
+      isOpen,
+      state,
+      closeModal,
+      symbols,
+      overallProgress,
+      currentDownload,
       estimatedTimeRemaining,
       currentFact,
       setFact,
@@ -29,13 +29,13 @@ export const DataPrepModal: React.FC = () => {
   } = useDataPrepStore();
 
   const { runBacktest, timeframe } = useBacktestStore();
-  
+
   const [autoCloseTimer, setAutoCloseTimer] = useState<number | null>(null);
 
   // Fact Rotation Logic
   useEffect(() => {
     if (!isOpen || state === "complete" || state === "ready") return;
-    
+
     setFact(getRandomFact(currentDownload || undefined));
 
     const interval = setInterval(() => {
@@ -104,7 +104,7 @@ export const DataPrepModal: React.FC = () => {
       if ((state === "ready" || state === "complete") && isOpen) {
           const timer = window.setTimeout(() => {
               handleStartBacktest();
-          }, 1500); 
+          }, 1500);
           setAutoCloseTimer(timer);
           return () => clearTimeout(timer);
       }
@@ -138,7 +138,7 @@ export const DataPrepModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -147,7 +147,7 @@ export const DataPrepModal: React.FC = () => {
       />
 
       {/* Modal Content */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -169,7 +169,7 @@ export const DataPrepModal: React.FC = () => {
                          </div>
                      )}
                  </div>
-                 
+
                  <div>
                      <h2 className="text-lg font-semibold text-text-primary">
                         {state === "checking" && "Validating Data Integrity"}
@@ -194,7 +194,7 @@ export const DataPrepModal: React.FC = () => {
 
         {/* Dynamic Content Area */}
         <div className="px-6 py-2 space-y-4">
-            
+
             {/* Progress Bar (Only when downloading) */}
             {state === "downloading" && (
                 <div className="space-y-2">
@@ -222,7 +222,7 @@ export const DataPrepModal: React.FC = () => {
 
         {/* Footer Actions */}
         <div className="p-6 pt-4 flex items-center justify-between border-t border-border-main/50 bg-bg-surface/50">
-            <button 
+            <button
                 onClick={handleCancel}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
             >
@@ -231,7 +231,7 @@ export const DataPrepModal: React.FC = () => {
 
             <div className="flex gap-2">
                 {state === "error" ? (
-                     <button 
+                     <button
                         onClick={() => {
                             setPrepState("downloading");
                         }}
@@ -241,7 +241,7 @@ export const DataPrepModal: React.FC = () => {
                         Retry
                      </button>
                 ) : (
-                    <button 
+                    <button
                         onClick={handleStartBacktest}
                         className={cn(
                             "px-4 py-2 rounded-lg bg-accent-main text-white text-sm font-medium hover:bg-accent-hover transition-colors shadow-lg shadow-accent-main/20 flex items-center gap-2",
@@ -250,7 +250,7 @@ export const DataPrepModal: React.FC = () => {
                     >
                         {state === "ready" || state === "complete" ? (
                             <>
-                                Start Backtest 
+                                Start Backtest
                                 <ArrowRight size={16} />
                             </>
                         ) : (

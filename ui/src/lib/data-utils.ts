@@ -40,7 +40,7 @@ export const getRandomFact = (symbol?: string, isError: boolean = false): string
     const facts = CONTEXT_FACTS["ERROR"];
     return facts[Math.floor(Math.random() * facts.length)];
   }
-  
+
   const base = symbol ? symbol.split("/")[0] : "DEFAULT";
   const facts = CONTEXT_FACTS[base] || CONTEXT_FACTS["DEFAULT"];
   return facts[Math.floor(Math.random() * facts.length)];

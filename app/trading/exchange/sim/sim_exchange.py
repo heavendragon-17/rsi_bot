@@ -29,20 +29,25 @@ TP (limit, reduceOnly=True):
 Soft SL (market, reduceOnly=True):
     create_order() → fills immediately at current tick price
 """
+
 from __future__ import annotations
 
 import time
-import structlog
 import uuid
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
-from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL
+import structlog
+
+from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL
 from app.core.exceptions import OrderRejectedError
 from app.core.interfaces import IExchange
 from app.core.utils import to_decimal
 from app.trading.exchange.fill_simulator import (
-    FillSimulator, TickFillMode, PendingOrder,
+    FillSimulator,
+    PendingOrder,
+    TickFillMode,
 )
 from app.trading.exchange.sim.sim_fill_handler import (
     execute_fill_from_order,
@@ -70,15 +75,15 @@ class SimExchange(IExchange):
 
         self.state = SimTradeState(initial_balance)
         self._config = config
-        self._last_prices: Dict[str, Decimal] = {}
-        self._sim_time: Optional[float] = None
+        self._last_prices: dict[str, Decimal] = {}
+        self._sim_time: float | None = None
 
         self._notification_service = notification_service
         self._fires_entry_notification: bool = True
         self._fires_fill_notification: bool = True
 
         # Fill simulator for pending SL/TP order management and fill detection
-        self._sim_instance: Optional[FillSimulator] = FillSimulator(TickFillMode(), MAKER_FEE, TAKER_FEE)
+        self._sim_instance: FillSimulator | None = FillSimulator(TickFillMode(), MAKER_FEE, TAKER_FEE)
         # Bridge: state.pending_orders → simulator's dict for backward compat
         self.state.pending_orders = self._sim_instance.pending_orders  # type: ignore[assignment]
 
@@ -109,16 +114,17 @@ class SimExchange(IExchange):
         logger.info(f"[SimExchange] set_leverage({leverage}, {symbol}) — no-op in sim mode")
         return True
 
-    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
+    def fetch_balance(self, params: dict | None = None) -> dict:
         with self.state.lock:
             bal = float(self.state.balance)
         return {
-            "free": {"USDT": bal}, "used": {"USDT": 0.0},
+            "free": {"USDT": bal},
+            "used": {"USDT": 0.0},
             "total": {"USDT": bal},
             "USDT": {"free": bal, "used": 0.0, "total": bal},
         }
 
-    def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
+    def fetch_positions(self, symbols: list[str] | None = None) -> list[dict]:
         with self.state.lock:
             result = []
             for sym, pos in self.state.positions.items():
@@ -126,19 +132,22 @@ class SimExchange(IExchange):
                     continue
                 last_price = self._last_prices.get(sym, pos.entry_price)
                 upnl = (last_price - pos.entry_price) * pos.amount
-                result.append({
-                    "symbol": sym, "contracts": float(pos.amount),
-                    "side": "long", "entryPrice": float(pos.entry_price),
-                    "unrealizedPnl": float(upnl),
-                })
+                result.append(
+                    {
+                        "symbol": sym,
+                        "contracts": float(pos.amount),
+                        "side": "long",
+                        "entryPrice": float(pos.entry_price),
+                        "unrealizedPnl": float(upnl),
+                    }
+                )
         return result
 
-    def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         with self.state.lock:
-            return [self._order_to_dict(o)
-                    for o in self._sim.get_pending_orders(symbol)]
+            return [self._order_to_dict(o) for o in self._sim.get_pending_orders(symbol)]
 
-    def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+    def fetch_order(self, order_id: str, symbol: str) -> dict[str, Any]:
         with self.state.lock:
             po = self._sim.get_order(order_id)
         if po:
@@ -160,9 +169,9 @@ class SimExchange(IExchange):
         order_type: str,
         side: str,
         amount: Decimal,
-        price: Optional[Decimal] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Dict[str, Any]]:
+        price: Decimal | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         params = params or {}
         reduce_only = bool(params.get("reduceOnly", False))
         stop_price = to_decimal(params.get("stopPrice")) if params.get("stopPrice") else None
@@ -178,9 +187,15 @@ class SimExchange(IExchange):
 
         order_id = str(uuid.uuid4())
         po = PendingOrder(
-            id=order_id, symbol=symbol, order_type=order_type, side=side,
-            amount=amount, price=price, trigger_price=stop_price,
-            reduce_only=reduce_only, status="pending",
+            id=order_id,
+            symbol=symbol,
+            order_type=order_type,
+            side=side,
+            amount=amount,
+            price=price,
+            trigger_price=stop_price,
+            reduce_only=reduce_only,
+            status="pending",
             info={},
         )
 
@@ -190,7 +205,9 @@ class SimExchange(IExchange):
             if last_price > Decimal("0"):
                 self._sim.add_order(po)
                 execute_fill_from_order(self, po, last_price)
-                logger.info(f"[SimExchange] Entry filled immediately ({order_id[:8]}) — {symbol} {amount} @ {last_price}")
+                logger.info(
+                    f"[SimExchange] Entry filled immediately ({order_id[:8]}) — {symbol} {amount} @ {last_price}"
+                )
             else:
                 po.status = "pending_open"
                 self._sim.add_order(po)
@@ -210,7 +227,9 @@ class SimExchange(IExchange):
 
         # stop_market SL or limit TP → wait for tick scanner
         self._sim.add_order(po)
-        logger.debug(f"[SimExchange] Order queued ({order_id[:8]}) — {order_type} {side} {symbol} @ {stop_price or price}")
+        logger.debug(
+            f"[SimExchange] Order queued ({order_id[:8]}) — {order_type} {side} {symbol} @ {stop_price or price}"
+        )
 
         if order_type == "stop_market" and side == "SELL" and stop_price:
             link_sl_to_position(self, symbol, order_id, stop_price)
@@ -222,8 +241,7 @@ class SimExchange(IExchange):
     def on_kline_open(self, symbol: str, open_price: Decimal) -> None:
         open_price = to_decimal(open_price)
         with self.state.lock:
-            orders = [o for o in self._sim.get_pending_orders(symbol)
-                      if o.status == "pending_open"]
+            orders = [o for o in self._sim.get_pending_orders(symbol) if o.status == "pending_open"]
         for order in orders:
             logger.info(f"[SimExchange] Filling entry order at candle open {open_price} — {symbol}")
             execute_fill_from_order(self, order, open_price)
@@ -233,7 +251,9 @@ class SimExchange(IExchange):
         self._last_prices[symbol] = price
 
         fill_results = self._sim.process_market_data(
-            symbol, price, self._get_position_amount,
+            symbol,
+            price,
+            self._get_position_amount,
         )
 
         for fr in fill_results:
@@ -245,14 +265,19 @@ class SimExchange(IExchange):
     # ── Dict conversion ─────────────────────────────────────────
 
     @staticmethod
-    def _order_to_dict(po: PendingOrder) -> Dict[str, Any]:
+    def _order_to_dict(po: PendingOrder) -> dict[str, Any]:
         return {
-            "id": po.id, "symbol": po.symbol, "type": po.order_type,
-            "side": po.side, "amount": float(po.amount),
+            "id": po.id,
+            "symbol": po.symbol,
+            "type": po.order_type,
+            "side": po.side,
+            "amount": float(po.amount),
             "price": float(po.price) if po.price else None,
             "stopPrice": float(po.trigger_price) if po.trigger_price else None,
-            "reduceOnly": po.reduce_only, "status": po.status,
-            "filled": 0.0, "fillPrice": None,
+            "reduceOnly": po.reduce_only,
+            "status": po.status,
+            "filled": 0.0,
+            "fillPrice": None,
             "timestamp": int(time.time() * 1000),
         }
 

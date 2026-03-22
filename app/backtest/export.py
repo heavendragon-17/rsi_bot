@@ -3,6 +3,7 @@ Signal / report export utilities for backtest runners.
 
 Extracted from run_batch_analysis.py (CSV) and run_portfolio_backtest.py (JSON).
 """
+
 from __future__ import annotations
 
 import json
@@ -19,9 +20,8 @@ logger = structlog.get_logger()
 
 # ── CSV signal export ───────────────────────────────────────────────────────
 
-def export_signals_to_csv(
-    engine, symbol: str, output_dir: str, debug: bool = False
-) -> str | None:
+
+def export_signals_to_csv(engine, symbol: str, output_dir: str, debug: bool = False) -> str | None:
     """Export per-symbol trade signals to CSV with robust timestamp handling.
 
     Returns the CSV path on success, *None* on failure.
@@ -115,14 +115,15 @@ def _normalise_timestamp(trade: dict, field: str | None, idx: int) -> str:
 def _safe_value(value):
     if isinstance(value, Decimal):
         return float(value)
-    if isinstance(value, (datetime, pd.Timestamp)):
+    if isinstance(value, datetime | pd.Timestamp):
         return value.strftime("%Y-%m-%d %H:%M:%S")
-    if isinstance(value, (int, float, str, bool)):
+    if isinstance(value, int | float | str | bool):
         return value
     return str(value)
 
 
 # ── combined CSV ────────────────────────────────────────────────────────────
+
 
 def export_combined_signals(batch_results: list, output_dir: str) -> str | None:
     """Combine per-symbol signal CSVs into a single master CSV."""
@@ -149,6 +150,7 @@ def export_combined_signals(batch_results: list, output_dir: str) -> str | None:
 
 # ── JSON report ─────────────────────────────────────────────────────────────
 
+
 def export_json_report(results: dict, path: str) -> None:
     """Export a JSON report suitable for AI agent debugging."""
     try:
@@ -161,7 +163,7 @@ def export_json_report(results: dict, path: str) -> None:
 
 
 def _safe_serialize(obj):
-    if isinstance(obj, (pd.Timestamp, pd.DatetimeIndex)):
+    if isinstance(obj, pd.Timestamp | pd.DatetimeIndex):
         return obj.isoformat()
     if isinstance(obj, pd.Series):
         return obj.to_list()
@@ -171,6 +173,6 @@ def _safe_serialize(obj):
         return None
     if hasattr(obj, "item"):
         return obj.item()
-    if isinstance(obj, (datetime, date)):
+    if isinstance(obj, datetime | date):
         return obj.isoformat()
     return str(obj)

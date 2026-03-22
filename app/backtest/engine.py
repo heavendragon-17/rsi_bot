@@ -11,26 +11,27 @@ Subclasses the unified Engine. BacktestEngine adds:
 
 All action dispatch and strategy analysis are handled by the base Engine.
 """
+
 import numpy as np
 import pandas as pd
 import structlog
 
-from app.trading.engine import Engine
-from app.core.events import CandleCloseEvent
-from app.core.snapshots import ContextSnapshot
-from app.backtest.event_source import BacktestEventSource
-from app.backtest.mock_exchange import MockExchange
-from app.core.actions import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE
-from app.core.constants import WARMUP as _WARMUP_CONST
-from app.trading.portfolio.manager import PortfolioManager
+from app.backtest.engine_curves import build_drawdown_curve_dated, build_equity_curve_dated
 from app.backtest.engine_metrics import (
     build_round_trips,
-    calculate_metrics,
     calculate_drawdown,
-    calculate_risk_metrics,
+    calculate_metrics,
     calculate_monthly_returns,
+    calculate_risk_metrics,
 )
-from app.backtest.engine_curves import build_equity_curve_dated, build_drawdown_curve_dated
+from app.backtest.event_source import BacktestEventSource
+from app.backtest.mock_exchange import MockExchange
+from app.core.actions import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
+from app.core.constants import WARMUP as _WARMUP_CONST
+from app.core.events import CandleCloseEvent
+from app.core.snapshots import ContextSnapshot
+from app.trading.engine import Engine
+from app.trading.portfolio.manager import PortfolioManager
 
 logger = structlog.get_logger()
 
@@ -59,6 +60,7 @@ class BacktestEngine(Engine):
         timeframe = config.get("timeframe", "15m")
         try:
             from app.backtest.download_data import calculate_candle_limit
+
             limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
             if limit > 0:
                 data = data.tail(limit).reset_index(drop=True)
@@ -114,9 +116,9 @@ class BacktestEngine(Engine):
 
         row = df.iloc[-1]
         ts = df.index[-1]
-        o, h, l, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
+        o, h, low, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
 
-        executed_orders = self.exchange.update_candle(candle.symbol, o, h, l, c, ts)
+        executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)
         self._sync_executed_orders_to_portfolio(candle.symbol, executed_orders)
         self.portfolio.sync_from_exchange()
         super()._handle_candle_close(event)
@@ -169,10 +171,28 @@ class BacktestEngine(Engine):
 
         if not trades:
             return {
-                "metrics": {}, "risk_metrics": {"sharpe_ratio": 0, "sortino_ratio": 0, "calmar_ratio": 0, "volatility": 0, "var_95": 0},
-                "drawdown": {"max_drawdown_pct": 0, "max_drawdown_value": 0, "max_dd_duration": 0, "avg_drawdown_pct": 0},
-                "monthly_returns": {}, "equity_curve": [], "drawdown_curve": [], "round_trips": [],
-                "initial_balance": initial, "final_balance": initial, "net_profit": 0.0, "net_profit_pct": 0.0,
+                "metrics": {},
+                "risk_metrics": {
+                    "sharpe_ratio": 0,
+                    "sortino_ratio": 0,
+                    "calmar_ratio": 0,
+                    "volatility": 0,
+                    "var_95": 0,
+                },
+                "drawdown": {
+                    "max_drawdown_pct": 0,
+                    "max_drawdown_value": 0,
+                    "max_dd_duration": 0,
+                    "avg_drawdown_pct": 0,
+                },
+                "monthly_returns": {},
+                "equity_curve": [],
+                "drawdown_curve": [],
+                "round_trips": [],
+                "initial_balance": initial,
+                "final_balance": initial,
+                "net_profit": 0.0,
+                "net_profit_pct": 0.0,
             }
 
         df = pd.DataFrame(trades)
@@ -191,17 +211,22 @@ class BacktestEngine(Engine):
         net_profit_pct = (realized_pnl / initial * 100) if initial > 0 else 0.0
 
         return {
-            "metrics": metrics, "risk_metrics": risk_metrics,
+            "metrics": metrics,
+            "risk_metrics": risk_metrics,
             "drawdown": {
                 "max_drawdown_pct": drawdown_full.get("max_drawdown_pct", 0),
                 "max_drawdown_value": drawdown_full.get("max_drawdown_value", 0),
                 "max_dd_duration": drawdown_full.get("max_dd_duration", 0),
                 "avg_drawdown_pct": drawdown_full.get("avg_drawdown_pct", 0),
             },
-            "monthly_returns": monthly_returns, "equity_curve": equity_curve,
-            "drawdown_curve": drawdown_curve, "round_trips": round_trips_list,
-            "initial_balance": initial, "final_balance": final_balance,
-            "net_profit": realized_pnl, "net_profit_pct": net_profit_pct,
+            "monthly_returns": monthly_returns,
+            "equity_curve": equity_curve,
+            "drawdown_curve": drawdown_curve,
+            "round_trips": round_trips_list,
+            "initial_balance": initial,
+            "final_balance": final_balance,
+            "net_profit": realized_pnl,
+            "net_profit_pct": net_profit_pct,
         }
 
     @staticmethod
@@ -210,7 +235,7 @@ class BacktestEngine(Engine):
         df = data.copy()
         df.set_index("timestamp", inplace=True)
         df["closed"] = True
-        df["ts"] = df.index.astype(np.int64) // 10 ** 6
+        df["ts"] = df.index.astype(np.int64) // 10**6
         indicators = strategy.indicators
         df = indicators.compute(df, symbol=symbol, timeframe="backtest")
         return df
@@ -235,6 +260,7 @@ class BacktestEngine(Engine):
                 continue
 
             from decimal import Decimal
+
             filled_dec = Decimal(str(filled_amount))
 
             if exit_reason in ("TP1", "TP2", "TP3"):
@@ -255,6 +281,10 @@ class BacktestEngine(Engine):
             if amount > 0:
                 logger.info("closing_eod_position", symbol=symbol, amount=amount, price=final_price)
                 self.exchange.create_order(
-                    symbol=symbol, order_type="market", side="SELL",
-                    amount=float(amount), price=final_price, params={"exit_reason": "EOD"},
+                    symbol=symbol,
+                    order_type="market",
+                    side="SELL",
+                    amount=float(amount),
+                    price=final_price,
+                    params={"exit_reason": "EOD"},
                 )

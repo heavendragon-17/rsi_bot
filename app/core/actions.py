@@ -3,17 +3,16 @@ Typed action objects returned by Strategy.analyze().
 Each action is self-describing and carries all data needed for execution.
 Runner reads .actions from AnalysisResult and applies them to Portfolio.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List, Optional, Union
-
 
 # ── Side constants ──────────────────────────────────────────────────
 # Use these instead of raw "BUY"/"SELL" strings to avoid typos.
-SIDE_BUY = "BUY"    # Long entry / short exit
-SIDE_SELL = "SELL"   # Short entry / long exit
+SIDE_BUY = "BUY"  # Long entry / short exit
+SIDE_SELL = "SELL"  # Short entry / long exit
 
 
 def opposite_side(side: str) -> str:
@@ -35,7 +34,6 @@ EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"
 
 # ── Default fee rates (Binance futures) ────────────────────────────
 # Canonical values in app.core.constants; re-exported here for compatibility.
-from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -45,14 +43,15 @@ class OpenPosition:
     side = SIDE_BUY  → long entry  (exit orders will be SELL)
     side = SIDE_SELL → short entry (exit orders will be BUY)
     """
+
     symbol: str
-    side: str          # SIDE_BUY for long, SIDE_SELL for short
+    side: str  # SIDE_BUY for long, SIDE_SELL for short
     entry_price: Decimal
     sl_price: Decimal  # hard/disaster SL (placed as stop_market on exchange)
-    soft_sl_price: Optional[Decimal]
-    tp_prices: List[Decimal]       # [tp1, tp2, tp3] — only non-None entries
-    tp_allocations: Optional[dict]
-    lock_profit_price: Optional[Decimal]
+    soft_sl_price: Decimal | None
+    tp_prices: list[Decimal]  # [tp1, tp2, tp3] — only non-None entries
+    tp_allocations: dict | None
+    lock_profit_price: Decimal | None
     signal_class: int
     reason: str
 
@@ -60,14 +59,16 @@ class OpenPosition:
 @dataclass(frozen=True)
 class ClosePosition:
     """Close the current position (full exit)."""
+
     symbol: str
     reason: str
-    price: Optional[Decimal] = None  # None = market; set for candle-close exits
+    price: Decimal | None = None  # None = market; set for candle-close exits
 
 
 @dataclass(frozen=True)
 class MoveSL:
     """Move the stop loss to a new price level."""
+
     symbol: str
     new_sl_price: Decimal
     reason: str
@@ -76,18 +77,20 @@ class MoveSL:
 @dataclass(frozen=True)
 class PartialClose:
     """Partially close position at a TP level."""
+
     symbol: str
-    tp_level: str           # "TP1", "TP2", "TP3"
+    tp_level: str  # "TP1", "TP2", "TP3"
     price: Decimal
     reason: str
-    new_sl_price: Optional[Decimal] = None  # move SL after partial close (e.g. TP1)
+    new_sl_price: Decimal | None = None  # move SL after partial close (e.g. TP1)
 
 
 @dataclass(frozen=True)
 class DoNothing:
     """Explicit no-op. Makes the return type non-optional."""
+
     pass
 
 
 # Union type for type checking
-Action = Union[OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing]
+Action = OpenPosition | ClosePosition | MoveSL | PartialClose | DoNothing

@@ -6,6 +6,7 @@ Run with:
     # or
     uvicorn app.api.main:app --reload --port 8000
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -14,7 +15,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import backtest_run, backtest_results, backtest_stream, data, history, strategies
+from app.api.routes import backtest_results, backtest_run, backtest_stream, data, history, strategies
 from app.repository.backtest.database import SessionLocal, init_db
 from app.repository.backtest.seed import seed_strategies
 
@@ -57,6 +58,7 @@ app.include_router(backtest_stream.router)
 app.include_router(history.router)
 app.include_router(strategies.router)
 app.include_router(data.router)
+
 
 @app.get("/health")
 def health():

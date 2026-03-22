@@ -4,23 +4,26 @@ Exit management logic for RsiMomentumStrategy (SHORT positions).
 
 Extracted from RsiMomentumStrategy._manage_exit() as a module-level function.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 
-from app.trading.strategy.utils.trade_state import TradeState
-from app.trading.sl_tp_calculator import SLTPCalculator
-from app.core.context import SCANNING
-from app.core.snapshots import PositionSnapshot, ContextSnapshot
-from app.core.analysis_result import AnalysisResult
 from app.core.actions import (
-    ClosePosition, MoveSL, DoNothing,
-    SIDE_SELL, EXIT_CLOSE_BY_CANDLE_SL,
+    EXIT_CLOSE_BY_CANDLE_SL,
+    SIDE_SELL,
+    ClosePosition,
+    DoNothing,
+    MoveSL,
 )
+from app.core.analysis_result import AnalysisResult
+from app.core.context import SCANNING
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.utils import to_decimal_or_none
+from app.trading.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.utils.trade_state import TradeState
 
 
 def manage_exit(
@@ -111,11 +114,13 @@ def manage_exit(
                 meta=new_ts.to_meta(),
             )
             return AnalysisResult(
-                actions=[MoveSL(
-                    symbol=symbol,
-                    new_sl_price=lock_profit_price,
-                    reason=f"MOVE_SL_LOCK_PROFIT (low={low} <= {move_trigger} = -{move_sl_rr}R, new_sl={lock_profit_price} = -{lock_profit_rr}R)",
-                )],
+                actions=[
+                    MoveSL(
+                        symbol=symbol,
+                        new_sl_price=lock_profit_price,
+                        reason=f"MOVE_SL_LOCK_PROFIT (low={low} <= {move_trigger} = -{move_sl_rr}R, new_sl={lock_profit_price} = -{lock_profit_rr}R)",
+                    )
+                ],
                 new_context=new_ctx,
             )
 

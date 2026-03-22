@@ -1,5 +1,5 @@
 """Tests for NotificationWorker (M16 coverage gap)."""
-import pytest
+
 import time
 from unittest.mock import MagicMock, call
 
@@ -49,8 +49,7 @@ class TestNullNotifier:
         worker.start()
 
         worker.enqueue("send_message", "hello")
-        worker.enqueue("on_entry", symbol="BTC/USDT", side="LONG",
-                        entry_price=100, amount=1)
+        worker.enqueue("on_entry", symbol="BTC/USDT", side="LONG", entry_price=100, amount=1)
 
         worker.stop()
         # No exception = pass

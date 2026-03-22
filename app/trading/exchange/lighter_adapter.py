@@ -13,13 +13,14 @@ Environment Variables:
     LIGHTER_API_KEY_INDEX: API key index (default: 2)
     LIGHTER_BASE_URL: Base URL (default: testnet)
 """
+
 from __future__ import annotations
 
-import os
-import logging
 import asyncio
-from typing import Any, Dict, List, Optional
+import logging
+import os
 from decimal import Decimal
+from typing import Any
 
 from app.core.exceptions import ExchangeError
 from app.core.interfaces import IExchange
@@ -29,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 # Lighter SDK imports
 try:
-    import lighter
+    import lighter  # noqa: F401
     from lighter import SignerClient
-    from lighter.api import AccountApi, OrderApi
+    from lighter.api import AccountApi, OrderApi  # noqa: F401
+
     LIGHTER_SDK_AVAILABLE = True
 except ImportError:
     LIGHTER_SDK_AVAILABLE = False
     logger.warning(
-        "Lighter SDK import failed. "
-        "Run: pip install git+https://github.com/elliottech/lighter-python.git"
+        "Lighter SDK import failed. " "Run: pip install git+https://github.com/elliottech/lighter-python.git"
     )
 
 
@@ -63,8 +64,7 @@ class LighterAdapter(IExchange):
         """
         if not LIGHTER_SDK_AVAILABLE:
             raise RuntimeError(
-                "Lighter SDK not installed. "
-                "Run: pip install git+https://github.com/elliottech/lighter-python.git"
+                "Lighter SDK not installed. " "Run: pip install git+https://github.com/elliottech/lighter-python.git"
             )
 
         self.config = config or {}
@@ -87,29 +87,19 @@ class LighterAdapter(IExchange):
         # L1 Address (required for querying account balance/positions)
         self.l1_address = os.getenv("LIGHTER_L1_ADDRESS")
         if not self.l1_address:
-            raise ValueError(
-                "LIGHTER_L1_ADDRESS is required in .env "
-                "(your wallet public address)"
-            )
+            raise ValueError("LIGHTER_L1_ADDRESS is required in .env " "(your wallet public address)")
 
         # Determine mode (paper = testnet, live = mainnet)
         mode = config.get("bot", {}).get("mode", "paper").lower()
         if mode == "paper" or mode == "mock":
-            self.base_url = os.getenv(
-                "LIGHTER_BASE_URL", LIGHTER_TESTNET_URL
-            )
+            self.base_url = os.getenv("LIGHTER_BASE_URL", LIGHTER_TESTNET_URL)
         else:
-            self.base_url = os.getenv(
-                "LIGHTER_BASE_URL", LIGHTER_MAINNET_URL
-            )
+            self.base_url = os.getenv("LIGHTER_BASE_URL", LIGHTER_MAINNET_URL)
 
-        logger.info(
-            f"LighterAdapter: Connecting to {self.base_url} "
-            f"with Account Index {self.account_index}"
-        )
+        logger.info(f"LighterAdapter: Connecting to {self.base_url} " f"with Account Index {self.account_index}")
 
         # Symbol cache
-        self._symbol_map: Dict[str, str] = {}
+        self._symbol_map: dict[str, str] = {}
 
     def _get_client(self):
         """
@@ -121,12 +111,12 @@ class LighterAdapter(IExchange):
         return {
             "url": self.base_url,
             "api_private_keys": {self.api_key_index: self.secret_key},
-            "account_index": self.account_index
+            "account_index": self.account_index,
         }
 
     async def _cleanup_client(self, client):
         """Close the API client session."""
-        if client and hasattr(client, 'api_client'):
+        if client and hasattr(client, "api_client"):
             await client.api_client.close()
 
     # ===== Symbol Mapping =====
@@ -168,14 +158,14 @@ class LighterAdapter(IExchange):
         order_type: str,
         side: str,
         amount: Decimal,
-        price: Optional[Decimal] = None,
-        params: Dict = None
-    ) -> Optional[Dict[str, Any]]:
+        price: Decimal | None = None,
+        params: dict = None,
+    ) -> dict[str, Any] | None:
         """Create an order."""
+
         async def _create():
             client = SignerClient(**self._get_client())
             try:
-                params_local = params or {}
                 market_id = self._to_lighter_symbol(symbol)
 
                 amount_float = float(amount)
@@ -199,21 +189,13 @@ class LighterAdapter(IExchange):
                         side=side_lower,
                         size=amount_float,
                         price=price_float,
-                        order_type="ORDER_TYPE_LIMIT"
+                        order_type="ORDER_TYPE_LIMIT",
                     )
 
                 # Parse resp
-                raw = (
-                    resp.to_dict()
-                    if hasattr(resp, 'to_dict')
-                    else str(resp)
-                )
+                raw = resp.to_dict() if hasattr(resp, "to_dict") else str(resp)
 
-                return {
-                    'id': str(raw.get('id', '')),
-                    'info': raw,
-                    'status': 'open'
-                }
+                return {"id": str(raw.get("id", "")), "info": raw, "status": "open"}
 
             except Exception as e:
                 logger.error(f"Async create_order failed: {e}")
@@ -224,18 +206,17 @@ class LighterAdapter(IExchange):
         try:
             return self._run_async(_create())
         except Exception as e:
-            raise ExchangeError(f"Lighter create_order error: {e}")
+            raise ExchangeError(f"Lighter create_order error: {e}") from e
 
-    def cancel_order(
-        self, order_id: str, symbol: str = None, params: Dict = {}
-    ) -> bool:
+    def cancel_order(self, order_id: str, symbol: str = None, params: dict = None) -> bool:
         """Cancel order."""
+        if params is None:
+            params = {}
+
         async def _cancel():
             client = SignerClient(**self._get_client())
             try:
-                await client.cancel_order(
-                    order_index=int(order_id)
-                )
+                await client.cancel_order(order_index=int(order_id))
                 return True
             except Exception as e:
                 logger.error(f"Async cancel_order failed: {e}")
@@ -249,33 +230,31 @@ class LighterAdapter(IExchange):
         """Set leverage (no-op on Lighter)."""
         return True
 
-    def fetch_ohlcv(
-        self, symbol: str, timeframe: str, limit: int
-    ) -> List[List[Any]]:
+    def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int) -> list[list[Any]]:
         """Fetch OHLCV candle data."""
         raise NotImplementedError("Lighter fetch_ohlcv not implemented")
 
     # ===== IExchange Interface — Queries (delegated) =====
 
-    def fetch_balance(self, params: Dict = {}) -> Dict:
+    def fetch_balance(self, params: dict = None) -> dict:
         """Fetch account balance in CCXT format."""
+        if params is None:
+            params = {}
         return lighter_queries.fetch_balance(self, params)
 
-    def fetch_order(
-        self, order_id: str, symbol: str = None, params: Dict = {}
-    ) -> Dict:
+    def fetch_order(self, order_id: str, symbol: str = None, params: dict = None) -> dict:
         """Fetch order details."""
+        if params is None:
+            params = {}
         return lighter_queries.fetch_order(self, order_id, symbol, params)
 
-    def fetch_positions(
-        self, symbols: Optional[List[str]] = None, params: Dict = {}
-    ) -> List[Dict]:
+    def fetch_positions(self, symbols: list[str] | None = None, params: dict = None) -> list[dict]:
         """Fetch open positions in CCXT format."""
+        if params is None:
+            params = {}
         return lighter_queries.fetch_positions(self, symbols, params)
 
-    def fetch_open_orders(
-        self, symbol: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def fetch_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """Fetch all open/pending orders for a symbol."""
         return lighter_queries.fetch_open_orders(self, symbol)
 

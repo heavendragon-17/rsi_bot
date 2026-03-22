@@ -114,7 +114,7 @@ export const WalkForward: React.FC = () => {
             <WindowConfig />
             <div className="space-y-4">
               <ParamOptimizeConfig />
-              
+
               <Separator />
 
               {/* Run Button */}
@@ -182,7 +182,7 @@ export const WalkForward: React.FC = () => {
                   Ready to Test Robustness
                 </h3>
                 <p className="text-sm text-text-secondary mb-4">
-                  Configure your walk-forward windows and parameter range above, then click 
+                  Configure your walk-forward windows and parameter range above, then click
                   "Run Walk-Forward" to validate that your strategy isn't overfit to historical data.
                 </p>
                 <div className="inline-block p-4 bg-bg-surface rounded-lg border border-border-main text-left">

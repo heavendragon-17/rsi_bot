@@ -4,12 +4,12 @@ Multi-symbol parallel backtest runner.
 Refactored from run_batch_analysis.py — orchestrates parallel backtest
 execution across multiple symbols with report generation.
 """
+
 from __future__ import annotations
 
 import argparse
 import copy
 import os
-import sys
 import time
 import webbrowser
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -17,7 +17,7 @@ from decimal import Decimal
 
 import pandas as pd
 import structlog
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from app.backtest.batch_report import BatchHtmlGenerator
 from app.backtest.data_manager import DataManager
@@ -68,8 +68,13 @@ class BatchRunner:
         if max_workers == 1:
             for symbol in self.symbols:
                 result = _run_single_symbol(
-                    symbol, self.config, self.timeframe, self.balance,
-                    self.strategy_name, self.data_dir, self.report_dir,
+                    symbol,
+                    self.config,
+                    self.timeframe,
+                    self.balance,
+                    self.strategy_name,
+                    self.data_dir,
+                    self.report_dir,
                 )
                 if result and "error" not in result:
                     batch_results.append(result)
@@ -79,8 +84,14 @@ class BatchRunner:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
                     executor.submit(
-                        _run_single_symbol, symbol, self.config, self.timeframe,
-                        self.balance, self.strategy_name, self.data_dir, self.report_dir,
+                        _run_single_symbol,
+                        symbol,
+                        self.config,
+                        self.timeframe,
+                        self.balance,
+                        self.strategy_name,
+                        self.data_dir,
+                        self.report_dir,
                     ): symbol
                     for symbol in self.symbols
                 }
@@ -112,9 +123,15 @@ class BatchRunner:
 
 # ── per-symbol worker (must be top-level for pickling) ──────────────────────
 
+
 def _run_single_symbol(
-    symbol: str, config: dict, timeframe: str, balance: float,
-    strategy_name: str, data_dir: str, report_dir: str,
+    symbol: str,
+    config: dict,
+    timeframe: str,
+    balance: float,
+    strategy_name: str,
+    data_dir: str,
+    report_dir: str,
 ) -> dict:
     """Run backtest for a single symbol.  Designed for ProcessPoolExecutor."""
     setup_logging(level="INFO")
@@ -163,8 +180,11 @@ def _run_single_symbol(
             **run_config.get("strategy_params", {}),
         }
         reporter = BacktestReporter(
-            results, symbol=symbol, timeframe=timeframe,
-            strategy_name=strategy_name, leverage=leverage,
+            results,
+            symbol=symbol,
+            timeframe=timeframe,
+            strategy_name=strategy_name,
+            leverage=leverage,
             strategy_params=strategy_params,
         )
         html_content = reporter._generate_html_report(return_only=True, output_dir=report_dir)
@@ -187,11 +207,13 @@ def _run_single_symbol(
         }
     except Exception as exc:
         import traceback
+
         traceback.print_exc()
         return {"symbol": symbol, "error": str(exc)}
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run batch backtest analysis")
@@ -206,7 +228,7 @@ def main():
 
     setup_logging(level="INFO")
 
-    with open(CONFIG_PATH, "r") as f:
+    with open(CONFIG_PATH) as f:
         config = yaml.safe_load(f)
 
     timeframe = config.get("timeframe", "15m")
@@ -217,7 +239,7 @@ def main():
         logger.error("unknown_strategy", name=strategy_name, available=list(STRATEGY_MAP.keys()))
         return
 
-    with open(SYMBOLS_PATH, "r") as f:
+    with open(SYMBOLS_PATH) as f:
         symbols = [line.strip() for line in f if line.strip()]
 
     max_workers = args.workers or min(os.cpu_count() or 4, len(symbols))

@@ -3,6 +3,7 @@ Resampling Utility
 ==================
 Utility function to resample OHLCV DataFrames to different timeframes.
 """
+
 import pandas as pd
 
 
@@ -36,12 +37,7 @@ def resample_dataframe(df: pd.DataFrame, target_timeframe: str) -> pd.DataFrame:
 
     # Normalize timeframe string for pandas (e.g. '1m' -> '1T', '1h' -> '1H')
     # Simple mapping for common crypto timeframes
-    tf_map = {
-        'm': 'min',
-        'h': 'h',
-        'd': 'D',
-        'w': 'W'
-    }
+    tf_map = {"m": "min", "h": "h", "d": "D", "w": "W"}
 
     # Try to parse timeframe if it ends with m, h, d, w
     rule = target_timeframe
@@ -51,17 +47,11 @@ def resample_dataframe(df: pd.DataFrame, target_timeframe: str) -> pd.DataFrame:
         rule = f"{val}{tf_map[unit]}"
 
     # Define aggregation logic
-    agg_dict = {
-        'open': 'first',
-        'high': 'max',
-        'low': 'min',
-        'close': 'last',
-        'volume': 'sum'
-    }
+    agg_dict = {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
 
     # Resample
     # label='left', closed='left' is standard for financial candles (start of interval)
-    resampled = df_res.resample(rule, label='left', closed='left').agg(agg_dict)
+    resampled = df_res.resample(rule, label="left", closed="left").agg(agg_dict)
 
     # Remove rows with NaN (empty intervals)
     resampled.dropna(inplace=True)

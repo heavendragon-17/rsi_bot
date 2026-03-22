@@ -4,6 +4,7 @@ Backtest run management routes.
 POST   /api/backtest/run       — start a backtest
 DELETE /api/backtest/{run_id}  — cancel a running backtest
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,9 +32,9 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
     try:
         run_id = await _service.start_run(body, db)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     return BacktestStartResponse(run_id=run_id, status="running")
 
 

@@ -5,41 +5,42 @@ Iterates over multiple pre-computed DataFrames from different symbols and yields
 CandleCloseEvents strictly sorted by timestamp. This provides the multiplexed
 chronological stream required for the unified portfolio backtest.
 """
+
 from __future__ import annotations
 
 import heapq
+from collections.abc import Iterator
 from decimal import Decimal
-from typing import Dict, Iterator, List, Tuple
 
 import pandas as pd
-from typing import Any
 
 from app.core.constants import WARMUP
-from app.trading.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
+from app.trading.event_source import IEventSource
+
 
 class PortfolioEventSource(IEventSource):
     """
     Multiplexes multiple DataFrames into a single chronological stream of events.
 
     Args:
-        dfs (Dict[str, pd.DataFrame]): Dictionary mapping symbol to its pre-computed 
+        dfs (Dict[str, pd.DataFrame]): Dictionary mapping symbol to its pre-computed
             DataFrame with a datetime index.
-        start_idx (int): Global warmup rows to skip. 
+        start_idx (int): Global warmup rows to skip.
             Note: Since different dataframes might have different start dates,
-            warmup is handled by computing indicators for the whole df but 
-            only yielding events after `start_idx` candles have been skipped 
+            warmup is handled by computing indicators for the whole df but
+            only yielding events after `start_idx` candles have been skipped
             *per symbol*.
     """
 
-    def __init__(self, dfs: Dict[str, pd.DataFrame], start_idx: int = WARMUP) -> None:
+    def __init__(self, dfs: dict[str, pd.DataFrame], start_idx: int = WARMUP) -> None:
         self.dfs = dfs
         self.start_idx = start_idx
         self._stopped = False
-        
+
         # Priority Queue for merging
         # Items in queue: (timestamp, counter, symbol, index_in_df)
-        self.pq: List[Tuple[pd.Timestamp, int, str, int]] = []
+        self.pq: list[tuple[pd.Timestamp, int, str, int]] = []
         self._counter = 0  # tie-breaker
 
         # Initialize priority queue with the first valid candle for each symbol
@@ -76,7 +77,7 @@ class PortfolioEventSource(IEventSource):
             df_slice = df.iloc[: idx + 1]
 
             yield CandleCloseEvent(candle=candle, df=df_slice)
-            
+
             self.events_yielded += 1
             if self._on_progress and self.total_events > 0:
                 self._on_progress(self.events_yielded / self.total_events)

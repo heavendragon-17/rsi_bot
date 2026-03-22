@@ -4,14 +4,16 @@ BacktestService — business logic for backtest operations.
 Routes to the correct runner by mode, manages DB records, persists results.
 API route handlers delegate here and remain thin HTTP adapters.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import os
 import zlib
+from collections.abc import AsyncIterator
 from datetime import date, datetime
-from typing import Any, AsyncIterator
+from typing import Any
 
 import structlog
 from sqlalchemy.orm import Session
@@ -32,9 +34,7 @@ from app.trading.strategy.loader import STRATEGY_MAP
 
 logger = structlog.get_logger()
 
-DATA_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "data")
-)
+DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
 
 
 def _csv_path(symbol: str, timeframe: str) -> str:
@@ -57,9 +57,7 @@ class BacktestService:
         # 1. Resolve strategy (fail fast before filesystem checks)
         strategy_class = STRATEGY_MAP.get(req.strategy)
         if strategy_class is None:
-            raise ValueError(
-                f"Unknown strategy: {req.strategy}. Available: {list(STRATEGY_MAP)}"
-            )
+            raise ValueError(f"Unknown strategy: {req.strategy}. Available: {list(STRATEGY_MAP)}")
 
         strat_row = db.query(Strategy).filter_by(name=req.strategy).first()
         if strat_row is None:
@@ -71,9 +69,7 @@ class BacktestService:
             csv_path = _csv_path(req.symbol, req.timeframe)
             if not os.path.exists(csv_path):
                 safe = req.symbol.replace("/", "")
-                raise FileNotFoundError(
-                    f"Data file not found: {safe}_{req.timeframe}.csv. Download data first."
-                )
+                raise FileNotFoundError(f"Data file not found: {safe}_{req.timeframe}.csv. Download data first.")
 
         # 3. Create Run + RunConfig rows
         run = Run(
@@ -187,7 +183,7 @@ class BacktestService:
                 yield f"event: {evt_name}\ndata: {json.dumps(event)}\n\n"
                 if evt_name in ("complete", "error"):
                     break
-        except asyncio.TimeoutError:
+        except TimeoutError:
             yield f"event: error\ndata: {json.dumps({'message': 'timeout'})}\n\n"
 
     # ------------------------------------------------------------------
@@ -236,15 +232,11 @@ class BacktestService:
                 engine = BacktestEngine(csv_path, strategy_class, engine_config)
                 results = engine.run(on_progress=progress_cb)
                 persist_results(run_id, results)
-                exc_mod.publish_event(
-                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
-                )
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
             except Exception as err:
                 logger.error("backtest_worker_error", run_id=run_id, error=str(err))
                 mark_failed(run_id, str(err))
-                exc_mod.publish_event(
-                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
-                )
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
             finally:
                 exc_mod.cleanup_job(run_id)
 
@@ -273,15 +265,11 @@ class BacktestService:
                     progress_cb=progress_cb,
                 )
                 persist_results(run_id, results)
-                exc_mod.publish_event(
-                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
-                )
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
             except Exception as err:
                 logger.error("portfolio_backtest_worker_error", run_id=run_id, error=str(err))
                 mark_failed(run_id, str(err))
-                exc_mod.publish_event(
-                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
-                )
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
             finally:
                 exc_mod.cleanup_job(run_id)
 

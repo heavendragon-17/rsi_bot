@@ -8,6 +8,7 @@ Formats pre-computed results dict from BacktestEngine.compute_results() into:
 All metric computation lives in BacktestEngine. This class is purely a formatter.
 HTML generation is delegated to reporting_html module.
 """
+
 import os
 
 import pandas as pd
@@ -58,9 +59,7 @@ class BacktestReporter:
         self._export_csv(output_dir=output_dir)
         return report_path
 
-    def _generate_html_report(
-        self, return_only: bool = False, output_dir: str = "."
-    ) -> str | None:
+    def _generate_html_report(self, return_only: bool = False, output_dir: str = ".") -> str | None:
         """Generate HTML report. Delegates to reporting_html module."""
         return generate_html_report(
             results=self.results,
@@ -84,8 +83,6 @@ class BacktestReporter:
         os.makedirs(csv_dir, exist_ok=True)
 
         round_trips_df = pd.DataFrame(rt_list)
-        trades_path = os.path.join(
-            csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv"
-        )
+        trades_path = os.path.join(csv_dir, f"backtest_trades_{safe_symbol}_{self.timeframe}.csv")
         round_trips_df.to_csv(trades_path, index=False)
         logger.info("csv_exported", path=trades_path)

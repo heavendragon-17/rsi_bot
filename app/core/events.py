@@ -3,13 +3,14 @@ Core Event Types for RSI Trading Bot
 =====================================
 All price fields use Decimal for financial precision.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -17,8 +18,9 @@ if TYPE_CHECKING:
 
 class EventType(Enum):
     """Market data event types."""
-    TICK_UPDATE = "TICK_UPDATE"   # Nến đang chạy (Real-time)
-    KLINE_CLOSE = "KLINE_CLOSE"   # Nến vừa đóng cửa (Confirmed)
+
+    TICK_UPDATE = "TICK_UPDATE"  # Nến đang chạy (Real-time)
+    KLINE_CLOSE = "KLINE_CLOSE"  # Nến vừa đóng cửa (Confirmed)
 
 
 @dataclass
@@ -27,6 +29,7 @@ class Candle:
     OHLCV candle data with Decimal precision for price fields.
     Prevents floating-point errors in financial calculations.
     """
+
     symbol: str
     timestamp: datetime
     open: Decimal
@@ -40,6 +43,7 @@ class Candle:
 @dataclass
 class MarketEvent:
     """Event emitted when market data is received."""
+
     type: EventType
     exchange: str
     payload: Candle
@@ -51,50 +55,53 @@ class SignalEvent:
     """
     Signal emitted by strategy layer.
     Contains entry information and TP/SL metadata.
-    
+
     LONG ONLY strategy - signal_type is always 'BUY' for entry.
     """
+
     symbol: str
     signal_type: str  # BUY for entry, SELL for exit
     price: Decimal
     timestamp: datetime
     reason: str = ""
-    
+
     # TP levels (prices calculated from RSI levels)
-    tp1_price: Optional[Decimal] = None  # R60 level
-    tp2_price: Optional[Decimal] = None  # R70 level
-    tp3_price: Optional[Decimal] = None  # R80 level
-    
+    tp1_price: Decimal | None = None  # R60 level
+    tp2_price: Decimal | None = None  # R70 level
+    tp3_price: Decimal | None = None  # R80 level
+
     # SL levels (dual SL system)
-    sl_price: Optional[Decimal] = None        # Disaster SL: hard limit order at 3x distance
-    soft_sl_price: Optional[Decimal] = None   # Soft SL: candle-close exit level (R40 - buffer)
-    
+    sl_price: Decimal | None = None  # Disaster SL: hard limit order at 3x distance
+    soft_sl_price: Decimal | None = None  # Soft SL: candle-close exit level (R40 - buffer)
+
     # Signal quality classification
     # 1 = optimal (WMA45 in 40-46 range)
     # 2 = acceptable (WMA45 in 30-50 range)
     signal_class: int = 2
 
     # Lock Profit Level (e.g. 0.2R)
-    lock_profit_price: Optional[Decimal] = None
+    lock_profit_price: Decimal | None = None
 
     # Dynamic TP Allocations (e.g. {"TP1": 0.5, "TP2": 1.0})
     # If None, PortfolioManager uses default config
-    tp_allocations: Optional[dict] = field(default=None)
+    tp_allocations: dict | None = field(default=None)
 
 
 @dataclass
 class OrderEvent:
     """Order event to be executed by exchange."""
+
     symbol: str
     order_type: str  # MARKET, LIMIT
-    side: str        # BUY, SELL
+    side: str  # BUY, SELL
     amount: Decimal
-    price: Optional[Decimal] = None
+    price: Decimal | None = None
 
 
 @dataclass
 class TPSLEvent:
     """Take profit or stop loss trigger event."""
+
     symbol: str
     event_type: str  # TP1, TP2, TP3, SL
     trigger_price: Decimal
@@ -106,13 +113,15 @@ class TPSLEvent:
 # Engine Event Types (PR7: Unified Engine)
 # ============================================
 
+
 @dataclass
 class TickEvent:
     """Real-time price tick (from WebSocket or historical replay)."""
+
     symbol: str
     price: Decimal
     timestamp: datetime
-    volume: Optional[Decimal] = None
+    volume: Decimal | None = None
 
 
 @dataclass
@@ -124,15 +133,17 @@ class CandleCloseEvent:
     already computed (used by BacktestEventSource). When ``df`` is None the
     Engine is responsible for fetching the DataFrame from its data store.
     """
+
     candle: Candle
-    df: Optional[pd.DataFrame] = None  # type: ignore[type-arg]
+    df: pd.DataFrame | None = None  # type: ignore[type-arg]
 
 
 @dataclass
 class EngineStopEvent:
     """Signals the engine to stop processing."""
+
     reason: str = "normal"
 
 
 # Union of all engine-level events
-EngineEvent = Union[TickEvent, CandleCloseEvent, EngineStopEvent]
+EngineEvent = TickEvent | CandleCloseEvent | EngineStopEvent

@@ -3,6 +3,7 @@ Backtest result persistence — writes engine results to the database.
 
 Called from worker threads, so each function manages its own DB session.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,6 @@ from datetime import datetime
 from typing import Any
 
 import structlog
-from sqlalchemy.orm import Session
 
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import (
@@ -132,6 +132,7 @@ def _parse_dt(val: Any) -> datetime | None:
         return val
     try:
         import pandas as pd
+
         return pd.to_datetime(val).to_pydatetime()
     except Exception:
         return None

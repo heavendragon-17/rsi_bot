@@ -12,7 +12,7 @@ export interface BatchSymbolResult {
   sharpe: number;
   maxDrawdownPct: number;
   isPinned: boolean;
-  
+
   // Full data needed for drill-down
   trades: Trade[];
   equityCurve: { time: string; value: number }[];
@@ -70,7 +70,7 @@ export const useBatchResultsStore = create<BatchResultsState>()(
       batchRunId: 0,
       symbols: [],
       allocationMode: "equal_weight",
-      
+
       totalPnL: 0,
       totalPnLPct: 0,
       benchmarkPnLPct: 0,
@@ -80,19 +80,19 @@ export const useBatchResultsStore = create<BatchResultsState>()(
       avgCorrelation: 0,
       bestSymbol: { symbol: "", pnlPct: 0 },
       worstSymbol: { symbol: "", pnlPct: 0 },
-      
+
       symbolResults: [],
       correlationMatrix: [],
-      
+
       portfolioEquityCurve: [],
       benchmarkEquityCurve: [],
       dispersionRange: [],
-      
+
       pinnedSymbols: [],
       selectedSymbol: null,
 
       setBatchResults: (data) => set((state) => ({ ...state, ...data, hasBatchResults: true })),
-      
+
       togglePin: (symbol) => set((state) => {
         const isPinned = state.pinnedSymbols.includes(symbol);
         if (isPinned) {
@@ -109,7 +109,7 @@ export const useBatchResultsStore = create<BatchResultsState>()(
     }),
     {
       name: "batch-results-storage",
-      partialize: (state) => ({ hasBatchResults: state.hasBatchResults }), 
+      partialize: (state) => ({ hasBatchResults: state.hasBatchResults }),
     }
   )
 );

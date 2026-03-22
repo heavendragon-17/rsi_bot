@@ -36,7 +36,7 @@ Comprehensive sensitivity analysis system that helps traders identify which stra
 
 ### 2. Tornado Chart Visualization ✅
 - **Sorted Display**: Parameters ordered by total impact (highest first)
-- **Bidirectional Bars**: 
+- **Bidirectional Bars**:
   - Left bars (red) show negative impact of decreasing parameter
   - Right bars (green) show positive impact of increasing parameter
   - Bars extend from center line (base value)
@@ -193,7 +193,7 @@ interface SensitivityState {
    - Select variation amount (e.g., ±20%)
    - Choose metric (e.g., Net PnL)
 3. **Execute**: Click "Run Sensitivity Analysis"
-4. **Review**: 
+4. **Review**:
    - Tornado chart shows RSI Period has 38% total impact (HIGH)
    - Overbought/Oversold have 5-8% impact (LOW)
 5. **Action**: Click "Open Grid Search" to optimize RSI Period

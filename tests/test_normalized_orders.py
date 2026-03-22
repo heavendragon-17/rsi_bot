@@ -3,18 +3,20 @@ Tests for normalized order type vocabulary.
 Validates MockExchange handles all order types correctly,
 reduceOnly enforcement, and full TP/SL lifecycle.
 """
-import pytest
-from decimal import Decimal
+
 from datetime import datetime
+from decimal import Decimal
+
+import pytest
 
 from app.backtest.mock_exchange import MockExchange
-from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.events import SignalEvent
-
+from app.trading.portfolio.manager import PortfolioManager
 
 # ==============================================================================
 # Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def exchange():
@@ -61,6 +63,7 @@ def _buy_signal(symbol="BTC/USDT", price=50000, sl=48000, tp1=51000, tp2=52000, 
 # Test: MockExchange handles stop_market correctly
 # ==============================================================================
 
+
 class TestMockStopMarket:
     def test_create_order_stop_market_places_pending(self, exchange):
         """stop_market order should be pending, not immediately executed."""
@@ -69,7 +72,10 @@ class TestMockStopMarket:
 
         # Place stop_market SL
         result = exchange.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": Decimal("48000"), "reduceOnly": True},
         )
 
@@ -82,7 +88,10 @@ class TestMockStopMarket:
         """stop_market SL should trigger when candle low <= stopPrice."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         exchange.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": Decimal("48000"), "reduceOnly": True},
         )
 
@@ -102,7 +111,10 @@ class TestMockStopMarket:
         """stop_market SL should NOT trigger just because high is above stopPrice."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         exchange.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": Decimal("48000"), "reduceOnly": True},
         )
 
@@ -115,12 +127,16 @@ class TestMockStopMarket:
 # Test: MockExchange handles limit TP correctly
 # ==============================================================================
 
+
 class TestMockLimitTP:
     def test_limit_tp_triggers_on_high(self, exchange):
         """Limit SELL (TP) should trigger when candle high >= price."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         exchange.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.05"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.05"),
             price=Decimal("52000"),
             params={"reduceOnly": True, "exit_reason": "TP1"},
         )
@@ -135,7 +151,10 @@ class TestMockLimitTP:
         """Limit SELL (TP) should NOT trigger when high < price."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         exchange.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.05"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.05"),
             price=Decimal("52000"),
             params={"reduceOnly": True},
         )
@@ -148,11 +167,15 @@ class TestMockLimitTP:
 # Test: reduceOnly enforcement
 # ==============================================================================
 
+
 class TestReduceOnly:
     def test_reduce_only_prevents_short(self, exchange):
         """reduceOnly market SELL on zero position should return None."""
         result = exchange.create_order(
-            "BTC/USDT", "market", "SELL", Decimal("1.0"),
+            "BTC/USDT",
+            "market",
+            "SELL",
+            Decimal("1.0"),
             params={"reduceOnly": True},
         )
         assert result is None
@@ -162,7 +185,10 @@ class TestReduceOnly:
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
 
         result = exchange.create_order(
-            "BTC/USDT", "market", "SELL", Decimal("0.5"),  # Trying to sell 5x position
+            "BTC/USDT",
+            "market",
+            "SELL",
+            Decimal("0.5"),  # Trying to sell 5x position
             params={"reduceOnly": True},
         )
         assert result is not None
@@ -172,7 +198,10 @@ class TestReduceOnly:
         """reduceOnly pending order should be cancelled if position is zero when triggered."""
         # Place stop_market without a position
         exchange.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": Decimal("48000"), "reduceOnly": True},
         )
 
@@ -186,7 +215,10 @@ class TestReduceOnly:
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         # SL for 0.5 (more than position)
         exchange.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.5"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.5"),
             params={"stopPrice": Decimal("48000"), "reduceOnly": True},
         )
 
@@ -198,6 +230,7 @@ class TestReduceOnly:
 # ==============================================================================
 # Test: Full TP/SL lifecycle
 # ==============================================================================
+
 
 class TestTPSLLifecycle:
     def test_buy_places_sl_and_tps(self, exchange, portfolio):
@@ -262,7 +295,7 @@ class TestTPSLLifecycle:
         portfolio.on_signal(signal)
 
         pos = portfolio.positions["BTC/USDT"]
-        tp_ids = dict(pos.tp_order_ids)
+        dict(pos.tp_order_ids)
 
         # Candle triggers SL (low <= 48000)
         exchange.update_candle("BTC/USDT", 49000, 49500, 47500, 48000, datetime(2025, 1, 2))
@@ -307,6 +340,7 @@ class TestTPSLLifecycle:
 # Test: Soft SL race condition
 # ==============================================================================
 
+
 class TestSoftSLRaceCondition:
     def test_soft_sl_after_hard_sl_no_double_sell(self, exchange, portfolio):
         """If hard SL already fired, soft SL signal should not create a short."""
@@ -338,11 +372,12 @@ class TestSoftSLRaceCondition:
 # Test: Startup cleanup
 # ==============================================================================
 
+
 class TestStartupCleanup:
     def test_cleanup_closes_orphan_positions(self, exchange):
         """Runner startup should close orphan positions."""
+
         from app.trading.runner import MultiSymbolRunner
-        from unittest.mock import MagicMock
 
         # Create orphan position
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
@@ -365,14 +400,21 @@ class TestStartupCleanup:
 # Test: cancel_all_orders / fetch_open_orders
 # ==============================================================================
 
+
 class TestOrderManagement:
     def test_cancel_all_orders(self, exchange):
         """cancel_all_orders should remove all pending orders for a symbol."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
-        exchange.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
-                              params={"stopPrice": Decimal("48000"), "reduceOnly": True})
-        exchange.create_order("BTC/USDT", "limit", "SELL", Decimal("0.05"),
-                              price=Decimal("52000"), params={"reduceOnly": True})
+        exchange.create_order(
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
+            params={"stopPrice": Decimal("48000"), "reduceOnly": True},
+        )
+        exchange.create_order(
+            "BTC/USDT", "limit", "SELL", Decimal("0.05"), price=Decimal("52000"), params={"reduceOnly": True}
+        )
 
         assert len(exchange.pending_orders) == 2
         cancelled = exchange.cancel_all_orders("BTC/USDT")
@@ -382,10 +424,8 @@ class TestOrderManagement:
     def test_fetch_open_orders(self, exchange):
         """fetch_open_orders should return all pending orders for a symbol."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
-        exchange.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
-                              params={"stopPrice": Decimal("48000")})
-        exchange.create_order("BTC/USDT", "limit", "SELL", Decimal("0.05"),
-                              price=Decimal("52000"))
+        exchange.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.1"), params={"stopPrice": Decimal("48000")})
+        exchange.create_order("BTC/USDT", "limit", "SELL", Decimal("0.05"), price=Decimal("52000"))
 
         orders = exchange.fetch_open_orders("BTC/USDT")
         assert len(orders) == 2
@@ -396,8 +436,9 @@ class TestOrderManagement:
     def test_fetch_order_pending(self, exchange):
         """fetch_order on pending order should return status=open."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
-        result = exchange.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
-                                        params={"stopPrice": Decimal("48000")})
+        result = exchange.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.1"), params={"stopPrice": Decimal("48000")}
+        )
 
         fetched = exchange.fetch_order(result["id"], "BTC/USDT")
         assert fetched["status"] == "open"
@@ -405,8 +446,13 @@ class TestOrderManagement:
     def test_fetch_order_filled(self, exchange):
         """fetch_order on filled order should return status=closed."""
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
-        result = exchange.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.1"),
-                                        params={"stopPrice": Decimal("48000"), "reduceOnly": True})
+        result = exchange.create_order(
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
+            params={"stopPrice": Decimal("48000"), "reduceOnly": True},
+        )
 
         order_id = result["id"]
         exchange.update_candle("BTC/USDT", 49000, 49500, 47000, 47500, datetime(2025, 1, 2))

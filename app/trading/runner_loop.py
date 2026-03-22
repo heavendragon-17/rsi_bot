@@ -9,13 +9,16 @@ Contains:
 - action_to_signal()   — convert OpenPosition action → SignalEvent
 - cleanup_on_startup() — close orphan positions from previous run
 """
+
 from __future__ import annotations
 
-import structlog
+import threading
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any
+
+import structlog
 
 from app.core.actions import (
     ClosePosition,
@@ -102,23 +105,21 @@ def cleanup_on_startup(
     # Telegram alert
     if notification_service:
         try:
-            notification_service.send_message(
-                f"\u26a0\ufe0f Bot restarted. Closed {len(positions)} orphan positions."
-            )
+            notification_service.send_message(f"\u26a0\ufe0f Bot restarted. Closed {len(positions)} orphan positions.")
         except Exception:
             pass
 
 
 def run_symbol_loop(
     symbol: str,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     strategy: IStrategy,
     portfolio: PortfolioManager,
     exchange: IExchange,
     store: MarketDataStore,
     store_key: str,
-    contexts: Dict[str, ContextSnapshot],
-    running: "threading.Event",
+    contexts: dict[str, ContextSnapshot],
+    running: threading.Event,
 ) -> None:
     """
     Main trading loop for a single symbol.
@@ -140,7 +141,6 @@ def run_symbol_loop(
         contexts: Shared dict of ContextSnapshots, keyed by symbol.
         running: Threading event — loop runs while this is set.
     """
-    import threading  # local import to avoid top-level dependency
 
     logger.info(f"[{symbol}] Strategy loop started")
 
@@ -161,7 +161,7 @@ def run_symbol_loop(
             current_ts = df.index[-1]
 
             # Find the most recently closed candle
-            closed_candles = df[df['closed'] == True]
+            closed_candles = df[df["closed"]]
 
             if closed_candles.empty:
                 time.sleep(0.5)

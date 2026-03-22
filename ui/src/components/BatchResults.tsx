@@ -25,19 +25,19 @@ interface BatchResultsProps {
   onBack: () => void;
 }
 
-export function BatchResults({ 
-  batchPerformance, 
-  selectedSymbol, 
-  onSelectSymbol, 
+export function BatchResults({
+  batchPerformance,
+  selectedSymbol,
+  onSelectSymbol,
   symbolTrades,
   onSelectTrade,
-  onBack 
+  onBack
 }: BatchResultsProps) {
   // Calculate portfolio totals
   const totalPnl = batchPerformance.reduce((sum, p) => sum + p.pnl, 0);
   const portfolioReturn = (totalPnl / 10000) * 100;
   const avgDrawdown = batchPerformance.reduce((sum, p) => sum + p.drawdown, 0) / batchPerformance.length;
-  const overallWinRate = batchPerformance.reduce((sum, p) => sum + (p.winRate * p.totalTrades), 0) / 
+  const overallWinRate = batchPerformance.reduce((sum, p) => sum + (p.winRate * p.totalTrades), 0) /
                          batchPerformance.reduce((sum, p) => sum + p.totalTrades, 0);
   const totalTrades = batchPerformance.reduce((sum, p) => sum + p.totalTrades, 0);
   const profitableSymbols = batchPerformance.filter(p => p.pnl > 0).length;
@@ -111,8 +111,8 @@ export function BatchResults({
             onClick={() => onSelectSymbol(null)}
             className={`
               w-full px-4 py-3 rounded-lg transition-all flex items-center gap-3
-              ${!selectedSymbol 
-                ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/30' 
+              ${!selectedSymbol
+                ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/30'
                 : 'bg-slate-800/40 text-slate-300 hover:bg-slate-800'}
             `}
           >
@@ -138,8 +138,8 @@ export function BatchResults({
                 <span className="text-white font-medium text-sm">{perf.symbol}</span>
                 <span className={`
                   text-xs font-mono px-2 py-0.5 rounded
-                  ${perf.returnPercent > 0 
-                    ? 'bg-emerald-500/20 text-emerald-400' 
+                  ${perf.returnPercent > 0
+                    ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-rose-500/20 text-rose-400'}
                 `}>
                   {perf.returnPercent > 0 ? '+' : ''}{perf.returnPercent.toFixed(1)}%
@@ -278,14 +278,14 @@ export function BatchResults({
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                    <XAxis 
-                      dataKey="index" 
-                      stroke="#64748b" 
+                    <XAxis
+                      dataKey="index"
+                      stroke="#64748b"
                       tick={{ fill: '#94a3b8', fontSize: 11 }}
                       label={{ value: 'Trading Pairs', fill: '#64748b', position: 'insideBottom', offset: -5 }}
                     />
-                    <YAxis 
-                      stroke="#64748b" 
+                    <YAxis
+                      stroke="#64748b"
                       tick={{ fill: '#94a3b8', fontSize: 11 }}
                       tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                     />
@@ -303,10 +303,10 @@ export function BatchResults({
                         props.payload.symbol
                       ]}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="equity" 
-                      stroke="#8B5CF6" 
+                    <Line
+                      type="monotone"
+                      dataKey="equity"
+                      stroke="#8B5CF6"
                       strokeWidth={3}
                       fill="url(#portfolioGradient)"
                       dot={{ fill: '#8B5CF6', r: 4 }}
@@ -326,7 +326,7 @@ export function BatchResults({
                   <h3 className="font-bold text-white text-lg">Symbol Performance Breakdown</h3>
                   <p className="text-sm text-slate-400 mt-1">Click a symbol in the sidebar to view detailed trades</p>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -461,7 +461,7 @@ export function BatchResults({
                   <h3 className="font-bold text-white text-lg">Trade History</h3>
                   <p className="text-sm text-slate-400 mt-1">Click any trade to view chart details</p>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -489,18 +489,18 @@ export function BatchResults({
                             #{trade.id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
-                            {new Date(trade.entryTime).toLocaleString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
+                            {new Date(trade.entryTime).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
                             })}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`
                               inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium
-                              ${trade.side === 'LONG' 
-                                ? 'bg-emerald-500/20 text-emerald-400' 
+                              ${trade.side === 'LONG'
+                                ? 'bg-emerald-500/20 text-emerald-400'
                                 : 'bg-rose-500/20 text-rose-400'}
                             `}>
                               {trade.side === 'LONG' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
@@ -524,8 +524,8 @@ export function BatchResults({
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`
                               inline-flex px-2 py-1 rounded-full text-xs font-medium
-                              ${trade.exitReason === 'TP1' || trade.exitReason === 'TP2' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                              ${trade.exitReason === 'TP1' || trade.exitReason === 'TP2'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : trade.exitReason === 'Stop Loss'
                                 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                 : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}

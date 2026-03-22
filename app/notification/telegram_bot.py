@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
-import requests
-
-import logging
-
-
+import requests  # type: ignore[import-untyped]
 
 
 class TelegramBot:
@@ -34,16 +31,16 @@ class TelegramBot:
         if not self.token:
             raise RuntimeError(f"Missing {token_env} env var.")
 
-        self._callbacks: Dict[str, Callable[[str], None]] = {}
-        self._polling_thread: Optional[threading.Thread] = None
+        self._callbacks: dict[str, Callable[[str], None]] = {}
+        self._polling_thread: threading.Thread | None = None
         self._stop_polling = threading.Event()
 
     def send_message(
         self,
         message: str,
-        chat_id: Optional[str] = None,
-        button_text: Optional[str] = None,
-        button_url: Optional[str] = None,
+        chat_id: str | None = None,
+        button_text: str | None = None,
+        button_url: str | None = None,
         disable_web_preview: bool = True,
     ) -> bool:
         """
@@ -76,11 +73,7 @@ class TelegramBot:
         # Add an inline URL button if requested
         if button_text and button_url:
             payload["reply_markup"] = json.dumps(
-                {
-                    "inline_keyboard": [
-                        [{"text": str(button_text), "url": str(button_url)}]
-                    ]
-                }
+                {"inline_keyboard": [[{"text": str(button_text), "url": str(button_url)}]]}
             )
 
         try:
@@ -100,7 +93,6 @@ class TelegramBot:
                 resp.status_code,
                 resp.text,
             )
-            print(f"TELEGRAM ERROR: {resp.status_code} - {resp.text}")
             return False
 
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
@@ -108,11 +100,10 @@ class TelegramBot:
             return False
         except Exception as e:
             # Never crash the trading engine
-            self.logger.exception("Telegram send exception")
-            print(f"TELEGRAM EXCEPTION: {e}")
+            self.logger.exception("Telegram send exception: %s", e)
             return False
 
-    def start_polling(self, callbacks: Dict[str, Callable[[str], None]]) -> None:
+    def start_polling(self, callbacks: dict[str, Callable[[str], None]]) -> None:
         """
         Start a background thread to long-poll for incoming commands.
 
@@ -126,11 +117,7 @@ class TelegramBot:
 
         self._callbacks = callbacks
         self._stop_polling.clear()
-        self._polling_thread = threading.Thread(
-            target=self._poll_updates,
-            name="telegram-polling",
-            daemon=True
-        )
+        self._polling_thread = threading.Thread(target=self._poll_updates, name="telegram-polling", daemon=True)
         self._polling_thread.start()
         self.logger.info("Telegram command polling started.")
 
@@ -149,10 +136,10 @@ class TelegramBot:
             try:
                 # Use a timeout of 30 seconds for true long-polling
                 payload = {"offset": offset, "timeout": 30}
-                
+
                 # set request timeout slightly larger than long-poll timeout
                 resp = requests.get(url, params=payload, timeout=35)
-                
+
                 if resp.status_code != 200:
                     self.logger.error(f"Telegram getUpdates failed: {resp.status_code} - {resp.text}")
                     time.sleep(5)
@@ -177,7 +164,7 @@ class TelegramBot:
 
                     if not text:
                         continue
-                    
+
                     # Match command
                     for cmd, callback in self._callbacks.items():
                         if text.startswith(cmd):
@@ -193,7 +180,7 @@ class TelegramBot:
             except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
                 self.logger.warning(f"Telegram polling network error: {e}")
                 time.sleep(5)
-            except Exception as e:
+            except Exception:
                 self.logger.exception("Telegram polling loop error")
                 time.sleep(5)
 

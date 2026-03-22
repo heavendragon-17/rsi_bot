@@ -6,10 +6,10 @@ All methods are direction-aware (LONG/SHORT) via a `side` parameter.
 Extracted and generalised from rsi_no_retest._compute_price_at_rr()
 and PortfolioManager._calculate_position_size().
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 
@@ -25,7 +25,7 @@ class SLTPCalculator:
         side: str,
         lookback: int = 30,
         mode: str = "swing",
-    ) -> Optional[Decimal]:
+    ) -> Decimal | None:
         """
         Compute the soft stop-loss price from recent price history.
 
@@ -101,7 +101,7 @@ class SLTPCalculator:
         rr_ratio: Decimal,
         taker_fee: Decimal = Decimal("0"),
         exit_fee: Decimal = Decimal("0"),
-    ) -> Optional[Decimal]:
+    ) -> Decimal | None:
         """
         Fee-aware TP calculation.
 
@@ -149,7 +149,7 @@ class SLTPCalculator:
         side: str,
         lock_profit_rr: Decimal,
         taker_fee: Decimal = Decimal("0"),
-    ) -> Optional[Decimal]:
+    ) -> Decimal | None:
         """
         Price at which to move the SL to lock-in profit after TP1 fills.
 

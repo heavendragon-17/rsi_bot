@@ -1,5 +1,4 @@
 from decimal import Decimal
-from typing import Optional
 
 
 def to_decimal(val) -> Decimal:
@@ -11,7 +10,7 @@ def to_decimal(val) -> Decimal:
     return Decimal(str(val))
 
 
-def to_decimal_or_none(val) -> Optional[Decimal]:
+def to_decimal_or_none(val) -> Decimal | None:
     """Convert any numeric to Decimal, preserving None.
 
     Use this when None carries semantic meaning (e.g. "no price available").

@@ -1,6 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, Numeric
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, Numeric, String
+
 from .db_connect import Base
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -13,6 +16,7 @@ class Order(Base):
     status = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class OrderRepository:
     def __init__(self, db_session):
         self.db = db_session
@@ -22,6 +26,6 @@ class OrderRepository:
         self.db.add(order)
         self.db.commit()
         return order
-    
+
     def get_open_orders(self):
-        return self.db.query(Order).filter(Order.status == 'OPEN').all()
+        return self.db.query(Order).filter(Order.status == "OPEN").all()

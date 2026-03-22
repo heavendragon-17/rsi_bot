@@ -9,20 +9,22 @@ Architecture:
 - N Threads, each running Strategy + PortfolioManager for one symbol
 - Each thread has its own Strategy instance to avoid state conflicts
 """
+
 from __future__ import annotations
 
 import signal
-import structlog
 import threading
 import time
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
+
+import structlog
 
 from app.core.interfaces import IExchange, IStrategy
-from app.trading.portfolio.manager import PortfolioManager
+from app.core.snapshots import ContextSnapshot
+from app.data.normalizer import DataNormalizer
 from app.data.store import MarketDataStore
 from app.data.stream_manager import BinanceStreamManager
-from app.data.normalizer import DataNormalizer
-from app.core.snapshots import ContextSnapshot
+from app.trading.portfolio.manager import PortfolioManager
 from app.trading.runner_loop import (
     cleanup_on_startup,
     run_symbol_loop,
@@ -47,8 +49,8 @@ class MultiSymbolRunner:
 
     def __init__(
         self,
-        config: Dict[str, Any],
-        strategy_class: Type[IStrategy],
+        config: dict[str, Any],
+        strategy_class: type[IStrategy],
         exchange: IExchange,
         notification_service=None,
         telegram=None,  # deprecated — use notification_service
@@ -65,8 +67,8 @@ class MultiSymbolRunner:
         """
         self.config = config
         self.strategy_class = strategy_class
-        self.symbols = config.get('symbols', [])
-        self.timeframe = config.get('timeframe', '15m')
+        self.symbols = config.get("symbols", [])
+        self.timeframe = config.get("timeframe", "15m")
 
         # Shared exchange (thread-safe)
         self.exchange = exchange
@@ -78,23 +80,21 @@ class MultiSymbolRunner:
         self.store = MarketDataStore()
 
         # Stream manager for real-time data
-        self.stream: Optional[BinanceStreamManager] = None
+        self.stream: BinanceStreamManager | None = None
 
         # Thread management
-        self.threads: List[threading.Thread] = []
+        self.threads: list[threading.Thread] = []
         self.running = threading.Event()
         self.running.set()  # Start in running state
 
         # Per-symbol components (created when threads start)
-        self.strategies: Dict[str, IStrategy] = {}
-        self.portfolios: Dict[str, PortfolioManager] = {}
-        self.contexts: Dict[str, ContextSnapshot] = {}
+        self.strategies: dict[str, IStrategy] = {}
+        self.portfolios: dict[str, PortfolioManager] = {}
+        self.contexts: dict[str, ContextSnapshot] = {}
 
         # Map config symbol (e.g. "BTC/USDT") → store key (e.g. "BTC")
         # DataNormalizer strips the quote asset before storing in MarketDataStore
-        self._store_keys: Dict[str, str] = {
-            s: DataNormalizer._normalize_symbol(s) for s in self.symbols
-        }
+        self._store_keys: dict[str, str] = {s: DataNormalizer._normalize_symbol(s) for s in self.symbols}
 
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -131,8 +131,9 @@ class MultiSymbolRunner:
         self._sim_stream = None
         self._funding_scheduler = None
         if self.config.get("bot", {}).get("mode") == "sim":
-            from app.trading.exchange.sim.sim_stream import SimTradeStreamManager
             from app.trading.exchange.sim.sim_funding import SimFundingScheduler
+            from app.trading.exchange.sim.sim_stream import SimTradeStreamManager
+
             self._sim_stream = SimTradeStreamManager(
                 symbols=self.symbols,
                 sim_exchange=self.exchange,
@@ -151,7 +152,8 @@ class MultiSymbolRunner:
         for symbol in self.symbols:
             strategy = self.strategy_class(self.config)
             portfolio = PortfolioManager(
-                self.exchange, self.config,
+                self.exchange,
+                self.config,
                 notification_service=self._notification_service,
             )
             self.strategies[symbol] = strategy
@@ -183,11 +185,7 @@ class MultiSymbolRunner:
     def _start_stream(self) -> None:
         """Start the market data stream."""
         self.stream = BinanceStreamManager(
-            symbols=self.symbols,
-            timeframe=self.timeframe,
-            store=self.store,
-            history_limit=300,
-            enable_history=True
+            symbols=self.symbols, timeframe=self.timeframe, store=self.store, history_limit=300, enable_history=True
         )
         self.stream.start()
         logger.info(f"Market data stream started for {self.symbols}")
@@ -208,7 +206,7 @@ class MultiSymbolRunner:
         """Log current status of all running threads."""
         active_threads = [t.name for t in self.threads if t.is_alive()]
         balance = self.exchange.fetch_balance()
-        usdt_balance = balance.get('free', {}).get('USDT', 0)
+        usdt_balance = balance.get("free", {}).get("USDT", 0)
         logger.info(f"Status: {len(active_threads)}/{len(self.threads)} threads active, Balance: {usdt_balance}")
 
     def stop(self) -> None:
@@ -240,7 +238,7 @@ class MultiSymbolRunner:
 
         logger.info("Multi-symbol runner stopped")
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get current status of the runner."""
         balance = self.exchange.fetch_balance()
         positions = self.exchange.fetch_positions()

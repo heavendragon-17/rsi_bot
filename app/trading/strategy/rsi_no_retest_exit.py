@@ -14,14 +14,13 @@ All functions receive explicit parameters instead of accessing ``self``.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import structlog
 
+from app.core.actions import ClosePosition, DoNothing, MoveSL
+from app.core.analysis_result import AnalysisResult
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot
-from app.core.analysis_result import AnalysisResult
-from app.core.actions import ClosePosition, MoveSL, DoNothing
 from app.core.utils import to_decimal_or_none
 
 logger = structlog.get_logger()
@@ -31,6 +30,7 @@ logger = structlog.get_logger()
 # Fee-aware price-at-RR (shared with entry, but kept here for exit calcs)
 # ---------------------------------------------------------------------------
 
+
 def compute_price_at_rr(
     entry: Decimal,
     sl: Decimal,
@@ -38,7 +38,7 @@ def compute_price_at_rr(
     taker_fee: Decimal,
     maker_fee: Decimal,
     is_taker_exit: bool = False,
-) -> Optional[Decimal]:
+) -> Decimal | None:
     """Target price to achieve exactly ``rr * R`` net of fees.
 
     R = entry - sl.  Entry is always a taker order; exit fee depends on
@@ -51,9 +51,7 @@ def compute_price_at_rr(
     target_net_profit = rr * risk
     exit_fee_rate = taker_fee if is_taker_exit else maker_fee
 
-    target_price = (
-        entry * (Decimal("1") + taker_fee) + target_net_profit
-    ) / (Decimal("1") - exit_fee_rate)
+    target_price = (entry * (Decimal("1") + taker_fee) + target_net_profit) / (Decimal("1") - exit_fee_rate)
     return target_price
 
 
@@ -61,13 +59,14 @@ def compute_price_at_rr(
 # Main exit / management check — called from analyze()
 # ---------------------------------------------------------------------------
 
+
 def manage_exit(
     *,
     symbol: str,
     context: ContextSnapshot,
-    close: Optional[Decimal],
-    high: Optional[Decimal],
-    open_price: Optional[Decimal],
+    close: Decimal | None,
+    high: Decimal | None,
+    open_price: Decimal | None,
     # strategy params
     move_sl_rr: Decimal,
     lock_profit_rr: Decimal,
@@ -82,7 +81,7 @@ def manage_exit(
     - ``DoNothing`` (candle-close SL flag set, or nothing to do)
     """
     _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
-    meta = dict(context.meta)  # mutable copy
+    meta = dict(context.meta or {})  # mutable copy
 
     entry_price = to_decimal_or_none(meta.get("entry_price"))
     if entry_price is None:
@@ -99,7 +98,12 @@ def manage_exit(
     lock_profit_price = to_decimal_or_none(meta.get("lock_profit_price"))
     if lock_profit_price is None and original_soft_sl and entry_price:
         lock_profit_price = compute_price_at_rr(
-            entry_price, original_soft_sl, lock_profit_rr, taker_fee, maker_fee, is_taker_exit=True,
+            entry_price,
+            original_soft_sl,
+            lock_profit_rr,
+            taker_fee,
+            maker_fee,
+            is_taker_exit=True,
         )
 
     # -------------------------------------------------
@@ -116,9 +120,14 @@ def manage_exit(
     # STEP 1: Move SL to lock profit when high reaches +move_sl_rr * R
     # TP targets are handled entirely by the exchange as limit orders.
     # -------------------------------------------------
-    if (not moved_sl) and high is not None and soft_sl is not None:
+    if (not moved_sl) and high is not None and soft_sl is not None and original_soft_sl is not None:
         move_trigger = compute_price_at_rr(
-            entry_price, original_soft_sl, move_sl_rr, taker_fee, maker_fee, is_taker_exit=False,
+            entry_price,
+            original_soft_sl,
+            move_sl_rr,
+            taker_fee,
+            maker_fee,
+            is_taker_exit=False,
         )
         if move_trigger is not None and high >= move_trigger and lock_profit_price is not None:
             new_meta = dict(meta)
@@ -131,14 +140,16 @@ def manage_exit(
                 meta=new_meta,
             )
             return AnalysisResult(
-                actions=[MoveSL(
-                    symbol=symbol,
-                    new_sl_price=lock_profit_price,
-                    reason=(
-                        f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{move_sl_rr}R, "
-                        f"new_sl={lock_profit_price} = +{lock_profit_rr}R)"
-                    ),
-                )],
+                actions=[
+                    MoveSL(
+                        symbol=symbol,
+                        new_sl_price=lock_profit_price,
+                        reason=(
+                            f"MOVE_SL_LOCK_PROFIT (high={high} >= {move_trigger} = +{move_sl_rr}R, "
+                            f"new_sl={lock_profit_price} = +{lock_profit_rr}R)"
+                        ),
+                    )
+                ],
                 new_context=new_ctx,
             )
 

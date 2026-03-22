@@ -20,28 +20,28 @@ Config lives in the RsiMomentumConfig dataclass in this file (NOT config.yaml).
 Entry logic: see rsi_momentum_entry.py
 Exit logic:  see rsi_momentum_exit.py
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 import structlog
 
-from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.utils.config_helpers import merge_config
-from app.data.indicators import Indicators
-from app.core.context import SCANNING
-from app.core.snapshots import PositionSnapshot, ContextSnapshot
-from app.core.analysis_result import AnalysisResult
 from app.core.actions import (
+    DEFAULT_MAKER_FEE,
+    DEFAULT_TAKER_FEE,
     DoNothing,
-    DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE,
 )
-
+from app.core.analysis_result import AnalysisResult
+from app.core.context import SCANNING
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
+from app.data.indicators import Indicators
+from app.trading.strategy.base import BaseStrategy
 from app.trading.strategy.rsi_momentum_entry import check_entry
 from app.trading.strategy.rsi_momentum_exit import manage_exit
+from app.trading.strategy.utils.config_helpers import merge_config
 
 logger = structlog.get_logger()
 
@@ -56,14 +56,14 @@ class RsiMomentumConfig:
     wma_period: int = 45
 
     # Entry conditions
-    spread_threshold: float = 2.5       # S4: min (WMA45 - EMA9) distance
-    divergence_lookback: int = 30       # S5: candles to search for divergence
-    pivot_strength: int = 5             # S5: N for 11-bar pivot (N on each side)
-    min_candles: int = 75               # Warm-up: 14 RSI + 45 WMA + 16 buffer
+    spread_threshold: float = 2.5  # S4: min (WMA45 - EMA9) distance
+    divergence_lookback: int = 30  # S5: candles to search for divergence
+    pivot_strength: int = 5  # S5: N for 11-bar pivot (N on each side)
+    min_candles: int = 75  # Warm-up: 14 RSI + 45 WMA + 16 buffer
 
     # Exit: SL
-    sl_lookback: int = 30               # Highest high lookback for soft SL
-    disaster_sl_multiplier: float = 3.0 # Hard SL = entry + 3x soft_sl_distance
+    sl_lookback: int = 30  # Highest high lookback for soft SL
+    disaster_sl_multiplier: float = 3.0  # Hard SL = entry + 3x soft_sl_distance
 
     # Exit: TP
     tp1_rr: float = 1.0
@@ -75,8 +75,8 @@ class RsiMomentumConfig:
     # TP3 closes all remaining
 
     # Exit: Lock profit
-    move_sl_rr: float = 0.5         # Trigger: move SL when price drops 0.5R (short)
-    lock_profit_rr: float = 0.2     # New SL level: 0.2R below entry (lock profit)
+    move_sl_rr: float = 0.5  # Trigger: move SL when price drops 0.5R (short)
+    lock_profit_rr: float = 0.2  # New SL level: 0.2R below entry (lock profit)
 
     # Fees
     taker_fee: float = DEFAULT_TAKER_FEE
@@ -114,8 +114,8 @@ class RsiMomentumStrategy(BaseStrategy):
         self,
         symbol: str,
         df: pd.DataFrame,
-        position: Optional[PositionSnapshot] = None,
-        context: Optional[ContextSnapshot] = None,
+        position: PositionSnapshot | None = None,
+        context: ContextSnapshot | None = None,
     ) -> AnalysisResult:
         if context is None:
             context = ContextSnapshot(state=SCANNING)
@@ -138,7 +138,10 @@ class RsiMomentumStrategy(BaseStrategy):
         # -- EXIT management (position open)
         if self.cfg.use_active_trades and position and position.has_position:
             return manage_exit(
-                symbol, df_ind, position, context,
+                symbol,
+                df_ind,
+                position,
+                context,
                 move_sl_rr=self.cfg.move_sl_rr,
                 lock_profit_rr=self.cfg.lock_profit_rr,
                 taker_fee=self.taker_fee,
@@ -147,7 +150,9 @@ class RsiMomentumStrategy(BaseStrategy):
 
         # -- ENTRY logic (no position)
         return check_entry(
-            symbol, df_ind, context,
+            symbol,
+            df_ind,
+            context,
             cfg=self.cfg,
             indicators=self.indicators,
             taker_fee=self.taker_fee,

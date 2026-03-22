@@ -11,12 +11,12 @@ Usage:
     ns.on_entry(...)      # non-blocking, enqueued
     ns.stop()             # drain & join worker thread
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, Optional
 
-from app.core.interfaces import INotifier, IExchange
+from app.core.interfaces import IExchange, INotifier
 from app.notification.notification_worker import NotificationWorker
 
 
@@ -59,10 +59,10 @@ class NotificationService(INotifier):
         side: str,
         entry_price: Decimal,
         amount: Decimal,
-        sl_price: Optional[Decimal] = None,
-        tp_prices: Optional[Dict[str, Decimal]] = None,
+        sl_price: Decimal | None = None,
+        tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
-        balance: Optional[Decimal] = None,
+        balance: Decimal | None = None,
     ) -> None:
         self._worker.enqueue(
             "on_entry",
@@ -82,12 +82,12 @@ class NotificationService(INotifier):
         exit_reason: str,
         fill_price: Decimal,
         amount: Decimal,
-        pnl_gross: Optional[Decimal] = None,
-        pnl_net: Optional[Decimal] = None,
-        fees: Optional[Decimal] = None,
-        r_multiple: Optional[Decimal] = None,
-        remaining_amount: Optional[Decimal] = None,
-        balance: Optional[Decimal] = None,
+        pnl_gross: Decimal | None = None,
+        pnl_net: Decimal | None = None,
+        fees: Decimal | None = None,
+        r_multiple: Decimal | None = None,
+        remaining_amount: Decimal | None = None,
+        balance: Decimal | None = None,
     ) -> None:
         self._worker.enqueue(
             "on_fill",

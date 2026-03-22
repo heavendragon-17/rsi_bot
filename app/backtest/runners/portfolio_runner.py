@@ -5,15 +5,15 @@ Refactored from run_portfolio_backtest.py.  Provides both a class-based
 API (``PortfolioRunner``) and the ``_run_portfolio_backtest()`` function
 consumed by ``BacktestService._portfolio_worker()``.
 """
+
 from __future__ import annotations
 
 import argparse
 import os
-import sys
 
 import pandas as pd
 import structlog
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from app.backtest.data_manager import DataManager
 from app.backtest.download_data import calculate_candle_limit
@@ -24,7 +24,7 @@ from app.backtest.mock_exchange import MockExchange
 from app.backtest.portfolio_engine import PortfolioEngine
 from app.backtest.portfolio_event_source import PortfolioEventSource
 from app.backtest.reporting import BacktestReporter
-from app.core.constants import DEFAULT_TAKER_FEE, DEFAULT_MAKER_FEE, WARMUP
+from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE, WARMUP
 from app.core.logging import setup_logging
 from app.trading.strategy.loader import STRATEGY_MAP
 
@@ -97,20 +97,27 @@ class PortfolioRunner:
         maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
 
         exchange = MockExchange(
-            initial_balance=balance, leverage=leverage,
-            taker_fee=taker_fee, maker_fee=maker_fee,
+            initial_balance=balance,
+            leverage=leverage,
+            taker_fee=taker_fee,
+            maker_fee=maker_fee,
         )
         event_source = PortfolioEventSource(dfs, start_idx=WARMUP)
         engine = PortfolioEngine(
-            event_source=event_source, strategy_class=strategy_class,
-            exchange=exchange, config=self.config, symbols=self.symbols,
+            event_source=event_source,
+            strategy_class=strategy_class,
+            exchange=exchange,
+            config=self.config,
+            symbols=self.symbols,
         )
 
         # 4. Run
         logger.info(
             "portfolio_backtest_start",
-            strategy=self.strategy_name, symbols=len(self.symbols),
-            balance=balance, leverage=leverage,
+            strategy=self.strategy_name,
+            symbols=len(self.symbols),
+            balance=balance,
+            leverage=leverage,
         )
         results = engine.run(on_progress=progress_cb)
 
@@ -119,7 +126,9 @@ class PortfolioRunner:
         if debug_rows:
             os.makedirs(os.path.join(self.report_dir, "debug_csv"), exist_ok=True)
             debug_path = os.path.join(
-                self.report_dir, "debug_csv", f"debug_PORTFOLIO_{self.timeframe}.csv",
+                self.report_dir,
+                "debug_csv",
+                f"debug_PORTFOLIO_{self.timeframe}.csv",
             )
             engine.strategy.export_debug_csv(debug_path)
             results = enrich_round_trips(results, debug_rows)
@@ -127,8 +136,11 @@ class PortfolioRunner:
         # 6. Generate reports
         os.makedirs(self.report_dir, exist_ok=True)
         reporter = BacktestReporter(
-            results, symbol="PORTFOLIO", timeframe=self.timeframe,
-            strategy_name=self.strategy_name, leverage=leverage,
+            results,
+            symbol="PORTFOLIO",
+            timeframe=self.timeframe,
+            strategy_name=self.strategy_name,
+            leverage=leverage,
             strategy_params={
                 **strategy_class.DEFAULT_CONFIG,
                 **self.config.get("strategy_params", {}),
@@ -147,6 +159,7 @@ class PortfolioRunner:
 
 
 # ── API entry point (called from BacktestService) ──────────────────────────
+
 
 def _run_portfolio_backtest(
     symbols: list[str],
@@ -181,23 +194,29 @@ def _run_portfolio_backtest(
         "strategy_params": params or {},
     }
     runner = PortfolioRunner(
-        symbols=symbols, config=config,
-        strategy_name=strategy_name, timeframe=timeframe,
+        symbols=symbols,
+        config=config,
+        strategy_name=strategy_name,
+        timeframe=timeframe,
     )
     return runner.run(progress_cb=progress_cb)
 
 
 # ── CLI entry point ─────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Run Unified Portfolio Backtest")
     parser.add_argument(
-        "--strategy", type=str, default=None, choices=list(STRATEGY_MAP.keys()),
+        "--strategy",
+        type=str,
+        default=None,
+        choices=list(STRATEGY_MAP.keys()),
         help="Strategy to use (default: from config.yaml)",
     )
     args = parser.parse_args()
 
-    with open(CONFIG_PATH, "r") as f:
+    with open(CONFIG_PATH) as f:
         config = yaml.safe_load(f)
 
     timeframe = config.get("timeframe", "15m")
@@ -205,7 +224,7 @@ def main():
 
     symbols = config.get("symbols", [])
     if os.path.exists(SYMBOLS_PATH) and not symbols:
-        with open(SYMBOLS_PATH, "r") as f:
+        with open(SYMBOLS_PATH) as f:
             symbols = [line.strip() for line in f if line.strip()]
 
     if not symbols:
@@ -222,6 +241,7 @@ def main():
     logger.info("portfolio_done", profit=f"${profit:.2f}", pct=f"{profit_pct:+.2f}%")
 
     import webbrowser
+
     report_path = os.path.join(REPORT_DIR, "portfolio_backtest_report.html")
     try:
         webbrowser.open(f"file://{os.path.abspath(report_path)}")

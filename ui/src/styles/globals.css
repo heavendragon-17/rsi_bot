@@ -29,23 +29,23 @@
   --bg-secondary: #FFFFFF;
   --bg-surface: rgba(255, 255, 255, 0.6);
   --bg-elevated: #F1F5F9;
-  
+
   --text-primary: #0F172A;
   --text-secondary: #64748B;
   --text-muted: #94A3B8;
-  
+
   --accent-color: #3B82F6;
   --accent-hover: #2563EB;
-  
+
   --success: #16A34A;
   --success-light: #DCFCE7;
   --danger: #DC2626;
   --danger-light: #FEE2E2;
   --warning: #D97706;
-  
+
   --border-color: #E2E8F0;
   --glow: 0 0 10px rgba(59, 130, 246, 0.3);
-  
+
   /* Responsive Breakpoints */
   --breakpoint-xs: 0px;
   --breakpoint-sm: 640px;
@@ -82,20 +82,20 @@
   --bg-secondary: #1E293B;
   --bg-surface: rgba(30, 41, 59, 0.6);
   --bg-elevated: #334155;
-  
+
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
-  
+
   --accent-color: #3B82F6;
   --accent-hover: #2563EB;
-  
+
   --success: #22C55E;
   --success-light: #064E3B; /* Adjusted for dark mode contrast if needed, but keeping standard green for now */
   --danger: #EF4444;
   --danger-light: #7F1D1D; /* Darker red bg for dark mode */
   --warning: #F59E0B;
-  
+
   --border-color: #334155;
   --glow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
@@ -121,26 +121,26 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --radius: var(--radius);
-  
+
   /* Custom Theme Mappings */
   --color-bg-primary: var(--bg-primary);
   --color-bg-secondary: var(--bg-secondary);
   --color-bg-surface: var(--bg-surface);
   --color-bg-elevated: var(--bg-elevated);
-  
+
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
-  
+
   --color-accent-main: var(--accent-color);
   --color-accent-hover: var(--accent-hover);
-  
+
   --color-success: var(--success);
   --color-success-light: var(--success-light);
   --color-danger: var(--danger);
   --color-danger-light: var(--danger-light);
   --color-warning: var(--warning);
-  
+
   --color-border-main: var(--border-color);
   --shadow-glow: var(--glow);
 }
@@ -155,19 +155,19 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   /* Transition Variables - Can be overridden by performance mode */
   :root {
     --transition-speed: 200ms;
     --animation-duration: 300ms;
   }
-  
+
   /* Performance Mode Override */
   .performance-mode {
     --transition-speed: 0ms;
     --animation-duration: 0ms;
   }
-  
+
   .performance-mode .backdrop-blur {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

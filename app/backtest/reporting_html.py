@@ -2,27 +2,45 @@
 HTML report generation for backtest results.
 Extracted from BacktestReporter._generate_html_report().
 """
+
 import os
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 import structlog
-from datetime import datetime
 
 from app.backtest.reporting_styles import REPORT_CSS, build_chart_js
 
 logger = structlog.get_logger()
 
 EXIT_REASON_COLORS = {
-    "TP1": "#22C55E", "TP2": "#3B82F6", "TP3": "#8B5CF6",
-    "FULL_TP": "#10B981", "SL": "#EF4444", "STOP_LOSS": "#EF4444",
-    "BREAKEVEN": "#F59E0B", "MANUAL": "#6B7280", "TP1+SL": "#F59E0B",
-    "TP2+SL": "#06B6D4", "TP3+SL": "#EC4899", "UNKNOWN": "#64748B",
+    "TP1": "#22C55E",
+    "TP2": "#3B82F6",
+    "TP3": "#8B5CF6",
+    "FULL_TP": "#10B981",
+    "SL": "#EF4444",
+    "STOP_LOSS": "#EF4444",
+    "BREAKEVEN": "#F59E0B",
+    "MANUAL": "#6B7280",
+    "TP1+SL": "#F59E0B",
+    "TP2+SL": "#06B6D4",
+    "TP3+SL": "#EC4899",
+    "UNKNOWN": "#64748B",
     "No Trades": "#9CA3AF",
 }
 
 TICKER_PALETTE = [
-    "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
-    "#EC4899", "#06B6D4", "#F97316", "#14B8A6", "#84CC16",
+    "#3B82F6",
+    "#EF4444",
+    "#10B981",
+    "#F59E0B",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#F97316",
+    "#14B8A6",
+    "#84CC16",
 ]
 
 
@@ -99,14 +117,23 @@ def _build_ticker_data(round_trips_df):
                     {sym_trades} trades | {sym_wr:.1f}% WR | {format_duration(sym_hold)} avg hold
                 </div>
             </div>"""
-    per_symbol_html += '</div></div>'
+    per_symbol_html += "</div></div>"
 
     pills = '<div class="filter-bar"><button class="filter-pill active" data-symbol="ALL">All Tickers</button>'
     for sym in unique_symbols:
         pills += f'<button class="filter-pill" data-symbol="{sym}">{sym}</button>'
-    pills += '</div>'
+    pills += "</div>"
 
-    return unique_symbols, pnl_by_ticker, best_ticker_name, best_ticker_pnl, worst_ticker_name, worst_ticker_pnl, per_symbol_html, pills
+    return (
+        unique_symbols,
+        pnl_by_ticker,
+        best_ticker_name,
+        best_ticker_pnl,
+        worst_ticker_name,
+        worst_ticker_pnl,
+        per_symbol_html,
+        pills,
+    )
 
 
 def _build_trades_table(round_trips_df, ticker_colors, ticker_pills_html, per_symbol_stats_html):
@@ -137,16 +164,16 @@ def _build_trades_table(round_trips_df, ticker_colors, ticker_pills_html, per_sy
         exit_reason = str(row.get("exit_reason", "UNKNOWN"))
         sym_col, row_attr = "", ""
         if "symbol" in row:
-            sym = row['symbol']
+            sym = row["symbol"]
             sym_col = f'<td><span class="ticker-badge" style="background-color: {ticker_colors.get(sym, "#666")}">{sym}</span></td>'
             row_attr = f'data-symbol="{sym}"'
 
-        def _opt_col(key, fmt, has_flag):
-            val = row.get(key)
+        def _opt_col(key, fmt, has_flag, _row=row):
+            val = _row.get(key)
             if not has_flag:
                 return ""
             if val is not None:
-                return f'<td>{fmt.format(val)}</td>'
+                return f"<td>{fmt.format(val)}</td>"
             return "<td>-</td>"
 
         html += f"""<tr {row_attr}>
@@ -196,7 +223,9 @@ def generate_html_report(
     round_trips_df = pd.DataFrame(rt_list) if rt_list else pd.DataFrame()
     safe_symbol = symbol.replace("/", "")
 
-    pf_display = f"{metrics['profit_factor']:.2f}" if metrics and metrics.get("profit_factor") != float("inf") else "INF"
+    pf_display = (
+        f"{metrics['profit_factor']:.2f}" if metrics and metrics.get("profit_factor") != float("inf") else "INF"
+    )
     rr_display = f"{metrics['risk_reward']:.2f}" if metrics and metrics.get("risk_reward") != float("inf") else "INF"
 
     exit_data = metrics.get("exit_reason_counts", {}) if metrics else {}
@@ -204,8 +233,9 @@ def generate_html_report(
     values = list(exit_data.values()) if exit_data else [1]
     pie_colors = [EXIT_REASON_COLORS.get(lbl, "#64748B") for lbl in labels]
 
-    (unique_symbols, pnl_by_ticker, best_name, best_pnl,
-     worst_name, worst_pnl, per_sym_html, ticker_pills) = _build_ticker_data(round_trips_df)
+    (unique_symbols, pnl_by_ticker, best_name, best_pnl, worst_name, worst_pnl, per_sym_html, ticker_pills) = (
+        _build_ticker_data(round_trips_df)
+    )
 
     ticker_colors = {sym: TICKER_PALETTE[hash(sym) % len(TICKER_PALETTE)] for sym in unique_symbols}
     trades_table = _build_trades_table(round_trips_df, ticker_colors, ticker_pills, per_sym_html)

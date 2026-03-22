@@ -3,13 +3,13 @@ Base Strategy
 ==============
 Base class for all trading strategies.
 """
-from abc import abstractmethod
-from typing import Optional
 
-from app.core.interfaces import IStrategy
-from app.core.context import StrategyContext
-from app.core.snapshots import PositionSnapshot, ContextSnapshot
+from abc import abstractmethod
+
 from app.core.analysis_result import AnalysisResult
+from app.core.context import StrategyContext
+from app.core.interfaces import IStrategy
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
 
 
 class BaseStrategy(IStrategy):
@@ -26,8 +26,8 @@ class BaseStrategy(IStrategy):
         self,
         symbol: str,
         df,
-        position: Optional[PositionSnapshot] = None,
-        context: Optional[ContextSnapshot] = None,
+        position: PositionSnapshot | None = None,
+        context: ContextSnapshot | None = None,
     ) -> AnalysisResult:
         """Analyze market data and return typed actions + new context."""
         pass

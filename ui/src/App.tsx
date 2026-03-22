@@ -44,7 +44,7 @@ function App() {
       {showSensitivity && <SensitivityAnalysis />}
 
       {!showSingle && !showBatch && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
-      
+
       <DataPrepModal />
       <Toaster richColors position="bottom-right" />
     </Layout>

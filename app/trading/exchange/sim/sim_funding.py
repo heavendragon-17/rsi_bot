@@ -11,16 +11,17 @@ On fetch failure: log warning and skip (no retry, no cached-rate fallback).
 Runs in a single background daemon thread using threading.Event.wait()
 to sleep until the next funding window.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_state import SimTradeState
@@ -34,7 +35,7 @@ _REQUEST_TIMEOUT = 10  # seconds
 
 def _seconds_to_next_funding() -> float:
     """Return seconds until the next funding window (00:00 / 08:00 / 16:00 UTC)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_hour = now.hour
     current_minute = now.minute
     current_second = now.second
@@ -48,6 +49,7 @@ def _seconds_to_next_funding() -> float:
     tomorrow_midnight = now.replace(hour=0, minute=0, second=5, microsecond=0)
     # Add one day
     from datetime import timedelta
+
     tomorrow_midnight += timedelta(days=1)
     return (tomorrow_midnight - now).total_seconds()
 
@@ -58,7 +60,7 @@ class SimFundingScheduler:
     at each 8-hour funding window.
     """
 
-    def __init__(self, state: "SimTradeState", notification_service=None):
+    def __init__(self, state: SimTradeState, notification_service=None):
         self._state = state
         self._notification_service = notification_service
         self._stop_event = threading.Event()
@@ -109,19 +111,19 @@ class SimFundingScheduler:
             try:
                 rate = self._fetch_funding_rate(symbol)
             except Exception as exc:
-                logger.warning(
-                    f"[SimFundingScheduler] Funding rate fetch failed for {symbol}: {exc}. Skipping."
-                )
+                logger.warning(f"[SimFundingScheduler] Funding rate fetch failed for {symbol}: {exc}. Skipping.")
                 continue
 
             with self._state.lock:
                 pos = self._state.positions.get(symbol)
                 if not pos:
                     continue
-                last_price = Decimal(str(
-                    # Use entry price as fallback if no tick price available
-                    pos.entry_price
-                ))
+                last_price = Decimal(
+                    str(
+                        # Use entry price as fallback if no tick price available
+                        pos.entry_price
+                    )
+                )
                 notional = pos.amount * last_price
                 payment = notional * rate  # positive → longs pay
                 self._state.balance -= payment

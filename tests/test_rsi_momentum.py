@@ -8,34 +8,38 @@ Test categories:
   4. Exit management (lock-profit, candle-close SL)
   5. Edge cases (warm-up, ignore existing position)
 """
+
 import unittest
-import pandas as pd
-import numpy as np
 from decimal import Decimal
 
-from app.trading.strategy.rsi_momentum import RsiMomentumStrategy, RsiMomentumConfig
+import pandas as pd
+
+from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition
+from app.core.context import SCANNING
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators
 from app.trading.sl_tp_calculator import SLTPCalculator
-from app.core.snapshots import ContextSnapshot, PositionSnapshot
-from app.core.actions import OpenPosition, ClosePosition, MoveSL, DoNothing
-from app.core.context import SCANNING
-
+from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _make_df(n: int = 100, base_close: float = 100.0) -> pd.DataFrame:
     """Create an n-row OHLCV DataFrame with flat prices."""
     ts = pd.date_range("2024-01-01", periods=n, freq="15min")
-    df = pd.DataFrame({
-        "open": base_close,
-        "high": base_close * 1.001,
-        "low": base_close * 0.999,
-        "close": base_close,
-        "volume": 1000.0,
-        "closed": True,
-    }, index=ts)
+    df = pd.DataFrame(
+        {
+            "open": base_close,
+            "high": base_close * 1.001,
+            "low": base_close * 0.999,
+            "close": base_close,
+            "volume": 1000.0,
+            "closed": True,
+        },
+        index=ts,
+    )
     return df
 
 
@@ -85,24 +89,27 @@ def _bearish_divergence_df(n: int = 80) -> pd.DataFrame:
     # Pivot B: at index n-12 (closer to end), after pivot_a
     pivot_b = n - 12
     highs[pivot_b] = 115.0  # swing high B (Higher High)
-    rsis[pivot_b] = 65.0    # Lower RSI High → bearish divergence
+    rsis[pivot_b] = 65.0  # Lower RSI High → bearish divergence
     # Ensure N bars on each side are strictly lower
     for i in range(pivot_b - N, pivot_b):
         highs[i] = 99.0
     for i in range(pivot_b + 1, min(pivot_b + N + 1, n)):
         highs[i] = 99.0
 
-    df = pd.DataFrame({
-        "open": closes,
-        "high": highs,
-        "low": [c * 0.999 for c in closes],
-        "close": closes,
-        "volume": 1000.0,
-        "closed": True,
-        "rsi_14": rsis,
-        "rsi_ema9": emas,
-        "rsi_wma45": wmas,
-    }, index=ts)
+    df = pd.DataFrame(
+        {
+            "open": closes,
+            "high": highs,
+            "low": [c * 0.999 for c in closes],
+            "close": closes,
+            "volume": 1000.0,
+            "closed": True,
+            "rsi_14": rsis,
+            "rsi_ema9": emas,
+            "rsi_wma45": wmas,
+        },
+        index=ts,
+    )
     return df
 
 
@@ -122,8 +129,8 @@ def _make_strategy(cfg_overrides: dict = None) -> RsiMomentumStrategy:
 # 1. Entry condition tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestEntryConditions(unittest.TestCase):
 
+class TestEntryConditions(unittest.TestCase):
     def setUp(self):
         self.strategy = _make_strategy()
         self.symbol = "BTC/USDT"
@@ -193,7 +200,7 @@ class TestEntryConditions(unittest.TestCase):
     def test_short_entry_alignment_broken(self):
         """RSI > EMA9 → alignment fails → DoNothing"""
         df = _bearish_divergence_df(n=80)
-        df["rsi_14"] = 55.0   # RSI > EMA9
+        df["rsi_14"] = 55.0  # RSI > EMA9
         df["rsi_ema9"] = 45.0
         df["rsi_wma45"] = 50.0
         result = self._analyze_with_df(df)
@@ -269,8 +276,8 @@ class TestEntryConditions(unittest.TestCase):
 # 2. Divergence detection tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestDivergenceDetection(unittest.TestCase):
 
+class TestDivergenceDetection(unittest.TestCase):
     def setUp(self):
         self.ind = Indicators()
 
@@ -309,11 +316,20 @@ class TestDivergenceDetection(unittest.TestCase):
         highs[30] = 115.0
         rsis[30] = 65.0
 
-        df = pd.DataFrame({
-            "open": 100.0, "high": highs, "low": 99.5,
-            "close": 100.0, "volume": 1000.0, "closed": True,
-            "rsi_14": rsis, "rsi_ema9": 50.0, "rsi_wma45": 55.0,
-        }, index=ts)
+        df = pd.DataFrame(
+            {
+                "open": 100.0,
+                "high": highs,
+                "low": 99.5,
+                "close": 100.0,
+                "volume": 1000.0,
+                "closed": True,
+                "rsi_14": rsis,
+                "rsi_ema9": 50.0,
+                "rsi_wma45": 55.0,
+            },
+            index=ts,
+        )
         result = self.ind.detect_bearish_divergence(df, lookback=50, pivot_strength=5)
         self.assertFalse(result)
 
@@ -322,8 +338,8 @@ class TestDivergenceDetection(unittest.TestCase):
 # 3. SL/TP computation tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestSLTPCalculation(unittest.TestCase):
 
+class TestSLTPCalculation(unittest.TestCase):
     def setUp(self):
         self.symbol = "BTC/USDT"
 
@@ -426,8 +442,8 @@ class TestSLTPCalculation(unittest.TestCase):
 # 4. Exit management tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestExitManagement(unittest.TestCase):
 
+class TestExitManagement(unittest.TestCase):
     def setUp(self):
         self.strategy = _make_strategy()
         self.symbol = "BTC/USDT"
@@ -526,8 +542,8 @@ class TestExitManagement(unittest.TestCase):
 # 5. Edge cases
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestEdgeCases(unittest.TestCase):
 
+class TestEdgeCases(unittest.TestCase):
     def setUp(self):
         self.strategy = _make_strategy()
         self.symbol = "BTC/USDT"
@@ -583,7 +599,7 @@ class TestEdgeCases(unittest.TestCase):
         df["rsi_14"] = 40.0
         df["rsi_ema9"] = 45.0
         df["rsi_wma45"] = 50.0
-        df["high"] = 100.0   # highest high = 100 = close = 100 → zero risk
+        df["high"] = 100.0  # highest high = 100 = close = 100 → zero risk
         df["close"] = 100.0
 
         # Add crossover
@@ -599,7 +615,7 @@ class TestEdgeCases(unittest.TestCase):
         ind = Indicators()
         df = _make_df(n=10)
         df["rsi_14"] = 50.0
-        df["rsi_ema9"] = 50.0   # EMA == WMA: no crossover
+        df["rsi_ema9"] = 50.0  # EMA == WMA: no crossover
         df["rsi_wma45"] = 50.0
         self.assertFalse(ind.detect_crossover(df, direction="bearish"))
         self.assertFalse(ind.detect_crossover(df, direction="bullish"))
@@ -607,13 +623,16 @@ class TestEdgeCases(unittest.TestCase):
     def test_loader_registers_rsi_momentum(self):
         """rsi_momentum should be available in the strategy loader."""
         from app.trading.strategy.loader import STRATEGY_MAP
+
         self.assertIn("rsi_momentum", STRATEGY_MAP)
         from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
+
         self.assertIs(STRATEGY_MAP["rsi_momentum"], RsiMomentumStrategy)
 
     def test_open_position_action_supports_sell_side(self):
         """OpenPosition dataclass can carry side='SELL' without errors."""
         from app.core.actions import OpenPosition
+
         action = OpenPosition(
             symbol="BTC/USDT",
             side="SELL",
@@ -633,13 +652,13 @@ class TestEdgeCases(unittest.TestCase):
 # 6. SLTPCalculator static method tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestSLTPCalculatorStatic(unittest.TestCase):
 
+class TestSLTPCalculatorStatic(unittest.TestCase):
     def test_position_size_direction_agnostic(self):
         """Position sizing uses absolute distance — same result for both sides."""
         entry = Decimal("100")
-        sl_long = Decimal("95")   # 5% below entry
-        sl_short = Decimal("105") # 5% above entry
+        sl_long = Decimal("95")  # 5% below entry
+        sl_short = Decimal("105")  # 5% above entry
 
         size_long = SLTPCalculator.compute_position_size(
             entry, sl_long, Decimal("10000"), Decimal("0.02"), Decimal("10")

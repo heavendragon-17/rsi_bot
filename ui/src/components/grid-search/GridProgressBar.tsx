@@ -5,9 +5,9 @@ import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 
 export const GridProgressBar: React.FC = () => {
-  const { 
-    progress, 
-    currentCombination, 
+  const {
+    progress,
+    currentCombination,
     elapsedSeconds,
     totalCombinations,
     estimatedTimeMinutes,
@@ -15,7 +15,7 @@ export const GridProgressBar: React.FC = () => {
     xAxisStep,
     yAxisMin,
     yAxisStep,
-    cancelSearch 
+    cancelSearch
   } = useGridSearchStore();
 
   const formatTime = (seconds: number) => {
@@ -24,11 +24,11 @@ export const GridProgressBar: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const currentXValue = currentCombination 
-    ? xAxisMin + (currentCombination.x * xAxisStep) 
+  const currentXValue = currentCombination
+    ? xAxisMin + (currentCombination.x * xAxisStep)
     : 0;
-  const currentYValue = currentCombination 
-    ? yAxisMin + (currentCombination.y * yAxisStep) 
+  const currentYValue = currentCombination
+    ? yAxisMin + (currentCombination.y * yAxisStep)
     : 0;
 
   const completedCombinations = Math.floor((progress / 100) * totalCombinations);
@@ -71,7 +71,7 @@ export const GridProgressBar: React.FC = () => {
               X={currentXValue.toFixed(2)}, Y={currentYValue.toFixed(2)}
             </span>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-main">
             <div>
               <p className="text-xs text-text-secondary mb-1">Elapsed</p>

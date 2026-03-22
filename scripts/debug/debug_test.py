@@ -1,16 +1,13 @@
 # Simple test to debug MockExchange
 import yaml
+
 from app.backtest.engine import BacktestEngine
 from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
-config = yaml.safe_load(open('config.yaml'))
-config['symbols'] = ['BTC/USDT']
+config = yaml.safe_load(open("config.yaml"))
+config["symbols"] = ["BTC/USDT"]
 
-engine = BacktestEngine(
-    'app/backtest/data/BTCUSDT_15m.csv', 
-    RsiNoRetestStrategy, 
-    config
-)
+engine = BacktestEngine("app/backtest/data/BTCUSDT_15m.csv", RsiNoRetestStrategy, config)
 
 print(f"Initial balance: {engine.exchange.get_balance()}")
 print(f"Leverage: {engine.exchange.leverage}")

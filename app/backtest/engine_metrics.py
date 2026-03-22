@@ -2,6 +2,7 @@
 Backtest metric computation functions.
 Extracted from BacktestEngine static methods.
 """
+
 import math
 
 import numpy as np
@@ -33,24 +34,21 @@ def build_round_trips(trades_df: pd.DataFrame) -> pd.DataFrame:
 
     for _symbol, symbol_trades in groups:
         current_entry = None
-        partial_exits = []
+        partial_exits: list[dict] = []
         total_pnl = 0.0
         total_exit_amount = 0.0
 
         for _, trade in symbol_trades.iterrows():
             trade_pnl = trade.get("pnl")
-            has_pnl = (
-                trade_pnl is not None
-                and not (isinstance(trade_pnl, float) and math.isnan(trade_pnl))
-            )
+            has_pnl = trade_pnl is not None and not (isinstance(trade_pnl, float) and math.isnan(trade_pnl))
             trade_is_exit = has_pnl
 
             if current_entry is None or not trade_is_exit:
                 if current_entry is not None:
                     if partial_exits:
-                        round_trips.append(create_round_trip(
-                            current_entry, partial_exits, total_pnl, total_exit_amount
-                        ))
+                        round_trips.append(
+                            create_round_trip(current_entry, partial_exits, total_pnl, total_exit_amount)
+                        )
                     else:
                         logger.warning(
                             "round_trip_no_exits",
@@ -70,9 +68,7 @@ def build_round_trips(trades_df: pd.DataFrame) -> pd.DataFrame:
 
         if current_entry is not None:
             if partial_exits:
-                round_trips.append(create_round_trip(
-                    current_entry, partial_exits, total_pnl, total_exit_amount
-                ))
+                round_trips.append(create_round_trip(current_entry, partial_exits, total_pnl, total_exit_amount))
             else:
                 logger.warning(
                     "round_trip_no_exits",
@@ -132,9 +128,7 @@ def create_round_trip(entry, exits, total_pnl, total_exit_amount) -> dict:
         "pnl": total_pnl,
         "pnl_pct": pnl_pct,
         "hold_duration_seconds": hold_duration_seconds,
-        "hold_duration_hours": (
-            hold_duration_seconds / 3600 if hold_duration_seconds else None
-        ),
+        "hold_duration_hours": (hold_duration_seconds / 3600 if hold_duration_seconds else None),
         "exit_reason": final_exit_reason,
         "num_partial_exits": len(exits),
         "hit_tp1": any(get_exit_reason(e) == "TP1" for e in exits),
@@ -242,9 +236,11 @@ def calculate_drawdown(round_trips: pd.DataFrame, initial_balance: float) -> dic
     """Compute max drawdown, average drawdown, and equity curve."""
     if round_trips.empty or "pnl" not in round_trips.columns:
         return {
-            "max_drawdown_pct": 0, "max_drawdown_value": 0,
+            "max_drawdown_pct": 0,
+            "max_drawdown_value": 0,
             "equity_curve": [float(initial_balance)],
-            "max_dd_duration": 0, "avg_drawdown_pct": 0,
+            "max_dd_duration": 0,
+            "avg_drawdown_pct": 0,
         }
 
     cumulative_pnl = round_trips["pnl"].cumsum().tolist()
@@ -284,12 +280,9 @@ def calculate_drawdown(round_trips: pd.DataFrame, initial_balance: float) -> dic
     }
 
 
-def calculate_risk_metrics(
-    round_trips: pd.DataFrame, drawdown: dict, initial_balance: float
-) -> dict:
+def calculate_risk_metrics(round_trips: pd.DataFrame, drawdown: dict, initial_balance: float) -> dict:
     """Compute Sharpe, Sortino, Calmar ratios and volatility."""
-    zero = {"sharpe_ratio": 0, "sortino_ratio": 0, "calmar_ratio": 0,
-            "volatility": 0, "var_95": 0}
+    zero = {"sharpe_ratio": 0, "sortino_ratio": 0, "calmar_ratio": 0, "volatility": 0, "var_95": 0}
     if round_trips.empty:
         return zero
 
@@ -306,11 +299,7 @@ def calculate_risk_metrics(
     downside_std = np.std(negative_returns, ddof=1) if len(negative_returns) > 1 else 0
     sortino_ratio = mean_return / downside_std if downside_std > 0 else 0
 
-    var_95 = (
-        np.percentile(returns, 5) * 100
-        if len(returns) >= 5
-        else min(returns) * 100
-    )
+    var_95 = np.percentile(returns, 5) * 100 if len(returns) >= 5 else min(returns) * 100
 
     realized_pnl = float(round_trips["pnl"].sum())
     total_return = (realized_pnl / initial_balance) * 100 if initial_balance > 0 else 0

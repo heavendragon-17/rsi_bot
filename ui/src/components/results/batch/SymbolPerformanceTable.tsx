@@ -14,7 +14,7 @@ export const SymbolPerformanceTable: React.FC = () => {
       const aVal = a[sortField];
       // @ts-ignore
       const bVal = b[sortField];
-      
+
       if (typeof aVal === "string" && typeof bVal === "string") {
           return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
@@ -56,11 +56,11 @@ export const SymbolPerformanceTable: React.FC = () => {
                             { key: "isPinned", label: "Pin", w: "w-16 text-center" },
                             { key: "actions", label: "Action", w: "w-20 text-center pr-4" }
                         ].map(col => (
-                            <th 
+                            <th
                                 key={col.key}
                                 onClick={() => col.key !== "actions" && handleHeaderClick(col.key as keyof BatchSymbolResult)}
                                 className={cn(
-                                    "py-3 cursor-pointer hover:bg-bg-elevated/80 transition-colors select-none", 
+                                    "py-3 cursor-pointer hover:bg-bg-elevated/80 transition-colors select-none",
                                     col.w
                                 )}
                             >
@@ -76,7 +76,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                     {sortedData.map((res) => {
                         const isWin = res.netPnL >= 0;
                         const isPinned = pinnedSymbols.includes(res.symbol);
-                        
+
                         return (
                             <tr key={res.symbol} className="group hover:bg-bg-elevated/30 transition-colors">
                                 <td className="py-2.5 pl-4 font-medium">{res.symbol}</td>
@@ -93,12 +93,12 @@ export const SymbolPerformanceTable: React.FC = () => {
                                 </td>
                                 <td className="py-2.5 text-right text-danger">{res.maxDrawdownPct.toFixed(1)}%</td>
                                 <td className="py-2.5 text-center">
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); togglePin(res.symbol); }}
                                         className={cn(
                                             "w-5 h-5 rounded border flex items-center justify-center transition-all mx-auto",
-                                            isPinned 
-                                                ? "bg-accent-main border-accent-main text-white" 
+                                            isPinned
+                                                ? "bg-accent-main border-accent-main text-white"
                                                 : "border-border-main text-transparent hover:border-accent-main/50"
                                         )}
                                     >
@@ -106,7 +106,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                                     </button>
                                 </td>
                                 <td className="py-2.5 text-center pr-4">
-                                    <button 
+                                    <button
                                         onClick={() => selectSymbol(res.symbol)}
                                         className="px-2 py-1 rounded bg-bg-elevated hover:bg-bg-secondary text-text-secondary hover:text-text-primary text-xs font-medium transition-colors flex items-center gap-1 mx-auto border border-border-main"
                                     >

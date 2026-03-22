@@ -1,4 +1,5 @@
 """Thin wrappers over Indicators crossover methods for strategy use."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,12 +10,12 @@ if TYPE_CHECKING:
     from app.data.indicators import Indicators
 
 
-def detect_crossover_signal(indicators: "Indicators", df: pd.DataFrame, direction: str) -> bool:
+def detect_crossover_signal(indicators: Indicators, df: pd.DataFrame, direction: str) -> bool:
     """Detect EMA9/WMA45 crossover. Delegates to Indicators.detect_crossover."""
     return indicators.detect_crossover(df, direction=direction)
 
 
-def check_rsi_alignment(indicators: "Indicators", df: pd.DataFrame, direction: str) -> bool:
+def check_rsi_alignment(indicators: Indicators, df: pd.DataFrame, direction: str) -> bool:
     """Check RSI < EMA9 < WMA45 (bearish) or inverse. Delegates to Indicators.check_alignment."""
     return indicators.check_alignment(df, direction=direction)
 

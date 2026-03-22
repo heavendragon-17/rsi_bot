@@ -10,13 +10,14 @@ Crossover detection:
   - direction="bearish" (down cross) -> SHORT entry signal
   - direction="bullish" (up cross)   -> LONG setup signal
 """
+
 from __future__ import annotations
-from typing import Optional, Tuple
+
 from decimal import Decimal
+
 import pandas as pd
 
 from app.core.interfaces import IIndicators
-
 
 # Market mode constants
 MODE_BULLISH = "BULLISH"
@@ -52,14 +53,14 @@ class Indicators(IIndicators):
         self.include_price_emas = bool(include_price_emas)
 
         self.enable_cache = bool(enable_cache)
-        self._cache_key: Optional[Tuple[str, str, int, int]] = None
-        self._cache_df: Optional[pd.DataFrame] = None
+        self._cache_key: tuple[str, str, int, int] | None = None
+        self._cache_df: pd.DataFrame | None = None
 
     # ------------------------------------------------------------------
     # IIndicators interface
     # ------------------------------------------------------------------
 
-    def compute(self, df: pd.DataFrame, *, symbol: str = "", timeframe: str = "") -> pd.DataFrame:
+    def compute(self, df: pd.DataFrame, *, symbol: str = "", timeframe: str = "") -> pd.DataFrame:  # type: ignore[override]
         """Compute all indicators. Adds: rsi_14, rsi_ema9, rsi_wma45.
         Optionally: ema21, ema200 (when include_price_emas=True)."""
         if df is None or df.empty:
@@ -93,21 +94,22 @@ class Indicators(IIndicators):
             # Fallback: manual computation
             delta = out["close"].diff()
             gain = delta.clip(lower=0)
-            loss = (-delta.clip(upper=0))
+            loss = -delta.clip(upper=0)
             avg_gain = gain.ewm(alpha=1 / self.rsi_period, adjust=False).mean()
             avg_loss = loss.ewm(alpha=1 / self.rsi_period, adjust=False).mean()
             rs = avg_gain / avg_loss.replace(0, float("nan"))
             out["rsi_14"] = 100 - (100 / (1 + rs))
 
-            out["rsi_ema9"] = out["rsi_14"].ewm(
-                span=self.rsi_ema_period, adjust=False
-            ).mean()
+            out["rsi_ema9"] = out["rsi_14"].ewm(span=self.rsi_ema_period, adjust=False).mean()
 
             weights = pd.Series(range(1, self.rsi_wma_period + 1))
-            out["rsi_wma45"] = out["rsi_14"].rolling(self.rsi_wma_period).apply(
-                lambda x: (x * weights[-len(x):].values).sum()
-                / weights[-len(x):].sum(),
-                raw=False,
+            out["rsi_wma45"] = (
+                out["rsi_14"]
+                .rolling(self.rsi_wma_period)
+                .apply(
+                    lambda x: (x * weights[-len(x) :].values).sum() / weights[-len(x) :].sum(),
+                    raw=False,
+                )
             )
 
             if self.include_price_emas:
@@ -117,7 +119,7 @@ class Indicators(IIndicators):
         # Store RSI components for price ladder calculation
         out["_delta"] = out["close"].diff()
         out["_gain"] = out["_delta"].clip(lower=0)
-        out["_loss"] = (-out["_delta"].clip(upper=0))
+        out["_loss"] = -out["_delta"].clip(upper=0)
         out["_avg_gain"] = out["_gain"].ewm(alpha=1 / self.rsi_period, adjust=False).mean()
         out["_avg_loss"] = out["_loss"].ewm(alpha=1 / self.rsi_period, adjust=False).mean()
 
@@ -153,7 +155,7 @@ class Indicators(IIndicators):
         if (wma45_now - wma45_3 > 0) and rsi_ema9 > wma45_now and (wma45_now > 55 or wma45_now < 45):
             return MODE_BULLISH
 
-        if (wma45_now - wma45_9 > 3):
+        if wma45_now - wma45_9 > 3:
             return MODE_BULLISH
 
         return MODE_NEUTRAL
@@ -181,7 +183,7 @@ class Indicators(IIndicators):
 
         return touched and came_from_above
 
-    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Optional[Decimal]:
+    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Decimal | None:  # type: ignore[override]
         """Calculate the price level for a target RSI value.
 
         Used for R40 (SL level), R60, R70, R80 (TP levels).
@@ -297,8 +299,9 @@ class Indicators(IIndicators):
         swing_high_idxs = []
         for i in range(n, wlen - n):
             center = highs[i]
-            if all(center > highs[i - j] for j in range(1, n + 1)) and \
-               all(center > highs[i + j] for j in range(1, n + 1)):
+            if all(center > highs[i - j] for j in range(1, n + 1)) and all(
+                center > highs[i + j] for j in range(1, n + 1)
+            ):
                 swing_high_idxs.append(i)
 
         if len(swing_high_idxs) < 2:
@@ -339,7 +342,7 @@ class Indicators(IIndicators):
             row = check_period.iloc[i]
             close = row.get("close")
 
-            r40_price = self.calculate_price_at_rsi(df.iloc[:len(df) - lookback + i + 1], 40)
+            r40_price = self.calculate_price_at_rsi(df.iloc[: len(df) - lookback + i + 1], 40)
 
             if r40_price is None:
                 continue

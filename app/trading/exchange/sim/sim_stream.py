@@ -10,6 +10,7 @@ Runs in a dedicated daemon thread, isolated from the kline pipeline.
 Reconnect strategy: exponential backoff (1s, 2s, 4s … max 30s).
 Tick buffer is flushed on disconnect (safe — ticks are sampled, not accumulated).
 """
+
 from __future__ import annotations
 
 import json
@@ -17,7 +18,7 @@ import logging
 import threading
 import time
 from decimal import Decimal
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_exchange import SimExchange
@@ -47,8 +48,8 @@ class SimTradeStreamManager:
 
     def __init__(
         self,
-        symbols: List[str],
-        sim_exchange: "SimExchange",
+        symbols: list[str],
+        sim_exchange: SimExchange,
         tick_interval_ms: int = 500,
     ):
         self._symbols = symbols
@@ -56,13 +57,11 @@ class SimTradeStreamManager:
         self._tick_interval = tick_interval_ms / 1000.0  # seconds
 
         # Build mapping: Binance raw symbol → normalised symbol (e.g. "BTCUSDT" → "BTC/USDT")
-        self._raw_to_norm: Dict[str, str] = {
-            s.replace("/", "").upper(): s for s in symbols
-        }
+        self._raw_to_norm: dict[str, str] = {s.replace("/", "").upper(): s for s in symbols}
 
         # Latest price buffer and last-sample timestamps (per symbol)
-        self._buffers: Dict[str, Decimal] = {}
-        self._last_sample: Dict[str, float] = {}
+        self._buffers: dict[str, Decimal] = {}
+        self._last_sample: dict[str, float] = {}
 
         self._ws = None
         self._thread: threading.Thread | None = None
@@ -108,10 +107,7 @@ class SimTradeStreamManager:
             except Exception as exc:
                 if self._stop_event.is_set():
                     break
-                logger.warning(
-                    f"[SimTradeStreamManager] WebSocket error: {exc}. "
-                    f"Reconnecting in {backoff:.0f}s…"
-                )
+                logger.warning(f"[SimTradeStreamManager] WebSocket error: {exc}. " f"Reconnecting in {backoff:.0f}s…")
                 self._stop_event.wait(timeout=backoff)
                 backoff = min(backoff * 2, _MAX_BACKOFF)
 
@@ -119,9 +115,7 @@ class SimTradeStreamManager:
         try:
             import websocket  # websocket-client
         except ImportError as exc:
-            raise RuntimeError(
-                "websocket-client is not installed. Run: pip install websocket-client"
-            ) from exc
+            raise RuntimeError("websocket-client is not installed. Run: pip install websocket-client") from exc
 
         streams = "/".join(_symbol_to_stream(s) for s in self._symbols)
         url = _STREAM_BASE + streams
@@ -177,10 +171,7 @@ class SimTradeStreamManager:
             logger.warning(f"[SimTradeStreamManager] WebSocket error: {error}")
 
     def _on_close(self, ws, close_status_code, close_msg) -> None:  # noqa: ARG002
-        logger.info(
-            f"[SimTradeStreamManager] WebSocket closed "
-            f"(code={close_status_code}, msg={close_msg})"
-        )
+        logger.info(f"[SimTradeStreamManager] WebSocket closed " f"(code={close_status_code}, msg={close_msg})")
         # Flush buffers — safe because ticks are sampled, not accumulated
         self._buffers.clear()
         self._last_sample.clear()

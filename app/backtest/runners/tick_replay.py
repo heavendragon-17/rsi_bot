@@ -1,34 +1,27 @@
-"""
-Tick-level simulation backtest using SimExchange.
+"""Tick-level simulation backtest using SimExchange."""
 
-Refactored from run_paper_tick_replay.py — replays aggTrades tick data
-through a strategy with realistic SL/TP fill simulation.
-"""
 from __future__ import annotations
 
 import argparse
 import csv
-import os
-import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 import structlog
 
 from app.backtest.config_builder import build_backtest_config
+from app.backtest.engine_curves import build_drawdown_curve_dated, build_equity_curve_dated
 from app.backtest.engine_metrics import (
     build_round_trips,
-    calculate_metrics,
     calculate_drawdown,
-    calculate_risk_metrics,
+    calculate_metrics,
     calculate_monthly_returns,
+    calculate_risk_metrics,
 )
-from app.backtest.engine_curves import build_equity_curve_dated, build_drawdown_curve_dated
-from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition, PartialClose
+from app.core.actions import ClosePosition, MoveSL, OpenPosition, PartialClose
 from app.core.constants import WARMUP
 from app.core.events import SignalEvent
 from app.core.snapshots import ContextSnapshot
@@ -70,16 +63,15 @@ class TickReplayRunner:
         context = ContextSnapshot(state="SCANNING")
 
         logger.info(
-            "replay_start", strategy=self.strategy_name, symbol=self.symbol,
-            ohlc_rows=len(full_df), warmup=WARMUP,
+            "replay_start", strategy=self.strategy_name, symbol=self.symbol, ohlc_rows=len(full_df), warmup=WARMUP
         )
 
         total_candles = len(full_df) - WARMUP
         processed = 0
         total_ticks = 0
-        tick_file = open(self.ticks_path, "r", newline="", encoding="utf-8")
+        tick_file = open(self.ticks_path, newline="", encoding="utf-8")
         reader = csv.DictReader(tick_file)
-        pending_tick: Optional[dict] = None
+        pending_tick: dict | None = None
         tick_exhausted = False
 
         def _next_tick():
@@ -155,7 +147,9 @@ class TickReplayRunner:
                     portfolio.move_stop_loss(action.symbol, action.new_sl_price)
                 elif isinstance(action, PartialClose):
                     portfolio.execute_partial_close(
-                        action.symbol, action.tp_level, new_sl_price=action.new_sl_price,
+                        action.symbol,
+                        action.tp_level,
+                        new_sl_price=action.new_sl_price,
                     )
 
             processed += 1
@@ -166,7 +160,8 @@ class TickReplayRunner:
                     "replay_progress",
                     pct=f"{processed / total_candles * 100:.1f}%",
                     candle=f"{processed}/{total_candles}",
-                    ticks=total_ticks, rate=f"{rate:,.0f}/s",
+                    ticks=total_ticks,
+                    rate=f"{rate:,.0f}/s",
                 )
 
             if tick_exhausted and pending_tick is None:
@@ -189,12 +184,12 @@ class TickReplayRunner:
         _send_telegram_summary(config, results, self.symbol, self.timeframe, self.strategy_name, elapsed)
         return results
 
-    # ── internal helpers ────────────────────────────────────────────────
-
     def _build_config(self) -> dict:
         config = build_backtest_config(
-            symbol=self.symbol, timeframe=self.timeframe,
-            strategy_name=self.strategy_name, initial_balance=self.balance,
+            symbol=self.symbol,
+            timeframe=self.timeframe,
+            strategy_name=self.strategy_name,
+            initial_balance=self.balance,
         )
         config.setdefault("bot", {})["mode"] = "sim"
         config.setdefault("sim", {})["initial_balance"] = self.balance
@@ -217,14 +212,16 @@ class TickReplayRunner:
         return SimExchange(config, notification_service=ns)
 
 
-# ── module-level helpers ────────────────────────────────────────────────────
-
 def _action_to_signal(action: OpenPosition) -> SignalEvent:
     tp_prices = action.tp_prices or []
     return SignalEvent(
-        symbol=action.symbol, signal_type="BUY", price=action.entry_price,
-        timestamp=datetime.now(), reason=action.reason,
-        sl_price=action.sl_price, soft_sl_price=action.soft_sl_price,
+        symbol=action.symbol,
+        signal_type="BUY",
+        price=action.entry_price,
+        timestamp=datetime.now(),
+        reason=action.reason,
+        sl_price=action.sl_price,
+        soft_sl_price=action.soft_sl_price,
         tp1_price=tp_prices[0] if len(tp_prices) > 0 else None,
         tp2_price=tp_prices[1] if len(tp_prices) > 1 else None,
         tp3_price=tp_prices[2] if len(tp_prices) > 2 else None,
@@ -238,39 +235,56 @@ def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
     """Compute P&L metrics from SimExchange closed_trades."""
     if not exchange.state.closed_trades:
         return {
-            "total_trades": 0, "initial_balance": initial_balance,
+            "total_trades": 0,
+            "initial_balance": initial_balance,
             "final_balance": float(exchange.state.balance),
-            "net_profit": 0.0, "net_profit_pct": 0.0, "closed_trades": [],
+            "net_profit": 0.0,
+            "net_profit_pct": 0.0,
+            "closed_trades": [],
         }
 
     ordered: list[dict] = []
     for ct in exchange.state.closed_trades:
-        ordered.append({
-            "symbol": ct.symbol, "side": "BUY",
-            "price": float(ct.entry_price), "amount": float(ct.amount),
-            "pnl": None,
-            "time": datetime.fromtimestamp(ct.opened_at, tz=timezone.utc) if ct.opened_at else None,
-            "info": {},
-            "margin": float(ct.entry_price * ct.amount / 10),
-            "notional": float(ct.entry_price * ct.amount), "leverage": 10,
-        })
-        ordered.append({
-            "symbol": ct.symbol, "side": "SELL",
-            "price": float(ct.exit_price), "amount": float(ct.amount),
-            "pnl": float(ct.pnl_net),
-            "time": datetime.fromtimestamp(ct.closed_at, tz=timezone.utc),
-            "info": {"exit_reason": ct.exit_reason},
-            "margin": float(ct.entry_price * ct.amount / 10),
-            "notional": float(ct.exit_price * ct.amount), "leverage": 10,
-        })
+        margin = float(ct.entry_price * ct.amount / 10)
+        ordered.append(
+            {
+                "symbol": ct.symbol,
+                "side": "BUY",
+                "price": float(ct.entry_price),
+                "amount": float(ct.amount),
+                "pnl": None,
+                "time": datetime.fromtimestamp(ct.opened_at, tz=UTC) if ct.opened_at else None,
+                "info": {},
+                "margin": margin,
+                "notional": float(ct.entry_price * ct.amount),
+                "leverage": 10,
+            }
+        )
+        ordered.append(
+            {
+                "symbol": ct.symbol,
+                "side": "SELL",
+                "price": float(ct.exit_price),
+                "amount": float(ct.amount),
+                "pnl": float(ct.pnl_net),
+                "time": datetime.fromtimestamp(ct.closed_at, tz=UTC),
+                "info": {"exit_reason": ct.exit_reason},
+                "margin": margin,
+                "notional": float(ct.exit_price * ct.amount),
+                "leverage": 10,
+            }
+        )
 
     df_trades = pd.DataFrame(ordered)
     round_trips = build_round_trips(df_trades)
     if round_trips.empty:
         return {
-            "total_trades": 0, "initial_balance": initial_balance,
+            "total_trades": 0,
+            "initial_balance": initial_balance,
             "final_balance": float(exchange.state.balance),
-            "net_profit": 0.0, "net_profit_pct": 0.0, "closed_trades": [],
+            "net_profit": 0.0,
+            "net_profit_pct": 0.0,
+            "closed_trades": [],
         }
 
     metrics = calculate_metrics(round_trips)
@@ -287,83 +301,70 @@ def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
     net_pnl_pct = (realized_pnl / initial_balance * 100) if initial_balance > 0 else 0.0
 
     return {
-        "metrics": metrics, "risk_metrics": risk_metrics,
-        "drawdown": drawdown_full, "monthly_returns": monthly_returns,
-        "equity_curve": equity_curve, "drawdown_curve": drawdown_curve,
+        "metrics": metrics,
+        "risk_metrics": risk_metrics,
+        "drawdown": drawdown_full,
+        "monthly_returns": monthly_returns,
+        "equity_curve": equity_curve,
+        "drawdown_curve": drawdown_curve,
         "round_trips": rt_list,
-        "initial_balance": initial_balance, "final_balance": final_balance,
-        "net_profit": realized_pnl, "net_profit_pct": net_pnl_pct,
+        "initial_balance": initial_balance,
+        "final_balance": final_balance,
+        "net_profit": realized_pnl,
+        "net_profit_pct": net_pnl_pct,
     }
 
 
 def _print_report(results: dict, symbol: str, timeframe: str, strategy_name: str) -> None:
-    m = results.get("metrics", {})
-    r = results.get("risk_metrics", {})
-    d = results.get("drawdown", {})
-    banner = "=" * 60
-    print(f"\n{banner}")
-    print(f" TICK-LEVEL PAPER BACKTEST RESULTS")
-    print(f" Symbol: {symbol}  |  Timeframe: {timeframe}  |  Strategy: {strategy_name}")
-    print(banner)
-    print(f"  Initial Balance  : ${results['initial_balance']:>12,.2f}")
-    print(f"  Final Balance    : ${results['final_balance']:>12,.2f}")
-    print(f"  Net Profit       : ${results['net_profit']:>+12,.2f}  ({results['net_profit_pct']:+.2f}%)")
-    print(f"  Total Trades     : {m.get('total_trades', 0)}")
-    print(f"  Win Rate         : {m.get('win_rate', 0):.1f}%")
-    print(f"  Profit Factor    : {m.get('profit_factor', 0):.2f}")
-    print(f"  Max Drawdown     : {d.get('max_drawdown_pct', 0):.2f}%")
-    print(f"  Sharpe Ratio     : {r.get('sharpe_ratio', 0):.2f}")
-    print(banner)
+    m, r, d = results.get("metrics", {}), results.get("risk_metrics", {}), results.get("drawdown", {})
     monthly = results.get("monthly_returns", {})
-    if monthly:
-        print("\n  Monthly P&L:")
-        for month, v in sorted(monthly.items()):
-            sign = "+" if v["pnl"] >= 0 else ""
-            print(f"    {month}  {sign}${v['pnl']:.2f}  ({v['trades']} trades)")
-    print()
+    logger.info(
+        "tick_backtest_results",
+        symbol=symbol,
+        timeframe=timeframe,
+        strategy=strategy_name,
+        initial_balance=f"${results['initial_balance']:,.2f}",
+        final_balance=f"${results['final_balance']:,.2f}",
+        net_profit=f"${results['net_profit']:+,.2f} ({results['net_profit_pct']:+.2f}%)",
+        total_trades=m.get("total_trades", 0),
+        win_rate=f"{m.get('win_rate', 0):.1f}%",
+        profit_factor=f"{m.get('profit_factor', 0):.2f}",
+        max_drawdown=f"{d.get('max_drawdown_pct', 0):.2f}%",
+        sharpe=f"{r.get('sharpe_ratio', 0):.2f}",
+        monthly_pnl={mo: f"${v['pnl']:+.2f}" for mo, v in sorted(monthly.items())} if monthly else {},
+    )
 
 
 def _send_telegram_summary(
-    config: dict, results: dict, symbol: str,
-    timeframe: str, strategy_name: str, elapsed: float,
+    config: dict,
+    results: dict,
+    symbol: str,
+    timeframe: str,
+    strategy_name: str,
+    elapsed: float,
 ) -> None:
     try:
         from app.notification.telegram_bot import TelegramBot
 
         sim_cfg = config.get("sim", config.get("paper_sim", {}))
-        token_override = sim_cfg.get("telegram_token", "").strip()
-        token_env = "SIM_TELEGRAM_BOT_TOKEN" if token_override else "TELEGRAM_BOT_TOKEN"
+        token_env = "SIM_TELEGRAM_BOT_TOKEN" if sim_cfg.get("telegram_token", "").strip() else "TELEGRAM_BOT_TOKEN"
         bot = TelegramBot(token_env=token_env)
         chat_id = sim_cfg.get("chat_id", "").strip() or None
-
-        m = results.get("metrics", {})
-        r = results.get("risk_metrics", {})
-        d = results.get("drawdown", {})
+        m, r, d = results.get("metrics", {}), results.get("risk_metrics", {}), results.get("drawdown", {})
         monthly = results.get("monthly_returns", {})
-
         lines = [
-            "📊 <b>TICK REPLAY RESULTS</b>",
-            f"Symbol: <code>{symbol}</code>  |  TF: <code>{timeframe}</code>  |  Strat: <code>{strategy_name}</code>",
-            "",
-            f"💰 Net P&L: <b>${results['net_profit']:+,.2f}</b> ({results['net_profit_pct']:+.2f}%)",
-            f"📈 Balance: ${results['initial_balance']:,.2f} → ${results['final_balance']:,.2f}",
-            f"🎯 Trades: {m.get('total_trades', 0)}  |  Win: {m.get('win_rate', 0):.1f}%  |  PF: {m.get('profit_factor', 0):.2f}",
-            f"📉 Max DD: {d.get('max_drawdown_pct', 0):.2f}%  |  Sharpe: {r.get('sharpe_ratio', 0):.2f}",
-            f"⏱ {elapsed:.0f}s runtime",
+            f"📊 <b>TICK REPLAY</b> {symbol} | {timeframe} | {strategy_name}",
+            f"💰 P&L: <b>${results['net_profit']:+,.2f}</b> ({results['net_profit_pct']:+.2f}%)",
+            f"📈 ${results['initial_balance']:,.2f} → ${results['final_balance']:,.2f}",
+            f"🎯 {m.get('total_trades', 0)}t Win:{m.get('win_rate', 0):.1f}% PF:{m.get('profit_factor', 0):.2f}",
+            f"📉 DD:{d.get('max_drawdown_pct', 0):.2f}% Sharpe:{r.get('sharpe_ratio', 0):.2f} ⏱{elapsed:.0f}s",
         ]
         if monthly:
-            lines.append("")
-            lines.append("<b>Monthly:</b>")
-            for month, v in sorted(monthly.items()):
-                sign = "+" if v["pnl"] >= 0 else ""
-                lines.append(f"  {month}: {sign}${v['pnl']:.2f} ({v['trades']}t)")
-
+            lines += [f"  {mo}: ${v['pnl']:+.2f} ({v['trades']}t)" for mo, v in sorted(monthly.items())]
         bot.send_message("\n".join(lines), chat_id=chat_id)
     except Exception as exc:
         logger.warning("telegram_summary_failed", error=str(exc))
 
-
-# ── CLI entry point ─────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
@@ -379,9 +380,12 @@ def main():
     args = parser.parse_args()
 
     runner = TickReplayRunner(
-        symbol=args.symbol, timeframe=args.timeframe,
-        balance=args.balance, strategy_name=args.strategy,
-        ohlc_path=args.ohlc, ticks_path=args.ticks,
+        symbol=args.symbol,
+        timeframe=args.timeframe,
+        balance=args.balance,
+        strategy_name=args.strategy,
+        ohlc_path=args.ohlc,
+        ticks_path=args.ticks,
     )
     results = runner.run()
     _print_report(results, args.symbol, args.timeframe, args.strategy)
