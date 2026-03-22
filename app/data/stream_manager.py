@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import threading
 import time
-from typing import List, Optional
 
 import ccxt
 import structlog
@@ -32,7 +31,7 @@ class BinanceStreamManager:
 
     def __init__(
         self,
-        symbols: List[str],
+        symbols: list[str],
         timeframe: str,
         store,
         history_limit: int = 300,
@@ -44,12 +43,12 @@ class BinanceStreamManager:
         self.history_limit = int(history_limit)
         self.enable_history = bool(enable_history)
 
-        self.ws: Optional[websocket.WebSocketApp] = None
+        self.ws: websocket.WebSocketApp | None = None
         self.keep_running = True
 
         # Optional callbacks — set by LiveEventSource to receive closed candles
-        self.on_kline_close = None   # Callable[[Candle], None]
-        self.on_tick = None          # Callable[[Candle], None]  (every kline update)
+        self.on_kline_close = None  # Callable[[Candle], None]
+        self.on_tick = None  # Callable[[Candle], None]  (every kline update)
 
         # Convert input symbols to websocket stream symbols:
         # "BTC/USDT" -> "btcusdt"
@@ -106,13 +105,11 @@ class BinanceStreamManager:
 
         logger.info("fetching_history", symbols=self.raw_symbols)
         try:
-            exchange = ccxt.binanceusdm()
+            ccxt.binanceusdm()
             for symbol in self.raw_symbols:
                 ccxt_symbol = self._to_ccxt_symbol(symbol)
                 try:
-                    ohlcvs = self.exchange.fetch_ohlcv(
-                        ccxt_symbol, self.timeframe, limit=self.history_limit
-                    )
+                    ohlcvs = self.exchange.fetch_ohlcv(ccxt_symbol, self.timeframe, limit=self.history_limit)
 
                     # IMPORTANT:
                     # DataNormalizer.normalize_ccxt expects symbol like "BTC/USDT" (not with :USDT)

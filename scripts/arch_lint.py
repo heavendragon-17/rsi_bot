@@ -4,8 +4,8 @@ Architecture lint — enforces directory boundaries and code quality rules.
 Run: python scripts/arch_lint.py
 Exits 0 if clean, 1 if violations found.
 """
+
 import ast
-import os
 import re
 import sys
 from pathlib import Path
@@ -50,16 +50,31 @@ FEE_PATTERNS = [
 # ─── Rule 4: Directory whitelist ─────────────────────────────────────────────
 # Only these top-level dirs allowed under app/. Prevents new dirs appearing.
 ALLOWED_APP_DIRS = {
-    "core", "trading", "data", "backtest", "api", "notification", "repository",
+    "core",
+    "trading",
+    "data",
+    "backtest",
+    "api",
+    "notification",
+    "repository",
     "__pycache__",
 }
 
 # ─── Rule 5: core/ file whitelist ────────────────────────────────────────────
 # Only contracts/models in core/. Prevents "core gravity" anti-pattern.
 ALLOWED_CORE_FILES = {
-    "__init__.py", "interfaces.py", "actions.py", "analysis_result.py",
-    "config.py", "constants.py", "context.py", "events.py", "exceptions.py",
-    "logging.py", "snapshots.py", "utils.py",
+    "__init__.py",
+    "interfaces.py",
+    "actions.py",
+    "analysis_result.py",
+    "config.py",
+    "constants.py",
+    "context.py",
+    "events.py",
+    "exceptions.py",
+    "logging.py",
+    "snapshots.py",
+    "utils.py",
 }
 
 # ─── Rule 7: Duplicate helper functions ──────────────────────────────────────
@@ -113,9 +128,7 @@ def check_import_boundaries() -> list[str]:
             for imp in imports:
                 for denied in rules["deny"]:
                     if imp.startswith(denied):
-                        violations.append(
-                            f"  {rel}: imports '{imp}' — {rules['reason']}"
-                        )
+                        violations.append(f"  {rel}: imports '{imp}' — {rules['reason']}")
     return violations
 
 
@@ -161,8 +174,7 @@ def check_directory_whitelist() -> list[str]:
         if item.is_dir() and item.name not in ALLOWED_APP_DIRS:
             rel = item.relative_to(REPO_ROOT)
             violations.append(
-                f"  {rel}/ is not an allowed app/ directory. "
-                f"Allowed: {sorted(ALLOWED_APP_DIRS - {'__pycache__'})}"
+                f"  {rel}/ is not an allowed app/ directory. " f"Allowed: {sorted(ALLOWED_APP_DIRS - {'__pycache__'})}"
             )
     return violations
 
@@ -201,34 +213,32 @@ def check_class_count(max_classes: int = 1) -> list[str]:
                 continue
             # Skip dataclasses, enums, and small classes (< 5 methods)
             decorators = [
-                d.id if isinstance(d, ast.Name) else
-                d.attr if isinstance(d, ast.Attribute) else ""
+                d.id if isinstance(d, ast.Name) else d.attr if isinstance(d, ast.Attribute) else ""
                 for d in node.decorator_list
             ]
             is_dataclass = "dataclass" in decorators
             # Check if it inherits from Enum
             is_enum = any(
-                (isinstance(b, ast.Name) and "Enum" in b.id) or
-                (isinstance(b, ast.Attribute) and "Enum" in b.attr)
+                (isinstance(b, ast.Name) and "Enum" in b.id) or (isinstance(b, ast.Attribute) and "Enum" in b.attr)
                 for b in node.bases
             )
             # Exempt pure ABCs (all non-dunder methods are @abstractmethod)
             non_dunder = [
-                n for n in node.body
-                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                and not n.name.startswith("_")
+                n
+                for n in node.body
+                if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef) and not n.name.startswith("_")
             ]
             is_pure_abc = non_dunder and all(
                 any(
-                    (isinstance(d, ast.Name) and d.id == "abstractmethod") or
-                    (isinstance(d, ast.Attribute) and d.attr == "abstractmethod")
+                    (isinstance(d, ast.Name) and d.id == "abstractmethod")
+                    or (isinstance(d, ast.Attribute) and d.attr == "abstractmethod")
                     for d in n.decorator_list
                 )
                 for n in non_dunder
             )
             if is_dataclass or is_enum or is_pure_abc:
                 continue
-            methods = [n for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            methods = [n for n in node.body if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
             if len(methods) >= 3:  # Only count classes with 3+ methods as "real"
                 real_classes.append(node.name)
 
@@ -276,7 +286,7 @@ def main():
         print("\nArchitecture violations found:\n")
         for line in all_violations:
             print(line)
-        print(f"\nTotal: {sum(1 for l in all_violations if l.startswith('  '))} violation(s)")
+        print(f"\nTotal: {sum(1 for line in all_violations if line.startswith('  '))} violation(s)")
         return 1
     else:
         print("\nAll architecture checks passed.")

@@ -5,6 +5,7 @@ MVP tables: strategies, runs, run_configs, run_results,
             run_timeseries, trades, tags.
 (comparisons and themes are post-MVP — omitted per SPEC.)
 """
+
 from datetime import datetime
 
 from sqlalchemy import (
@@ -20,8 +21,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import JSON
 
 from app.repository.backtest.database import Base
 
@@ -130,7 +131,7 @@ class RunTimeseries(Base):
     __tablename__ = "run_timeseries"
 
     run_id = Column(Integer, ForeignKey("runs.id"), primary_key=True)
-    equity_curve = Column(LargeBinary)    # zlib(JSON[{date, balance}])
+    equity_curve = Column(LargeBinary)  # zlib(JSON[{date, balance}])
     drawdown_curve = Column(LargeBinary)  # zlib(JSON[{date, drawdown}])
     monthly_returns = Column(JSON)
 

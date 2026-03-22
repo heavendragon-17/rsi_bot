@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, Optional
 
 import structlog
 
 from app.core.actions import (
-    SIDE_BUY, SIDE_SELL, opposite_side,
-    EXIT_STOP_LOSS, EXIT_SOFT_SL, EXIT_BREAKEVEN,
-    EXIT_TP1, EXIT_TP2, EXIT_TP3, EXIT_MANUAL,
+    EXIT_BREAKEVEN,
+    EXIT_MANUAL,
+    EXIT_SOFT_SL,
+    EXIT_STOP_LOSS,
+    EXIT_TP1,
+    EXIT_TP2,
+    EXIT_TP3,
+    SIDE_BUY,
+    SIDE_SELL,
+    opposite_side,
 )
 from app.core.events import SignalEvent
 from app.core.exceptions import ExchangeError, InsufficientFundsError
@@ -29,7 +35,7 @@ class TradeExecutor:
     def __init__(
         self,
         exchange: IExchange,
-        positions: Dict[str, Position],
+        positions: dict[str, Position],
         sizer: PositionSizer,
         sl_tp: SLTPManager,
         dispatcher: NotificationDispatcher,
@@ -79,7 +85,9 @@ class TradeExecutor:
             for tp_exit in (EXIT_TP1, EXIT_TP2, EXIT_TP3):
                 if reason.startswith(tp_exit):
                     return self._sl_tp.execute_partial_close(
-                        signal.symbol, self.positions, tp_exit,
+                        signal.symbol,
+                        self.positions,
+                        tp_exit,
                         new_sl_price=signal.sl_price,
                         exchange_sync_fn=self.sync_from_exchange,
                     )
@@ -89,9 +97,7 @@ class TradeExecutor:
 
         return None
 
-    def _handle_entry_signal(
-        self, signal: SignalEvent, balance: Decimal, entry_side: str = SIDE_BUY
-    ):
+    def _handle_entry_signal(self, signal: SignalEvent, balance: Decimal, entry_side: str = SIDE_BUY):
         """Open a new position (long or short)."""
         if signal.symbol in self.positions:
             logger.warning(f"[{signal.symbol}] Skipping {entry_side}: position already exists")
@@ -184,9 +190,7 @@ class TradeExecutor:
 
         try:
             positions = self.exchange.fetch_positions([symbol])
-            has_exchange_position = any(
-                abs(float(p.get("contracts", 0))) > 0 for p in positions
-            )
+            has_exchange_position = any(abs(float(p.get("contracts", 0))) > 0 for p in positions)
         except Exception as e:
             logger.warning(f"Failed to fetch positions for {symbol}: {e}")
             has_exchange_position = True
@@ -198,9 +202,7 @@ class TradeExecutor:
 
         return self._handle_full_exit(symbol, price=signal.price, exit_reason=EXIT_SOFT_SL)
 
-    def _handle_full_exit(
-        self, symbol: str, price: Decimal = None, exit_reason: str = EXIT_MANUAL
-    ):
+    def _handle_full_exit(self, symbol: str, price: Decimal = None, exit_reason: str = EXIT_MANUAL):
         """Close entire remaining position at market and cleanup."""
         if symbol not in self.positions:
             return None

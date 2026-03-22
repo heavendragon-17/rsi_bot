@@ -7,6 +7,7 @@ DELETE /api/backtest/{run_id}             — cancel
 GET    /api/backtest/{run_id}             — run detail (metrics + trades)
 GET    /api/backtest/{run_id}/timeseries  — equity/drawdown curves (lazy)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,6 @@ from app.api.schemas import (
     TimeseriesResponse,
 )
 from app.backtest.config_builder import build_backtest_config
-from app.trading.strategy.loader import STRATEGY_MAP
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import (
     Run,
@@ -37,17 +37,16 @@ from app.repository.backtest.models import (
     RunResult,
     RunTimeseries,
     Strategy,
-    Tag,
     Trade,
 )
+from app.trading.strategy.loader import STRATEGY_MAP
 
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
-DATA_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "app", "backtest", "data")
-)
+DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "app", "backtest", "data"))
+
 
 def get_db():
     db = SessionLocal()
@@ -152,15 +151,11 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
                     progress_cb=progress_cb,
                 )
                 _persist_results(run_id, results)
-                exc_mod.publish_event(
-                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
-                )
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
             except Exception as err:
                 logger.error("portfolio_backtest_worker_error", run_id=run_id, error=str(err))
                 _mark_failed(run_id, str(err))
-                exc_mod.publish_event(
-                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
-                )
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
             finally:
                 exc_mod.cleanup_job(run_id)
     else:
@@ -182,15 +177,11 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
                 engine = BacktestEngine(csv_path, strategy_class, engine_config)
                 results = engine.run(on_progress=progress_cb)
                 _persist_results(run_id, results)
-                exc_mod.publish_event(
-                    run_id, loop, "complete", {"run_id": run_id, "status": "completed"}
-                )
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
             except Exception as err:
                 logger.error("backtest_worker_error", run_id=run_id, error=str(err))
                 _mark_failed(run_id, str(err))
-                exc_mod.publish_event(
-                    run_id, loop, "error", {"run_id": run_id, "message": str(err)}
-                )
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
             finally:
                 exc_mod.cleanup_job(run_id)
 
@@ -227,7 +218,7 @@ async def stream_progress(run_id: int):
                 yield f"event: {evt_name}\ndata: {json.dumps(event)}\n\n"
                 if evt_name in ("complete", "error"):
                     break
-        except asyncio.TimeoutError:
+        except TimeoutError:
             yield f"event: error\ndata: {json.dumps({'message': 'timeout'})}\n\n"
 
     return StreamingResponse(
@@ -445,6 +436,7 @@ def _persist_results(run_id: int, results: dict[str, Any]) -> None:
                     return val
                 try:
                     import pandas as pd
+
                     return pd.to_datetime(val).to_pydatetime()
                 except Exception:
                     return None

@@ -23,33 +23,33 @@ const HeroCard: React.FC<{
         <div className="mt-1 text-xs text-text-secondary flex items-center gap-1.5">
             {subtitle}
         </div>
-        
+
         {/* Subtle background glow based on sentiment */}
         <div className={cn(
             "absolute -right-4 -bottom-4 w-16 h-16 rounded-full blur-2xl opacity-10 pointer-events-none",
-            colorClass?.includes("success") ? "bg-success" : 
-            colorClass?.includes("danger") ? "bg-danger" : 
+            colorClass?.includes("success") ? "bg-success" :
+            colorClass?.includes("danger") ? "bg-danger" :
             "bg-accent-main"
         )} />
     </div>
 );
 
 export const HeroStats: React.FC = () => {
-  const { 
-      netProfit, 
-      netProfitPct, 
-      benchmarkProfitPct, 
-      profitFactor, 
-      grossWin, 
-      grossLoss, 
-      maxDrawdownPct, 
-      maxDrawdownValue, 
-      sharpeRatio 
+  const {
+      netProfit,
+      netProfitPct,
+      benchmarkProfitPct,
+      profitFactor,
+      grossWin,
+      grossLoss,
+      maxDrawdownPct,
+      maxDrawdownValue,
+      sharpeRatio
   } = useResultsStore();
 
   const isProfitPositive = netProfit >= 0;
   const beatBenchmark = netProfitPct > benchmarkProfitPct;
-  
+
   // Profit Factor Logic
   let pfColor = "text-danger";
   if (profitFactor >= 1.5) pfColor = "text-success";
@@ -63,8 +63,8 @@ export const HeroStats: React.FC = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {/* Net Profit */}
-        <HeroCard 
-            title="Net Profit" 
+        <HeroCard
+            title="Net Profit"
             value={
                 <div className="flex items-baseline gap-2">
                     <span>{isProfitPositive ? "+" : "-"}$<CountUp end={Math.abs(netProfit)} decimals={2} separator="," duration={1} /></span>
@@ -83,8 +83,8 @@ export const HeroStats: React.FC = () => {
         />
 
         {/* Profit Factor */}
-        <HeroCard 
-            title="Profit Factor" 
+        <HeroCard
+            title="Profit Factor"
             value={<CountUp end={profitFactor} decimals={2} duration={1} />}
             colorClass={pfColor}
             subtitle={
@@ -96,8 +96,8 @@ export const HeroStats: React.FC = () => {
         />
 
         {/* Max Drawdown */}
-        <HeroCard 
-            title="Max Drawdown" 
+        <HeroCard
+            title="Max Drawdown"
             value={
                 <span>
                     <CountUp end={maxDrawdownPct} decimals={2} suffix="%" duration={1} />
@@ -109,8 +109,8 @@ export const HeroStats: React.FC = () => {
         />
 
         {/* Sharpe Ratio */}
-        <HeroCard 
-            title="Sharpe Ratio" 
+        <HeroCard
+            title="Sharpe Ratio"
             value={<CountUp end={sharpeRatio} decimals={2} duration={1} />}
             colorClass={sharpeColor}
             subtitle={<span>Risk-adj return</span>}

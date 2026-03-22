@@ -2,16 +2,18 @@
 tests/test_mock_exchange_short.py
 Tests for MockExchange SHORT trade handling.
 """
-import sys
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+import pytest
 
 from app.backtest.mock_exchange import MockExchange
-
 
 SYMBOL = "BTC/USDT"
 NOW = datetime(2024, 1, 1, 12, 0, 0)
@@ -121,8 +123,11 @@ class TestShortPnL:
         # Exit at same price
         ex.current_prices[SYMBOL] = {"price": Decimal("50000"), "time": NOW}
         result = ex.create_order(
-            symbol=SYMBOL, order_type="market", side="BUY",
-            amount=Decimal("0.1"), params={"reduceOnly": True},
+            symbol=SYMBOL,
+            order_type="market",
+            side="BUY",
+            amount=Decimal("0.1"),
+            params={"reduceOnly": True},
         )
         assert result["pnl"] == pytest.approx(0.0, abs=1e-6)
 
@@ -146,7 +151,10 @@ class TestShortOrderTriggers:
         # Candle with high >= 52000 → SL should trigger
         executed = ex.update_candle(
             symbol=SYMBOL,
-            open_=50500, high=52100, low=50400, close=51000,
+            open_=50500,
+            high=52100,
+            low=50400,
+            close=51000,
             timestamp=NOW + timedelta(hours=1),
         )
 
@@ -160,7 +168,9 @@ class TestShortOrderTriggers:
         open_short(ex, price=50000, amount=0.1)
 
         ex.create_order(
-            symbol=SYMBOL, order_type="stop_market", side="BUY",
+            symbol=SYMBOL,
+            order_type="stop_market",
+            side="BUY",
             amount=Decimal("0.1"),
             params={"stopPrice": Decimal("52000"), "reduceOnly": True},
         )
@@ -168,7 +178,10 @@ class TestShortOrderTriggers:
         # Candle with high < 52000 → SL should NOT trigger
         executed = ex.update_candle(
             symbol=SYMBOL,
-            open_=50000, high=51500, low=49800, close=50200,
+            open_=50000,
+            high=51500,
+            low=49800,
+            close=50200,
             timestamp=NOW + timedelta(hours=1),
         )
 
@@ -194,7 +207,10 @@ class TestShortOrderTriggers:
         # Candle with low <= 48000 → TP should trigger
         executed = ex.update_candle(
             symbol=SYMBOL,
-            open_=49500, high=49600, low=47900, close=48200,
+            open_=49500,
+            high=49600,
+            low=47900,
+            close=48200,
             timestamp=NOW + timedelta(hours=1),
         )
 
@@ -209,15 +225,21 @@ class TestShortOrderTriggers:
         open_short(ex, price=50000, amount=0.1)
 
         ex.create_order(
-            symbol=SYMBOL, order_type="limit", side="BUY",
-            amount=Decimal("0.1"), price=Decimal("48000"),
+            symbol=SYMBOL,
+            order_type="limit",
+            side="BUY",
+            amount=Decimal("0.1"),
+            price=Decimal("48000"),
             params={"reduceOnly": True},
         )
 
         # Candle that doesn't reach TP
         executed = ex.update_candle(
             symbol=SYMBOL,
-            open_=49500, high=50000, low=49000, close=49500,
+            open_=49500,
+            high=50000,
+            low=49000,
+            close=49500,
             timestamp=NOW + timedelta(hours=1),
         )
 
@@ -280,8 +302,11 @@ class TestShortMarginAccounting:
         # Close at lower price (profit)
         ex.current_prices[SYMBOL] = {"price": Decimal("48000"), "time": NOW}
         ex.create_order(
-            symbol=SYMBOL, order_type="market", side="BUY",
-            amount=Decimal("0.1"), params={"reduceOnly": True},
+            symbol=SYMBOL,
+            order_type="market",
+            side="BUY",
+            amount=Decimal("0.1"),
+            params={"reduceOnly": True},
         )
 
         # After close: margin freed + PnL added
@@ -332,22 +357,31 @@ class TestReduceOnly:
 
         # Place reduceOnly pending limit order (TP)
         ex.create_order(
-            symbol=SYMBOL, order_type="limit", side="BUY",
-            amount=Decimal("0.1"), price=Decimal("48000"),
+            symbol=SYMBOL,
+            order_type="limit",
+            side="BUY",
+            amount=Decimal("0.1"),
+            price=Decimal("48000"),
             params={"reduceOnly": True},
         )
 
         # Manually close position first
         ex.create_order(
-            symbol=SYMBOL, order_type="market", side="BUY",
-            amount=Decimal("0.1"), params={"reduceOnly": True},
+            symbol=SYMBOL,
+            order_type="market",
+            side="BUY",
+            amount=Decimal("0.1"),
+            params={"reduceOnly": True},
         )
         assert SYMBOL not in ex.positions
 
         # Candle that would trigger TP (but position is gone)
         executed = ex.update_candle(
             symbol=SYMBOL,
-            open_=49500, high=49600, low=47500, close=48000,
+            open_=49500,
+            high=49600,
+            low=47500,
+            close=48000,
             timestamp=NOW + timedelta(hours=1),
         )
         # Should not execute because position is gone (reduceOnly enforcement)

@@ -14,21 +14,20 @@ EXIT CHANGE (NO meta field needed):
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
-from app.trading.strategy.base import BaseStrategy
+from app.core.constants import WARMUP
+from app.core.context import CONFIRMING, RETESTING, SCANNING
+from app.core.events import SignalEvent
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
-from app.core.constants import WARMUP
-from app.core.events import SignalEvent
-from app.core.context import SCANNING, RETESTING, CONFIRMING
+from app.trading.strategy.base import BaseStrategy
 
 
 class RsiWmaRetestStrategy(BaseStrategy):
     """
     RSI WMA Retest Strategy - requires RSI to retest WMA45 before entry.
     """
-    
+
     # Default configuration for this strategy
     DEFAULT_CONFIG = {
         # Indicator parameters
@@ -37,27 +36,22 @@ class RsiWmaRetestStrategy(BaseStrategy):
         "rsi_wma_length": 45,
         "price_ema_fast": 21,
         "price_ema_slow": 200,
-        
         # Entry conditions
         "wma_retest_distance": 0.3,  # Max distance for valid retest
-        "rsi_floor": 40,              # No close below R40 during retest
-        "wma45_min": 30,              # Class 1 signal minimum
-        "wma45_max": 50,              # Class 1 signal maximum
-        
+        "rsi_floor": 40,  # No close below R40 during retest
+        "wma45_min": 30,  # Class 1 signal minimum
+        "wma45_max": 50,  # Class 1 signal maximum
         # H1 Filter
         "check_h1_wma45": True,
         "h1_wma45_min": 45.0,
-        
         # TP levels (RSI values)
         "tp1_rsi": 60,
         "tp2_rsi": 70,
         "tp3_rsi": 80,
-        
         # SL settings
         "sl_buffer_pct": 0.003,  # 0.3% buffer below R40
         "disaster_sl_multiplier": 3.0,  # Disaster SL = 3x the distance of Soft SL
         "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
-
         # Trade management
         "use_active_trades": True,
     }
@@ -97,7 +91,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         # SL buffer (used to compute SL price from R40)
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.003))
-        
+
         # Disaster SL multiplier (3x means disaster SL is 3x further than soft SL)
         self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 3.0))
 
@@ -108,7 +102,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
         # Store R40 price at setup time (per symbol:timeframe)
-        self._r40_price_at_retest: dict[str, Optional[Decimal]] = {}
+        self._r40_price_at_retest: dict[str, Decimal | None] = {}
 
     def _get_trade_meta(self, symbol: str) -> dict:
         trade = self.context.get_trade(symbol)
@@ -118,7 +112,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
             trade.meta = {}
         return trade.meta
 
-    def analyze(self, symbol: str, df) -> Optional[SignalEvent]:
+    def analyze(self, symbol: str, df) -> SignalEvent | None:
         if df is None or len(df) < WARMUP:
             return None
 
@@ -139,7 +133,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         close = last.get("close")
         ema21 = last.get("ema21")
-        ema200 = last.get("ema200")
+        last.get("ema200")
         rsi_ema9 = last.get("rsi_ema9")
         rsi_wma45 = last.get("rsi_wma45")
 
@@ -172,7 +166,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                     # Close the trade immediately
                     self.context.close_trade(symbol)
                     self.context.transition(key, SCANNING, reason="Close by Candle SL hit", now_ts=ts)
-                    
+
                     # Apply slippage to simulate "next candle open" / real-world execution
                     # For SELL, price is lower by slippage
                     exec_price = close_dec * Decimal(str(1 - self.candle_close_slippage_pct))
@@ -322,10 +316,10 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 # -------------------------------------------------
                 soft_sl_price = None
                 disaster_sl_price = None
-                
+
                 if sl_price_raw is not None:
                     soft_sl_price = sl_price_raw * Decimal(str(1 - self.sl_buffer_pct))
-                    
+
                     # Calculate Disaster SL at multiplier x distance from entry
                     entry_price = Decimal(str(close))
                     soft_sl_distance = entry_price - soft_sl_price

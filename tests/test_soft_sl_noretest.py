@@ -7,16 +7,18 @@ The strategy implements a 2-candle pattern:
 
 This prevents the "wick through SL but close above" false trigger.
 """
+
 import unittest
-import pandas as pd
 from decimal import Decimal
 
-from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
+import pandas as pd
+
 from app.backtest.mock_exchange import MockExchange
-from app.trading.portfolio.manager import PortfolioManager
-from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.actions import ClosePosition, DoNothing
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators
+from app.trading.portfolio.manager import PortfolioManager
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 
 class TestSoftSLNoRetest(unittest.TestCase):
@@ -44,17 +46,22 @@ class TestSoftSLNoRetest(unittest.TestCase):
 
     def _make_df(self, last_row: dict) -> pd.DataFrame:
         """Create a 220-row DataFrame where the last row has custom values."""
-        timestamps = [
-            pd.Timestamp.now() - pd.Timedelta(minutes=15 * i) for i in range(220)
-        ]
+        timestamps = [pd.Timestamp.now() - pd.Timedelta(minutes=15 * i) for i in range(220)]
         timestamps.reverse()
         rows = []
         for _ in range(219):
             rows.append(
                 {
-                    "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                    "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
-                    "ema21": 100.0, "ema200": 100.0, "closed": True,
+                    "open": 100.0,
+                    "high": 100.0,
+                    "low": 100.0,
+                    "close": 100.0,
+                    "rsi_14": 50.0,
+                    "rsi_ema9": 50.0,
+                    "rsi_wma45": 50.0,
+                    "ema21": 100.0,
+                    "ema200": 100.0,
+                    "closed": True,
                 }
             )
         rows.append(last_row)
@@ -94,13 +101,27 @@ class TestSoftSLNoRetest(unittest.TestCase):
         ctx1 = ContextSnapshot(state="SCANNING", soft_sl_price=soft_sl, meta=base_meta)
 
         last1 = {
-            "open": 98.0, "high": 99.0, "low": 92.0, "close": 94.0,
-            "ema21": 100.0, "rsi_ema9": 50.0, "rsi_wma45": 55.0,
+            "open": 98.0,
+            "high": 99.0,
+            "low": 92.0,
+            "close": 94.0,
+            "ema21": 100.0,
+            "rsi_ema9": 50.0,
+            "rsi_wma45": 55.0,
         }
         df1 = self._make_df(
-            {"open": 98.0, "high": 99.0, "low": 92.0, "close": 94.0,
-             "rsi_14": 45.0, "rsi_ema9": 50.0, "rsi_wma45": 55.0,
-             "ema21": 100.0, "ema200": 90.0, "closed": True}
+            {
+                "open": 98.0,
+                "high": 99.0,
+                "low": 92.0,
+                "close": 94.0,
+                "rsi_14": 45.0,
+                "rsi_ema9": 50.0,
+                "rsi_wma45": 55.0,
+                "ema21": 100.0,
+                "ema200": 90.0,
+                "closed": True,
+            }
         )
         self.strategy.indicators.compute = lambda df, **kw: df1
         Indicators.last = lambda df: last1
@@ -109,7 +130,8 @@ class TestSoftSLNoRetest(unittest.TestCase):
 
         # Should not close yet — just set the flag
         self.assertIsInstance(
-            result1.actions[0], DoNothing,
+            result1.actions[0],
+            DoNothing,
             "Candle-close below soft SL should return DoNothing on same candle",
         )
         self.assertTrue(
@@ -122,28 +144,39 @@ class TestSoftSLNoRetest(unittest.TestCase):
         next_open = Decimal("96")
 
         last2 = {
-            "open": float(next_open), "high": 97.0, "low": 95.0, "close": 97.0,
-            "ema21": 100.0, "rsi_ema9": 49.0, "rsi_wma45": 50.0,
+            "open": float(next_open),
+            "high": 97.0,
+            "low": 95.0,
+            "close": 97.0,
+            "ema21": 100.0,
+            "rsi_ema9": 49.0,
+            "rsi_wma45": 50.0,
         }
         df2 = self._make_df(
-            {"open": float(next_open), "high": 97.0, "low": 95.0, "close": 97.0,
-             "rsi_14": 48.0, "rsi_ema9": 49.0, "rsi_wma45": 50.0,
-             "ema21": 100.0, "ema200": 90.0, "closed": True}
+            {
+                "open": float(next_open),
+                "high": 97.0,
+                "low": 95.0,
+                "close": 97.0,
+                "rsi_14": 48.0,
+                "rsi_ema9": 49.0,
+                "rsi_wma45": 50.0,
+                "ema21": 100.0,
+                "ema200": 90.0,
+                "closed": True,
+            }
         )
         self.strategy.indicators.compute = lambda df, **kw: df2
         Indicators.last = lambda df: last2
 
         result2 = self.strategy.analyze(symbol, df2, position=position, context=ctx2)
 
-        close_action = next(
-            (a for a in result2.actions if isinstance(a, ClosePosition)), None
-        )
-        self.assertIsNotNone(
-            close_action, "Should generate ClosePosition on candle after soft SL flag"
-        )
+        close_action = next((a for a in result2.actions if isinstance(a, ClosePosition)), None)
+        self.assertIsNotNone(close_action, "Should generate ClosePosition on candle after soft SL flag")
         self.assertEqual(close_action.reason, "CLOSE_BY_CANDLE_SL")
         self.assertEqual(
-            close_action.price, next_open,
+            close_action.price,
+            next_open,
             "Exit price must be the next candle's open (2-candle pattern)",
         )
 
@@ -178,13 +211,27 @@ class TestSoftSLNoRetest(unittest.TestCase):
 
         # low=93 wicks through soft_sl=95, but close=97 > soft_sl → no flag
         last = {
-            "open": 98.0, "high": 99.0, "low": 93.0, "close": 97.0,
-            "ema21": 100.0, "rsi_ema9": 52.0, "rsi_wma45": 50.0,
+            "open": 98.0,
+            "high": 99.0,
+            "low": 93.0,
+            "close": 97.0,
+            "ema21": 100.0,
+            "rsi_ema9": 52.0,
+            "rsi_wma45": 50.0,
         }
         df = self._make_df(
-            {"open": 98.0, "high": 99.0, "low": 93.0, "close": 97.0,
-             "rsi_14": 52.0, "rsi_ema9": 52.0, "rsi_wma45": 50.0,
-             "ema21": 100.0, "ema200": 90.0, "closed": True}
+            {
+                "open": 98.0,
+                "high": 99.0,
+                "low": 93.0,
+                "close": 97.0,
+                "rsi_14": 52.0,
+                "rsi_ema9": 52.0,
+                "rsi_wma45": 50.0,
+                "ema21": 100.0,
+                "ema200": 90.0,
+                "closed": True,
+            }
         )
         self.strategy.indicators.compute = lambda df, **kw: df
         Indicators.last = lambda df: last
@@ -192,9 +239,7 @@ class TestSoftSLNoRetest(unittest.TestCase):
         result = self.strategy.analyze(symbol, df, position=position, context=ctx)
 
         has_close = any(isinstance(a, ClosePosition) for a in result.actions)
-        self.assertFalse(
-            has_close, "Wick below soft SL with close above must NOT trigger ClosePosition"
-        )
+        self.assertFalse(has_close, "Wick below soft SL with close above must NOT trigger ClosePosition")
         self.assertFalse(
             result.new_context.meta.get("pending_candle_sl", False),
             "pending_candle_sl must remain False when close is above soft SL",

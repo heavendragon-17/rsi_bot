@@ -10,12 +10,15 @@ def __getattr__(name: str):
     """Lazy imports — only resolve when accessed, not at package init."""
     if name == "BatchRunner":
         from app.backtest.runners.batch_runner import BatchRunner
+
         return BatchRunner
     if name == "PortfolioRunner":
         from app.backtest.runners.portfolio_runner import PortfolioRunner
+
         return PortfolioRunner
     if name == "TickReplayRunner":
         from app.backtest.runners.tick_replay import TickReplayRunner
+
         return TickReplayRunner
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

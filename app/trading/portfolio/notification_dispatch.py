@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import structlog
 
@@ -37,9 +36,11 @@ class NotificationDispatcher:
             return
 
         notif_side = "LONG" if entry_side == SIDE_BUY else "SHORT"
-        tp_prices = {k: v for k, v in [
-            ("TP1", signal.tp1_price), ("TP2", signal.tp2_price), ("TP3", signal.tp3_price)
-        ] if v is not None}
+        tp_prices = {
+            k: v
+            for k, v in [("TP1", signal.tp1_price), ("TP2", signal.tp2_price), ("TP3", signal.tp3_price)]
+            if v is not None
+        }
 
         try:
             self._notification_service.on_entry(

@@ -1,7 +1,8 @@
 """Tests for Indicators class (M14 coverage gap)."""
-import pytest
+
 import numpy as np
 import pandas as pd
+import pytest
 
 from app.data.indicators import Indicators
 
@@ -20,14 +21,16 @@ def _make_ohlcv(n=100, trend="flat"):
         close = 100.0 + np.arange(n) * 0.5 + np.random.randn(n) * 0.2
     else:
         close = 100.0 - np.arange(n) * 0.5 + np.random.randn(n) * 0.2
-    df = pd.DataFrame({
-        "open": close - 0.1,
-        "high": close + abs(np.random.randn(n) * 0.3),
-        "low": close - abs(np.random.randn(n) * 0.3),
-        "close": close,
-        "volume": np.random.randint(100, 10000, n).astype(float),
-        "ts": np.arange(n),
-    })
+    df = pd.DataFrame(
+        {
+            "open": close - 0.1,
+            "high": close + abs(np.random.randn(n) * 0.3),
+            "low": close - abs(np.random.randn(n) * 0.3),
+            "close": close,
+            "volume": np.random.randint(100, 10000, n).astype(float),
+            "ts": np.arange(n),
+        }
+    )
     return df
 
 
@@ -65,51 +68,69 @@ class TestCompute:
 
 class TestCrossover:
     def test_detect_bearish_crossover(self, indicators):
-        df = pd.DataFrame({
-            "rsi_ema9": [55.0, 50.0, 45.0],
-            "rsi_wma45": [50.0, 50.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "rsi_ema9": [55.0, 50.0, 45.0],
+                "rsi_wma45": [50.0, 50.0, 50.0],
+            }
+        )
         # prev: ema9(50) >= wma45(50), curr: ema9(45) < wma45(50) → bearish
-        assert indicators.detect_crossover(df, direction="bearish") == True
+        assert indicators.detect_crossover(df, direction="bearish")
 
     def test_detect_bullish_crossover(self, indicators):
-        df = pd.DataFrame({
-            "rsi_ema9": [45.0, 50.0, 55.0],
-            "rsi_wma45": [50.0, 50.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "rsi_ema9": [45.0, 50.0, 55.0],
+                "rsi_wma45": [50.0, 50.0, 50.0],
+            }
+        )
         # prev: ema9(50) <= wma45(50), curr: ema9(55) > wma45(50) → bullish
-        assert indicators.detect_crossover(df, direction="bullish") == True
+        assert indicators.detect_crossover(df, direction="bullish")
 
     def test_no_crossover(self, indicators):
-        df = pd.DataFrame({
-            "rsi_ema9": [55.0, 55.0],
-            "rsi_wma45": [50.0, 50.0],
-        })
-        assert indicators.detect_crossover(df, direction="bearish") == False
+        df = pd.DataFrame(
+            {
+                "rsi_ema9": [55.0, 55.0],
+                "rsi_wma45": [50.0, 50.0],
+            }
+        )
+        assert not indicators.detect_crossover(df, direction="bearish")
 
     def test_short_df_returns_false(self, indicators):
         df = pd.DataFrame({"rsi_ema9": [50.0], "rsi_wma45": [50.0]})
-        assert indicators.detect_crossover(df) == False
+        assert not indicators.detect_crossover(df)
 
 
 class TestAlignment:
     def test_bearish_alignment(self, indicators):
-        df = pd.DataFrame({
-            "rsi_14": [30.0], "rsi_ema9": [40.0], "rsi_wma45": [50.0],
-        })
-        assert indicators.check_alignment(df, direction="bearish") == True
+        df = pd.DataFrame(
+            {
+                "rsi_14": [30.0],
+                "rsi_ema9": [40.0],
+                "rsi_wma45": [50.0],
+            }
+        )
+        assert indicators.check_alignment(df, direction="bearish")
 
     def test_bullish_alignment(self, indicators):
-        df = pd.DataFrame({
-            "rsi_14": [70.0], "rsi_ema9": [60.0], "rsi_wma45": [50.0],
-        })
-        assert indicators.check_alignment(df, direction="bullish") == True
+        df = pd.DataFrame(
+            {
+                "rsi_14": [70.0],
+                "rsi_ema9": [60.0],
+                "rsi_wma45": [50.0],
+            }
+        )
+        assert indicators.check_alignment(df, direction="bullish")
 
     def test_no_alignment(self, indicators):
-        df = pd.DataFrame({
-            "rsi_14": [50.0], "rsi_ema9": [40.0], "rsi_wma45": [45.0],
-        })
-        assert indicators.check_alignment(df, direction="bearish") == False
+        df = pd.DataFrame(
+            {
+                "rsi_14": [50.0],
+                "rsi_ema9": [40.0],
+                "rsi_wma45": [45.0],
+            }
+        )
+        assert not indicators.check_alignment(df, direction="bearish")
 
 
 class TestDivergence:
@@ -135,11 +156,11 @@ class TestDivergence:
                 high[i] = min(high[i], 110.0)
 
         df = pd.DataFrame({"high": high, "rsi_14": rsi})
-        assert indicators.detect_bearish_divergence(df, lookback=40, pivot_strength=5) == True
+        assert indicators.detect_bearish_divergence(df, lookback=40, pivot_strength=5)
 
     def test_no_divergence_short_df(self, indicators):
         df = pd.DataFrame({"high": [100.0] * 5, "rsi_14": [50.0] * 5})
-        assert indicators.detect_bearish_divergence(df, lookback=30) == False
+        assert not indicators.detect_bearish_divergence(df, lookback=30)
 
 
 class TestLast:

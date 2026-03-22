@@ -12,7 +12,7 @@ export const EmptyState: React.FC = () => {
       <div className="w-24 h-24 rounded-full bg-accent-main/10 flex items-center justify-center mb-6 ring-4 ring-accent-main/5 animate-pulse-slow">
         <Play size={48} className="text-accent-main ml-2 fill-current" />
       </div>
-      
+
       <h2 className="text-2xl font-bold text-text-primary mb-2">Run your first backtest</h2>
       <p className="text-text-secondary max-w-md text-center mb-8">
         Configure your strategy in the sidebar and press Run to analyze performance across historical data.

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, Optional
 
 import structlog
 
 from app.core.actions import (
-    SIDE_BUY, opposite_side,
-    EXIT_STOP_LOSS, EXIT_BREAKEVEN, EXIT_LOCK_PROFIT,
+    EXIT_BREAKEVEN,
+    EXIT_LOCK_PROFIT,
+    EXIT_STOP_LOSS,
+    SIDE_BUY,
+    opposite_side,
 )
 from app.core.events import SignalEvent
 from app.core.exceptions import ExchangeError
@@ -32,9 +34,9 @@ class SLTPManager:
 
     def place_tp_orders(
         self, signal: SignalEvent, total_amount: Decimal, position_side: str = SIDE_BUY
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Place TP1/TP2/TP3 as limit orders with reduceOnly=True."""
-        tp_order_ids: Dict[str, str] = {}
+        tp_order_ids: dict[str, str] = {}
         remaining = total_amount
         exit_side = opposite_side(position_side)
         allocs = signal.tp_allocations or {}
@@ -72,8 +74,11 @@ class SLTPManager:
         return tp_order_ids
 
     def move_sl(
-        self, symbol: str, positions: Dict[str, Position],
-        new_price: Decimal = None, new_amount: Decimal = None,
+        self,
+        symbol: str,
+        positions: dict[str, Position],
+        new_price: Decimal = None,
+        new_amount: Decimal = None,
     ) -> bool:
         """Cancel existing SL and replace with stop_market at target price."""
         if symbol not in positions:
@@ -121,7 +126,7 @@ class SLTPManager:
         in_profit = sl_price > entry_price if position_side == SIDE_BUY else sl_price < entry_price
         return EXIT_LOCK_PROFIT if in_profit else EXIT_STOP_LOSS
 
-    def sync_tp_fills(self, symbol: str, positions: Dict[str, Position]) -> None:
+    def sync_tp_fills(self, symbol: str, positions: dict[str, Position]) -> None:
         """Check if any TP orders have filled. Update position accordingly."""
         if symbol not in positions:
             return
@@ -151,7 +156,7 @@ class SLTPManager:
         if abs(pos.amount) <= Decimal("1e-8"):
             self.cleanup_position(symbol, positions)
 
-    def cleanup_position(self, symbol: str, positions: Dict[str, Position]) -> None:
+    def cleanup_position(self, symbol: str, positions: dict[str, Position]) -> None:
         """Cancel remaining orders and remove position from tracking."""
         pos = positions.get(symbol)
         if not pos:
@@ -163,7 +168,7 @@ class SLTPManager:
             except Exception:
                 pass
 
-        for tp_level, order_id in list(pos.tp_order_ids.items()):
+        for _tp_level, order_id in list(pos.tp_order_ids.items()):
             try:
                 self.exchange.cancel_order(order_id, symbol)
             except Exception:
@@ -172,8 +177,11 @@ class SLTPManager:
         positions.pop(symbol, None)
 
     def execute_partial_close(
-        self, symbol: str, positions: Dict[str, Position],
-        tp_level: str, new_sl_price: Optional[Decimal] = None,
+        self,
+        symbol: str,
+        positions: dict[str, Position],
+        tp_level: str,
+        new_sl_price: Decimal | None = None,
         exchange_sync_fn=None,
     ):
         """Execute partial close for TP levels (manual override)."""

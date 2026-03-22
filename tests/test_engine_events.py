@@ -7,26 +7,29 @@ Verifies:
 - EngineStopEvent stops the event loop
 - BacktestEventSource yields the expected number of events
 """
-import pytest
-import pandas as pd
-from decimal import Decimal
-from datetime import datetime
-from unittest.mock import MagicMock, call
 
-from app.trading.engine import Engine
-from app.trading.event_source import IEventSource
+from datetime import datetime
+from decimal import Decimal
+from unittest.mock import MagicMock
+
+import pandas as pd
+
+from app.backtest.event_source import BacktestEventSource
+from app.core.actions import DoNothing
+from app.core.analysis_result import AnalysisResult
 from app.core.events import (
-    Candle, CandleCloseEvent, EngineStopEvent, TickEvent,
+    Candle,
+    CandleCloseEvent,
+    EngineStopEvent,
 )
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
-from app.core.analysis_result import AnalysisResult
-from app.core.actions import DoNothing, OpenPosition
-from app.backtest.event_source import BacktestEventSource
-
+from app.trading.engine import Engine
+from app.trading.event_source import IEventSource
 
 # ---------------------------------------------------------------------------
 # Helpers / stubs
 # ---------------------------------------------------------------------------
+
 
 def _make_candle(symbol="BTC/USDT", close=100.0) -> Candle:
     return Candle(
@@ -45,8 +48,16 @@ def _make_df(n: int = 10) -> pd.DataFrame:
     timestamps = [pd.Timestamp.now() - pd.Timedelta(minutes=i) for i in range(n)]
     timestamps.reverse()
     rows = [
-        {"open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-         "ema21": 100.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0, "closed": True}
+        {
+            "open": 100.0,
+            "high": 100.0,
+            "low": 100.0,
+            "close": 100.0,
+            "ema21": 100.0,
+            "rsi_ema9": 50.0,
+            "rsi_wma45": 50.0,
+            "closed": True,
+        }
         for _ in range(n)
     ]
     return pd.DataFrame(rows, index=timestamps)
@@ -98,6 +109,7 @@ class _MockPortfolio:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_engine_stop_event_ends_loop():
     """EngineStopEvent must terminate the event loop."""
     source = _FixedEventSource([EngineStopEvent(reason="test")])
@@ -146,16 +158,16 @@ def test_engine_stores_context_per_symbol():
     """Engine must update self.contexts with new_context after each analyze()."""
     df = _make_df(60)
     candle = _make_candle()
-    source = _FixedEventSource([
-        CandleCloseEvent(candle=candle, df=df),
-        EngineStopEvent(),
-    ])
+    source = _FixedEventSource(
+        [
+            CandleCloseEvent(candle=candle, df=df),
+            EngineStopEvent(),
+        ]
+    )
 
     new_ctx = ContextSnapshot(state="CONFIRMING")
     strategy = MagicMock()
-    strategy.analyze.return_value = AnalysisResult(
-        actions=[DoNothing()], new_context=new_ctx
-    )
+    strategy.analyze.return_value = AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
     engine = Engine(
         event_source=source,
@@ -173,10 +185,12 @@ def test_engine_skips_df_below_50_rows():
     """Engine must skip CandleCloseEvent when df has fewer than 50 rows."""
     df = _make_df(10)  # only 10 rows → should skip
     candle = _make_candle()
-    source = _FixedEventSource([
-        CandleCloseEvent(candle=candle, df=df),
-        EngineStopEvent(),
-    ])
+    source = _FixedEventSource(
+        [
+            CandleCloseEvent(candle=candle, df=df),
+            EngineStopEvent(),
+        ]
+    )
 
     strategy = MagicMock()
 
@@ -195,10 +209,12 @@ def test_engine_skips_df_below_50_rows():
 def test_engine_skips_none_df():
     """Engine must skip CandleCloseEvent when df is None."""
     candle = _make_candle()
-    source = _FixedEventSource([
-        CandleCloseEvent(candle=candle, df=None),
-        EngineStopEvent(),
-    ])
+    source = _FixedEventSource(
+        [
+            CandleCloseEvent(candle=candle, df=None),
+            EngineStopEvent(),
+        ]
+    )
 
     strategy = MagicMock()
 
@@ -218,14 +234,13 @@ def test_engine_skips_none_df():
 # BacktestEventSource tests
 # ---------------------------------------------------------------------------
 
+
 def _make_full_df(n: int = 300) -> pd.DataFrame:
     """Create a DataFrame large enough for realistic backtest slicing."""
     timestamps = [pd.Timestamp.now() - pd.Timedelta(minutes=i) for i in range(n)]
     timestamps.reverse()
     rows = [
-        {"open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-         "volume": 1.0, "closed": True}
-        for _ in range(n)
+        {"open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0, "volume": 1.0, "closed": True} for _ in range(n)
     ]
     return pd.DataFrame(rows, index=pd.DatetimeIndex(timestamps))
 
@@ -257,9 +272,7 @@ def test_backtest_event_source_df_slice_grows():
     lengths = [len(e.df) for e in events]
 
     for i in range(1, len(lengths)):
-        assert lengths[i] == lengths[i - 1] + 1, (
-            f"df slice at event {i} should be one longer than event {i-1}"
-        )
+        assert lengths[i] == lengths[i - 1] + 1, f"df slice at event {i} should be one longer than event {i-1}"
 
 
 def test_backtest_event_source_stop():

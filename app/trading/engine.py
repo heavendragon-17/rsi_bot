@@ -8,20 +8,24 @@ the origin of the data, not the processing logic.
 Live mode:    Engine + LiveEventSource  (wraps BinanceStreamManager)
 Backtest mode: BacktestEngine + BacktestEventSource (replays CSV)
 """
+
 from __future__ import annotations
 
-import structlog
+from collections.abc import Callable
 from datetime import datetime
-from decimal import Decimal
-from typing import Callable, Dict, List, Optional
 
-from app.trading.event_source import IEventSource
+import structlog
+
+from app.core.actions import (
+    ClosePosition,
+    MoveSL,
+    OpenPosition,
+    PartialClose,
+)
 from app.core.events import CandleCloseEvent, EngineStopEvent, SignalEvent, TickEvent
 from app.core.interfaces import IExchange, IStrategy
 from app.core.snapshots import ContextSnapshot
-from app.core.actions import (
-    ClosePosition, DoNothing, MoveSL, OpenPosition, PartialClose,
-)
+from app.trading.event_source import IEventSource
 
 logger = structlog.get_logger()
 
@@ -42,10 +46,10 @@ class Engine:
         self,
         event_source: IEventSource,
         strategy: IStrategy,
-        portfolio,              # PortfolioManager (avoid circular import)
+        portfolio,  # PortfolioManager (avoid circular import)
         exchange: IExchange,
-        symbols: List[str],
-        on_progress: Optional[Callable[[float], None]] = None,
+        symbols: list[str],
+        on_progress: Callable[[float], None] | None = None,
     ) -> None:
         self.event_source = event_source
         self.strategy = strategy
@@ -55,13 +59,13 @@ class Engine:
         self.on_progress = on_progress
 
         # Per-symbol strategy context (stateless strategy, external state)
-        self.contexts: Dict[str, ContextSnapshot] = {}
+        self.contexts: dict[str, ContextSnapshot] = {}
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self) -> Optional[dict]:
+    def run(self) -> dict | None:
         """
         Main event loop. Processes events until source is exhausted or stopped.
 
@@ -137,9 +141,7 @@ class Engine:
 
         elif isinstance(action, ClosePosition):
             logger.info("close_position", symbol=action.symbol, reason=action.reason)
-            self.portfolio.close_position(
-                action.symbol, reason=action.reason, price=action.price
-            )
+            self.portfolio.close_position(action.symbol, reason=action.reason, price=action.price)
 
         elif isinstance(action, MoveSL):
             logger.info("move_sl", symbol=action.symbol, new_sl=str(action.new_sl_price), reason=action.reason)
@@ -147,9 +149,7 @@ class Engine:
 
         elif isinstance(action, PartialClose):
             logger.info("partial_close", symbol=action.symbol, tp_level=action.tp_level, price=str(action.price))
-            self.portfolio.execute_partial_close(
-                action.symbol, action.tp_level, new_sl_price=action.new_sl_price
-            )
+            self.portfolio.execute_partial_close(action.symbol, action.tp_level, new_sl_price=action.new_sl_price)
 
         # DoNothing: explicit no-op, nothing to dispatch
 
@@ -181,7 +181,7 @@ class Engine:
     # Override in subclass
     # ------------------------------------------------------------------
 
-    def _compute_results(self) -> Optional[dict]:
+    def _compute_results(self) -> dict | None:
         """
         Called after the event loop ends.
         Override in BacktestEngine to return metrics dict.

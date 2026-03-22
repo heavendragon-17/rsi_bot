@@ -3,6 +3,7 @@ Backtest SSE progress streaming route.
 
 GET /api/backtest/{run_id}/progress — SSE stream
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter

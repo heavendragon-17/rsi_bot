@@ -5,27 +5,29 @@ PositionSnapshot  — Portfolio provides this; describes current position state.
 ContextSnapshot   — Runner stores and passes this; holds strategy state machine
                     data (state phase + active trade metadata).
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
 class PositionSnapshot:
     """Read-only view of current position state from Portfolio."""
+
     has_position: bool
     symbol: str
     side: str = "BUY"
     entry_price: Decimal = Decimal("0")
     current_sl: Decimal = Decimal("0")
-    soft_sl: Optional[Decimal] = None
+    soft_sl: Decimal | None = None
     tp1_hit: bool = False
     tp2_hit: bool = False
     tp3_hit: bool = False
     lock_profit_triggered: bool = False
-    unrealized_pnl: Optional[Decimal] = None
+    unrealized_pnl: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -40,9 +42,10 @@ class ContextSnapshot:
                     tp1/2/3_price, moved_sl_to_entry, pending_candle_sl,
                     lock_profit_price, tp_allocations, etc.
     """
+
     state: str = "SCANNING"
-    soft_sl_price: Optional[Decimal] = None
-    meta: Optional[Dict[str, Any]] = None
+    soft_sl_price: Decimal | None = None
+    meta: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.meta is None:

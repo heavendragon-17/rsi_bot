@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import structlog
 
@@ -34,9 +33,7 @@ class PositionSizer:
         bal = self.exchange.fetch_balance()
         return to_decimal(bal.get("total", {}).get("USDT", 0))
 
-    def calculate(
-        self, balance: Decimal, entry_price: Decimal, sl_price: Optional[Decimal]
-    ) -> Decimal:
+    def calculate(self, balance: Decimal, entry_price: Decimal, sl_price: Decimal | None) -> Decimal:
         """
         Calculate position size for futures trading with leverage.
 
@@ -64,7 +61,9 @@ class PositionSizer:
             sl_distance_pct = sl_distance / entry_price if entry_price > Decimal("0") else Decimal("0")
 
             if sl_distance_pct <= Decimal("0"):
-                logger.error(f"SL distance is zero (SL={sl_price}, Entry={entry_price}). Cannot calculate position size.")
+                logger.error(
+                    f"SL distance is zero (SL={sl_price}, Entry={entry_price}). Cannot calculate position size."
+                )
                 return Decimal("0")
 
             if sl_distance_pct < self.min_sl_distance_pct:
@@ -82,7 +81,7 @@ class PositionSizer:
                 risk_amount = risk_capital * self.risk_per_trade_pct
                 position_notional = risk_amount / sl_distance_pct
                 position_size = position_notional / entry_price
-                margin_required = position_notional / self.leverage
+                position_notional / self.leverage
 
                 final_size = min(position_size, max_amount)
                 was_capped = position_size > max_amount

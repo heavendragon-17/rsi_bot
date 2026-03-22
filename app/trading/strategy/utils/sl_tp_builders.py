@@ -1,4 +1,5 @@
 """Shared SL/TP ladder builders for strategy use."""
+
 from __future__ import annotations
 
 

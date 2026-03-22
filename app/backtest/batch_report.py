@@ -4,6 +4,7 @@ Batch HTML report generator.
 Extracted from run_batch_analysis.py — generates a combined multi-symbol
 HTML report with portfolio overview, equity curve, and per-symbol tabs.
 """
+
 from __future__ import annotations
 
 import re
@@ -33,18 +34,19 @@ class BatchHtmlGenerator:
         total_pnl = sum(r["profit"] for r in self.results)
         total_initial = sum(r["initial_balance"] for r in self.results)
         total_final = sum(r["final_balance"] for r in self.results)
-        portfolio_return = (
-            ((total_final - total_initial) / total_initial) * 100 if total_initial > 0 else 0
-        )
-        avg_drawdown = (
-            sum(r["drawdown"] for r in self.results) / len(self.results) if self.results else 0
-        )
+        portfolio_return = ((total_final - total_initial) / total_initial) * 100 if total_initial > 0 else 0
+        avg_drawdown = sum(r["drawdown"] for r in self.results) / len(self.results) if self.results else 0
         total_trades = sum(r["trades"] for r in self.results)
 
         equity_values, equity_labels = self._build_equity_data(total_initial)
         nav_html = self._build_nav()
         content_html = self._build_overview(
-            total_pnl, portfolio_return, avg_drawdown, total_trades, equity_values, equity_labels,
+            total_pnl,
+            portfolio_return,
+            avg_drawdown,
+            total_trades,
+            equity_values,
+            equity_labels,
         )
         content_html += self._build_symbol_tabs()
 
@@ -103,8 +105,13 @@ class BatchHtmlGenerator:
         return "\n".join(parts)
 
     def _build_overview(
-        self, total_pnl, portfolio_return, avg_drawdown, total_trades,
-        equity_values, equity_labels,
+        self,
+        total_pnl,
+        portfolio_return,
+        avg_drawdown,
+        total_trades,
+        equity_values,
+        equity_labels,
     ) -> str:
         pnl_cls = "positive" if total_pnl >= 0 else "negative"
         ret_cls = "positive" if portfolio_return >= 0 else "negative"
@@ -125,8 +132,8 @@ class BatchHtmlGenerator:
 
         return (
             f'<div id="Overview" class="tab-content active" style="display:block;">'
-            f"<div class=\"header-section\"><h1>Portfolio Overview</h1>"
-            f'<p>Aggregated performance across {len(self.results)} pairs</p></div>'
+            f'<div class="header-section"><h1>Portfolio Overview</h1>'
+            f"<p>Aggregated performance across {len(self.results)} pairs</p></div>"
             f'<div class="metrics-grid">'
             f'<div class="metric-card"><h3>Total Net Profit</h3>'
             f'<div class="value {pnl_cls}">${total_pnl:,.2f}</div></div>'
@@ -152,9 +159,7 @@ class BatchHtmlGenerator:
         for res in self.results:
             clean = res["symbol"].replace("/", "")
             body = self._extract_body_content(res["html"])
-            parts.append(
-                f'<div id="{clean}" class="tab-content" style="display:none;">{body}</div>'
-            )
+            parts.append(f'<div id="{clean}" class="tab-content" style="display:none;">{body}</div>')
         return "\n".join(parts)
 
 

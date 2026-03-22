@@ -16,17 +16,19 @@ Architecture:
       ├── fill detection (delegates to FillMode)
       └── reduceOnly enforcement (via callback)
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from app.core.utils import to_decimal
 
-
 # ── Data classes ─────────────────────────────────────────────────────
+
 
 @dataclass
 class PendingOrder:
@@ -34,17 +36,17 @@ class PendingOrder:
 
     id: str
     symbol: str
-    order_type: str          # market, limit, stop_market, stop_limit, trailing_stop
-    side: str                # BUY | SELL
+    order_type: str  # market, limit, stop_market, stop_limit, trailing_stop
+    side: str  # BUY | SELL
     amount: Decimal
-    price: Optional[Decimal] = None          # limit price (TP target)
-    trigger_price: Optional[Decimal] = None  # stop / SL trigger price
+    price: Decimal | None = None  # limit price (TP target)
+    trigger_price: Decimal | None = None  # stop / SL trigger price
     reduce_only: bool = False
-    status: str = "open"                     # open | pending | pending_open | filled | cancelled
-    callback_rate: Optional[Decimal] = None  # trailing_stop callback %
-    peak_price: Optional[Decimal] = None     # trailing_stop peak tracker
-    limit_price: Optional[Decimal] = None    # stop_limit final fill price
-    info: Dict[str, Any] = field(default_factory=dict)
+    status: str = "open"  # open | pending | pending_open | filled | cancelled
+    callback_rate: Decimal | None = None  # trailing_stop callback %
+    peak_price: Decimal | None = None  # trailing_stop peak tracker
+    limit_price: Decimal | None = None  # stop_limit final fill price
+    info: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -59,10 +61,11 @@ class FillResult:
     fill_amount: Decimal
     fee_rate: Decimal
     reduce_only: bool
-    info: Dict[str, Any] = field(default_factory=dict)
+    info: dict[str, Any] = field(default_factory=dict)
 
 
 # ── FillMode ABC ─────────────────────────────────────────────────────
+
 
 class FillMode(ABC):
     """Determines *when* and *at what price* a pending order triggers."""
@@ -70,9 +73,9 @@ class FillMode(ABC):
     @abstractmethod
     def check_fills(
         self,
-        orders: List[PendingOrder],
+        orders: list[PendingOrder],
         market_data: Any,
-    ) -> List[tuple[PendingOrder, Decimal]]:
+    ) -> list[tuple[PendingOrder, Decimal]]:
         """Return (order, fill_price) pairs for orders that trigger.
 
         Must NOT mutate *orders* list — caller handles removal.
@@ -94,20 +97,20 @@ class WickFillMode(FillMode):
 
     def check_fills(
         self,
-        orders: List[PendingOrder],
-        market_data: Dict[str, Decimal],
-    ) -> List[tuple[PendingOrder, Decimal]]:
+        orders: list[PendingOrder],
+        market_data: dict[str, Decimal],
+    ) -> list[tuple[PendingOrder, Decimal]]:
         high = market_data["high"]
         low = market_data["low"]
 
-        fills: List[tuple[PendingOrder, Decimal]] = []
+        fills: list[tuple[PendingOrder, Decimal]] = []
 
         for order in orders:
             tp = order.trigger_price or order.price
             if tp is None:
                 continue
 
-            fill_price: Optional[Decimal] = None
+            fill_price: Decimal | None = None
 
             if order.side == "SELL":
                 if order.order_type == "stop_market":
@@ -139,7 +142,7 @@ class WickFillMode(FillMode):
         order: PendingOrder,
         high: Decimal,
         low: Decimal,
-    ) -> Optional[Decimal]:
+    ) -> Decimal | None:
         cb = order.callback_rate or Decimal("1")
         peak = order.peak_price or high
         if high > peak:
@@ -163,14 +166,14 @@ class TickFillMode(FillMode):
 
     def check_fills(
         self,
-        orders: List[PendingOrder],
+        orders: list[PendingOrder],
         market_data: Decimal,
-    ) -> List[tuple[PendingOrder, Decimal]]:
+    ) -> list[tuple[PendingOrder, Decimal]]:
         price = market_data
-        fills: List[tuple[PendingOrder, Decimal]] = []
+        fills: list[tuple[PendingOrder, Decimal]] = []
 
         for order in orders:
-            fill_price: Optional[Decimal] = None
+            fill_price: Decimal | None = None
 
             if order.order_type == "stop_market" and order.side == "SELL":
                 if order.trigger_price and price <= order.trigger_price:
@@ -220,7 +223,7 @@ class FillSimulator:
         self._fill_mode = fill_mode
         self.maker_fee = maker_fee
         self.taker_fee = taker_fee
-        self._pending: Dict[str, PendingOrder] = {}
+        self._pending: dict[str, PendingOrder] = {}
         self._order_counter: int = 0
 
     # ── Order ID generation ──────────────────────────────────────
@@ -232,14 +235,14 @@ class FillSimulator:
     # ── Order storage ────────────────────────────────────────────
 
     @property
-    def pending_orders(self) -> Dict[str, PendingOrder]:
+    def pending_orders(self) -> dict[str, PendingOrder]:
         """Direct access to the pending orders dict (read-only intent)."""
         return self._pending
 
     def add_order(self, order: PendingOrder) -> None:
         self._pending[order.id] = order
 
-    def remove_order(self, order_id: str) -> Optional[PendingOrder]:
+    def remove_order(self, order_id: str) -> PendingOrder | None:
         return self._pending.pop(order_id, None)
 
     def cancel_order(self, order_id: str) -> bool:
@@ -256,12 +259,12 @@ class FillSimulator:
             del self._pending[oid]
         return len(ids)
 
-    def get_pending_orders(self, symbol: Optional[str] = None) -> List[PendingOrder]:
+    def get_pending_orders(self, symbol: str | None = None) -> list[PendingOrder]:
         if symbol is None:
             return list(self._pending.values())
         return [o for o in self._pending.values() if o.symbol == symbol]
 
-    def get_order(self, order_id: str) -> Optional[PendingOrder]:
+    def get_order(self, order_id: str) -> PendingOrder | None:
         return self._pending.get(order_id)
 
     # ── Fee helpers ──────────────────────────────────────────────
@@ -279,7 +282,7 @@ class FillSimulator:
         symbol: str,
         market_data: Any,
         get_position_amount: PositionAmountFn,
-    ) -> List[FillResult]:
+    ) -> list[FillResult]:
         """Check pending orders for *symbol* against *market_data*.
 
         1. Filters orders for the symbol (status in "open"/"pending").
@@ -293,17 +296,14 @@ class FillSimulator:
             market_data: Candle dict (WickFillMode) or Decimal price (TickFillMode).
             get_position_amount: Callback returning signed position size.
         """
-        eligible = [
-            o for o in self._pending.values()
-            if o.symbol == symbol and o.status in ("open", "pending")
-        ]
+        eligible = [o for o in self._pending.values() if o.symbol == symbol and o.status in ("open", "pending")]
         if not eligible:
             return []
 
         triggered = self._fill_mode.check_fills(eligible, market_data)
 
-        results: List[FillResult] = []
-        orders_to_remove: List[str] = []
+        results: list[FillResult] = []
+        orders_to_remove: list[str] = []
 
         for order, fill_price in triggered:
             fill_amount = order.amount
@@ -323,17 +323,19 @@ class FillSimulator:
 
             fee_rate = self.fee_rate_for(order.order_type)
 
-            results.append(FillResult(
-                order_id=order.id,
-                symbol=order.symbol,
-                side=order.side,
-                order_type=order.order_type,
-                fill_price=fill_price,
-                fill_amount=fill_amount,
-                fee_rate=fee_rate,
-                reduce_only=order.reduce_only,
-                info=dict(order.info),
-            ))
+            results.append(
+                FillResult(
+                    order_id=order.id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    order_type=order.order_type,
+                    fill_price=fill_price,
+                    fill_amount=fill_amount,
+                    fee_rate=fee_rate,
+                    reduce_only=order.reduce_only,
+                    info=dict(order.info),
+                )
+            )
             orders_to_remove.append(order.id)
 
         for oid in orders_to_remove:

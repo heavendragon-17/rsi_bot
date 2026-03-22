@@ -5,8 +5,9 @@ Both live and backtest provide the same EngineEvent types through this
 interface. The Engine is agnostic to whether events come from a WebSocket
 stream or a replayed historical CSV.
 """
+
 from abc import ABC, abstractmethod
-from typing import Iterator
+from collections.abc import Iterator
 
 from app.core.events import EngineEvent
 

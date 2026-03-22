@@ -1,9 +1,10 @@
 """Shared TradeState for strategies that track position state in ContextSnapshot.meta."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -13,19 +14,20 @@ class TradeState:
     Replaces raw dict access with explicit fields to prevent typos
     and make the meta schema discoverable.
     """
-    entry_price: Optional[Decimal] = None
-    sl_price: Optional[Decimal] = None
-    soft_sl_price: Optional[Decimal] = None
-    original_soft_sl: Optional[Decimal] = None
-    disaster_sl_price: Optional[Decimal] = None
-    lock_profit_price: Optional[Decimal] = None
-    move_trigger: Optional[Decimal] = None
+
+    entry_price: Decimal | None = None
+    sl_price: Decimal | None = None
+    soft_sl_price: Decimal | None = None
+    original_soft_sl: Decimal | None = None
+    disaster_sl_price: Decimal | None = None
+    lock_profit_price: Decimal | None = None
+    move_trigger: Decimal | None = None
     moved_sl_to_entry: bool = False
     pending_candle_sl: bool = False
     crossover_detected: bool = False
-    tp_allocations: Optional[dict] = field(default_factory=dict)
+    tp_allocations: dict | None = field(default_factory=dict)
 
-    def to_meta(self) -> Dict[str, Any]:
+    def to_meta(self) -> dict[str, Any]:
         """Serialize to a plain dict for ContextSnapshot.meta."""
         return {
             "entry_price": self.entry_price,
@@ -42,7 +44,7 @@ class TradeState:
         }
 
     @classmethod
-    def from_meta(cls, meta: Optional[Dict[str, Any]]) -> "TradeState":
+    def from_meta(cls, meta: dict[str, Any] | None) -> TradeState:
         """Deserialize from ContextSnapshot.meta dict."""
         if not meta:
             return cls()

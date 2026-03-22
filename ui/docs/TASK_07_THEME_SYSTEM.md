@@ -15,15 +15,15 @@
 1. **Cyberpunk Neon** (Default)
    - Deep blue background with pink/purple accents
    - Vibrant neon aesthetic
-   
+
 2. **Midnight Ocean**
    - Deep blue with cyan accents
    - Professional oceanic feel
-   
+
 3. **Deep Space**
    - Pure black background with purple accents
    - Minimal, high-contrast design
-   
+
 4. **Noir**
    - Grayscale with white accents
    - Classic monochrome aesthetic
@@ -32,15 +32,15 @@
 5. **Beach Paradise**
    - Warm sand colors with ocean blue accents
    - Relaxed, sunny atmosphere
-   
+
 6. **Forest Grove**
    - Cream background with green accents
    - Natural, earthy feel
-   
+
 7. **Paper**
    - Clean white with dark gray accents
    - Professional document aesthetic
-   
+
 8. **Sepia**
    - Vintage tan/brown color scheme
    - Nostalgic, warm tones
@@ -255,7 +255,7 @@ interface ThemeState {
   isLoading: boolean;
   themes: Theme[];
   performanceMode: boolean;
-  
+
   setTheme: (theme: Theme) => void;
   fetchThemes: () => Promise<void>;
   togglePerformanceMode: () => void;
@@ -290,12 +290,12 @@ import { useThemeStore } from './stores/themeStore';
 
 function MyComponent() {
   const { themes, setTheme } = useThemeStore();
-  
+
   const applyBeachTheme = () => {
     const beach = themes.find(t => t.id === 'beach-paradise');
     if (beach) setTheme(beach);
   };
-  
+
   return <button onClick={applyBeachTheme}>Beach Theme</button>;
 }
 ```
@@ -306,12 +306,12 @@ import { useThemeStore } from './stores/themeStore';
 
 function ThemeDisplay() {
   const { currentTheme } = useThemeStore();
-  
+
   return (
     <div>
       <p>Current: {currentTheme?.name}</p>
-      <div style={{ 
-        backgroundColor: currentTheme?.variables['accent-color'] 
+      <div style={{
+        backgroundColor: currentTheme?.variables['accent-color']
       }} />
     </div>
   );
@@ -324,7 +324,7 @@ import { useThemeStore } from './stores/themeStore';
 
 function PerfButton() {
   const { performanceMode, togglePerformanceMode } = useThemeStore();
-  
+
   return (
     <button onClick={togglePerformanceMode}>
       Perf Mode: {performanceMode ? 'ON' : 'OFF'}

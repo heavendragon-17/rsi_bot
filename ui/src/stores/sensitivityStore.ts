@@ -48,7 +48,7 @@ export interface SensitivityState {
   setVariationPercent: (percent: number) => void;
   setCustomVariation: (value: string) => void;
   setMetric: (metric: SensitivityMetric) => void;
-  
+
   runSensitivityAnalysis: () => Promise<void>;
   cancelRun: () => void;
   exportResults: () => void;
@@ -100,7 +100,7 @@ const generateInsights = (results: SensitivityResult[]): string[] => {
     const lowAbs = Math.abs(result.lowImpactPct);
     const highAbs = Math.abs(result.highImpactPct);
     const ratio = Math.max(lowAbs, highAbs) / (Math.min(lowAbs, highAbs) + 0.01);
-    
+
     if (ratio > 2 && result.sensitivity !== "low") {
       if (lowAbs > highAbs) {
         insights.push(
@@ -134,9 +134,9 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
 
   // Actions
   setVariationPercent: (percent) => set({ variationPercent: percent }),
-  
+
   setCustomVariation: (value) => set({ customVariation: value }),
-  
+
   setMetric: (metric) => set({ metric }),
 
   runSensitivityAnalysis: async () => {
@@ -154,13 +154,13 @@ export const useSensitivityStore = create<SensitivityState>((set, get) => ({
     AVAILABLE_PARAMETERS.forEach((paramDef: any) => {
         const baseValue = params[paramDef.value] || paramDef.defaultMin;
         const variation = actualVariation / 100;
-        const lowValue = paramDef.type === "int" 
+        const lowValue = paramDef.type === "int"
           ? Math.round(baseValue * (1 - variation))
           : Math.round(baseValue * (1 - variation) * 100) / 100;
         const highValue = paramDef.type === "int"
           ? Math.round(baseValue * (1 + variation))
           : Math.round(baseValue * (1 + variation) * 100) / 100;
-        
+
         variationsToTest[paramDef.value] = [lowValue, baseValue, highValue];
     });
 

@@ -3,6 +3,7 @@ SQLAlchemy engine, session factory, and init_db() for the backtest database.
 
 DB file: <project_root>/data/backtest.db
 """
+
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -53,6 +54,7 @@ def init_db() -> None:
     session = SessionLocal()
     try:
         from app.repository.backtest.seed import seed_strategies
+
         seed_strategies(session)
     finally:
         session.close()

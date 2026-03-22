@@ -16,8 +16,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import inspect as sa_inspect
-from app.repository.backtest.database import Base
+
 from app.repository.backtest import models  # noqa: F401 — registers models
+from app.repository.backtest.database import Base
 
 
 def get_column_type(col):
@@ -117,13 +118,8 @@ def generate_full_doc():
     """Generate the complete database.md content."""
     # Collect all model classes in definition order
     model_classes = []
-    for name, obj in inspect.getmembers(models):
-        if (
-            inspect.isclass(obj)
-            and issubclass(obj, Base)
-            and obj is not Base
-            and hasattr(obj, "__tablename__")
-        ):
+    for _name, obj in inspect.getmembers(models):
+        if inspect.isclass(obj) and issubclass(obj, Base) and obj is not Base and hasattr(obj, "__tablename__"):
             model_classes.append(obj)
 
     # Build table overview
@@ -159,17 +155,19 @@ def generate_full_doc():
         lines.append("")
 
     # Add key design notes
-    lines.extend([
-        "## Key Design Notes",
-        "",
-        "- **TEXT for money**: All monetary values stored as TEXT, parsed with Python `Decimal`",
-        "- **BLOB compression**: equity_curve and drawdown_curve are zlib-compressed JSON",
-        "- **Cascade deletes**: Deleting a Run cascades to RunConfig, RunResult, RunTimeseries, Trades, Tags",
-        "- **Grid search**: grid_search_parent_id links child runs to parent. Deleting parent does NOT cascade to children.",
-        "- **Lazy loading**: RunTimeseries in separate table, loaded only on demand",
-        "",
-        "See `app/repository/backtest/models.py` for full design rationale in code comments.",
-    ])
+    lines.extend(
+        [
+            "## Key Design Notes",
+            "",
+            "- **TEXT for money**: All monetary values stored as TEXT, parsed with Python `Decimal`",
+            "- **BLOB compression**: equity_curve and drawdown_curve are zlib-compressed JSON",
+            "- **Cascade deletes**: Deleting a Run cascades to RunConfig, RunResult, RunTimeseries, Trades, Tags",
+            "- **Grid search**: grid_search_parent_id links child runs to parent. Deleting parent does NOT cascade to children.",
+            "- **Lazy loading**: RunTimeseries in separate table, loaded only on demand",
+            "",
+            "See `app/repository/backtest/models.py` for full design rationale in code comments.",
+        ]
+    )
 
     return "\n".join(lines)
 

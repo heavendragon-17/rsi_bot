@@ -194,10 +194,10 @@ export const useBacktestStore = create<BacktestState>()(
       syncRelativeDates: () => {
          const { dateMode, lookbackValue, lookbackUnit, timeframe } = get();
          if (dateMode !== "relative") return;
-         
+
          const end = new Date();
          let start = new Date();
-         
+
          if (lookbackUnit === "bars") {
            const barsPerDay: Record<string, number> = {
              "15m": 96, "1h": 24, "4h": 6, "1d": 1,
@@ -216,14 +216,14 @@ export const useBacktestStore = create<BacktestState>()(
          } else if (lookbackUnit === "years") {
            start.setFullYear(start.getFullYear() - lookbackValue);
          }
-         
+
          const format = (d: Date) => {
            const day = String(d.getDate()).padStart(2, '0');
            const month = String(d.getMonth() + 1).padStart(2, '0');
            const year = d.getFullYear();
            return `${day}-${month}-${year}`;
          };
-         
+
          set({ startDate: format(start), endDate: format(end) });
       },
       loadConfig: (config) => {
@@ -370,7 +370,7 @@ export const useBacktestStore = create<BacktestState>()(
               async () => {
                 // Instantly clean up to prevent EventSource from firing onerror when server closes
                 cleanup();
-                
+
                 // 4. On complete: fetch results and push to resultsStore
                 try {
                   const [detail, timeseries] = await Promise.all([

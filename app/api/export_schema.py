@@ -9,12 +9,17 @@ Outputs:
     ui/src/types/openapi.json   (full OpenAPI spec — for reference / tooling)
     ui/src/types/generated.ts   (TypeScript interfaces — never edit manually)
 """
+
 from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
+import structlog
+
+logger = structlog.get_logger()
 
 
 # Models to include in generated TS (filters out FastAPI internals
@@ -36,6 +41,7 @@ _INCLUDE = {
 # ---------------------------------------------------------------------------
 # JSON Schema → TypeScript converter
 # ---------------------------------------------------------------------------
+
 
 def _ts_type(schema: dict[str, Any], defs: dict[str, Any]) -> str:
     """Recursively convert a JSON Schema node to a TypeScript type string."""
@@ -99,9 +105,7 @@ def _render_enum(name: str, schema: dict[str, Any]) -> str:
     return f"export type {name} = {union};"
 
 
-def _render_interface(
-    name: str, schema: dict[str, Any], defs: dict[str, Any]
-) -> str:
+def _render_interface(name: str, schema: dict[str, Any], defs: dict[str, Any]) -> str:
     """Render a TypeScript interface from an object schema."""
     properties = schema.get("properties", {})
     required_fields = set(schema.get("required", []))
@@ -119,6 +123,7 @@ def _render_interface(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def export_openapi_and_ts(out_dir: str) -> None:
     """Export OpenAPI JSON and generated TypeScript to *out_dir*."""
     from app.api.main import app
@@ -132,7 +137,7 @@ def export_openapi_and_ts(out_dir: str) -> None:
     openapi_path = os.path.join(out_dir, "openapi.json")
     with open(openapi_path, "w", encoding="utf-8") as f:
         json.dump(spec, f, indent=2)
-    print(f"Written: {openapi_path}")
+    logger.info("file_written", path=openapi_path)
 
     # ── generated.ts ──────────────────────────────────────────────────────
     # Partition into enums and interfaces, keeping only _INCLUDE models
@@ -148,7 +153,7 @@ def export_openapi_and_ts(out_dir: str) -> None:
         else:
             interfaces.append(_render_interface(name, schema, all_schemas))
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     header = (
         "/* AUTO-GENERATED — do not edit manually.\n"
         " * Source: Pydantic models in app/api/schemas.py\n"
@@ -160,13 +165,11 @@ def export_openapi_and_ts(out_dir: str) -> None:
     ts_path = os.path.join(out_dir, "generated.ts")
     with open(ts_path, "w", encoding="utf-8") as f:
         f.write(header + "\n" + body + "\n")
-    print(f"Written: {ts_path}")
+    logger.info("file_written", path=ts_path)
 
 
 def main() -> None:
-    out_dir = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "ui", "src", "types")
-    )
+    out_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "ui", "src", "types"))
     export_openapi_and_ts(out_dir)
 
 

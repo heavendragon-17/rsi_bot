@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from decimal import Decimal
 from datetime import datetime
-from typing import Dict, Optional
+from decimal import Decimal
 
 from app.core.actions import SIDE_BUY, opposite_side
 
@@ -15,6 +14,7 @@ class Position:
     """
     Represents an open position with TP/SL tracking.
     """
+
     symbol: str
     amount: Decimal
     entry_price: Decimal
@@ -22,16 +22,16 @@ class Position:
     timestamp: datetime
 
     # TP/SL prices (from SignalEvent)
-    tp1_price: Optional[Decimal] = None
-    tp2_price: Optional[Decimal] = None
-    tp3_price: Optional[Decimal] = None
-    sl_price: Optional[Decimal] = None
-    lock_profit_price: Optional[Decimal] = None
-    tp_allocations: Optional[dict] = None
+    tp1_price: Decimal | None = None
+    tp2_price: Decimal | None = None
+    tp3_price: Decimal | None = None
+    sl_price: Decimal | None = None
+    lock_profit_price: Decimal | None = None
+    tp_allocations: dict | None = None
 
     # Order tracking
-    sl_order_id: Optional[str] = None
-    tp_order_ids: Dict[str, str] = field(default_factory=dict)  # {"TP1": order_id, ...}
+    sl_order_id: str | None = None
+    tp_order_ids: dict[str, str] = field(default_factory=dict)  # {"TP1": order_id, ...}
 
     # TP hit flags
     tp1_hit: bool = False

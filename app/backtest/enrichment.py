@@ -4,6 +4,7 @@ Round-trip enrichment — single source of truth.
 Previously duplicated identically in run_batch_analysis.py and
 run_portfolio_backtest.py.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -14,9 +15,7 @@ def enrich_round_trips(results: dict, debug_rows: list) -> dict:
     debug rows into ``results["round_trips"]``.
     """
     buy_lookup = {
-        (str(r.get("symbol", "")), str(r.get("timestamp", ""))): r
-        for r in debug_rows
-        if r.get("signal") == "BUY"
+        (str(r.get("symbol", "")), str(r.get("timestamp", ""))): r for r in debug_rows if r.get("signal") == "BUY"
     }
     rt_list = results.get("round_trips", [])
     if not rt_list or not buy_lookup:
@@ -37,12 +36,8 @@ def enrich_round_trips(results: dict, debug_rows: list) -> dict:
         rt["entry_rsi_wma45"] = (
             round(float(match["rsi_wma45"]), 4) if match and match.get("rsi_wma45") is not None else None
         )
-        rt["entry_spread"] = (
-            round(float(match["spread"]), 4) if match and match.get("spread") is not None else None
-        )
-        rt["above_count"] = (
-            int(match["above_count"]) if match and match.get("above_count") is not None else None
-        )
+        rt["entry_spread"] = round(float(match["spread"]), 4) if match and match.get("spread") is not None else None
+        rt["above_count"] = int(match["above_count"]) if match and match.get("above_count") is not None else None
         enriched.append(rt)
 
     results = dict(results)

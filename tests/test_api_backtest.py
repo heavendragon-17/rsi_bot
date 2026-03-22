@@ -1,14 +1,13 @@
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
-import os
-import json
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.api.main import app
 from app.api.routes.backtest_run import get_db
 from app.repository.backtest.database import Base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
 
 # Use an in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -25,7 +24,7 @@ def override_get_db():
 
 
 # Override get_db in all three route modules
-from app.api.routes import backtest_results, backtest_stream  # noqa: E402
+from app.api.routes import backtest_results  # noqa: E402
 
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[backtest_results.get_db] = override_get_db
@@ -38,6 +37,7 @@ def setup_db():
     Base.metadata.create_all(bind=engine)
     # Seed a strategy
     from app.repository.backtest.models import Strategy
+
     db = TestingSessionLocal()
     if not db.query(Strategy).filter_by(name="rsi_no_retest").first():
         db.add(Strategy(name="rsi_no_retest", description="Test Strat", default_config={}))
@@ -63,7 +63,7 @@ def test_run_backtest_endpoint(mock_submit, mock_exists):
         "initial_capital": "10000",
         "leverage": 1,
         "risk_per_trade_pct": "1.0",
-        "params": {}
+        "params": {},
     }
 
     response = client.post("/api/backtest/run", json=payload)

@@ -29,8 +29,8 @@ export const HeaderBar: React.FC = () => {
           {/* Fees Badge - "The Liar's Toggle" */}
           <div className={cn(
               "px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 select-none",
-              feesEnabled 
-                  ? "bg-success/10 border-success/30 text-success" 
+              feesEnabled
+                  ? "bg-success/10 border-success/30 text-success"
                   : "bg-warning/10 border-warning/30 text-warning"
           )}>
               <span className={cn("w-1.5 h-1.5 rounded-full", feesEnabled ? "bg-success" : "bg-warning")} />

@@ -24,8 +24,8 @@ export const DateRangeSection: React.FC = () => {
                 onClick={() => setDateMode("relative")}
                 className={cn(
                     "flex-1 py-1 text-[10px] font-medium rounded transition-all",
-                    dateMode === "relative" 
-                        ? "bg-bg-secondary text-text-primary shadow-sm" 
+                    dateMode === "relative"
+                        ? "bg-bg-secondary text-text-primary shadow-sm"
                         : "text-text-secondary hover:text-text-primary"
                 )}
             >
@@ -35,8 +35,8 @@ export const DateRangeSection: React.FC = () => {
                 onClick={() => setDateMode("absolute")}
                 className={cn(
                     "flex-1 py-1 text-[10px] font-medium rounded transition-all",
-                    dateMode === "absolute" 
-                        ? "bg-bg-secondary text-text-primary shadow-sm" 
+                    dateMode === "absolute"
+                        ? "bg-bg-secondary text-text-primary shadow-sm"
                         : "text-text-secondary hover:text-text-primary"
                 )}
             >

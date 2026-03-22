@@ -15,7 +15,6 @@ Components:
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, Optional
 
 import structlog
 
@@ -45,14 +44,18 @@ class PortfolioManager:
     def __init__(self, exchange: IExchange, config: dict, notification_service=None):
         self.exchange = exchange
         self.config = config
-        self.positions: Dict[str, Position] = {}
+        self.positions: dict[str, Position] = {}
 
         # Compose components — all share the same positions dict by reference
         self._sizer = PositionSizer(config, exchange)
         self._sl_tp = SLTPManager(exchange, config)
         self._dispatcher = NotificationDispatcher(notification_service, exchange)
         self._executor = TradeExecutor(
-            exchange, self.positions, self._sizer, self._sl_tp, self._dispatcher,
+            exchange,
+            self.positions,
+            self._sizer,
+            self._sl_tp,
+            self._dispatcher,
         )
 
         # Expose config values that tests/consumers may read
@@ -68,8 +71,11 @@ class PortfolioManager:
         return self._executor.on_signal(signal)
 
     def close_position(
-        self, symbol: str, _percentage: Decimal = Decimal("1.0"),
-        price: Decimal = None, reason: str = "MANUAL",
+        self,
+        symbol: str,
+        _percentage: Decimal = Decimal("1.0"),
+        price: Decimal = None,
+        reason: str = "MANUAL",
     ) -> None:
         """Close position (full exit)."""
         self._executor._handle_full_exit(symbol, price=price, exit_reason=reason)
@@ -85,18 +91,27 @@ class PortfolioManager:
         self._sl_tp.sync_tp_fills(symbol, self.positions)
 
     def execute_partial_close(
-        self, symbol: str, tp_level: str, new_sl_price: Optional[Decimal] = None,
+        self,
+        symbol: str,
+        tp_level: str,
+        new_sl_price: Decimal | None = None,
     ):
         """Execute partial close for TP levels."""
         return self._sl_tp.execute_partial_close(
-            symbol, self.positions, tp_level, new_sl_price=new_sl_price,
+            symbol,
+            self.positions,
+            tp_level,
+            new_sl_price=new_sl_price,
             exchange_sync_fn=self._executor.sync_from_exchange,
         )
 
     # ---- Delegate to PositionSizer ----
 
     def _calculate_position_size(
-        self, balance: Decimal, entry_price: Decimal, sl_price: Optional[Decimal],
+        self,
+        balance: Decimal,
+        entry_price: Decimal,
+        sl_price: Decimal | None,
     ) -> Decimal:
         """Backward-compatible delegate for position sizing."""
         return self._sizer.calculate(balance, entry_price, sl_price)
@@ -109,20 +124,18 @@ class PortfolioManager:
     def has_position(self, symbol: str) -> bool:
         return symbol in self.positions
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         return self.positions.get(symbol)
 
     def get_position_snapshot(self, symbol: str):
         """Return a read-only PositionSnapshot for the strategy."""
         from app.core.snapshots import PositionSnapshot
+
         if symbol not in self.positions:
             return PositionSnapshot(has_position=False, symbol=symbol)
         pos = self.positions[symbol]
         if pos.sl_price is not None and pos.entry_price is not None:
-            lock_profit_triggered = (
-                pos.sl_price > pos.entry_price if pos.is_long()
-                else pos.sl_price < pos.entry_price
-            )
+            lock_profit_triggered = pos.sl_price > pos.entry_price if pos.is_long() else pos.sl_price < pos.entry_price
         else:
             lock_profit_triggered = False
         return PositionSnapshot(

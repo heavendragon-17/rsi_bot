@@ -4,6 +4,7 @@ Test configuration and shared fixtures.
 Autouse fixtures here run around every test automatically, preventing
 test-to-test pollution without requiring per-test boilerplate.
 """
+
 import pytest
 
 
@@ -28,12 +29,14 @@ def reset_structlog_context():
     """Clear any bound structlog context variables between tests."""
     try:
         import structlog
+
         structlog.contextvars.clear_contextvars()
     except Exception:
         pass
     yield
     try:
         import structlog
+
         structlog.contextvars.clear_contextvars()
     except Exception:
         pass

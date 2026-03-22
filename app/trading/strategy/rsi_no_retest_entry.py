@@ -12,18 +12,17 @@ All functions receive explicit parameters instead of accessing `self`.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 import pandas as pd
 import structlog
 
+from app.core.actions import DoNothing, OpenPosition
+from app.core.analysis_result import AnalysisResult
+from app.core.context import CONFIRMING, SCANNING
+from app.core.snapshots import ContextSnapshot
+from app.core.utils import to_decimal_or_none
 from app.data.indicators import Indicators
 from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
-from app.core.context import SCANNING, CONFIRMING
-from app.core.snapshots import ContextSnapshot
-from app.core.analysis_result import AnalysisResult
-from app.core.actions import OpenPosition, DoNothing
-from app.core.utils import to_decimal_or_none
 
 logger = structlog.get_logger()
 
@@ -31,6 +30,7 @@ logger = structlog.get_logger()
 # ---------------------------------------------------------------------------
 # Reclaim & pullback detection
 # ---------------------------------------------------------------------------
+
 
 def detect_reclaim(df_ind: pd.DataFrame, *, debug_enabled: bool = False) -> bool:
     """Return True if the confirmed candle (-2) closed above EMA21
@@ -83,13 +83,14 @@ def pullback_filter(
 # SL / TP computation helpers (entry-time)
 # ---------------------------------------------------------------------------
 
+
 def compute_entry_sl(
     df_ind: pd.DataFrame,
     sl_mode: str,
     lookback: int,
     sl_buffer_pct: float,
     indicators: Indicators,
-) -> tuple[Optional[Decimal], str]:
+) -> tuple[Decimal | None, str]:
     """Compute the soft SL price for a new entry.
 
     Returns ``(sl_price, sl_mode_used)`` — *sl_mode_used* may differ from
@@ -115,7 +116,7 @@ def _raw_sl(
     sl_mode: str,
     lookback: int,
     indicators: Indicators,
-) -> Optional[Decimal]:
+) -> Decimal | None:
     """Compute raw (unbuffered) SL for the given *sl_mode*."""
     if sl_mode == "lowest_wick":
         window = df_ind.iloc[-(lookback + 1) : -1]
@@ -146,7 +147,7 @@ def compute_price_at_rr(
     taker_fee: Decimal,
     maker_fee: Decimal,
     is_taker_exit: bool = False,
-) -> Optional[Decimal]:
+) -> Decimal | None:
     """Target price to achieve exactly ``rr * R`` net of fees.
 
     R = entry - sl.  Entry is always a taker order; exit fee depends on
@@ -159,15 +160,14 @@ def compute_price_at_rr(
     target_net_profit = rr * risk
     exit_fee_rate = taker_fee if is_taker_exit else maker_fee
 
-    target_price = (
-        entry * (Decimal("1") + taker_fee) + target_net_profit
-    ) / (Decimal("1") - exit_fee_rate)
+    target_price = (entry * (Decimal("1") + taker_fee) + target_net_profit) / (Decimal("1") - exit_fee_rate)
     return target_price
 
 
 # ---------------------------------------------------------------------------
 # Main entry check — called from analyze()
 # ---------------------------------------------------------------------------
+
 
 def check_entry(
     *,
@@ -250,15 +250,14 @@ def check_entry(
 
         if debug_enabled:
             logger.debug(
-                f"[{symbol}] DEBUG: Transition to CONFIRMING "
-                f"(Reclaim OK, above={above_count}/{max_above_ema21})"
+                f"[{symbol}] DEBUG: Transition to CONFIRMING " f"(Reclaim OK, above={above_count}/{max_above_ema21})"
             )
         current_state = CONFIRMING
 
     # --- CONFIRMING ---
     if current_state == CONFIRMING:
         if rsi_ema9 is None or rsi_wma45 is None:
-            new_ctx = ContextSnapshot(state=CONFIRMING, meta=dict(context.meta))
+            new_ctx = ContextSnapshot(state=CONFIRMING, meta=dict(context.meta or {}))
             debug_rows.append(_debug_row)
             return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
 
@@ -313,7 +312,12 @@ def check_entry(
             disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(disaster_sl_multiplier)))
 
         lock_profit_price = compute_price_at_rr(
-            entry_price, soft_sl_price, lock_profit_rr, taker_fee, maker_fee, is_taker_exit=True,
+            entry_price,
+            soft_sl_price,
+            lock_profit_rr,
+            taker_fee,
+            maker_fee,
+            is_taker_exit=True,
         )
 
         tp_prices = [p for p in [tp1_price, tp2_price, tp3_price] if p is not None]
@@ -345,18 +349,20 @@ def check_entry(
         debug_rows.append(_debug_row)
 
         return AnalysisResult(
-            actions=[OpenPosition(
-                symbol=symbol,
-                side="BUY",
-                entry_price=entry_price,
-                sl_price=disaster_sl_price,
-                soft_sl_price=soft_sl_price,
-                tp_prices=tp_prices,
-                tp_allocations=tp_allocations,
-                lock_profit_price=lock_profit_price,
-                signal_class=2,
-                reason=f"NO-RETEST BUY (spread={spread:.2f} >= {rsi_spread_min})",
-            )],
+            actions=[
+                OpenPosition(
+                    symbol=symbol,
+                    side="BUY",
+                    entry_price=entry_price,
+                    sl_price=disaster_sl_price,
+                    soft_sl_price=soft_sl_price,
+                    tp_prices=tp_prices,
+                    tp_allocations=tp_allocations,
+                    lock_profit_price=lock_profit_price,
+                    signal_class=2,
+                    reason=f"NO-RETEST BUY (spread={spread:.2f} >= {rsi_spread_min})",
+                )
+            ],
             new_context=new_ctx,
         )
 

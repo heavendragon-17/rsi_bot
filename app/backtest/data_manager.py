@@ -4,6 +4,7 @@ Centralised data download, validation, and path management for backtest runners.
 Deduplicates logic previously scattered across run_batch_analysis.py,
 run_portfolio_backtest.py, and run_paper_tick_replay.py.
 """
+
 from __future__ import annotations
 
 import os
@@ -11,7 +12,7 @@ import os
 import pandas as pd
 import structlog
 
-from app.backtest.download_data import calculate_candle_limit, download_data
+from app.backtest.download_data import download_data
 
 logger = structlog.get_logger()
 
@@ -89,7 +90,7 @@ class DataManager:
     def _is_stale_or_short(self, path: str, required_rows: int) -> bool:
         row_count = 0
         last_line = ""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     row_count += 1

@@ -6,13 +6,13 @@ All state is in-memory only — resets on restart (by design per SPEC).
 SimTradeState is protected by an RLock for thread-safe access
 from both the kline loop (symbol threads) and the aggTrade tick thread.
 """
+
 from __future__ import annotations
 
 import threading
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 
 def _new_id() -> str:
@@ -23,29 +23,29 @@ def _new_id() -> str:
 class SimOrder:
     id: str
     symbol: str
-    order_type: str                  # market | limit | stop_market
-    side: str                        # BUY | SELL
+    order_type: str  # market | limit | stop_market
+    side: str  # BUY | SELL
     amount: Decimal
-    price: Optional[Decimal]         # limit price (TP) or None
-    stop_price: Optional[Decimal]    # for stop_market (SL)
+    price: Decimal | None  # limit price (TP) or None
+    stop_price: Decimal | None  # for stop_market (SL)
     reduce_only: bool
-    status: str                      # pending_open | pending | filled | cancelled
-    created_at: float                # epoch seconds
-    filled_at: Optional[float] = None
-    fill_price: Optional[Decimal] = None
+    status: str  # pending_open | pending | filled | cancelled
+    created_at: float  # epoch seconds
+    filled_at: float | None = None
+    fill_price: Decimal | None = None
 
 
 @dataclass
 class SimPosition:
     symbol: str
-    side: str                                # always "long" (bot is LONG-only)
-    amount: Decimal                          # current open contracts
+    side: str  # always "long" (bot is LONG-only)
+    amount: Decimal  # current open contracts
     entry_price: Decimal
-    initial_amount: Decimal                  # for R-multiple calc
-    initial_risk: Decimal                    # (entry_price - sl_price) * initial_amount
-    sl_order_id: Optional[str] = None
-    tp_order_ids: Dict[str, str] = field(default_factory=dict)  # {"TP1": id, ...}
-    lock_profit_price: Optional[Decimal] = None
+    initial_amount: Decimal  # for R-multiple calc
+    initial_risk: Decimal  # (entry_price - sl_price) * initial_amount
+    sl_order_id: str | None = None
+    tp_order_ids: dict[str, str] = field(default_factory=dict)  # {"TP1": id, ...}
+    lock_profit_price: Decimal | None = None
     lock_profit_activated: bool = False
     tp1_hit: bool = False
     tp2_hit: bool = False
@@ -58,12 +58,12 @@ class ClosedTrade:
     exit_price: Decimal
     amount: Decimal
     side: str
-    pnl_gross: Decimal                       # price movement only
+    pnl_gross: Decimal  # price movement only
     fees_paid: Decimal
     funding_paid: Decimal
-    pnl_net: Decimal                         # gross - fees - funding
-    r_multiple: Decimal                      # pnl_net / initial_risk
-    exit_reason: str                         # TP1|TP2|TP3|HARD_SL|CANDLE_SL|TOGGLE_CLOSE|RESET
+    pnl_net: Decimal  # gross - fees - funding
+    r_multiple: Decimal  # pnl_net / initial_risk
+    exit_reason: str  # TP1|TP2|TP3|HARD_SL|CANDLE_SL|TOGGLE_CLOSE|RESET
     opened_at: float
     closed_at: float
 
@@ -79,9 +79,9 @@ class SimTradeState:
         self.lock = threading.RLock()
         self.initial_balance: Decimal = initial_balance
         self.balance: Decimal = initial_balance
-        self.positions: Dict[str, SimPosition] = {}       # keyed by symbol
-        self.pending_orders: Dict[str, SimOrder] = {}     # keyed by order id
-        self.closed_trades: List[ClosedTrade] = []
+        self.positions: dict[str, SimPosition] = {}  # keyed by symbol
+        self.pending_orders: dict[str, SimOrder] = {}  # keyed by order id
+        self.closed_trades: list[ClosedTrade] = []
         self.total_fees_paid: Decimal = Decimal("0")
         self.total_funding_paid: Decimal = Decimal("0")
         self.is_paused: bool = False

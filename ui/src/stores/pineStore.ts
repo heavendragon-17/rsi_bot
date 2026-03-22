@@ -14,14 +14,14 @@ export interface SavedIndicator {
 
 interface PineStoreState {
   step: "paste" | "verify" | "save";
-  
+
   // Input
   rawCode: string;
-  
+
   // Parsed Data
   parsedIndicator: ParsedIndicator | null;
   parameterOverrides: Record<string, any>;
-  
+
   // Library
   savedIndicators: SavedIndicator[];
 
@@ -63,19 +63,19 @@ export const usePineStore = create<PineStoreState>()(
       parseCode: () => {
         const { rawCode } = get();
         if (!rawCode.trim()) return;
-        
+
         const result = parsePineScript(rawCode);
-        
+
         // Initialize overrides with defaults
         const overrides: Record<string, any> = {};
         result.parameters.forEach(p => {
             overrides[p.id] = p.defaultValue;
         });
 
-        set({ 
-            parsedIndicator: result, 
+        set({
+            parsedIndicator: result,
             parameterOverrides: overrides,
-            step: "verify" 
+            step: "verify"
         });
       },
 
@@ -127,8 +127,8 @@ export const usePineStore = create<PineStoreState>()(
                   step: "paste",
                   rawCode: item.rawCode
               });
-              // Ideally trigger parse immediately? 
-              // get().parseCode(); 
+              // Ideally trigger parse immediately?
+              // get().parseCode();
               // Let's let user see code first.
           }
       }

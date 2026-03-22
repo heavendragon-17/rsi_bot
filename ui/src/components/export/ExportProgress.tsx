@@ -21,7 +21,7 @@ export const ExportProgress: React.FC<ExportProgressProps> = ({ format }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
       <Loader2 size={48} className="text-accent-main animate-spin" />
-      
+
       <div className="text-center space-y-2">
         <p className="text-lg font-medium text-text-primary">
           Generating {formatLabels[format]}...

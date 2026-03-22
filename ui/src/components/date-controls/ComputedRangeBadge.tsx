@@ -11,7 +11,7 @@ export const ComputedRangeBadge: React.FC = () => {
   // > 100k: Warning
   // > 10k: Standard
   // < 10k: Muted (Fast)
-  
+
   let colorClass = "text-text-muted";
   if (estimatedBars > 10000) colorClass = "text-text-secondary";
   if (estimatedBars > 100000) colorClass = "text-warning";

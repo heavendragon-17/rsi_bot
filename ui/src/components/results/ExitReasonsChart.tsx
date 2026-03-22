@@ -42,7 +42,7 @@ export const ExitReasonsChart: React.FC = () => {
         <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Exit Reasons</h3>
             {activeFilter && (
-                <button 
+                <button
                     onClick={() => setFilter(null)}
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-main/10 text-accent-main text-[10px] font-medium hover:bg-accent-main/20 transition-colors"
                 >
@@ -51,7 +51,7 @@ export const ExitReasonsChart: React.FC = () => {
                 </button>
             )}
         </div>
-        
+
         <div className="h-[180px] w-full relative">
             {isMounted && (
                 <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
@@ -68,9 +68,9 @@ export const ExitReasonsChart: React.FC = () => {
                             onClick={handleSliceClick}
                         >
                             {data.map((entry, index) => (
-                                <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={COLORS[entry.name as keyof typeof COLORS] || "#888"} 
+                                <Cell
+                                    key={`cell-${index}`}
+                                    fill={COLORS[entry.name as keyof typeof COLORS] || "#888"}
                                     stroke="transparent"
                                     className={cn(
                                         "transition-opacity duration-200",
@@ -79,9 +79,9 @@ export const ExitReasonsChart: React.FC = () => {
                                 />
                             ))}
                         </Pie>
-                        <Tooltip 
-                            contentStyle={{ 
-                                backgroundColor: 'var(--bg-elevated)', 
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: 'var(--bg-elevated)',
                                 borderColor: 'var(--border-main)',
                                 borderRadius: '0.5rem',
                                 color: 'var(--text-primary)',
@@ -89,9 +89,9 @@ export const ExitReasonsChart: React.FC = () => {
                             }}
                             itemStyle={{ color: 'var(--text-primary)' }}
                         />
-                        <Legend 
-                            layout="vertical" 
-                            verticalAlign="middle" 
+                        <Legend
+                            layout="vertical"
+                            verticalAlign="middle"
                             align="right"
                             wrapperStyle={{ fontSize: '10px', color: 'var(--text-secondary)' }}
                             iconSize={8}
@@ -99,9 +99,9 @@ export const ExitReasonsChart: React.FC = () => {
                     </PieChart>
                 </ResponsiveContainer>
             )}
-            
+
             {/* Center Text (Total Trades) */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-14"> 
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-14">
                 <span className="text-xs font-mono text-text-muted opacity-50">
                     {Object.values(exitReasons).reduce((a, b) => a + b, 0)}
                 </span>

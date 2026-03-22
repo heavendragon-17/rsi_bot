@@ -1,13 +1,15 @@
 """Tests for SLTPManager edge cases (M12 coverage gap)."""
-import pytest
-from decimal import Decimal
-from datetime import datetime
-from unittest.mock import MagicMock, call
 
-from app.core.actions import SIDE_BUY, SIDE_SELL, EXIT_BREAKEVEN, EXIT_LOCK_PROFIT, EXIT_STOP_LOSS
+from datetime import datetime
+from decimal import Decimal
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.core.actions import EXIT_BREAKEVEN, EXIT_LOCK_PROFIT, EXIT_STOP_LOSS, SIDE_BUY, SIDE_SELL
 from app.core.events import SignalEvent
-from app.trading.portfolio.sl_tp_manager import SLTPManager
 from app.trading.portfolio.models import Position
+from app.trading.portfolio.sl_tp_manager import SLTPManager
 
 
 @pytest.fixture
@@ -24,20 +26,30 @@ def manager(mock_exchange):
     return SLTPManager(mock_exchange, config)
 
 
-def _make_signal(symbol="BTC/USDT", tp1=Decimal("110"), tp2=Decimal("120"),
-                 tp3=Decimal("130"), sl=Decimal("90"), allocs=None):
+def _make_signal(
+    symbol="BTC/USDT", tp1=Decimal("110"), tp2=Decimal("120"), tp3=Decimal("130"), sl=Decimal("90"), allocs=None
+):
     return SignalEvent(
-        symbol=symbol, signal_type="BUY", price=Decimal("100"),
-        timestamp=datetime.now(), tp1_price=tp1, tp2_price=tp2,
-        tp3_price=tp3, sl_price=sl, tp_allocations=allocs,
+        symbol=symbol,
+        signal_type="BUY",
+        price=Decimal("100"),
+        timestamp=datetime.now(),
+        tp1_price=tp1,
+        tp2_price=tp2,
+        tp3_price=tp3,
+        sl_price=sl,
+        tp_allocations=allocs,
     )
 
 
-def _make_position(symbol="BTC/USDT", amount=Decimal("10"), side=SIDE_BUY,
-                   entry=Decimal("100"), sl_order_id=None):
+def _make_position(symbol="BTC/USDT", amount=Decimal("10"), side=SIDE_BUY, entry=Decimal("100"), sl_order_id=None):
     return Position(
-        symbol=symbol, amount=amount, entry_price=entry,
-        side=side, timestamp=datetime.now(), sl_order_id=sl_order_id,
+        symbol=symbol,
+        amount=amount,
+        entry_price=entry,
+        side=side,
+        timestamp=datetime.now(),
+        sl_order_id=sl_order_id,
     )
 
 

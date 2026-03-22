@@ -43,7 +43,7 @@ export const HeatmapColorScale: React.FC<HeatmapColorScaleProps> = ({
   return (
     <div className="space-y-3">
       <div className="text-sm font-medium text-text-primary">Color Scale</div>
-      
+
       <div className="flex items-center gap-1">
         {colors.map((color, idx) => (
           <div key={idx} className="flex-1 space-y-1">

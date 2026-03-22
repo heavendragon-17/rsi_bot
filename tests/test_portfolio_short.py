@@ -2,18 +2,18 @@
 tests/test_portfolio_short.py
 Tests for PortfolioManager SHORT trade handling.
 """
-import sys
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 
 from app.backtest.mock_exchange import MockExchange
-from app.trading.portfolio.manager import PortfolioManager, Position
 from app.core.events import SignalEvent
-
+from app.trading.portfolio.manager import PortfolioManager
 
 SYMBOL = "BTC/USDT"
 NOW = datetime(2024, 1, 1, 12, 0, 0)
@@ -79,10 +79,7 @@ class TestShortEntry:
         pm.on_signal(signal)
 
         # Check pending TP orders
-        tp_orders = [
-            o for o in ex.pending_orders.values()
-            if o.get("order_subtype") == "limit"
-        ]
+        tp_orders = [o for o in ex.pending_orders.values() if o.get("order_subtype") == "limit"]
         assert len(tp_orders) > 0, "No TP limit orders placed"
         for order in tp_orders:
             assert order["side"] == "BUY", f"TP order side should be BUY, got {order['side']}"
@@ -95,10 +92,7 @@ class TestShortEntry:
         signal = make_short_signal()
         pm.on_signal(signal)
 
-        sl_orders = [
-            o for o in ex.pending_orders.values()
-            if o.get("order_subtype") == "stop_market"
-        ]
+        sl_orders = [o for o in ex.pending_orders.values() if o.get("order_subtype") == "stop_market"]
         assert len(sl_orders) == 1, f"Expected 1 SL order, got {len(sl_orders)}"
         sl = sl_orders[0]
         assert sl["side"] == "BUY", f"Short SL should be BUY side, got {sl['side']}"
@@ -125,7 +119,7 @@ class TestShortEntry:
         pm = make_portfolio(ex)
         pm.on_signal(make_short_signal())
         assert SYMBOL in pm.positions
-        pos_before = pm.positions[SYMBOL]
+        pm.positions[SYMBOL]
 
         # BUY entry signal should be blocked (position already exists)
         buy_signal = SignalEvent(
@@ -160,9 +154,9 @@ class TestShortPartialClose:
         # TP1 closes 50% — position should still exist but with less negative amount
         remaining = pm.positions.get(SYMBOL)
         assert remaining is not None, "Position should remain after TP1 (only 50% closed)"
-        assert remaining.amount > initial_amount, (
-            f"Amount should increase toward zero after TP1: was {initial_amount}, now {remaining.amount}"
-        )
+        assert (
+            remaining.amount > initial_amount
+        ), f"Amount should increase toward zero after TP1: was {initial_amount}, now {remaining.amount}"
         assert remaining.amount < Decimal("0"), "Should still be short after TP1"
 
     def test_short_tp1_hit_flag(self):
@@ -192,7 +186,8 @@ class TestShortLockProfit:
         assert result is True
         # The new stop_market order should be at the lock_price
         sl_orders = [
-            o for o in ex.pending_orders.values()
+            o
+            for o in ex.pending_orders.values()
             if o.get("order_subtype") == "stop_market" and o.get("symbol") == SYMBOL
         ]
         assert len(sl_orders) == 1
@@ -204,18 +199,12 @@ class TestShortLockProfit:
         pm = make_portfolio(ex)
         pm.on_signal(make_short_signal(price=50000, sl=52000))
 
-        old_sl_orders = [
-            o for o in ex.pending_orders.values()
-            if o.get("order_subtype") == "stop_market"
-        ]
+        old_sl_orders = [o for o in ex.pending_orders.values() if o.get("order_subtype") == "stop_market"]
         assert len(old_sl_orders) == 1
 
         pm.move_stop_loss(SYMBOL, Decimal("49800"))
 
-        new_sl_orders = [
-            o for o in ex.pending_orders.values()
-            if o.get("order_subtype") == "stop_market"
-        ]
+        new_sl_orders = [o for o in ex.pending_orders.values() if o.get("order_subtype") == "stop_market"]
         assert len(new_sl_orders) == 1
         assert new_sl_orders[0]["side"] == "BUY"
 
@@ -225,13 +214,11 @@ class TestShortFullExit:
         """Full exit: cancel all orders, market BUY to close short"""
         ex = make_exchange()
         pm = make_portfolio(ex)
-        initial_balance = ex.balance
         pm.on_signal(make_short_signal())
 
         # Ensure orders and position were created
         assert len(ex.pending_orders) > 0
         assert SYMBOL in pm.positions
-        balance_after_entry = ex.balance
 
         # Full exit — close_position returns None (by design), not the order
         pm.close_position(SYMBOL, reason="MANUAL")

@@ -10,16 +10,17 @@ Usage:
     engine = BacktestEngine(event_source=event_source, ...)
     engine.run()
 """
+
 from __future__ import annotations
 
+from collections.abc import Iterator
 from decimal import Decimal
-from typing import Iterator
 
 import pandas as pd
 
 from app.core.constants import WARMUP
-from app.trading.event_source import IEventSource
 from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
+from app.trading.event_source import IEventSource
 
 
 class BacktestEventSource(IEventSource):

@@ -41,7 +41,7 @@ export const BulkActionsBar: React.FC = () => {
         <span className="text-sm font-medium text-accent-main">
           {selectedTradeIds.size} trade{selectedTradeIds.size > 1 ? "s" : ""} selected
         </span>
-        
+
         {/* Add Tag Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

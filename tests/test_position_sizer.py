@@ -1,14 +1,14 @@
 """Tests for PositionSizer edge cases (M12 coverage gap)."""
-import pytest
+
 from decimal import Decimal
 from unittest.mock import MagicMock
+
+import pytest
 
 from app.trading.portfolio.position_sizer import PositionSizer
 
 
-def _make_config(
-    risk_pct=0.02, max_pct=0.99, leverage=10, min_sl=0.01, initial=10000
-):
+def _make_config(risk_pct=0.02, max_pct=0.99, leverage=10, min_sl=0.01, initial=10000):
     return {
         "risk": {
             "risk_per_trade_pct": risk_pct,

@@ -71,7 +71,7 @@ export interface WalkForwardState {
   setParamToOptimize: (param: string) => void;
   setParamRange: (min: number, max: number, step: number) => void;
   setOptimizeMetric: (metric: WalkForwardMetric) => void;
-  
+
   calculateWindows: () => void;
   runWalkForward: () => Promise<void>;
   cancelRun: () => void;
@@ -94,27 +94,27 @@ const generateDateRanges = (
 }> => {
   const ranges = [];
   const baseDate = new Date("2024-01-01");
-  
+
   let currentStartDay = 0;
-  
+
   while (currentStartDay + isWindowDays + oosWindowDays <= totalDays) {
     const isStart = new Date(baseDate);
     isStart.setDate(isStart.getDate() + currentStartDay);
-    
+
     const isEnd = new Date(isStart);
     isEnd.setDate(isEnd.getDate() + isWindowDays - 1);
-    
+
     const oosStart = new Date(isEnd);
     oosStart.setDate(oosStart.getDate() + 1);
-    
+
     const oosEnd = new Date(oosStart);
     oosEnd.setDate(oosEnd.getDate() + oosWindowDays - 1);
-    
+
     ranges.push({ isStart, isEnd, oosStart, oosEnd });
-    
+
     currentStartDay += stepSizeDays;
   }
-  
+
   return ranges;
 };
 
@@ -126,14 +126,14 @@ const calculateSummary = (windows: WalkForwardWindow[]): WalkForwardSummary => {
   const oosWinCount = positiveWindows.length;
   const totalWindows = windows.length;
   const oosWinRate = totalWindows > 0 ? (oosWinCount / totalWindows) * 100 : 0;
-  
+
   const totalOosReturn = windows.reduce((sum, w) => sum + w.oosReturnPct, 0);
   const avgOosReturn = totalWindows > 0 ? totalOosReturn / totalWindows : 0;
-  
+
   // Find best and worst windows
   let bestWindow = { index: 0, returnPct: windows[0]?.oosReturnPct ?? 0, param: windows[0]?.bestParam ?? 0 };
   let worstWindow = { index: 0, returnPct: windows[0]?.oosReturnPct ?? 0, param: windows[0]?.bestParam ?? 0 };
-  
+
   windows.forEach((w, idx) => {
     if (w.oosReturnPct > bestWindow.returnPct) {
       bestWindow = { index: idx + 1, returnPct: w.oosReturnPct, param: w.bestParam };
@@ -142,36 +142,36 @@ const calculateSummary = (windows: WalkForwardWindow[]): WalkForwardSummary => {
       worstWindow = { index: idx + 1, returnPct: w.oosReturnPct, param: w.bestParam };
     }
   });
-  
+
   // Find most common param
   const paramCounts = new Map<number, number>();
   windows.forEach(w => {
     const count = paramCounts.get(w.bestParam) || 0;
     paramCounts.set(w.bestParam, count + 1);
   });
-  
+
   let mostCommonParam = { value: 0, count: 0 };
   paramCounts.forEach((count, value) => {
     if (count > mostCommonParam.count) {
       mostCommonParam = { value, count };
     }
   });
-  
+
   // Calculate parameter stability
   const params = windows.map(w => w.bestParam);
   const avgParam = params.reduce((sum, p) => sum + p, 0) / params.length;
   const variance = params.reduce((sum, p) => sum + Math.pow(p - avgParam, 2), 0) / params.length;
   const stdDev = Math.sqrt(variance);
-  
+
   let paramStability: "high" | "medium" | "low" = "high";
   if (stdDev > 2) paramStability = "low";
   else if (stdDev > 1) paramStability = "medium";
-  
+
   // Determine verdict
   let verdict: "robust" | "marginal" | "overfit" = "overfit";
   if (oosWinRate >= 70) verdict = "robust";
   else if (oosWinRate >= 50) verdict = "marginal";
-  
+
   return {
     oosWinRate: Math.round(oosWinRate * 100) / 100,
     oosWinCount,
@@ -230,7 +230,7 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
     // Import available parameters
     const { AVAILABLE_PARAMETERS } = require("./gridSearchStore");
     const paramConfig = AVAILABLE_PARAMETERS.find((p: any) => p.value === param);
-    
+
     if (paramConfig) {
       set({
         paramToOptimize: param,
@@ -250,13 +250,13 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
   calculateWindows: () => {
     const { isWindowDays, oosWindowDays, stepSizeDays } = get();
     const totalDataDays = 365; // Full year
-    
+
     const ranges = generateDateRanges(totalDataDays, isWindowDays, oosWindowDays, stepSizeDays);
     const totalWindows = ranges.length;
-    
+
     // Each window: optimize params (1 min) + validate (10 sec)
     const estimatedMinutes = Math.ceil((totalWindows * 70) / 60);
-    
+
     set({
       totalWindows,
       estimatedTimeMinutes: estimatedMinutes,
@@ -328,12 +328,12 @@ export const useWalkForwardStore = create<WalkForwardState>((set, get) => ({
               error: w.error
             }));
           }
-          
+
           let summary = null;
           if (finalWindows.length > 0) {
             summary = calculateSummary(finalWindows);
           }
-          
+
           set({ windows: finalWindows, summary, isRunning: false, currentWindow: 0, progress: 100, _sseCleanup: null });
         },
         (errorMsg) => {

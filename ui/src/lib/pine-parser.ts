@@ -71,7 +71,7 @@ export const parsePineScript = (code: string): ParsedIndicator => {
     { regex: /(\w+)\s*=\s*input\.string\s*\(\s*["']([^"']+)["']\s*,\s*(?:title\s*=\s*)?["']([^"']+)["']/, type: "string" },
     { regex: /(\w+)\s*=\s*input\.source\s*\(\s*(\w+)\s*,\s*(?:title\s*=\s*)?["']([^"']+)["']/, type: "source" },
     // Generic v4 style: input(14, "Length") - assumes int/float loosely
-    { regex: /(\w+)\s*=\s*input\s*\(\s*([\d.]+)\s*,\s*(?:title\s*=\s*)?["']([^"']+)["']/, type: "float" }, 
+    { regex: /(\w+)\s*=\s*input\s*\(\s*([\d.]+)\s*,\s*(?:title\s*=\s*)?["']([^"']+)["']/, type: "float" },
   ];
 
   lines.forEach(line => {
@@ -85,7 +85,7 @@ export const parsePineScript = (code: string): ParsedIndicator => {
         if (p.type === "int") val = parseInt(match[2]);
         if (p.type === "float") val = parseFloat(match[2]);
         if (p.type === "bool") val = match[2] === "true";
-        
+
         // Avoid duplicates if variable reused or re-declared (simple check)
         if (!parameters.find(x => x.variableName === match[1])) {
            parameters.push({

@@ -4,6 +4,7 @@ History routes.
 GET    /api/history         — paginated list of runs
 DELETE /api/history/{id}    — delete a run (cascade)
 """
+
 from __future__ import annotations
 
 import math
@@ -54,10 +55,7 @@ def list_runs(
     if profitable_only:
         q = q.filter(RunResult.net_profit_pct > 0)
     if search:
-        q = q.filter(
-            (RunConfig.symbol.ilike(f"%{search}%"))
-            | (Strategy.name.ilike(f"%{search}%"))
-        )
+        q = q.filter((RunConfig.symbol.ilike(f"%{search}%")) | (Strategy.name.ilike(f"%{search}%")))
 
     total = q.count()
     pages = max(1, math.ceil(total / limit))

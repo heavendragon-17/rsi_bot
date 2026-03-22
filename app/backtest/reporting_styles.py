@@ -1,8 +1,8 @@
 """
 CSS styles and chart JS builders for backtest HTML reports.
 """
-import json
 
+import json
 
 REPORT_CSS = """
         * { margin: 0; padding: 0; box-sizing: border-box; }

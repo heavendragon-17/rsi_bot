@@ -14,16 +14,17 @@ Usage:
     engine = Engine(event_source=live_source, ...)
     engine.run()           # blocks until stop() is called
 """
+
 from __future__ import annotations
 
 import queue
 import threading
-from typing import Iterator, List
+from collections.abc import Iterator
 
 import structlog
 
-from app.trading.event_source import IEventSource
 from app.core.events import CandleCloseEvent, EngineEvent, EngineStopEvent
+from app.trading.event_source import IEventSource
 
 logger = structlog.get_logger()
 
@@ -40,9 +41,9 @@ class LiveEventSource(IEventSource):
 
     def __init__(
         self,
-        stream_manager,     # BinanceStreamManager
-        store,              # MarketDataStore
-        symbols: List[str],
+        stream_manager,  # BinanceStreamManager
+        store,  # MarketDataStore
+        symbols: list[str],
         queue_size: int = 500,
     ) -> None:
         self.stream_manager = stream_manager

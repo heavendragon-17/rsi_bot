@@ -23,30 +23,30 @@ const HeroCard: React.FC<{
         <div className="mt-1 text-xs text-text-secondary flex items-center gap-1.5">
             {subtitle}
         </div>
-        
+
         <div className={cn(
             "absolute -right-4 -bottom-4 w-16 h-16 rounded-full blur-2xl opacity-10 pointer-events-none",
-            colorClass?.includes("success") ? "bg-success" : 
-            colorClass?.includes("danger") ? "bg-danger" : 
+            colorClass?.includes("success") ? "bg-success" :
+            colorClass?.includes("danger") ? "bg-danger" :
             "bg-accent-main"
         )} />
     </div>
 );
 
 export const PortfolioHeroStats: React.FC = () => {
-  const { 
-      totalPnL, 
-      totalPnLPct, 
-      benchmarkPnLPct, 
-      portfolioSharpe, 
-      portfolioMaxDrawdownPct, 
+  const {
+      totalPnL,
+      totalPnLPct,
+      benchmarkPnLPct,
+      portfolioSharpe,
+      portfolioMaxDrawdownPct,
       portfolioMaxDrawdownValue,
       avgCorrelation,
       bestSymbol
   } = useBatchResultsStore();
 
   const isProfitPositive = totalPnL >= 0;
-  
+
   // Sharpe Logic
   let sharpeColor = "text-danger";
   if (portfolioSharpe >= 1.0) sharpeColor = "text-success";
@@ -62,8 +62,8 @@ export const PortfolioHeroStats: React.FC = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {/* Total PnL */}
-        <HeroCard 
-            title="Total PnL" 
+        <HeroCard
+            title="Total PnL"
             value={
                 <div className="flex items-baseline gap-2">
                     <span>{isProfitPositive ? "+" : "-"}$<CountUp end={Math.abs(totalPnL)} decimals={0} separator="," duration={1} /></span>
@@ -79,8 +79,8 @@ export const PortfolioHeroStats: React.FC = () => {
         />
 
         {/* Portfolio Sharpe */}
-        <HeroCard 
-            title="Portf. Sharpe" 
+        <HeroCard
+            title="Portf. Sharpe"
             value={<CountUp end={portfolioSharpe} decimals={2} duration={1} />}
             colorClass={sharpeColor}
             subtitle={<span>Risk-adj Return</span>}
@@ -88,8 +88,8 @@ export const PortfolioHeroStats: React.FC = () => {
         />
 
         {/* Max Drawdown */}
-        <HeroCard 
-            title="Max Drawdown" 
+        <HeroCard
+            title="Max Drawdown"
             value={
                 <span>
                     <CountUp end={portfolioMaxDrawdownPct} decimals={2} suffix="%" duration={1} />
@@ -101,17 +101,17 @@ export const PortfolioHeroStats: React.FC = () => {
         />
 
         {/* Avg Correlation */}
-        <HeroCard 
-            title="Avg Correlation" 
+        <HeroCard
+            title="Avg Correlation"
             value={<CountUp end={avgCorrelation} decimals={2} duration={1} />}
             colorClass={corrColor}
             subtitle={<span className={corrColor}>⚠ {corrLabel}</span>}
             icon={<Activity size={16} />}
         />
-        
+
         {/* Best Symbol */}
-        <HeroCard 
-            title="Best Symbol" 
+        <HeroCard
+            title="Best Symbol"
             value={<span className="text-xl">{bestSymbol.symbol}</span>}
             colorClass="text-success"
             subtitle={<span>+{bestSymbol.pnlPct.toFixed(1)}%</span>}

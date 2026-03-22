@@ -2,11 +2,11 @@ import React from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
 import { useResultsStore } from "../../stores/resultsStore";
 import { useBatchResultsStore } from "../../stores/batchResultsStore";
-import { 
-  LayoutDashboard, 
-  Settings, 
-  Play, 
-  History, 
+import {
+  LayoutDashboard,
+  Settings,
+  Play,
+  History,
   Menu,
   Flame,
   TrendingUp,
@@ -72,7 +72,7 @@ export const MobileNav: React.FC = () => {
   ];
 
   return (
-    <nav 
+    <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface/95 backdrop-blur-md border-t border-border-main"
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -96,12 +96,12 @@ export const MobileNav: React.FC = () => {
               {item.isActive && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-accent-main rounded-b-full" />
               )}
-              
+
               {/* Highlight for Run button */}
               {item.highlight && !item.isActive && (
                 <div className="absolute inset-0 bg-accent-main/5" />
               )}
-              
+
               <Icon size={20} className={cn(item.highlight && "fill-current")} />
               <span className="text-[10px] font-medium">{item.label}</span>
             </button>

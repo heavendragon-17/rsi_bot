@@ -10,24 +10,25 @@ that satisfy all 5 entry conditions (S1-S5), then run the full chain:
 Then simulate price movement via MockExchange.update_candle() to exercise
 SL/TP execution and verify PnL and trade closure.
 """
-import sys
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
-import pandas as pd
-import numpy as np
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
-from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
-from app.backtest.mock_exchange import MockExchange
-from app.trading.portfolio.manager import PortfolioManager
-from app.core.snapshots import ContextSnapshot, PositionSnapshot
-from app.core.actions import OpenPosition, DoNothing
-from app.core.context import SCANNING
+import pandas as pd
+import pytest
 
+from app.backtest.mock_exchange import MockExchange
+from app.core.actions import OpenPosition
+from app.core.context import SCANNING
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
+from app.trading.portfolio.manager import PortfolioManager
+from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
 
 SYMBOL = "BTC/USDT"
 NOW = datetime(2024, 1, 1, 12, 0, 0)
@@ -49,6 +50,7 @@ BASE_CONFIG = {
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _make_short_signal_df(
     n: int = 100,
@@ -76,14 +78,14 @@ def _make_short_signal_df(
     # Pivot B: highest price, even lower RSI (later, within last 30 candles)
     highs = [entry_close * 1.001] * n
     rsis = [rsi] * n
-    emas = [ema9] * n
-    wmas = [wma45] * n
+    [ema9] * n
+    [wma45] * n
 
     if inject_divergence:
         N = 5  # pivot strength
         # Pivot A: price high at n-22, RSI high = 70
         pa = n - 22
-        highs[pa] = entry_close * 1.06   # Higher high
+        highs[pa] = entry_close * 1.06  # Higher high
         rsis[pa] = 70.0
         for i in range(max(0, pa - N), pa):
             highs[i] = entry_close * 0.99
@@ -94,8 +96,8 @@ def _make_short_signal_df(
 
         # Pivot B: price even higher at n-9, RSI lower = 62 (bearish divergence)
         pb = n - 9
-        highs[pb] = entry_close * 1.08   # Even Higher High in price
-        rsis[pb] = 62.0                  # But Lower RSI High → divergence
+        highs[pb] = entry_close * 1.08  # Even Higher High in price
+        rsis[pb] = 62.0  # But Lower RSI High → divergence
         for i in range(max(0, pb - N), pb):
             if highs[i] < entry_close * 0.995:
                 highs[i] = entry_close * 0.995
@@ -109,17 +111,20 @@ def _make_short_signal_df(
     emas_col = [prev_ema] * n
     emas_col[-1] = ema9  # current candle: EMA9 crossed below WMA45
 
-    df = pd.DataFrame({
-        "open": [entry_close] * n,
-        "high": highs,
-        "low": [entry_close * 0.999] * n,
-        "close": closes,
-        "volume": [1000.0] * n,
-        "closed": [True] * n,
-        "rsi_14": rsis,
-        "rsi_ema9": emas_col,
-        "rsi_wma45": [wma45] * n,
-    }, index=ts)
+    df = pd.DataFrame(
+        {
+            "open": [entry_close] * n,
+            "high": highs,
+            "low": [entry_close * 0.999] * n,
+            "close": closes,
+            "volume": [1000.0] * n,
+            "closed": [True] * n,
+            "rsi_14": rsis,
+            "rsi_ema9": emas_col,
+            "rsi_wma45": [wma45] * n,
+        },
+        index=ts,
+    )
 
     return df
 
@@ -138,9 +143,10 @@ def _make_strategy():
     return RsiMomentumStrategy(BASE_CONFIG)
 
 
-def _open_position_to_signal(action: OpenPosition) -> "SignalEvent":
+def _open_position_to_signal(action: OpenPosition) -> "SignalEvent":  # noqa: F821
     """Mirror what Engine._action_to_signal does."""
     from app.core.events import SignalEvent
+
     tp = action.tp_prices or []
     return SignalEvent(
         symbol=action.symbol,
@@ -161,6 +167,7 @@ def _open_position_to_signal(action: OpenPosition) -> "SignalEvent":
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestShortIntegrationEntry:
     def test_short_signal_fires_on_all_conditions_met(self):
@@ -200,9 +207,9 @@ class TestShortIntegrationEntry:
         action = result.actions[0]
         assert isinstance(action, OpenPosition)
         # For a short: SL must be above entry price (highest high)
-        assert action.sl_price > action.entry_price, (
-            f"Short SL {action.sl_price} should be > entry {action.entry_price}"
-        )
+        assert (
+            action.sl_price > action.entry_price
+        ), f"Short SL {action.sl_price} should be > entry {action.entry_price}"
         # soft_sl also above entry
         assert action.soft_sl_price > action.entry_price
 
@@ -299,15 +306,13 @@ class TestShortIntegrationPortfolioExchange:
         signal = _open_position_to_signal(action)
         pm.on_signal(signal)
 
-        initial_balance = ex.balance
-
         # Simulate a candle that hits TP1 (low <= tp1_price)
         t1 = NOW + timedelta(hours=1)
         executed = ex.update_candle(
             symbol=SYMBOL,
             open_=float(entry_price * Decimal("0.998")),
             high=float(entry_price * Decimal("0.999")),
-            low=float(tp1 * Decimal("0.998")),   # low below TP1
+            low=float(tp1 * Decimal("0.998")),  # low below TP1
             close=float(tp1),
             timestamp=t1,
         )
@@ -348,7 +353,7 @@ class TestShortIntegrationPortfolioExchange:
         executed = ex.update_candle(
             symbol=SYMBOL,
             open_=float(entry_price * Decimal("1.001")),
-            high=float(sl * Decimal("1.001")),   # high above SL
+            high=float(sl * Decimal("1.001")),  # high above SL
             low=float(entry_price),
             close=float(sl),
             timestamp=t1,
@@ -385,7 +390,7 @@ class TestShortIntegrationPortfolioExchange:
 
         # Close via SL
         sl = action.sl_price
-        executed = ex.update_candle(
+        ex.update_candle(
             symbol=SYMBOL,
             open_=float(entry_price),
             high=float(sl * Decimal("1.001")),
@@ -410,32 +415,34 @@ class TestEngineRoundTripBuilder:
         from app.backtest.engine_metrics import build_round_trips
 
         # Simulate trade history for a short trade
-        trades = pd.DataFrame([
-            {
-                "side": "SELL",  # short entry
-                "symbol": SYMBOL,
-                "time": "2024-01-01 10:00",
-                "price": 50000.0,
-                "amount": 0.1,
-                "pnl": None,
-                "margin": 5000.0,
-                "notional": 5000.0,
-                "leverage": 1.0,
-                "info": {"exit_reason": ""},
-            },
-            {
-                "side": "BUY",  # short exit (TP)
-                "symbol": SYMBOL,
-                "time": "2024-01-01 14:00",
-                "price": 48000.0,  # lower price = profit for short
-                "amount": 0.1,
-                "pnl": 200.0,
-                "margin": 5000.0,
-                "notional": 4800.0,
-                "leverage": 1.0,
-                "info": {"exit_reason": "TP1"},
-            },
-        ])
+        trades = pd.DataFrame(
+            [
+                {
+                    "side": "SELL",  # short entry
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 10:00",
+                    "price": 50000.0,
+                    "amount": 0.1,
+                    "pnl": None,
+                    "margin": 5000.0,
+                    "notional": 5000.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": ""},
+                },
+                {
+                    "side": "BUY",  # short exit (TP)
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 14:00",
+                    "price": 48000.0,  # lower price = profit for short
+                    "amount": 0.1,
+                    "pnl": 200.0,
+                    "margin": 5000.0,
+                    "notional": 4800.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": "TP1"},
+                },
+            ]
+        )
 
         round_trips = build_round_trips(trades)
 
@@ -449,32 +456,34 @@ class TestEngineRoundTripBuilder:
         """BUY entry + SELL exits produces a round trip with side='LONG'."""
         from app.backtest.engine_metrics import build_round_trips
 
-        trades = pd.DataFrame([
-            {
-                "side": "BUY",
-                "symbol": SYMBOL,
-                "time": "2024-01-01 10:00",
-                "price": 50000.0,
-                "amount": 0.1,
-                "pnl": None,
-                "margin": 5000.0,
-                "notional": 5000.0,
-                "leverage": 1.0,
-                "info": {"exit_reason": ""},
-            },
-            {
-                "side": "SELL",
-                "symbol": SYMBOL,
-                "time": "2024-01-01 14:00",
-                "price": 52000.0,
-                "amount": 0.1,
-                "pnl": 200.0,
-                "margin": 5000.0,
-                "notional": 5200.0,
-                "leverage": 1.0,
-                "info": {"exit_reason": "TP1"},
-            },
-        ])
+        trades = pd.DataFrame(
+            [
+                {
+                    "side": "BUY",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 10:00",
+                    "price": 50000.0,
+                    "amount": 0.1,
+                    "pnl": None,
+                    "margin": 5000.0,
+                    "notional": 5000.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": ""},
+                },
+                {
+                    "side": "SELL",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 14:00",
+                    "price": 52000.0,
+                    "amount": 0.1,
+                    "pnl": 200.0,
+                    "margin": 5000.0,
+                    "notional": 5200.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": "TP1"},
+                },
+            ]
+        )
 
         round_trips = build_round_trips(trades)
 
@@ -486,14 +495,60 @@ class TestEngineRoundTripBuilder:
         """Mixed LONG and SHORT trades produce correct round trips with correct sides."""
         from app.backtest.engine_metrics import build_round_trips
 
-        trades = pd.DataFrame([
-            # Short trade
-            {"side": "SELL", "symbol": SYMBOL, "time": "2024-01-01 08:00", "price": 50000.0, "amount": 0.1, "pnl": None, "margin": 5000.0, "notional": 5000.0, "leverage": 1.0, "info": {"exit_reason": ""}},
-            {"side": "BUY",  "symbol": SYMBOL, "time": "2024-01-01 10:00", "price": 49000.0, "amount": 0.1, "pnl": 100.0, "margin": 0.0, "notional": 4900.0, "leverage": 1.0, "info": {"exit_reason": "TP1"}},
-            # Long trade
-            {"side": "BUY",  "symbol": SYMBOL, "time": "2024-01-01 12:00", "price": 49500.0, "amount": 0.1, "pnl": None, "margin": 4950.0, "notional": 4950.0, "leverage": 1.0, "info": {"exit_reason": ""}},
-            {"side": "SELL", "symbol": SYMBOL, "time": "2024-01-01 14:00", "price": 51000.0, "amount": 0.1, "pnl": 150.0, "margin": 0.0, "notional": 5100.0, "leverage": 1.0, "info": {"exit_reason": "TP1"}},
-        ])
+        trades = pd.DataFrame(
+            [
+                # Short trade
+                {
+                    "side": "SELL",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 08:00",
+                    "price": 50000.0,
+                    "amount": 0.1,
+                    "pnl": None,
+                    "margin": 5000.0,
+                    "notional": 5000.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": ""},
+                },
+                {
+                    "side": "BUY",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 10:00",
+                    "price": 49000.0,
+                    "amount": 0.1,
+                    "pnl": 100.0,
+                    "margin": 0.0,
+                    "notional": 4900.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": "TP1"},
+                },
+                # Long trade
+                {
+                    "side": "BUY",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 12:00",
+                    "price": 49500.0,
+                    "amount": 0.1,
+                    "pnl": None,
+                    "margin": 4950.0,
+                    "notional": 4950.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": ""},
+                },
+                {
+                    "side": "SELL",
+                    "symbol": SYMBOL,
+                    "time": "2024-01-01 14:00",
+                    "price": 51000.0,
+                    "amount": 0.1,
+                    "pnl": 150.0,
+                    "margin": 0.0,
+                    "notional": 5100.0,
+                    "leverage": 1.0,
+                    "info": {"exit_reason": "TP1"},
+                },
+            ]
+        )
 
         round_trips = build_round_trips(trades)
 

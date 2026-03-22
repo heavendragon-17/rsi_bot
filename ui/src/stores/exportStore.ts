@@ -52,18 +52,18 @@ export interface ExportState {
   setExporting: (isExporting: boolean, format?: ExportFormat) => void;
   setExportProgress: (progress: number) => void;
   updateExportConfig: (config: Partial<ExportConfig>) => void;
-  
+
   // Annotation actions
   addAnnotation: (tradeId: number, note: string, tags: TradeTag[]) => void;
   updateAnnotation: (tradeId: number, note: string, tags: TradeTag[]) => void;
   deleteAnnotation: (tradeId: number) => void;
   setEditingTrade: (tradeId: number | null) => void;
-  
+
   // Filter actions
   toggleTagFilter: (tag: TradeTag) => void;
   clearTagFilters: () => void;
   setShowOnlyWithNotes: (show: boolean) => void;
-  
+
   // Bulk actions
   toggleTradeSelection: (tradeId: number) => void;
   selectAllTrades: (tradeIds: number[]) => void;

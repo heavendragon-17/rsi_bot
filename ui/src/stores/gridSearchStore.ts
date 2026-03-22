@@ -74,7 +74,7 @@ export interface GridSearchState {
   setSymbol: (symbol: string) => void;
   setViewMode: (mode: "2d" | "3d") => void;
   setHoveredCell: (cell: { x: number; y: number } | null) => void;
-  
+
   calculateCombinations: () => void;
   runGridSearch: () => Promise<void>;
   cancelSearch: () => void;
@@ -171,7 +171,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
   calculateCombinations: () => {
     const { xAxisMin, xAxisMax, xAxisStep, yAxisMin, yAxisMax, yAxisStep } = get();
-    
+
     const xSteps = Math.floor((xAxisMax - xAxisMin) / xAxisStep) + 1;
     const ySteps = Math.floor((yAxisMax - yAxisMin) / yAxisStep) + 1;
     const total = xSteps * ySteps;
@@ -186,8 +186,8 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
   },
 
   runGridSearch: async () => {
-    const { 
-      xAxisParam, xAxisMin, xAxisMax, xAxisStep, 
+    const {
+      xAxisParam, xAxisMin, xAxisMax, xAxisStep,
       yAxisParam, yAxisMin, yAxisMax, yAxisStep,
       symbol, metric
     } = get();
@@ -237,17 +237,17 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
           set({ progress: pct });
         },
         (data) => {
-          const results2D: GridSearchResult[][] = Array.from({ length: yValues.length }, () => 
+          const results2D: GridSearchResult[][] = Array.from({ length: yValues.length }, () =>
             Array(xValues.length).fill(null)
           );
-          
+
           let finalBest: BestResult | null = null;
 
           if (data && Array.isArray(data.results)) {
             data.results.forEach((res: any) => {
               const xIdx = xValues.findIndex(v => Math.abs(v - res.config[xAxisParam]) < 0.0001);
               const yIdx = yValues.findIndex(v => Math.abs(v - res.config[yAxisParam]) < 0.0001);
-              
+
               if (xIdx !== -1 && yIdx !== -1) {
                 const node: GridSearchResult = {
                   xValue: res.config[xAxisParam],
@@ -286,7 +286,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
               }
             });
           }
-          
+
           clearInterval(timerInterval);
           set({ results: results2D, bestResult: finalBest, isRunning: false, currentCombination: null, progress: 100, _sseCleanup: null });
         },
@@ -319,7 +319,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
     // Import the backtest store and apply settings
     const { useBacktestStore } = require("./backtestStore");
     const setParam = useBacktestStore.getState().setParam;
-    
+
     setParam(xAxisParam, bestResult.xValue);
     setParam(yAxisParam, bestResult.yValue);
 
@@ -335,7 +335,7 @@ export const useGridSearchStore = create<GridSearchState>((set, get) => ({
 
     // Generate CSV
     let csv = `${xAxisParam},${yAxisParam},Net PnL,Net PnL %,Sharpe,Profit Factor,Win Rate %,Max DD %,Trades\n`;
-    
+
     results.forEach((row, yIdx) => {
       row.forEach((result, xIdx) => {
         csv += `${result.xValue},${result.yValue},${result.netPnL},${result.netPnLPct},${result.sharpe},${result.profitFactor},${result.winRate},${result.maxDrawdownPct},${result.tradeCount}\n`;

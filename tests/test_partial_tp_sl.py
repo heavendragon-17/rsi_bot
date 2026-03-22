@@ -1,20 +1,21 @@
-
-import unittest
-import sys
 import os
-import pandas as pd
-from decimal import Decimal
+import sys
+import unittest
 from datetime import datetime
+from decimal import Decimal
+
+import pandas as pd
 
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.backtest.mock_exchange import MockExchange
-from app.trading.portfolio.manager import PortfolioManager, Position
+from app.core.actions import MoveSL
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
-from app.core.actions import PartialClose, MoveSL
 from app.data.indicators import Indicators
+from app.trading.portfolio.manager import PortfolioManager, Position
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
+
 
 class TestPartialTPSL(unittest.TestCase):
     def setUp(self):
@@ -23,16 +24,12 @@ class TestPartialTPSL(unittest.TestCase):
                 "nr_tp1_rr": 1.0,
                 "nr_lock_profit_rr": 0.2,
                 "nr_move_sl_rr": 0.5,
-                "use_active_trades": True
+                "use_active_trades": True,
             },
-            "risk": {
-                "tp1_close_pct": 0.5,
-                "leverage": 1,
-                "risk_per_trade_pct": 0.02
-            },
+            "risk": {"tp1_close_pct": 0.5, "leverage": 1, "risk_per_trade_pct": 0.02},
             "bot": {"timeframe": "1h"},
             "backtest": {"initial_balance": 1000},
-            "symbols": ["BTC/USDT"]
+            "symbols": ["BTC/USDT"],
         }
         self.exchange = MockExchange()
         self.portfolio = PortfolioManager(self.exchange, self.config)
@@ -84,23 +81,23 @@ class TestPartialTPSL(unittest.TestCase):
             symbol=symbol,
             amount=initial_amount,
             entry_price=entry_price,
-            side='BUY',
+            side="BUY",
             timestamp=datetime.now(),
             sl_price=sl_price,
-            sl_order_id='mock_sl_id',
+            sl_order_id="mock_sl_id",
         )
 
         # Mock Exchange State
         self.exchange.positions[symbol] = initial_amount
         self.exchange.orders = {
-            'mock_sl_id': {
-                'id': 'mock_sl_id',
-                'symbol': symbol,
-                'amount': initial_amount,
-                'price': float(sl_price),
-                'side': 'SELL',
-                'type': 'limit',
-                'status': 'open'
+            "mock_sl_id": {
+                "id": "mock_sl_id",
+                "symbol": symbol,
+                "amount": initial_amount,
+                "price": float(sl_price),
+                "side": "SELL",
+                "type": "limit",
+                "status": "open",
             }
         }
 
@@ -112,28 +109,51 @@ class TestPartialTPSL(unittest.TestCase):
         data = []
         # Add 219 dummy rows
         for i in range(219):
-            data.append({
-                "date": timestamps[i],
-                "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                "rsi_14": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
-                "ema21": 100.0, "ema200": 90.0, "closed": True
-            })
+            data.append(
+                {
+                    "date": timestamps[i],
+                    "open": 100.0,
+                    "high": 100.0,
+                    "low": 100.0,
+                    "close": 100.0,
+                    "rsi_14": 50.0,
+                    "rsi_ema9": 50.0,
+                    "rsi_wma45": 50.0,
+                    "ema21": 100.0,
+                    "ema200": 90.0,
+                    "closed": True,
+                }
+            )
 
         # Add the trigger row (Index -1)
-        data.append({
-            "date": timestamps[-1],
-            "open": 105.0, "high": 111.0, "low": 105.0, "close": 108.0,
-            "rsi_14": 60.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
-            "ema21": 100.0, "ema200": 90.0, "closed": True
-        })
+        data.append(
+            {
+                "date": timestamps[-1],
+                "open": 105.0,
+                "high": 111.0,
+                "low": 105.0,
+                "close": 108.0,
+                "rsi_14": 60.0,
+                "rsi_ema9": 60.0,
+                "rsi_wma45": 50.0,
+                "ema21": 100.0,
+                "ema200": 90.0,
+                "closed": True,
+            }
+        )
 
         df_mock = pd.DataFrame(data, index=timestamps)
 
         # Mock indicators (also patch Indicators.last to avoid global state pollution
         # from test_dynamic_tp.py which patches it with high=105.0)
         last_vals = {
-            "close": 108.0, "high": 111.0, "low": 105.0, "open": 105.0,
-            "ema21": 100.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
+            "close": 108.0,
+            "high": 111.0,
+            "low": 105.0,
+            "open": 105.0,
+            "ema21": 100.0,
+            "rsi_ema9": 60.0,
+            "rsi_wma45": 50.0,
         }
         self.strategy.indicators.compute = lambda df, **ks: df_mock
         Indicators.last = lambda df: last_vals
@@ -165,15 +185,16 @@ class TestPartialTPSL(unittest.TestCase):
 
         # Mock create_order to track calls
         executed_orders = []
+
         def mock_create_order(symbol, order_type=None, side=None, amount=None, price=None, params=None):
             order = {
-                'id': 'new_ord_id',
-                'symbol': symbol,
-                'order_type': order_type,
-                'side': side,
-                'amount': amount,
-                'price': price,
-                'params': params or {},
+                "id": "new_ord_id",
+                "symbol": symbol,
+                "order_type": order_type,
+                "side": side,
+                "amount": amount,
+                "price": price,
+                "params": params or {},
             }
             executed_orders.append(order)
             return order
@@ -200,20 +221,21 @@ class TestPartialTPSL(unittest.TestCase):
         # Check Executed Orders
         print("\nExecuted Orders:", executed_orders)
 
-        tp_orders = [o for o in executed_orders if o.get('order_type') == 'market']
+        tp_orders = [o for o in executed_orders if o.get("order_type") == "market"]
         self.assertEqual(len(tp_orders), 1)
-        self.assertEqual(tp_orders[0]['amount'], Decimal("1.0"))
+        self.assertEqual(tp_orders[0]["amount"], Decimal("1.0"))
         # TP exit should have reduceOnly
-        self.assertTrue(tp_orders[0]['params'].get('reduceOnly'))
+        self.assertTrue(tp_orders[0]["params"].get("reduceOnly"))
 
-        sl_orders = [o for o in executed_orders if o.get('order_type') == 'stop_market']
+        sl_orders = [o for o in executed_orders if o.get("order_type") == "stop_market"]
         self.assertTrue(len(sl_orders) >= 1)
         last_sl_order = sl_orders[-1]
 
         # SL price is in params.stopPrice for stop_market orders
-        self.assertAlmostEqual(float(last_sl_order['params']['stopPrice']), float(expected_sl), places=2)
-        self.assertEqual(last_sl_order['amount'], Decimal("1.0"))
-        self.assertTrue(last_sl_order['params'].get('reduceOnly'))
+        self.assertAlmostEqual(float(last_sl_order["params"]["stopPrice"]), float(expected_sl), places=2)
+        self.assertEqual(last_sl_order["amount"], Decimal("1.0"))
+        self.assertTrue(last_sl_order["params"].get("reduceOnly"))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

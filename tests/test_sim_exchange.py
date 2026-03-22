@@ -5,6 +5,7 @@ Unit tests for SimExchange order simulation engine.
 Tests are isolated — each creates a fresh SimExchange with a mocked notifier
 so no Telegram or network calls are made.
 """
+
 from __future__ import annotations
 
 import time
@@ -17,10 +18,10 @@ from app.core.exceptions import OrderRejectedError
 from app.trading.exchange.sim.sim_exchange import MAKER_FEE, TAKER_FEE, SimExchange
 from app.trading.exchange.sim.sim_state import SimTradeState
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _config(balance: float = 10_000) -> dict:
     return {
@@ -55,6 +56,7 @@ def _make_exchange(balance: float = 10_000) -> SimExchange:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _open_position(ex: SimExchange, symbol="BTC/USDT", amount="0.01", entry="95000"):
     """Place a market BUY and immediately fill it via on_kline_open."""
     ex.create_order(symbol, "market", "BUY", Decimal(amount))
@@ -64,6 +66,7 @@ def _open_position(ex: SimExchange, symbol="BTC/USDT", amount="0.01", entry="950
 # ---------------------------------------------------------------------------
 # 1. Market entry fills at next candle open (pending_open lifecycle)
 # ---------------------------------------------------------------------------
+
 
 class TestMarketEntryFill:
     def test_entry_queued_as_pending_open(self):
@@ -110,6 +113,7 @@ class TestMarketEntryFill:
 # 2. Soft SL — market reduceOnly fills immediately at latest tick price
 # ---------------------------------------------------------------------------
 
+
 class TestSoftSL:
     def test_soft_sl_fills_immediately(self):
         ex = _make_exchange()
@@ -129,8 +133,9 @@ class TestSoftSL:
     def test_reduce_only_skipped_if_no_position(self):
         ex = _make_exchange()
         ex._last_prices["BTC/USDT"] = Decimal("95000")
-        result = ex.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
-                                 params={"stopPrice": "94000", "reduceOnly": True})
+        result = ex.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"), params={"stopPrice": "94000", "reduceOnly": True}
+        )
         assert result is None
         assert len(ex.state.pending_orders) == 0
 
@@ -139,12 +144,17 @@ class TestSoftSL:
 # 3. Limit TP fills on tick
 # ---------------------------------------------------------------------------
 
+
 class TestLimitTPFill:
     def test_tp_fills_when_tick_at_or_above_price(self):
         ex = _make_exchange()
         _open_position(ex, entry="95000", amount="0.03")
         tp_id = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("97000"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("97000"),
             params={"reduceOnly": True},
         )["id"]
         assert tp_id in ex.state.pending_orders
@@ -155,7 +165,11 @@ class TestLimitTPFill:
         ex = _make_exchange()
         _open_position(ex, entry="95000", amount="0.03")
         tp_id = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("97000"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("97000"),
             params={"reduceOnly": True},
         )["id"]
         ex.on_tick("BTC/USDT", Decimal("96999"), time.time())
@@ -166,7 +180,11 @@ class TestLimitTPFill:
         _open_position(ex, entry="100000", amount="0.01")
         balance_after_entry = ex.state.balance
         ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("102000"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("102000"),
             params={"reduceOnly": True},
         )
         ex.on_tick("BTC/USDT", Decimal("102000"), time.time())
@@ -181,7 +199,11 @@ class TestLimitTPFill:
         ex = _make_exchange()
         _open_position(ex, entry="95000", amount="0.03")
         ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("97000"),
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("97000"),
             params={"reduceOnly": True},
         )
         ex.on_tick("BTC/USDT", Decimal("97000"), time.time())
@@ -194,12 +216,16 @@ class TestLimitTPFill:
 # 4. Stop-market SL fills on tick
 # ---------------------------------------------------------------------------
 
+
 class TestStopMarketSLFill:
     def test_sl_fills_when_tick_at_or_below_stop(self):
         ex = _make_exchange()
         _open_position(ex, entry="95000")
         sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
         ex.on_tick("BTC/USDT", Decimal("94000"), time.time())
@@ -210,7 +236,10 @@ class TestStopMarketSLFill:
         ex = _make_exchange()
         _open_position(ex, entry="95000")
         sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
         ex.on_tick("BTC/USDT", Decimal("94001"), time.time())
@@ -222,7 +251,10 @@ class TestStopMarketSLFill:
         _open_position(ex, entry="100000", amount="0.01")
         balance_after_entry = ex.state.balance
         ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )
         # Tick gaps below stop price
@@ -237,7 +269,10 @@ class TestStopMarketSLFill:
         _open_position(ex, entry="100000", amount="0.01")
         balance_after_entry = ex.state.balance
         ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "98000", "reduceOnly": True},
         )
         ex.on_tick("BTC/USDT", Decimal("97000"), time.time())
@@ -251,12 +286,16 @@ class TestStopMarketSLFill:
 # 5. Cancel / cancel_all
 # ---------------------------------------------------------------------------
 
+
 class TestCancelOrders:
     def test_cancel_single_order(self):
         ex = _make_exchange()
         _open_position(ex)
         result = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )
         order_id = result["id"]
@@ -270,10 +309,12 @@ class TestCancelOrders:
     def test_cancel_all_orders_for_symbol(self):
         ex = _make_exchange()
         _open_position(ex, amount="0.03")
-        ex.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
-                        params={"stopPrice": "94000", "reduceOnly": True})
-        ex.create_order("BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("97000"),
-                        params={"reduceOnly": True})
+        ex.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"), params={"stopPrice": "94000", "reduceOnly": True}
+        )
+        ex.create_order(
+            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("97000"), params={"reduceOnly": True}
+        )
         count = ex.cancel_all_orders("BTC/USDT")
         assert count == 2
         assert len(ex.state.pending_orders) == 0
@@ -283,40 +324,43 @@ class TestCancelOrders:
 # 6. R-multiple calculation
 # ---------------------------------------------------------------------------
 
+
 class TestRMultiple:
     def test_r_multiple_on_full_close(self):
         ex = _make_exchange(10_000)
         # Open at 100000, SL at 99000 → initial_risk = (100000-99000)*0.01 = 10 USDT
         _open_position(ex, entry="100000", amount="0.01")
-        ex.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
-                        params={"stopPrice": "99000", "reduceOnly": True})
+        ex.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"), params={"stopPrice": "99000", "reduceOnly": True}
+        )
         # Close at 102000 → pnl_gross = 20, fee(maker) ≈ 0.204 → r ≈ 1.98R
-        ex.create_order("BTC/USDT", "limit", "SELL", Decimal("0.01"),
-                        price=Decimal("102000"), params={"reduceOnly": True})
+        ex.create_order(
+            "BTC/USDT", "limit", "SELL", Decimal("0.01"), price=Decimal("102000"), params={"reduceOnly": True}
+        )
         ex.on_tick("BTC/USDT", Decimal("102000"), time.time())
         trade = ex.state.closed_trades[-1]
         # Verify: r_multiple == pnl_net / initial_risk (both computed by exchange)
-        assert trade.r_multiple > Decimal("1"), \
-            f"Expected r > 1 for profitable trade, got {trade.r_multiple}"
+        assert trade.r_multiple > Decimal("1"), f"Expected r > 1 for profitable trade, got {trade.r_multiple}"
         assert trade.pnl_net > Decimal("0")
 
     def test_negative_r_on_sl(self):
         ex = _make_exchange(10_000)
         _open_position(ex, entry="100000", amount="0.01")
-        ex.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
-                        params={"stopPrice": "99000", "reduceOnly": True})
+        ex.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"), params={"stopPrice": "99000", "reduceOnly": True}
+        )
         ex.on_tick("BTC/USDT", Decimal("99000"), time.time())
         trade = ex.state.closed_trades[-1]
         assert trade.pnl_net < Decimal("0")
         # r_multiple = pnl_net / initial_risk (computed inside _execute_fill)
         # If initial_risk > 0 it should be negative; if 0 it stays 0
-        assert trade.r_multiple <= Decimal("0"), \
-            f"Expected r_multiple ≤ 0 on SL hit, got {trade.r_multiple}"
+        assert trade.r_multiple <= Decimal("0"), f"Expected r_multiple ≤ 0 on SL hit, got {trade.r_multiple}"
 
 
 # ---------------------------------------------------------------------------
 # 7. Pause / toggle
 # ---------------------------------------------------------------------------
+
 
 class TestPauseBehavior:
     def test_is_paused_returns_state(self):
@@ -330,7 +374,10 @@ class TestPauseBehavior:
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.01")
         sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
         ex.state.is_paused = True
@@ -343,6 +390,7 @@ class TestPauseBehavior:
 # 8. Reset
 # ---------------------------------------------------------------------------
 
+
 class TestReset:
     def test_reset_restores_balance(self):
         ex = _make_exchange(10_000)
@@ -354,8 +402,9 @@ class TestReset:
     def test_reset_clears_positions_and_orders(self):
         ex = _make_exchange()
         _open_position(ex)
-        ex.create_order("BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
-                        params={"stopPrice": "94000", "reduceOnly": True})
+        ex.create_order(
+            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"), params={"stopPrice": "94000", "reduceOnly": True}
+        )
         ex.state.reset()
         assert len(ex.state.positions) == 0
         assert len(ex.state.pending_orders) == 0
@@ -365,6 +414,7 @@ class TestReset:
 # ---------------------------------------------------------------------------
 # 9. fetch_balance / fetch_positions
 # ---------------------------------------------------------------------------
+
 
 class TestQueryMethods:
     def test_fetch_balance_returns_ccxt_format(self):

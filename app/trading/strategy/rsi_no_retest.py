@@ -18,23 +18,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, Any
+from typing import Any
 
 import pandas as pd
 import structlog
 
-from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.utils.config_helpers import merge_config
-from app.trading.strategy.rsi_no_retest_entry import check_entry
-from app.trading.strategy.rsi_no_retest_exit import manage_exit
+from app.core.actions import DoNothing
+from app.core.analysis_result import AnalysisResult
+from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL, WARMUP
+from app.core.context import SCANNING
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
+from app.core.utils import to_decimal_or_none
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
-from app.core.context import SCANNING
-from app.core.snapshots import PositionSnapshot, ContextSnapshot
-from app.core.analysis_result import AnalysisResult
-from app.core.actions import DoNothing
-from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL, WARMUP
-from app.core.utils import to_decimal_or_none
+from app.trading.strategy.base import BaseStrategy
+from app.trading.strategy.rsi_no_retest_entry import check_entry
+from app.trading.strategy.rsi_no_retest_exit import manage_exit
+from app.trading.strategy.utils.config_helpers import merge_config
 
 logger = structlog.get_logger()
 
@@ -102,10 +102,9 @@ class RsiNoRetestStrategy(BaseStrategy):
         super().__init__(config)
 
         from app.core.config import AppConfig
+
         strategy_params = (
-            config.strategy_params
-            if isinstance(config, AppConfig)
-            else config.get("strategy_params", {})
+            config.strategy_params if isinstance(config, AppConfig) else config.get("strategy_params", {})
         ) or {}
         cfg = {**self.DEFAULT_CONFIG, **strategy_params}
         self.strategy_cfg = merge_config(RsiNoRetestConfig, cfg)
@@ -124,7 +123,11 @@ class RsiNoRetestStrategy(BaseStrategy):
             include_price_emas=True,
         )
 
-        risk_cfg = config.get("risk", {}) if not hasattr(config, "get") or isinstance(config, dict) else getattr(config, "risk", {})
+        risk_cfg = (
+            config.get("risk", {})
+            if not hasattr(config, "get") or isinstance(config, dict)
+            else getattr(config, "risk", {})
+        )
         if not isinstance(risk_cfg, dict):
             risk_cfg = risk_cfg.dict() if hasattr(risk_cfg, "dict") else {}
 
@@ -169,6 +172,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         if not self._debug_rows:
             return
         import os
+
         os.makedirs(os.path.dirname(path), exist_ok=True)
         pd.DataFrame(self._debug_rows).to_csv(path, index=False)
 
@@ -177,8 +181,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         self,
         symbol: str,
         df,
-        position: Optional[PositionSnapshot] = None,
-        context: Optional[ContextSnapshot] = None,
+        position: PositionSnapshot | None = None,
+        context: ContextSnapshot | None = None,
     ) -> AnalysisResult:
         if context is None:
             context = ContextSnapshot(state=SCANNING)
