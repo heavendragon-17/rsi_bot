@@ -369,6 +369,33 @@ def check_no_stdlib_logging() -> list[str]:
     return violations
 
 
+def check_interface_prefix() -> list[str]:
+    """ABC subclasses in app/core/ must start with 'I' prefix."""
+    violations = []
+    core_dir = APP_DIR / "core"
+    if not core_dir.exists():
+        return violations
+    for py_file in core_dir.glob("*.py"):
+        try:
+            tree = ast.parse(py_file.read_text(), filename=str(py_file))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            inherits_abc = any(
+                (isinstance(b, ast.Name) and b.id == "ABC")
+                or (isinstance(b, ast.Attribute) and b.attr == "ABC")
+                for b in node.bases
+            )
+            if inherits_abc and not node.name.startswith("I"):
+                rel = py_file.relative_to(REPO_ROOT)
+                violations.append(
+                    f"  {rel}: class {node.name} inherits ABC but doesn't start with 'I'"
+                )
+    return violations
+
+
 def main():
     all_violations = []
     checks = [
@@ -384,6 +411,7 @@ def main():
         ("Checking for bare except...", "Bare except clauses:", check_no_bare_except),
         ("Checking for unittest.TestCase...", "unittest.TestCase usage:", check_no_test_case),
         ("Checking for stdlib logging...", "stdlib logging in app/:", check_no_stdlib_logging),
+        ("Checking I-prefix for interfaces...", "ABC classes missing I-prefix:", check_interface_prefix),
     ]
 
     for msg, header, check_fn in checks:
