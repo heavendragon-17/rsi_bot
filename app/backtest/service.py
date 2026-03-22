@@ -13,13 +13,15 @@ import os
 import zlib
 from collections.abc import AsyncIterator
 from datetime import date, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from sqlalchemy.orm import Session
 
-from app.api import executor as exc_mod
-from app.api.schemas import BacktestMode, BacktestRequest, RunDetail, TimeseriesResponse
+if TYPE_CHECKING:
+    from app.api import executor as exc_mod
+    from app.api.schemas import BacktestMode, BacktestRequest, RunDetail, TimeseriesResponse
+
 from app.backtest.config_builder import build_backtest_config
 from app.backtest.persistence import mark_failed, persist_results
 from app.repository.backtest.models import (
@@ -36,6 +38,29 @@ logger = structlog.get_logger()
 
 DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
 
+# Lazy-loaded to avoid backtest → api import boundary violation at module level.
+# Tests can still patch "app.backtest.service.exc_mod" because __getattr__ makes
+# it appear as a real module attribute on first access.
+def _load_exc_mod():
+    """Lazy import of app.api.executor — called on first access of exc_mod."""
+    import sys
+
+    from app.api import executor
+
+    # Store in module globals so subsequent lookups (and mock.patch) work.
+    current_module = sys.modules[__name__]
+    current_module.exc_mod = executor
+    return executor
+
+
+def __getattr__(name: str):
+    if name == "exc_mod":
+        return _load_exc_mod()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+
+
 
 def _csv_path(symbol: str, timeframe: str) -> str:
     safe = symbol.replace("/", "")
@@ -51,6 +76,8 @@ class BacktestService:
 
     async def start_run(self, req: BacktestRequest, db: Session) -> int:
         """Validate params, create DB run, submit to executor. Returns run_id."""
+        from app.api.schemas import BacktestMode
+
         mode = self._resolve_mode(req)
         is_portfolio = mode == BacktestMode.PORTFOLIO
 
@@ -123,6 +150,8 @@ class BacktestService:
 
     def get_run_detail(self, run_id: int, db: Session) -> RunDetail:
         """Fetch run config + metrics + trades from DB."""
+        from app.api.schemas import RunDetail
+
         run = db.query(Run).filter_by(id=run_id).first()
         if run is None:
             raise LookupError("Run not found")
@@ -146,6 +175,8 @@ class BacktestService:
 
     def get_timeseries(self, run_id: int, db: Session) -> TimeseriesResponse:
         """Fetch compressed equity/drawdown curves."""
+        from app.api.schemas import TimeseriesResponse
+
         ts = db.query(RunTimeseries).filter_by(run_id=run_id).first()
         if ts is None:
             raise LookupError("Timeseries not found for this run")
@@ -193,6 +224,8 @@ class BacktestService:
     @staticmethod
     def _resolve_mode(req: BacktestRequest) -> BacktestMode:
         """Determine backtest mode from request."""
+        from app.api.schemas import BacktestMode
+
         if req.mode is not None:
             return req.mode
         return BacktestMode.PORTFOLIO if req.symbols else BacktestMode.SINGLE
@@ -209,6 +242,8 @@ class BacktestService:
         csv_path: str | None,
     ):
         """Return a callable to execute in the thread pool."""
+        from app.api.schemas import BacktestMode
+
         if mode == BacktestMode.PORTFOLIO:
             return self._portfolio_worker(req, run_id, loop, progress_cb)
         return self._single_worker(req, run_id, loop, progress_cb, strategy_class, csv_path)
