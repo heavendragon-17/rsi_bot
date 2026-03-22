@@ -1,0 +1,46 @@
+[project]
+name = "rsi-bot"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
+markers = [
+    "slow: marks tests as slow",
+    "integration: requires external services",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 0
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.bandit]
+targets = ["app"]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101"]

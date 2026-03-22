@@ -1,18 +1,17 @@
-# app/strategies/rsi_no_retest.py
+# app/trading/strategy/rsi_no_retest.py
 """
 Layer 2: Core Logic - RSI No Retest Strategy (Entry reclaim EMA21)
 ==================================================================
 
-Rules (as required):
-- Entry: first candle closing > EMA21 (cross up)
-- Must be preceded by a prolonged decline: majority of candles in lookback closed below EMA21
-    + allow maximum max_above_ema21 candles closed above EMA21 (noise filter)
-- RSI confirmation: (RSI_EMA9 - RSI_WMA45) >= rsi_spread_min
-- SL: based on RSI_EMA9 (price at RSI = RSI_EMA9) [for tighter SL], with option to use lowest wick/close in lookback
-    + Move SL to Entry when price reaches +0.5R (RR = 0.5)
-- TP: 1:1 RR CLOSE ALL
+Thin orchestrator: dispatches to ``rsi_no_retest_entry`` and
+``rsi_no_retest_exit`` for the actual state-machine logic.
 
-Entry/exit logic is delegated to rsi_no_retest_entry.py and rsi_no_retest_exit.py.
+Rules (summary):
+- Entry: first candle closing > EMA21 (cross up) after prolonged decline
+- RSI confirmation: (RSI_EMA9 - RSI_WMA45) >= rsi_spread_min
+- SL: configurable mode (rsi_ema9 / lowest_wick / lowest_close)
+- TP: 1-3 levels at configurable RR ratios
+- Exit: candle-close SL, lock-profit trigger, pending candle SL
 """
 
 from __future__ import annotations
@@ -26,6 +25,8 @@ import structlog
 
 from app.trading.strategy.base import BaseStrategy
 from app.trading.strategy.utils.config_helpers import merge_config
+from app.trading.strategy.rsi_no_retest_entry import check_entry
+from app.trading.strategy.rsi_no_retest_exit import manage_exit
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.core.context import SCANNING
@@ -34,8 +35,6 @@ from app.core.analysis_result import AnalysisResult
 from app.core.actions import DoNothing
 from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL, DEFAULT_MAKER_FEE_DECIMAL, WARMUP
 from app.core.utils import to_decimal_or_none
-from app.trading.strategy.rsi_no_retest_entry import check_entry
-from app.trading.strategy.rsi_no_retest_exit import manage_exit
 
 logger = structlog.get_logger()
 
@@ -69,17 +68,33 @@ class RsiNoRetestConfig:
 
 
 class RsiNoRetestStrategy(BaseStrategy):
-    """RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest."""
+    """
+    RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest.
+    """
 
+    # Default configuration for this strategy
     DEFAULT_CONFIG = {
-        "rsi_period": 21, "rsi_ema_length": 9, "rsi_wma_length": 45,
-        "price_ema_fast": 21, "price_ema_slow": 200,
-        "nr_lookback": 30, "nr_max_above_ema21": 3, "nr_rsi_spread_min": 2.5,
-        "nr_sl_mode": "lowest_close", "sl_buffer_pct": 0.0,
-        "disaster_sl_multiplier": 3.0, "candle_close_slippage_pct": 0,
-        "nr_tp1_rr": 1.0, "nr_tp2_rr": 2.0, "nr_tp3_rr": 3.0,
-        "nr_tp_count": 1, "tp1_close_pct": 1, "tp2_close_pct": 0, "tp3_close_pct": 0,
-        "nr_move_sl_rr": 0.5, "nr_lock_profit_rr": 0.2,
+        "rsi_period": 21,
+        "rsi_ema_length": 9,
+        "rsi_wma_length": 45,
+        "price_ema_fast": 21,
+        "price_ema_slow": 200,
+        "nr_lookback": 30,
+        "nr_max_above_ema21": 3,
+        "nr_rsi_spread_min": 2.5,
+        "nr_sl_mode": "lowest_close",
+        "sl_buffer_pct": 0.0,
+        "disaster_sl_multiplier": 3.0,
+        "candle_close_slippage_pct": 0,
+        "nr_tp1_rr": 1.0,
+        "nr_tp2_rr": 2.0,
+        "nr_tp3_rr": 3.0,
+        "nr_tp_count": 1,
+        "tp1_close_pct": 1,
+        "tp2_close_pct": 0,
+        "tp3_close_pct": 0,
+        "nr_move_sl_rr": 0.5,
+        "nr_lock_profit_rr": 0.2,
         "use_active_trades": True,
     }
 
@@ -116,6 +131,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.taker_fee = Decimal(str(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE_DECIMAL)))
         self.maker_fee = Decimal(str(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE_DECIMAL)))
 
+        # Strategy parameters
         self.lookback = int(cfg.get("nr_lookback", 30))
         self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 1))
         self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 1.5))
@@ -123,18 +139,22 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
         self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 2.0))
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
+
         self.tp1_rr = Decimal(str(cfg.get("nr_tp1_rr", 1.0)))
         self.tp2_rr = Decimal(str(cfg.get("nr_tp2_rr", 2.0)))
         self.tp3_rr = Decimal(str(cfg.get("nr_tp3_rr", 3.0)))
         self.tp_count = int(cfg.get("nr_tp_count", 3))
         self.tp1_close_pct = float(cfg.get("tp1_close_pct", 0.5))
         self.tp2_close_pct = float(cfg.get("tp2_close_pct", 0.5))
+
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
         self.lock_profit_rr = Decimal(str(cfg.get("nr_lock_profit_rr", 0.2)))
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
+
         self.debug_enabled = bool(bot_cfg.get("debug", False))
         self._debug_rows: list[dict] = []
 
+    # ---------------- helpers ----------------
     def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
         ts = last.get("ts")
         if ts is None:
@@ -152,6 +172,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         pd.DataFrame(self._debug_rows).to_csv(path, index=False)
 
+    # ---------------- main ----------------
     def analyze(
         self,
         symbol: str,
@@ -166,6 +187,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         if df is None or len(df) < max(WARMUP, self.lookback + 10):
             return _noop
+
         if "closed" in df.columns and not bool(df.iloc[-1]["closed"]):
             return _noop
 
@@ -179,39 +201,57 @@ class RsiNoRetestStrategy(BaseStrategy):
         high = to_decimal_or_none(last.get("high"))
         open_price = to_decimal_or_none(last.get("open"))
         ema21 = to_decimal_or_none(last.get("ema21"))
+
         if close is None or ema21 is None:
             return _noop
 
         rsi_ema9 = last.get("rsi_ema9")
         rsi_wma45 = last.get("rsi_wma45")
 
-        # Exit management (position is open)
+        # ---- EXIT / MANAGEMENT (position is open) ----
         if self.use_active_trades and position and position.has_position:
             return manage_exit(
-                symbol=symbol, context=context,
-                close=close, high=high, open_price=open_price,
-                move_sl_rr=self.move_sl_rr, lock_profit_rr=self.lock_profit_rr,
-                taker_fee=self.taker_fee, maker_fee=self.maker_fee,
+                symbol=symbol,
+                context=context,
+                close=close,
+                high=high,
+                open_price=open_price,
+                move_sl_rr=self.move_sl_rr,
+                lock_profit_rr=self.lock_profit_rr,
+                taker_fee=self.taker_fee,
+                maker_fee=self.maker_fee,
             )
 
-        # Entry state machine (no open position)
+        # ---- ENTRY (no open position) ----
         if self.debug_enabled:
             logger.debug(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={len(df)}")
 
         return check_entry(
-            symbol=symbol, df_ind=df_ind, context=context,
-            close=close, ema21=ema21,
-            rsi_ema9=rsi_ema9, rsi_wma45=rsi_wma45,
-            lookback=self.lookback, max_above_ema21=self.max_above_ema21,
+            symbol=symbol,
+            df_ind=df_ind,
+            context=context,
+            close=close,
+            ema21=ema21,
+            rsi_ema9=rsi_ema9,
+            rsi_wma45=rsi_wma45,
+            lookback=self.lookback,
+            max_above_ema21=self.max_above_ema21,
             rsi_spread_min=self.rsi_spread_min,
-            sl_mode=self.sl_mode, sl_buffer_pct=self.sl_buffer_pct,
+            sl_mode=self.sl_mode,
+            sl_buffer_pct=self.sl_buffer_pct,
             disaster_sl_multiplier=self.disaster_sl_multiplier,
-            tp1_rr=self.tp1_rr, tp2_rr=self.tp2_rr, tp3_rr=self.tp3_rr,
-            tp_count=self.tp_count, tp1_close_pct=self.tp1_close_pct,
+            tp1_rr=self.tp1_rr,
+            tp2_rr=self.tp2_rr,
+            tp3_rr=self.tp3_rr,
+            tp_count=self.tp_count,
+            tp1_close_pct=self.tp1_close_pct,
             tp2_close_pct=self.tp2_close_pct,
-            move_sl_rr=self.move_sl_rr, lock_profit_rr=self.lock_profit_rr,
-            taker_fee=self.taker_fee, maker_fee=self.maker_fee,
-            indicators=self.indicators, debug_enabled=self.debug_enabled,
+            move_sl_rr=self.move_sl_rr,
+            lock_profit_rr=self.lock_profit_rr,
+            taker_fee=self.taker_fee,
+            maker_fee=self.maker_fee,
+            indicators=self.indicators,
+            debug_enabled=self.debug_enabled,
             debug_rows=self._debug_rows,
             df_ind_index_last=df_ind.index[-1] if len(df_ind) >= 1 else None,
         )
