@@ -403,11 +403,11 @@ class TestShortIntegrationPortfolioExchange:
 
 
 class TestEngineRoundTripBuilder:
-    """Test that BacktestEngine._build_round_trips correctly handles SHORT trades."""
+    """Test that build_round_trips correctly handles SHORT trades."""
 
     def test_short_round_trip_has_sell_side(self):
         """SELL entry + BUY exits produces a round trip with side='SHORT'."""
-        from app.backtest.engine import BacktestEngine
+        from app.backtest.engine_metrics import build_round_trips
 
         # Simulate trade history for a short trade
         trades = pd.DataFrame([
@@ -437,7 +437,7 @@ class TestEngineRoundTripBuilder:
             },
         ])
 
-        round_trips = BacktestEngine._build_round_trips(trades)
+        round_trips = build_round_trips(trades)
 
         assert not round_trips.empty, "Should have 1 round trip"
         assert len(round_trips) == 1
@@ -447,7 +447,7 @@ class TestEngineRoundTripBuilder:
 
     def test_long_round_trip_has_buy_side(self):
         """BUY entry + SELL exits produces a round trip with side='LONG'."""
-        from app.backtest.engine import BacktestEngine
+        from app.backtest.engine_metrics import build_round_trips
 
         trades = pd.DataFrame([
             {
@@ -476,7 +476,7 @@ class TestEngineRoundTripBuilder:
             },
         ])
 
-        round_trips = BacktestEngine._build_round_trips(trades)
+        round_trips = build_round_trips(trades)
 
         assert not round_trips.empty
         rt = round_trips.iloc[0]
@@ -484,7 +484,7 @@ class TestEngineRoundTripBuilder:
 
     def test_mixed_long_short_round_trips(self):
         """Mixed LONG and SHORT trades produce correct round trips with correct sides."""
-        from app.backtest.engine import BacktestEngine
+        from app.backtest.engine_metrics import build_round_trips
 
         trades = pd.DataFrame([
             # Short trade
@@ -495,7 +495,7 @@ class TestEngineRoundTripBuilder:
             {"side": "SELL", "symbol": SYMBOL, "time": "2024-01-01 14:00", "price": 51000.0, "amount": 0.1, "pnl": 150.0, "margin": 0.0, "notional": 5100.0, "leverage": 1.0, "info": {"exit_reason": "TP1"}},
         ])
 
-        round_trips = BacktestEngine._build_round_trips(trades)
+        round_trips = build_round_trips(trades)
 
         assert len(round_trips) == 2
         sides = set(round_trips["side"].tolist())

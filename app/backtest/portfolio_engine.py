@@ -14,7 +14,12 @@ from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot
 from app.backtest.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager
-from app.backtest.engine import BacktestEngine
+from app.backtest.engine_metrics import (
+    build_round_trips,
+    calculate_metrics,
+    calculate_risk_metrics,
+    calculate_monthly_returns,
+)
 
 logger = structlog.get_logger()
 
@@ -264,18 +269,18 @@ class PortfolioEngine(Engine):
             return self._empty_results(initial)
 
         df = pd.DataFrame(trades)
-        round_trips = BacktestEngine._build_round_trips(df)
+        round_trips = build_round_trips(df)
         round_trips_list = (
             round_trips.to_dict(orient="records") if not round_trips.empty else []
         )
 
-        metrics = BacktestEngine._calculate_metrics(round_trips)
-        
+        metrics = calculate_metrics(round_trips)
+
         # Drawdown: use the recorded portfolio equity curve rather than simply summing closed trade PnLs
         # Because we multiplexed time, unrealized drawdown during holding periods matters
         drawdown_full = self._calculate_portfolio_drawdown(initial)
-        risk_metrics = BacktestEngine._calculate_risk_metrics(round_trips, drawdown_full, initial)
-        monthly_returns = BacktestEngine._calculate_monthly_returns(round_trips)
+        risk_metrics = calculate_risk_metrics(round_trips, drawdown_full, initial)
+        monthly_returns = calculate_monthly_returns(round_trips)
 
         final_balance = float(self.exchange.balance)
         realized_pnl = float(round_trips["pnl"].sum()) if not round_trips.empty else 0.0
