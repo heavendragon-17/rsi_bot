@@ -20,13 +20,13 @@ Custom DEX Adapters:
 from __future__ import annotations
 
 import importlib
-import logging
+import structlog
 import os
 from typing import Any
 
 from app.core.interfaces import IExchange
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # Mapping of config exchange names to CCXT class names and env var prefixes

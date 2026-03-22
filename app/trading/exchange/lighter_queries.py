@@ -10,7 +10,7 @@ and symbol mapping helpers.
 
 from __future__ import annotations
 
-import logging
+import structlog
 from typing import TYPE_CHECKING, Any
 
 from app.core.exceptions import ExchangeError
@@ -18,7 +18,7 @@ from app.core.exceptions import ExchangeError
 if TYPE_CHECKING:
     from app.trading.exchange.lighter_adapter import LighterAdapter
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Lighter SDK imports (guarded)
 try:

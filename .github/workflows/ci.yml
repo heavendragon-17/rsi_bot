@@ -149,3 +149,46 @@ jobs:
       - run: pip install detect-secrets
       - name: Audit secrets baseline
         run: detect-secrets audit --report --baseline .secrets.baseline
+
+  circular-imports:
+    name: Circular Import Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Check circular imports
+        run: |
+          python -c "
+          from app.core import interfaces, actions, config, constants, events, snapshots
+          from app.data import indicators, store
+          print('No circular imports detected')
+          "
+
+  doc-freshness:
+    name: Doc Freshness Reminder
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check and remind
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const base = context.payload.pull_request.base.ref;
+            const appChanged = execSync(`git diff --name-only origin/${base}...HEAD -- 'app/' | wc -l`).toString().trim();
+            const docsChanged = execSync(`git diff --name-only origin/${base}...HEAD -- 'docs/' | wc -l`).toString().trim();
+            if (parseInt(appChanged) > 0 && parseInt(docsChanged) === 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '## Documentation Reminder\n\nCode changed in `app/` but no docs updated. See `docs/INDEX.md` for routing.\n\n> Reminder only — not blocking.'
+              });
+            }

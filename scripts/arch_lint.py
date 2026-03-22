@@ -24,6 +24,19 @@ IMPORT_RULES = {
         "deny": ["app.backtest", "app.api", "app.notification"],
         "reason": "trading/ may only import from core/ and data/",
     },
+    # ─── Rules 13-15: Leaf module boundaries ─────────────────────────────────
+    "app.backtest": {
+        "deny": ["app.api", "app.notification"],
+        "reason": "backtest/ may only import from core/, data/, and trading/",
+    },
+    "app.notification": {
+        "deny": ["app.trading", "app.data", "app.backtest", "app.api"],
+        "reason": "notification/ may only import from core/",
+    },
+    "app.repository": {
+        "deny": ["app.trading", "app.data", "app.backtest", "app.api", "app.notification"],
+        "reason": "repository/ may only import from core/",
+    },
 }
 
 # ─── Rule 2: File size limits ────────────────────────────────────────────────
@@ -76,6 +89,25 @@ ALLOWED_CORE_FILES = {
     "snapshots.py",
     "utils.py",
 }
+
+# ─── Rule 8: No print() in app/ ─────────────────────────────────────────────
+PRINT_PATTERN = re.compile(r'\bprint\s*\(')
+
+# ─── Rule 9: No bare except ────────────────────────────────────────────────
+BARE_EXCEPT_PATTERN = re.compile(r'\bexcept\s*:')
+
+# ─── Rule 10: No unittest.TestCase in tests/ ───────────────────────────────
+TESTCASE_PATTERN = re.compile(r'class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)')
+
+# ─── Rule 12: No stdlib logging in app/ ────────────────────────────────────
+LOGGING_PATTERNS = [
+    (re.compile(r'\blogging\.getLogger\b'), "Use structlog.get_logger() instead of logging.getLogger()"),
+    (re.compile(r'^import logging$', re.MULTILINE), "Use structlog instead of stdlib logging"),
+]
+LOGGING_ALLOWED_FILES = ["app/core/logging.py"]
+
+# ─── Rule 16: snake_case file names in app/ ─────────────────────────────────
+SNAKE_CASE_PATTERN = re.compile(r'^[a-z_][a-z0-9_]*\.py$')
 
 # ─── Rule 7: Duplicate helper functions ──────────────────────────────────────
 # Functions that have canonical implementations and should not be redefined.
@@ -264,6 +296,106 @@ def check_duplicate_helpers() -> list[str]:
     return violations
 
 
+def check_snake_case_filenames() -> list[str]:
+    """All .py files in app/ must use snake_case names."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file) or py_file.name == "__init__.py":
+            continue
+        if not SNAKE_CASE_PATTERN.match(py_file.name):
+            rel = py_file.relative_to(REPO_ROOT)
+            violations.append(f"  {rel}: filename not snake_case")
+    return violations
+
+
+def check_no_print() -> list[str]:
+    """No print() statements in app/ — use structlog."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                continue
+            if PRINT_PATTERN.search(line):
+                violations.append(f"  {rel}:{i}: print() — use structlog")
+    return violations
+
+
+def check_no_bare_except() -> list[str]:
+    """No bare except: — always specify an exception type."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+            if BARE_EXCEPT_PATTERN.search(line):
+                violations.append(f"  {rel}:{i}: bare except: — specify exception type")
+    return violations
+
+
+def check_no_test_case() -> list[str]:
+    """No unittest.TestCase in tests/ — use plain pytest."""
+    violations = []
+    tests_dir = REPO_ROOT / "tests"
+    if not tests_dir.exists():
+        return violations
+    for py_file in tests_dir.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        content = py_file.read_text()
+        if TESTCASE_PATTERN.search(content):
+            violations.append(f"  {rel}: uses unittest.TestCase — convert to pytest")
+    return violations
+
+
+def check_no_stdlib_logging() -> list[str]:
+    """No stdlib logging in app/ — use structlog exclusively."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        if rel in LOGGING_ALLOWED_FILES:
+            continue
+        content = py_file.read_text()
+        for regex, desc in LOGGING_PATTERNS:
+            if regex.search(content):
+                violations.append(f"  {rel}: {desc}")
+    return violations
+
+
+def check_interface_prefix() -> list[str]:
+    """ABC subclasses in app/core/ must start with 'I' prefix."""
+    violations = []
+    core_dir = APP_DIR / "core"
+    if not core_dir.exists():
+        return violations
+    for py_file in core_dir.glob("*.py"):
+        try:
+            tree = ast.parse(py_file.read_text(), filename=str(py_file))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            inherits_abc = any(
+                (isinstance(b, ast.Name) and b.id == "ABC")
+                or (isinstance(b, ast.Attribute) and b.attr == "ABC")
+                for b in node.bases
+            )
+            if inherits_abc and not node.name.startswith("I"):
+                rel = py_file.relative_to(REPO_ROOT)
+                violations.append(
+                    f"  {rel}: class {node.name} inherits ABC but doesn't start with 'I'"
+                )
+    return violations
+
+
 def main():
     all_violations = []
     checks = [
@@ -274,6 +406,12 @@ def main():
         ("Checking core/ whitelist...", "Unauthorized files in core/:", check_core_file_whitelist),
         ("Checking class count per file...", "Files with too many classes:", check_class_count),
         ("Checking duplicate helpers...", "Duplicate utility functions:", check_duplicate_helpers),
+        ("Checking snake_case filenames...", "Non-snake_case filenames:", check_snake_case_filenames),
+        ("Checking for print() in app/...", "print() statements in app/:", check_no_print),
+        ("Checking for bare except...", "Bare except clauses:", check_no_bare_except),
+        ("Checking for unittest.TestCase...", "unittest.TestCase usage:", check_no_test_case),
+        ("Checking for stdlib logging...", "stdlib logging in app/:", check_no_stdlib_logging),
+        ("Checking I-prefix for interfaces...", "ABC classes missing I-prefix:", check_interface_prefix),
     ]
 
     for msg, header, check_fn in checks:
