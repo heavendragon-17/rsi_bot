@@ -20,7 +20,14 @@ import pandas as pd
 import structlog
 
 from app.backtest.config_builder import build_backtest_config
-from app.backtest.engine import BacktestEngine
+from app.backtest.engine_metrics import (
+    build_round_trips,
+    calculate_metrics,
+    calculate_drawdown,
+    calculate_risk_metrics,
+    calculate_monthly_returns,
+)
+from app.backtest.engine_curves import build_equity_curve_dated, build_drawdown_curve_dated
 from app.core.actions import ClosePosition, DoNothing, MoveSL, OpenPosition, PartialClose
 from app.core.constants import WARMUP
 from app.core.events import SignalEvent
@@ -258,7 +265,7 @@ def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
         })
 
     df_trades = pd.DataFrame(ordered)
-    round_trips = BacktestEngine._build_round_trips(df_trades)
+    round_trips = build_round_trips(df_trades)
     if round_trips.empty:
         return {
             "total_trades": 0, "initial_balance": initial_balance,
@@ -266,14 +273,14 @@ def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
             "net_profit": 0.0, "net_profit_pct": 0.0, "closed_trades": [],
         }
 
-    metrics = BacktestEngine._calculate_metrics(round_trips)
-    drawdown_full = BacktestEngine._calculate_drawdown(round_trips, initial_balance)
-    risk_metrics = BacktestEngine._calculate_risk_metrics(round_trips, drawdown_full, initial_balance)
-    monthly_returns = BacktestEngine._calculate_monthly_returns(round_trips)
+    metrics = calculate_metrics(round_trips)
+    drawdown_full = calculate_drawdown(round_trips, initial_balance)
+    risk_metrics = calculate_risk_metrics(round_trips, drawdown_full, initial_balance)
+    monthly_returns = calculate_monthly_returns(round_trips)
 
     rt_list = round_trips.to_dict(orient="records")
-    equity_curve = BacktestEngine._build_equity_curve_dated(rt_list, initial_balance)
-    drawdown_curve = BacktestEngine._build_drawdown_curve_dated(equity_curve, initial_balance)
+    equity_curve = build_equity_curve_dated(rt_list, initial_balance)
+    drawdown_curve = build_drawdown_curve_dated(equity_curve, initial_balance)
 
     final_balance = float(exchange.state.balance)
     realized_pnl = float(round_trips["pnl"].sum())
