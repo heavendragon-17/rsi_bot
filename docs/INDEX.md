@@ -24,6 +24,7 @@
 | Handle or prepare for incidents | [13_runbooks_and_postmortems](13_runbooks_and_postmortems/) | [runbook-template.md](13_runbooks_and_postmortems/runbook-template.md) |
 | Add or modify API endpoints | [14_api_reference](14_api_reference/), [workflows/](workflows/) | [rest-endpoints.md](14_api_reference/rest-endpoints.md), [add-api-endpoint.md](workflows/add-api-endpoint.md) |
 | Debug an issue | [15_debugging](15_debugging/) | [debug-decision-trees.md](15_debugging/debug-decision-trees.md) |
+| Enforcement rules, CI/CD, hooks | [16_enforcement](16_enforcement/) | [enforcement.md](16_enforcement/enforcement.md) |
 | Understand a past architectural decision | [adr/](adr/) | [README.md](adr/README.md) |
 
 ---
@@ -46,6 +47,7 @@
 | [13_runbooks_and_postmortems/](13_runbooks_and_postmortems/) | Incident response runbooks, postmortem templates | Handling or preparing for production incidents |
 | [14_api_reference/](14_api_reference/) | REST endpoints, SSE events, API config | Working on the FastAPI backend (`app/api/`) |
 | [15_debugging/](15_debugging/) | Debug decision trees, log interpretation, common issues | Diagnosing any issue |
+| [16_enforcement/](16_enforcement/) | Enforcement rules, CI/CD pipeline, pre-commit hooks, adding new rules | Working on linting, CI, or code quality enforcement |
 
 ---
 

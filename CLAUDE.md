@@ -106,6 +106,10 @@ Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`
 - Main branch: `mua-tren-the-nang`
 - structlog for all logging (zero print statements)
 
+## Enforcement
+
+All coding rules are enforced via automated gates. See `docs/16_enforcement/enforcement.md` for the complete enforcement matrix, CI pipeline details, and how to add new rules.
+
 ## IMPORTANT: Architectural Rules (MUST FOLLOW)
 
 These rules are **mandatory** for every code change. Violating them creates tech debt.
