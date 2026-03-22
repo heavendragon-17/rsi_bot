@@ -29,11 +29,8 @@ from decimal import Decimal
 import pandas as pd
 import structlog
 
-from app.core.actions import (
-    DEFAULT_MAKER_FEE,
-    DEFAULT_TAKER_FEE,
-    DoNothing,
-)
+from app.core.actions import DoNothing
+from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.core.analysis_result import AnalysisResult
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot

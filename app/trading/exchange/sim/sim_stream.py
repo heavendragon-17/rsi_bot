@@ -14,7 +14,7 @@ Tick buffer is flushed on disconnect (safe — ticks are sampled, not accumulate
 from __future__ import annotations
 
 import json
-import logging
+import structlog
 import threading
 import time
 from decimal import Decimal
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_exchange import SimExchange
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _STREAM_BASE = "wss://fstream.binance.com/stream?streams="
 _MAX_BACKOFF = 30.0

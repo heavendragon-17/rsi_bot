@@ -26,7 +26,7 @@ from app.backtest.engine_metrics import (
 )
 from app.backtest.event_source import BacktestEventSource
 from app.backtest.mock_exchange import MockExchange
-from app.core.actions import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
+from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.core.constants import WARMUP as _WARMUP_CONST
 from app.core.events import CandleCloseEvent
 from app.core.snapshots import ContextSnapshot

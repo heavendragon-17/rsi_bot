@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import logging
+import structlog
 import os
 import threading
 import time
@@ -26,7 +26,7 @@ class TelegramBot:
 
         # Logger (uses your existing logger.py)
         # Fix for duplicate logs: Use the existing 'rsi_bot' logger instead of initializing a new one or using root
-        self.logger = logging.getLogger("rsi_bot")
+        self.logger = structlog.get_logger("rsi_bot")
 
         if not self.token:
             raise RuntimeError(f"Missing {token_env} env var.")

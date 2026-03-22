@@ -15,14 +15,14 @@ All methods use scalar parameters only — no exchange-specific state objects.
 
 from __future__ import annotations
 
-import logging
+import structlog
 import os
 from decimal import Decimal
 
 from app.core.interfaces import IExchange, INotifier
 from app.notification.telegram_bot import TelegramBot
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _MODE_PREFIX: dict[str, str] = {
     "live": "🤖 LIVE",

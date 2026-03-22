@@ -14,7 +14,7 @@ to sleep until the next funding window.
 
 from __future__ import annotations
 
-import logging
+import structlog
 import threading
 import time
 from datetime import UTC, datetime
@@ -26,7 +26,7 @@ import requests  # type: ignore[import-untyped]
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_state import SimTradeState
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _FUNDING_ENDPOINT = "https://fapi.binance.com/fapi/v1/premiumIndex"
 _FUNDING_HOURS = (0, 8, 16)  # UTC hours when funding is applied

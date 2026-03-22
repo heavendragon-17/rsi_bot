@@ -17,7 +17,7 @@ Environment Variables:
 from __future__ import annotations
 
 import asyncio
-import logging
+import structlog
 import os
 from decimal import Decimal
 from typing import Any
@@ -26,7 +26,7 @@ from app.core.exceptions import ExchangeError
 from app.core.interfaces import IExchange
 from app.trading.exchange import lighter_queries
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Lighter SDK imports
 try:

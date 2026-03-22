@@ -77,6 +77,22 @@ ALLOWED_CORE_FILES = {
     "utils.py",
 }
 
+# ─── Rule 8: No print() in app/ ─────────────────────────────────────────────
+PRINT_PATTERN = re.compile(r'\bprint\s*\(')
+
+# ─── Rule 9: No bare except ────────────────────────────────────────────────
+BARE_EXCEPT_PATTERN = re.compile(r'\bexcept\s*:')
+
+# ─── Rule 10: No unittest.TestCase in tests/ ───────────────────────────────
+TESTCASE_PATTERN = re.compile(r'class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)')
+
+# ─── Rule 12: No stdlib logging in app/ ────────────────────────────────────
+LOGGING_PATTERNS = [
+    (re.compile(r'\blogging\.getLogger\b'), "Use structlog.get_logger() instead of logging.getLogger()"),
+    (re.compile(r'^import logging$', re.MULTILINE), "Use structlog instead of stdlib logging"),
+]
+LOGGING_ALLOWED_FILES = ["app/core/logging.py"]
+
 # ─── Rule 7: Duplicate helper functions ──────────────────────────────────────
 # Functions that have canonical implementations and should not be redefined.
 DUPLICATE_HELPER_PATTERNS = [
@@ -264,6 +280,67 @@ def check_duplicate_helpers() -> list[str]:
     return violations
 
 
+def check_no_print() -> list[str]:
+    """No print() statements in app/ — use structlog."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                continue
+            if PRINT_PATTERN.search(line):
+                violations.append(f"  {rel}:{i}: print() — use structlog")
+    return violations
+
+
+def check_no_bare_except() -> list[str]:
+    """No bare except: — always specify an exception type."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+            if BARE_EXCEPT_PATTERN.search(line):
+                violations.append(f"  {rel}:{i}: bare except: — specify exception type")
+    return violations
+
+
+def check_no_test_case() -> list[str]:
+    """No unittest.TestCase in tests/ — use plain pytest."""
+    violations = []
+    tests_dir = REPO_ROOT / "tests"
+    if not tests_dir.exists():
+        return violations
+    for py_file in tests_dir.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        content = py_file.read_text()
+        if TESTCASE_PATTERN.search(content):
+            violations.append(f"  {rel}: uses unittest.TestCase — convert to pytest")
+    return violations
+
+
+def check_no_stdlib_logging() -> list[str]:
+    """No stdlib logging in app/ — use structlog exclusively."""
+    violations = []
+    for py_file in APP_DIR.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        rel = str(py_file.relative_to(REPO_ROOT))
+        if rel in LOGGING_ALLOWED_FILES:
+            continue
+        content = py_file.read_text()
+        for regex, desc in LOGGING_PATTERNS:
+            if regex.search(content):
+                violations.append(f"  {rel}: {desc}")
+    return violations
+
+
 def main():
     all_violations = []
     checks = [
@@ -274,6 +351,10 @@ def main():
         ("Checking core/ whitelist...", "Unauthorized files in core/:", check_core_file_whitelist),
         ("Checking class count per file...", "Files with too many classes:", check_class_count),
         ("Checking duplicate helpers...", "Duplicate utility functions:", check_duplicate_helpers),
+        ("Checking for print() in app/...", "print() statements in app/:", check_no_print),
+        ("Checking for bare except...", "Bare except clauses:", check_no_bare_except),
+        ("Checking for unittest.TestCase...", "unittest.TestCase usage:", check_no_test_case),
+        ("Checking for stdlib logging...", "stdlib logging in app/:", check_no_stdlib_logging),
     ]
 
     for msg, header, check_fn in checks:
