@@ -59,7 +59,7 @@ jobs:
             });
 
   tests:
-    name: Tests
+    name: Tests + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,9 +68,38 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --tb=short \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-config=pyproject.toml
+      - name: Post coverage summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            // Get coverage summary from terminal output
+            const output = execSync(
+              'pytest tests/ --cov=app --cov-report=term --cov-config=pyproject.toml -q --no-header 2>&1 || true'
+            ).toString();
+            // Extract the coverage table (last lines before the total)
+            const lines = output.split('\n');
+            const coverageLines = lines.filter(l => l.includes('TOTAL') || l.includes('%'));
+            const totalLine = lines.find(l => l.includes('TOTAL'));
+            const summary = totalLine || 'Coverage data not available';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Test Coverage Report\n\n\`\`\`\n${summary}\n\`\`\`\n\nFull report available in CI artifacts.`
+            });
 
   mypy:
     name: Type Check
