@@ -377,20 +377,13 @@ class TestStartupCleanup:
     def test_cleanup_closes_orphan_positions(self, exchange):
         """Runner startup should close orphan positions."""
 
-        from app.trading.runner import MultiSymbolRunner
+        from app.trading.runner_loop import cleanup_on_startup
 
         # Create orphan position
         exchange.create_order("BTC/USDT", "market", "BUY", Decimal("0.1"), Decimal("50000"))
         assert "BTC/USDT" in exchange.positions
 
-        # Create a minimal runner (mock what we can't instantiate)
-        runner = MultiSymbolRunner.__new__(MultiSymbolRunner)
-        runner.exchange = exchange
-        runner.telegram = None
-        runner.config = {"risk": {"leverage": 10}}
-        runner.symbols = ["BTC/USDT"]
-
-        runner._cleanup_on_startup()
+        cleanup_on_startup(exchange)
 
         # Position should be closed
         assert "BTC/USDT" not in exchange.positions
