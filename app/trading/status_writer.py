@@ -68,7 +68,7 @@ def _build_status(runner: MultiSymbolRunner, started_at: datetime) -> dict[str, 
 
 def _write_atomic(path: str, data: dict[str, Any]) -> None:
     """Write JSON atomically via temp file + rename."""
-    dir_name = os.path.dirname(path) or "/tmp"
+    dir_name = os.path.dirname(path) or tempfile.gettempdir()
     fd, tmp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as f:

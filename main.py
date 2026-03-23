@@ -30,7 +30,7 @@ setup_logging(level="INFO")
 
 import structlog  # noqa: E402
 
-from app.core.status_writer import StatusWriter  # noqa: E402
+from app.trading.status_writer import StatusWriter  # noqa: E402
 from app.notification.notification_service import NotificationService  # noqa: E402
 from app.notification.null_notifier import NullNotifier  # noqa: E402
 from app.trading.exchange.factory import create_exchange  # noqa: E402

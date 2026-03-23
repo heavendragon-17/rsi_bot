@@ -5,7 +5,11 @@ All magic numbers and shared defaults live here.
 Import from this module instead of hardcoding values.
 """
 
+import tempfile
 from decimal import Decimal
+from pathlib import Path
+
+_TMP = Path(tempfile.gettempdir())
 
 # ── Warmup ──────────────────────────────────────────────────────────
 # Number of candles to skip before strategy analysis begins.
@@ -23,5 +27,8 @@ DEFAULT_TAKER_FEE_DECIMAL = Decimal("0.0005")
 DEFAULT_MAKER_FEE_DECIMAL = Decimal("0.0002")
 
 # ── Bot status file (read by deploy listener) ────────────────────────
-STATUS_FILE_PATH = "/tmp/rsi_bot_status.json"
+STATUS_FILE_PATH = str(_TMP / "rsi_bot_status.json")
+DEPLOY_STATE_PATH = str(_TMP / "rsi_bot_deploy_state.json")
+FORCE_DEPLOY_FLAG = str(_TMP / "rsi_bot_force_deploy")
+CANCEL_DEPLOY_FLAG = str(_TMP / "rsi_bot_cancel_deploy")
 STATUS_WRITE_INTERVAL = 30  # seconds

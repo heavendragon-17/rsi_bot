@@ -22,14 +22,15 @@ from typing import Any
 
 import structlog
 
-from app.core.constants import STATUS_FILE_PATH
+from app.core.constants import (
+    CANCEL_DEPLOY_FLAG,
+    DEPLOY_STATE_PATH,
+    FORCE_DEPLOY_FLAG,
+    STATUS_FILE_PATH,
+)
 from app.notification.formatting import mono, row
 
 logger = structlog.get_logger(__name__)
-
-_DEPLOY_STATE_PATH = "/tmp/rsi_bot_deploy_state.json"
-_FORCE_DEPLOY_FLAG = "/tmp/rsi_bot_force_deploy"
-_CANCEL_DEPLOY_FLAG = "/tmp/rsi_bot_cancel_deploy"
 _VERSION_FILE = Path(__file__).resolve().parent.parent.parent / "VERSION"
 
 # Stale threshold for status file (seconds)
@@ -50,7 +51,7 @@ def _read_json(path: str | Path) -> dict | None:
 def handle_force_deploy(send_fn: SendFn, chat_id: str) -> None:
     """Write flag file to trigger force deploy on next timer tick."""
     try:
-        with open(_FORCE_DEPLOY_FLAG, "w") as f:
+        with open(FORCE_DEPLOY_FLAG, "w") as f:
             f.write(datetime.now(UTC).isoformat())
         send_fn(
             mono("⚡ FORCE DEPLOY\n\nFlag written. Deploy will start within 1 minute."),
@@ -67,7 +68,7 @@ def handle_force_deploy(send_fn: SendFn, chat_id: str) -> None:
 
 def handle_deploy_status(send_fn: SendFn, chat_id: str) -> None:
     """Read deploy state file and report current status."""
-    state = _read_json(_DEPLOY_STATE_PATH)
+    state = _read_json(DEPLOY_STATE_PATH)
 
     if not state:
         send_fn(mono("📦 DEPLOY STATUS\n\nNo deploy state found. System idle."), chat_id=chat_id)
@@ -110,7 +111,7 @@ def handle_deploy_status(send_fn: SendFn, chat_id: str) -> None:
 
 def handle_cancel_deploy(send_fn: SendFn, chat_id: str) -> None:
     """Write cancel flag to stop a pending (waiting) deploy."""
-    state = _read_json(_DEPLOY_STATE_PATH)
+    state = _read_json(DEPLOY_STATE_PATH)
     current = state.get("state", "idle") if state else "idle"
 
     if current == "deploying":
@@ -125,7 +126,7 @@ def handle_cancel_deploy(send_fn: SendFn, chat_id: str) -> None:
         return
 
     try:
-        with open(_CANCEL_DEPLOY_FLAG, "w") as f:
+        with open(CANCEL_DEPLOY_FLAG, "w") as f:
             f.write(datetime.now(UTC).isoformat())
         tag = state.get("tag", "?") if state else "?"
         send_fn(
