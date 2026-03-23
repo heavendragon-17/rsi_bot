@@ -11,8 +11,7 @@ import json
 import os
 import tempfile
 import threading
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -41,7 +40,7 @@ def _read_version() -> tuple[str, str]:
 def _build_status(runner: MultiSymbolRunner, started_at: datetime) -> dict[str, Any]:
     """Build the status dict from the runner's current state."""
     tag, sha = _read_version()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     open_positions: list[dict[str, Any]] = []
     for symbol, portfolio in list(runner.portfolios.items()):
@@ -89,7 +88,7 @@ class StatusWriter:
 
     def __init__(self, runner: MultiSymbolRunner) -> None:
         self._runner = runner
-        self._started_at = datetime.now(timezone.utc)
+        self._started_at = datetime.now(UTC)
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
             target=self._loop, name="status-writer", daemon=True

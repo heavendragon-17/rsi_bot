@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -51,7 +51,7 @@ def handle_force_deploy(send_fn: SendFn, chat_id: str) -> None:
     """Write flag file to trigger force deploy on next timer tick."""
     try:
         with open(_FORCE_DEPLOY_FLAG, "w") as f:
-            f.write(datetime.now(timezone.utc).isoformat())
+            f.write(datetime.now(UTC).isoformat())
         send_fn(
             mono("⚡ FORCE DEPLOY\n\nFlag written. Deploy will start within 1 minute."),
             chat_id=chat_id,
@@ -87,7 +87,7 @@ def handle_deploy_status(send_fn: SendFn, chat_id: str) -> None:
         if since:
             try:
                 dt = datetime.fromisoformat(since)
-                mins = int((datetime.now(timezone.utc) - dt).total_seconds() / 60)
+                mins = int((datetime.now(UTC) - dt).total_seconds() / 60)
                 lines.append(row("Waiting:", f"{mins}m"))
             except ValueError:
                 pass
@@ -126,7 +126,7 @@ def handle_cancel_deploy(send_fn: SendFn, chat_id: str) -> None:
 
     try:
         with open(_CANCEL_DEPLOY_FLAG, "w") as f:
-            f.write(datetime.now(timezone.utc).isoformat())
+            f.write(datetime.now(UTC).isoformat())
         tag = state.get("tag", "?") if state else "?"
         send_fn(
             mono(f"🚫 Cancel requested for {tag}.\nWill take effect within 1 minute."),
@@ -163,7 +163,7 @@ def handle_bot_version(send_fn: SendFn, chat_id: str) -> None:
 
         try:
             updated = datetime.fromisoformat(status["updated_at"])
-            age = (datetime.now(timezone.utc) - updated).total_seconds()
+            age = (datetime.now(UTC) - updated).total_seconds()
             if age > _STALE_THRESHOLD:
                 lines.append(f"\n⚠️ Status file stale ({int(age)}s old)")
         except (KeyError, ValueError):
