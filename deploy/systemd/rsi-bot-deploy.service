@@ -1,0 +1,12 @@
+[Unit]
+Description=RSI Bot Deploy (oneshot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=user
+WorkingDirectory=/home/user/rsi_bot
+ExecStart=/home/user/rsi_bot/deploy/deploy.sh latest
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=300

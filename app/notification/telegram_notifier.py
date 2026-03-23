@@ -21,6 +21,12 @@ from decimal import Decimal
 import structlog
 
 from app.core.interfaces import IExchange, INotifier
+from app.notification.deploy_commands import (
+    handle_bot_version,
+    handle_cancel_deploy,
+    handle_deploy_status,
+    handle_force_deploy,
+)
 from app.notification.telegram_bot import TelegramBot
 
 logger = structlog.get_logger(__name__)
@@ -87,12 +93,17 @@ class TelegramNotifier(INotifier):
 
     def start_command_polling(self) -> None:
         """Start the Telegram polling loop and register commands."""
+        send = self._bot.send_message
         callbacks = {
             "/status": self._handle_status_cmd,
             "/history": self._handle_history_cmd,
             "/winrate": self._handle_winrate_cmd,
             "/report": self._handle_report_cmd,
             "/reset": self._handle_reset_cmd,
+            "/force_deploy": lambda cid: handle_force_deploy(send, cid),
+            "/deploy_status": lambda cid: handle_deploy_status(send, cid),
+            "/cancel_deploy": lambda cid: handle_cancel_deploy(send, cid),
+            "/bot_version": lambda cid: handle_bot_version(send, cid),
         }
         self._bot.start_polling(callbacks)  # type: ignore[arg-type]
 

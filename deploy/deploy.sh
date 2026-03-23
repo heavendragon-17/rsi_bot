@@ -1,40 +1,53 @@
 #!/bin/bash
 set -euo pipefail
 
-# Usage: deploy.sh <tag> <sha>
-# Deploys the given tag to production by checking out the production branch,
-# running a smoke test, restarting the bot, and verifying health.
+# Usage: deploy.sh <tag>
+# Called by check_deploy.sh or force_deploy.sh.
+# Assumes production branch is already checked out at the right commit.
 
-TAG="${1:?Usage: deploy.sh <tag> <sha>}"
-SHA="${2:?Usage: deploy.sh <tag> <sha>}"
+TAG="${1:?Usage: deploy.sh <tag>}"
 BOT_DIR="/home/user/rsi_bot"
 VENV_DIR="$BOT_DIR/venv"
 STATUS_FILE="/tmp/rsi_bot_status.json"
+DEPLOY_STATE="/tmp/rsi_bot_deploy_state.json"
 VERSION_FILE="$BOT_DIR/VERSION"
 LOG_FILE="/var/log/rsi-bot-deploy.log"
 
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
 
+update_deploy_state() {
+    local state="$1" error="${2:-}"
+    python3 -c "
+import json
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc).isoformat()
+try:
+    with open('$DEPLOY_STATE') as f:
+        d = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    d = {}
+d['state'] = '$state'
+d['updated_at'] = now
+if '$state' in ('completed', 'failed'):
+    d['last_deploy'] = now
+    d['last_result'] = '$state'
+    d['last_error'] = '$error'
+    d['waiting_since'] = ''
+with open('$DEPLOY_STATE', 'w') as f:
+    json.dump(d, f, indent=2)
+" 2>/dev/null || true
+}
+
+SHA=$(git -C "$BOT_DIR" rev-parse --short HEAD)
 log "=== Starting deploy: $TAG ($SHA) ==="
 
-# 1. Fetch and checkout production
 cd "$BOT_DIR"
-git fetch origin production
-git checkout production
-git reset --hard "origin/production"
 
-# 2. Verify commit matches expected SHA
-ACTUAL_SHA=$(git rev-parse --short HEAD)
-if [[ "$ACTUAL_SHA" != "$SHA"* ]]; then
-    log "ERROR: SHA mismatch. Expected $SHA, got $ACTUAL_SHA"
-    exit 1
-fi
-
-# 3. Install dependencies
+# 1. Install dependencies
 source "$VENV_DIR/bin/activate"
 pip install -r requirements.txt --quiet 2>&1 | tee -a "$LOG_FILE"
 
-# 4. Smoke test: import check + config validation
+# 2. Smoke test: import check + config validation
 log "Running smoke test..."
 SMOKE_OUTPUT=$(python -c "
 from app.core import interfaces, config, constants, actions
@@ -45,18 +58,19 @@ print('Smoke test PASSED')
 " 2>&1) || {
     log "ERROR: Smoke test FAILED"
     log "$SMOKE_OUTPUT"
+    update_deploy_state "failed" "smoke_test_failed"
     exit 2
 }
 log "$SMOKE_OUTPUT"
 
-# 5. Write version file
+# 3. Write version file
 echo "{\"tag\": \"$TAG\", \"sha\": \"$SHA\", \"deployed_at\": \"$(date -Iseconds)\"}" > "$VERSION_FILE"
 
-# 6. Restart bot
+# 4. Restart bot
 log "Restarting rsi-bot service..."
 sudo systemctl restart rsi-bot
 
-# 7. Health check: wait for status file to refresh with new version
+# 5. Health check: wait for status file to refresh with new version
 log "Waiting for health check..."
 sleep 5
 for i in $(seq 1 12); do
@@ -72,6 +86,7 @@ else:
 " 2>&1) || STATUS="READ_ERROR"
         if [[ "$STATUS" == "HEALTHY" ]]; then
             log "Health check PASSED: bot running $TAG"
+            update_deploy_state "completed"
             exit 0
         fi
     else
@@ -83,4 +98,5 @@ done
 
 log "ERROR: Health check FAILED after 60s. Stopping bot."
 sudo systemctl stop rsi-bot
+update_deploy_state "failed" "health_check_timeout"
 exit 3
