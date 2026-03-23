@@ -23,6 +23,7 @@ venv/
 
 # Data
 *.csv
+!tests/data/*.csv
 *.db
 /data/
 app/backtest/data/
