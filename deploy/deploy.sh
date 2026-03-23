@@ -17,23 +17,27 @@ log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
 
 update_deploy_state() {
     local state="$1" error="${2:-}"
+    DS_STATE="$state" DS_ERROR="$error" DS_PATH="$DEPLOY_STATE" \
     python3 -c "
-import json
+import json, os
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc).isoformat()
+path = os.environ['DS_PATH']
+state = os.environ['DS_STATE']
+error = os.environ['DS_ERROR']
 try:
-    with open('$DEPLOY_STATE') as f:
+    with open(path) as f:
         d = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     d = {}
-d['state'] = '$state'
+d['state'] = state
 d['updated_at'] = now
-if '$state' in ('completed', 'failed'):
+if state in ('completed', 'failed'):
     d['last_deploy'] = now
-    d['last_result'] = '$state'
-    d['last_error'] = '$error'
+    d['last_result'] = state
+    d['last_error'] = error
     d['waiting_since'] = ''
-with open('$DEPLOY_STATE', 'w') as f:
+with open(path, 'w') as f:
     json.dump(d, f, indent=2)
 " 2>/dev/null || true
 }
@@ -75,11 +79,11 @@ log "Waiting for health check..."
 sleep 5
 for i in $(seq 1 12); do
     if [[ -f "$STATUS_FILE" ]]; then
-        STATUS=$(python3 -c "
-import json
-with open('$STATUS_FILE') as f:
+        STATUS=$(HC_PATH="$STATUS_FILE" HC_TAG="$TAG" python3 -c "
+import json, os
+with open(os.environ['HC_PATH']) as f:
     d = json.load(f)
-if d.get('status') == 'running' and d.get('version') == '$TAG':
+if d.get('status') == 'running' and d.get('version') == os.environ['HC_TAG']:
     print('HEALTHY')
 else:
     print(f'NOT_READY: status={d.get(\"status\")}, version={d.get(\"version\")}')

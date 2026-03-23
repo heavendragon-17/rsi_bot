@@ -44,7 +44,7 @@ def _build_status(runner: MultiSymbolRunner, started_at: datetime) -> dict[str, 
     now = datetime.now(timezone.utc)
 
     open_positions: list[dict[str, Any]] = []
-    for symbol, portfolio in runner.portfolios.items():
+    for symbol, portfolio in list(runner.portfolios.items()):
         pos = portfolio.get_position(symbol)
         if pos is not None:
             open_positions.append({

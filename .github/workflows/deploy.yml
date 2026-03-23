@@ -10,85 +10,19 @@ permissions:
   deployments: write
 
 jobs:
-  # ── Re-run full CI on the tagged commit ──────────────────────────
-  arch-lint:
-    name: Architecture Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: python scripts/arch_lint.py
-
-  ruff:
-    name: Ruff Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install ruff
-      - run: ruff check app/ tests/ scripts/
-
-  tests:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements-dev.txt
-      - run: pytest tests/ -v --tb=short
-
-  mypy:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt mypy
-      - run: mypy app/ --ignore-missing-imports
-
-  bandit:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: pip install bandit[toml]
-      - run: bandit -r app/ -c pyproject.toml
-
-  circular-imports:
-    name: Circular Import Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-      - run: pip install -r requirements.txt
-      - run: |
-          python -c "
-          from app.core import interfaces, actions, config, constants, events, snapshots
-          from app.data import indicators, store
-          print('No circular imports detected')
-          "
+  # ── Reuse full CI suite on the tagged commit ─────────────────────
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
 
   # ── Promote to production branch ─────────────────────────────────
   promote:
     name: Promote to Production
-    needs: [arch-lint, ruff, tests, mypy, bandit, circular-imports]
+    needs: [ci]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

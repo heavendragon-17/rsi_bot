@@ -21,47 +21,50 @@ log() { echo "[$(date -Iseconds)] $*" >> "$LOG_FILE"; }
 
 write_state() {
     # Usage: write_state <state> <tag> <sha> [error]
-    local state="$1" tag="$2" sha="$3" error="${4:-}"
+    DS_STATE="$1" DS_TAG="$2" DS_SHA="$3" DS_ERROR="${4:-}" \
+    DS_PATH="$DEPLOY_STATE" \
     python3 -c "
-import json, sys
+import json, os
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc).isoformat()
-# Read existing state to preserve fields
+path = os.environ['DS_PATH']
+state = os.environ['DS_STATE']
 try:
-    with open('$DEPLOY_STATE') as f:
+    with open(path) as f:
         existing = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     existing = {}
 data = {
-    'state': '$state',
-    'tag': '$tag',
-    'sha': '$sha',
+    'state': state,
+    'tag': os.environ['DS_TAG'],
+    'sha': os.environ['DS_SHA'],
     'updated_at': now,
-    'waiting_since': existing.get('waiting_since', '') if '$state' == 'waiting' else '',
+    'waiting_since': existing.get('waiting_since', '') if state == 'waiting' else '',
     'last_deploy': existing.get('last_deploy', ''),
     'last_result': existing.get('last_result', ''),
-    'last_error': '$error' if '$error' else existing.get('last_error', ''),
+    'last_error': os.environ['DS_ERROR'] or existing.get('last_error', ''),
 }
-if '$state' == 'waiting' and not existing.get('waiting_since'):
+if state == 'waiting' and not existing.get('waiting_since'):
     data['waiting_since'] = now
-if '$state' in ('completed', 'failed'):
+if state in ('completed', 'failed'):
     data['last_deploy'] = now
-    data['last_result'] = '$state'
-with open('$DEPLOY_STATE', 'w') as f:
+    data['last_result'] = state
+with open(path, 'w') as f:
     json.dump(data, f, indent=2)
 "
 }
 
 get_position_count() {
+    STATUS_PATH="$STATUS_FILE" STALE_SEC="$STALE_THRESHOLD" \
     python3 -c "
-import json, sys
+import json, os
 from datetime import datetime, timezone
 try:
-    with open('$STATUS_FILE') as f:
+    with open(os.environ['STATUS_PATH']) as f:
         d = json.load(f)
     updated = datetime.fromisoformat(d['updated_at'])
     age = (datetime.now(timezone.utc) - updated).total_seconds()
-    if age > $STALE_THRESHOLD:
+    if age > int(os.environ['STALE_SEC']):
         print('STALE')
     else:
         print(d.get('position_count', 0))
@@ -94,13 +97,22 @@ fi
 
 # ── Normal flow: check for new commits on production ─────────────
 cd "$BOT_DIR"
-git fetch origin production 2>/dev/null || { log "git fetch failed"; exit 1; }
+git fetch origin production --tags 2>/dev/null || { log "git fetch failed"; exit 1; }
 
-LOCAL_SHA=$(git rev-parse HEAD 2>/dev/null || echo "none")
-REMOTE_SHA=$(git rev-parse origin/production 2>/dev/null || echo "none")
+# Compare deployed SHA (from VERSION file) with remote production HEAD.
+# This is safer than comparing git HEAD which depends on the current branch.
+DEPLOYED_SHA=$(VF="$VERSION_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['VF']) as f:
+        print(json.load(f).get('sha', ''))
+except Exception:
+    print('')
+" 2>/dev/null) || DEPLOYED_SHA=""
+REMOTE_SHA=$(git rev-parse --short origin/production 2>/dev/null || echo "none")
 
-if [[ "$LOCAL_SHA" == "$REMOTE_SHA" ]]; then
-    exit 0  # Nothing new
+if [[ -n "$DEPLOYED_SHA" ]] && [[ "$REMOTE_SHA" == "$DEPLOYED_SHA"* ]]; then
+    exit 0  # Already running this version
 fi
 
 # Verify production HEAD has a semver tag
