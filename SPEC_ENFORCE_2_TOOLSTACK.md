@@ -224,7 +224,7 @@ Add 3 new jobs to `.github/workflows/ci.yml`:
           python-version: "3.11"
       - run: pip install detect-secrets
       - name: Audit secrets baseline
-        run: detect-secrets audit --report --baseline .secrets.baseline
+        run: detect-secrets audit --report .secrets.baseline
 ```
 
 ---

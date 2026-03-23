@@ -177,7 +177,7 @@ jobs:
           python-version: "3.13"
       - run: pip install detect-secrets
       - name: Audit secrets baseline
-        run: detect-secrets audit --report --baseline .secrets.baseline
+        run: detect-secrets audit --report .secrets.baseline
 
   circular-imports:
     name: Circular Import Check
