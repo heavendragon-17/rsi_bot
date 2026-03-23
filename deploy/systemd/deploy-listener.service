@@ -1,0 +1,19 @@
+[Unit]
+Description=RSI Bot Deploy Listener (Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/rsi_bot/deploy
+Environment=PATH=/home/user/rsi_bot/venv/bin:/usr/bin:/bin
+EnvironmentFile=/home/user/rsi_bot/deploy/.env.deploy
+ExecStart=/home/user/rsi_bot/venv/bin/python deploy_listener.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

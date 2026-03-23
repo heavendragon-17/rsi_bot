@@ -48,6 +48,10 @@ desktop.ini
 /.obsidian
 *.base
 *.canvas
+# Deploy (VPS-only files)
+VERSION
+deploy/.env.deploy
+
 # Claude Code (settings.json is committed, local state is not)
 /.claude/settings.local.json
 /.claude/arch_baseline.txt
