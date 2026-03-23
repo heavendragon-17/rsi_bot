@@ -27,7 +27,7 @@ def setup_logging(
     """
     structlog.reset_defaults()
 
-    shared_processors = [
+    shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
@@ -36,6 +36,7 @@ def setup_logging(
         structlog.processors.format_exc_info,
     ]
 
+    renderer: structlog.types.Processor
     if json_output:
         renderer = structlog.processors.JSONRenderer()
     else:

@@ -18,7 +18,7 @@ import structlog
 import threading
 import time
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_exchange import SimExchange
@@ -63,7 +63,7 @@ class SimTradeStreamManager:
         self._buffers: dict[str, Decimal] = {}
         self._last_sample: dict[str, float] = {}
 
-        self._ws = None
+        self._ws: Any = None
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 

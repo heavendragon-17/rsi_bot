@@ -63,7 +63,7 @@ def list_runs(
 
     summaries = []
     for run, cfg, result, strat in rows:
-        tags = [t.name for t in db.query(Tag).filter_by(run_id=run.id).all()]
+        tags: list[str] = [str(t.name) for t in db.query(Tag).filter_by(run_id=run.id).all()]
         summaries.append(
             RunSummary(
                 id=run.id,

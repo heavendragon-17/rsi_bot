@@ -32,8 +32,8 @@ def persist_results(run_id: int, results: dict[str, Any]) -> None:
         if run is None:
             return
 
-        run.status = "completed"
-        run.completed_at = datetime.utcnow()
+        run.status = "completed"  # type: ignore[assignment]
+        run.completed_at = datetime.utcnow()  # type: ignore[assignment]
 
         metrics = results.get("metrics", {})
         drawdown = results.get("drawdown", {})
@@ -117,8 +117,8 @@ def mark_failed(run_id: int, error_msg: str) -> None:
     try:
         run = db.query(Run).filter_by(id=run_id).first()
         if run:
-            run.status = "failed"
-            run.completed_at = datetime.utcnow()
+            run.status = "failed"  # type: ignore[assignment]
+            run.completed_at = datetime.utcnow()  # type: ignore[assignment]
             db.commit()
     finally:
         db.close()
