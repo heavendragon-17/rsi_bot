@@ -1,10 +1,4 @@
-"""
-Backtest Mock Exchange — simulates a futures exchange for backtesting with
-leverage, normalized order vocabulary, reduceOnly, wick-based SL/TP fills,
-and Decimal precision.
-- CCXT-compliant order structure
-- SHORT support: negative position amounts, BUY-side exit orders, signed PnL
-"""
+"""Backtest Mock Exchange — simulates a futures exchange for backtesting."""
 
 from __future__ import annotations
 
@@ -135,10 +129,22 @@ class MockExchange(IExchange):
             executed: list[dict] = []
             for fr in fill_results:
                 exit_reason = fr.info.get("exit_reason") or fr.order_type.upper()
+
+                # Re-clamp reduce_only fills against actual position.
+                # When multiple orders trigger on the same candle, earlier
+                # fills change the position but FillSimulator used a stale
+                # snapshot.  Skip if position is already closed.
+                fill_amount = fr.fill_amount
+                if fr.reduce_only:
+                    current_pos = abs(self.positions.get(fr.symbol, Decimal("0")))
+                    if current_pos <= Decimal("0"):
+                        continue
+                    fill_amount = min(fill_amount, current_pos)
+
                 result = self._execute_order(
                     symbol=fr.symbol,
                     side=fr.side,
-                    amount=fr.fill_amount,
+                    amount=fill_amount,
                     exec_price=fr.fill_price,
                     timestamp=timestamp,
                     order_type=fr.order_type.upper(),
@@ -386,13 +392,6 @@ class MockExchange(IExchange):
         fee_override: Decimal | None = None,
     ) -> dict | None:
         return execute_order(
-            self,
-            symbol,
-            side,
-            amount,
-            exec_price,
-            timestamp,
-            order_type,
-            exit_reason,
-            fee_override,
+            self, symbol, side, amount, exec_price,
+            timestamp, order_type, exit_reason, fee_override,
         )
