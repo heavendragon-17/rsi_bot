@@ -14,11 +14,12 @@ Tick buffer is flushed on disconnect (safe — ticks are sampled, not accumulate
 from __future__ import annotations
 
 import json
-import structlog
 import threading
 import time
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
+
+import structlog
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_exchange import SimExchange

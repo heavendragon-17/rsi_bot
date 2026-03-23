@@ -15,9 +15,10 @@ All methods use scalar parameters only — no exchange-specific state objects.
 
 from __future__ import annotations
 
-import structlog
 import os
 from decimal import Decimal
+
+import structlog
 
 from app.core.interfaces import IExchange, INotifier
 from app.notification.telegram_bot import TelegramBot

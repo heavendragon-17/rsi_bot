@@ -14,7 +14,6 @@ to sleep until the next funding window.
 
 from __future__ import annotations
 
-import structlog
 import threading
 import time
 from datetime import UTC, datetime
@@ -22,6 +21,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import requests  # type: ignore[import-untyped]
+import structlog
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_state import SimTradeState

@@ -20,9 +20,10 @@ Custom DEX Adapters:
 from __future__ import annotations
 
 import importlib
-import structlog
 import os
 from typing import Any
+
+import structlog
 
 from app.core.interfaces import IExchange
 

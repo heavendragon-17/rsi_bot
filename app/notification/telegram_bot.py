@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import structlog
 import os
 import threading
 import time
 from collections.abc import Callable
 
 import requests  # type: ignore[import-untyped]
+import structlog
 
 
 class TelegramBot:
