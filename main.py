@@ -30,6 +30,7 @@ setup_logging(level="INFO")
 
 import structlog  # noqa: E402
 
+from app.core.status_writer import StatusWriter  # noqa: E402
 from app.notification.notification_service import NotificationService  # noqa: E402
 from app.notification.null_notifier import NullNotifier  # noqa: E402
 from app.trading.exchange.factory import create_exchange  # noqa: E402
@@ -81,13 +82,18 @@ def main():
         notification_service=ns,
     )
 
-    # 5. Start and wait
+    # 5. Start status writer (background health file for deploy listener)
+    status_writer = StatusWriter(runner)
+
+    # 6. Start and wait
     try:
         runner.start()
+        status_writer.start()
         runner.wait()
     except KeyboardInterrupt:
         logger.info("bot_stopped_by_user")
     finally:
+        status_writer.stop()
         runner.stop()
         ns.send_message("🛑 RSI Bot Stopped")
 

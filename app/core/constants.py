@@ -21,3 +21,7 @@ DEFAULT_MAKER_FEE = 0.0002  # 0.02 %
 # Decimal variants for modules that require exact arithmetic.
 DEFAULT_TAKER_FEE_DECIMAL = Decimal("0.0005")
 DEFAULT_MAKER_FEE_DECIMAL = Decimal("0.0002")
+
+# ── Bot status file (read by deploy listener) ────────────────────────
+STATUS_FILE_PATH = "/tmp/rsi_bot_status.json"
+STATUS_WRITE_INTERVAL = 30  # seconds
