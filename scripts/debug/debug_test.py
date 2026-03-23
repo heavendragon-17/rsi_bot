@@ -1,7 +1,7 @@
 # Simple test to debug MockExchange
 import yaml
 
-from app.backtest.engine import BacktestEngine
+from app.backtest.engine.backtest_engine import BacktestEngine
 from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 config = yaml.safe_load(open("config.yaml"))

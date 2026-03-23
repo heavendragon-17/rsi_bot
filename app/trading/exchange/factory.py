@@ -118,7 +118,7 @@ def create_exchange(config: dict[str, Any], notification_service=None) -> IExcha
         return exc
 
     if mode == "mock":
-        from app.backtest.mock_exchange import MockExchange
+        from app.backtest.exchange.mock_exchange import MockExchange
 
         backtest_cfg = config.get("backtest", {})
         initial_balance = backtest_cfg.get("initial_balance", 10000.0)

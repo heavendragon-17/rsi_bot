@@ -9,7 +9,7 @@ import os
 
 import pytest
 
-from app.backtest.engine import BacktestEngine
+from app.backtest.engine.backtest_engine import BacktestEngine
 from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "small_btc.csv")

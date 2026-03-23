@@ -19,12 +19,12 @@ import pandas as pd
 import structlog
 import yaml  # type: ignore[import-untyped]
 
-from app.backtest.batch_report import BatchHtmlGenerator
-from app.backtest.data_manager import DataManager
-from app.backtest.engine import BacktestEngine
+from app.backtest.data.manager import DataManager
+from app.backtest.engine.backtest_engine import BacktestEngine
 from app.backtest.enrichment import enrich_round_trips
-from app.backtest.export import export_combined_signals, export_signals_to_csv
-from app.backtest.reporting import BacktestReporter
+from app.backtest.reporting.batch_report import BatchHtmlGenerator
+from app.backtest.reporting.export import export_combined_signals, export_signals_to_csv
+from app.backtest.reporting.reporter import BacktestReporter
 from app.core.logging import setup_logging
 from app.trading.strategy.loader import STRATEGY_MAP
 
@@ -136,7 +136,7 @@ def _run_single_symbol(
     """Run backtest for a single symbol.  Designed for ProcessPoolExecutor."""
     setup_logging(level="INFO")
     try:
-        from app.backtest.download_data import calculate_candle_limit
+        from app.backtest.data.download import calculate_candle_limit
         from app.trading.strategy.loader import STRATEGY_MAP as strategy_map
 
         strategy_class = strategy_map.get(strategy_name)

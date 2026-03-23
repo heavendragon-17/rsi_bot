@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
-from app.backtest.event_source import BacktestEventSource
+from app.backtest.engine.event_source import BacktestEventSource
 from app.core.actions import DoNothing
 from app.core.analysis_result import AnalysisResult
 from app.core.events import (

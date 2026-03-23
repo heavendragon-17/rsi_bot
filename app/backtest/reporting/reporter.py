@@ -14,7 +14,7 @@ import os
 import pandas as pd
 import structlog
 
-from app.backtest.reporting_html import generate_html_report
+from app.backtest.reporting.html import generate_html_report
 
 logger = structlog.get_logger()
 

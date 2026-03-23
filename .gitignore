@@ -26,7 +26,9 @@ venv/
 !tests/data/*.csv
 *.db
 /data/
-app/backtest/data/
+app/backtest/data/*.csv
+app/backtest/data/*.zip
+app/backtest/data/*.json
 
 # Logs
 *.log

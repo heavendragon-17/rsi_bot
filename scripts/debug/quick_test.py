@@ -6,7 +6,7 @@ from decimal import Decimal
 
 sys.path.insert(0, ".")
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 
 print("Testing thread-safe MockExchange...")
 

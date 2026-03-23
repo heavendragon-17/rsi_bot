@@ -21,8 +21,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
 from app.backtest.config_builder import build_backtest_config  # noqa: E402
-from app.backtest.engine import BacktestEngine  # noqa: E402
-from app.backtest.reporting import BacktestReporter  # noqa: E402
+from app.backtest.engine.backtest_engine import BacktestEngine  # noqa: E402
+from app.backtest.reporting.reporter import BacktestReporter  # noqa: E402
 from app.trading.strategy.loader import STRATEGY_MAP  # noqa: E402
 
 logger = structlog.get_logger()

@@ -171,7 +171,7 @@ async def start_backtest(body: BacktestRequest, db: Session = Depends(get_db)):
         )
 
         def _run_backtest():
-            from app.backtest.engine import BacktestEngine
+            from app.backtest.engine.backtest_engine import BacktestEngine
 
             try:
                 engine = BacktestEngine(csv_path, strategy_class, engine_config)

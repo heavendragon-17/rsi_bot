@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.actions import OpenPosition
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
@@ -412,7 +412,7 @@ class TestEngineRoundTripBuilder:
 
     def test_short_round_trip_has_sell_side(self):
         """SELL entry + BUY exits produces a round trip with side='SHORT'."""
-        from app.backtest.engine_metrics import build_round_trips
+        from app.backtest.engine.metrics import build_round_trips
 
         # Simulate trade history for a short trade
         trades = pd.DataFrame(
@@ -454,7 +454,7 @@ class TestEngineRoundTripBuilder:
 
     def test_long_round_trip_has_buy_side(self):
         """BUY entry + SELL exits produces a round trip with side='LONG'."""
-        from app.backtest.engine_metrics import build_round_trips
+        from app.backtest.engine.metrics import build_round_trips
 
         trades = pd.DataFrame(
             [
@@ -493,7 +493,7 @@ class TestEngineRoundTripBuilder:
 
     def test_mixed_long_short_round_trips(self):
         """Mixed LONG and SHORT trades produce correct round trips with correct sides."""
-        from app.backtest.engine_metrics import build_round_trips
+        from app.backtest.engine.metrics import build_round_trips
 
         trades = pd.DataFrame(
             [

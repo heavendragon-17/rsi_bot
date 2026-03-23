@@ -11,7 +11,7 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.actions import OpenPosition
 from app.core.events import SignalEvent
 from app.core.snapshots import ContextSnapshot

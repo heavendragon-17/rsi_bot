@@ -16,16 +16,16 @@ import numpy as np
 import pandas as pd
 import structlog
 
-from app.backtest.engine_curves import build_drawdown_curve_dated, build_equity_curve_dated
-from app.backtest.engine_metrics import (
+from app.backtest.engine.curves import build_drawdown_curve_dated, build_equity_curve_dated
+from app.backtest.engine.event_source import BacktestEventSource
+from app.backtest.engine.metrics import (
     build_round_trips,
     calculate_drawdown,
     calculate_metrics,
     calculate_monthly_returns,
     calculate_risk_metrics,
 )
-from app.backtest.event_source import BacktestEventSource
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.core.constants import WARMUP as _WARMUP_CONST
 from app.core.events import CandleCloseEvent
@@ -59,7 +59,7 @@ class BacktestEngine(Engine):
         years = duration_cfg.get("years", 0)
         timeframe = config.get("timeframe", "15m")
         try:
-            from app.backtest.download_data import calculate_candle_limit
+            from app.backtest.data.download import calculate_candle_limit
 
             limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
             if limit > 0:
