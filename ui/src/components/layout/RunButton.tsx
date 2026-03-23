@@ -22,18 +22,18 @@ export const RunButton: React.FC<RunButtonProps> = ({ onClick }) => {
     return (
       <div className="relative w-full h-12 rounded-lg bg-bg-elevated border border-border-main overflow-hidden group">
         {/* Progress Bar Background */}
-        <div 
+        <div
             className="absolute top-0 left-0 bottom-0 bg-accent-main/20 transition-all duration-300 ease-out"
             style={{ width: `${runProgress}%` }}
         />
-        
+
         <div className="absolute inset-0 flex items-center justify-between px-4">
              <div className="flex flex-col justify-center">
                 <span className="text-xs font-bold text-accent-main">RUNNING...</span>
                 <span className="text-[10px] text-text-secondary font-mono">{runProgress}%</span>
              </div>
-             
-             <button 
+
+             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     cancelBacktest();

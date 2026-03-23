@@ -33,7 +33,7 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
   const sortinoRatio = 0.31;
   const calmarRatio = 4.79;
   const volatility = 9.86;
-  
+
   // Calculate additional stats
   const avgWin = winningTrades.reduce((sum, t) => sum + t.pnl, 0) / winningTrades.length;
   const avgLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0) / losingTrades.length);
@@ -44,13 +44,13 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
   const profitFactor = grossProfit / grossLoss;
   const expectancy = (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss;
   const avgHoldTime = 7.1; // hours
-  
+
   // Consecutive wins/losses
   let maxConsecWins = 0;
   let maxConsecLosses = 0;
   let currentConsecWins = 0;
   let currentConsecLosses = 0;
-  
+
   trades.forEach(trade => {
     if (trade.pnl > 0) {
       currentConsecWins++;
@@ -142,7 +142,7 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
               <p className="text-slate-400 text-sm mt-1">Performance analysis & trade history</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="bg-slate-800/40 backdrop-blur-xl rounded-lg px-4 py-2 border border-white/10">
               <div className="text-xs text-slate-400">Total Trades</div>
@@ -437,14 +437,14 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                <XAxis 
-                  dataKey="trade" 
-                  stroke="#64748b" 
+                <XAxis
+                  dataKey="trade"
+                  stroke="#64748b"
                   tick={{ fill: '#94a3b8', fontSize: 11 }}
                   label={{ value: 'Trade #', fill: '#64748b', position: 'insideBottom', offset: -5 }}
                 />
-                <YAxis 
-                  stroke="#64748b" 
+                <YAxis
+                  stroke="#64748b"
                   tick={{ fill: '#94a3b8', fontSize: 11 }}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                 />
@@ -459,10 +459,10 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                   itemStyle={{ color: '#e2e8f0', fontSize: '12px', fontFamily: 'monospace' }}
                   formatter={(value: number) => [`$${value.toFixed(2)}`, 'Balance']}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="equity" 
-                  stroke="#8B5CF6" 
+                <Line
+                  type="monotone"
+                  dataKey="equity"
+                  stroke="#8B5CF6"
                   strokeWidth={3}
                   fill="url(#equityGradient)"
                   dot={false}
@@ -516,8 +516,8 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                 {exitReasonData.map((entry) => (
                   <div key={entry.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
+                      <div
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: COLORS[entry.name as keyof typeof COLORS] || '#64748b' }}
                       />
                       <span className="text-sm text-slate-300">{entry.name}</span>
@@ -541,7 +541,7 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
             <h3 className="font-bold text-white text-lg">Trade History</h3>
             <div className="text-sm text-slate-400">Click any trade to inspect details</div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -570,11 +570,11 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                       #{trade.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300 font-mono">
-                      {new Date(trade.entryTime).toLocaleString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
+                      {new Date(trade.entryTime).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
                       })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
@@ -583,8 +583,8 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`
                         inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium
-                        ${trade.side === 'LONG' 
-                          ? 'bg-emerald-500/20 text-emerald-400' 
+                        ${trade.side === 'LONG'
+                          ? 'bg-emerald-500/20 text-emerald-400'
                           : 'bg-rose-500/20 text-rose-400'}
                       `}>
                         {trade.side === 'LONG' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
@@ -608,8 +608,8 @@ export function SinglePairResults({ trades, symbol, onSelectTrade, onBack }: Sin
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`
                         inline-flex px-2 py-1 rounded-full text-xs font-medium
-                        ${trade.exitReason === 'TP1' || trade.exitReason === 'TP2' 
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        ${trade.exitReason === 'TP1' || trade.exitReason === 'TP2'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : trade.exitReason === 'Stop Loss'
                           ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           : 'bg-violet-500/20 text-violet-400 border border-violet-500/30'}

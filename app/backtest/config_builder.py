@@ -4,9 +4,10 @@ Backtest Config Builder
 Single source of truth for building the config dict that BacktestEngine expects.
 Used by both the CLI (app/backtest/backtest.py) and the API (app/api/routes/backtest.py).
 """
+
 import os
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 
 def build_backtest_config(

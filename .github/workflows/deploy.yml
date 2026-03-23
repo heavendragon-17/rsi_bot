@@ -1,0 +1,64 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  # ── Reuse full CI suite on the tagged commit ─────────────────────
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+  # ── Promote to production branch ─────────────────────────────────
+  promote:
+    name: Promote to Production
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fast-forward production to tagged commit
+        run: |
+          TAG_SHA=$(git rev-parse HEAD)
+          git fetch origin production 2>/dev/null || true
+          git checkout -B production "$TAG_SHA"
+          git push origin production --force-with-lease
+
+      - name: Create GitHub deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: tag,
+              environment: 'production',
+              auto_merge: false,
+              required_contexts: [],
+              description: `Promote ${tag} to production`
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              description: `${tag} pushed to production. VPS will pick up within 1 min.`
+            });

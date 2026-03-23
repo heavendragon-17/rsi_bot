@@ -141,7 +141,7 @@ export async function exportToPDF(
 
     pdf.setFontSize(10);
     pdf.setTextColor(200, 200, 200);
-    
+
     const stats = [
       `Net Profit: $${data.netProfit.toFixed(2)} (${data.netProfitPct.toFixed(2)}%)`,
       `Win Rate: ${data.winRate.toFixed(2)}%`,
@@ -167,12 +167,12 @@ export async function exportToPDF(
       if (equityElement) {
         const canvas = await html2canvas(equityElement, { scale: 1 });
         const imgData = canvas.toDataURL("image/png");
-        
+
         if (yPos + 80 > pageHeight) {
           pdf.addPage();
           yPos = 20;
         }
-        
+
         pdf.text("Equity Curve", 20, yPos);
         yPos += 5;
         pdf.addImage(imgData, "PNG", 20, yPos, pageWidth - 40, 70);
@@ -191,12 +191,12 @@ export async function exportToPDF(
       if (drawdownElement) {
         const canvas = await html2canvas(drawdownElement, { scale: 1 });
         const imgData = canvas.toDataURL("image/png");
-        
+
         if (yPos + 80 > pageHeight) {
           pdf.addPage();
           yPos = 20;
         }
-        
+
         pdf.text("Drawdown", 20, yPos);
         yPos += 5;
         pdf.addImage(imgData, "PNG", 20, yPos, pageWidth - 40, 70);
@@ -243,7 +243,7 @@ export async function exportToPDF(
 
       const annotation = data.annotations[trade.id];
       xPos = 20;
-      
+
       pdf.text(String(trade.id), xPos, yPos);
       xPos += 10;
       pdf.text(trade.entryTime, xPos, yPos);
@@ -252,17 +252,17 @@ export async function exportToPDF(
       xPos += 30;
       pdf.text(trade.side, xPos, yPos);
       xPos += 25;
-      
+
       const pnlColor = trade.pnl >= 0 ? [0, 255, 0] : [255, 0, 0];
       pdf.setTextColor(pnlColor[0], pnlColor[1], pnlColor[2]);
       pdf.text(`$${trade.pnl.toFixed(2)}`, xPos, yPos);
       pdf.setTextColor(200, 200, 200);
       xPos += 25;
-      
+
       pdf.text(trade.exitReason, xPos, yPos);
       xPos += 25;
       pdf.text(annotation?.tags.join(", ") || "", xPos, yPos);
-      
+
       yPos += 5;
     });
 

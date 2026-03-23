@@ -34,6 +34,9 @@ pytest tests/test_binance_adapter.py::test_name  # single test
 
 # Regenerate database docs
 python scripts/gen_db_docs.py
+
+# Regenerate TypeScript types from Pydantic models
+python scripts/gen_ts_types.py
 ```
 
 ## Architecture (Quick Reference)
@@ -77,8 +80,8 @@ Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`
 
 ### Key Utilities
 
-- `SLTPCalculator` (`app/core/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
-- `CrossoverIndicators` (`app/utils/crossover_indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies
+- `SLTPCalculator` (`app/trading/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
+- `CrossoverIndicators` (`app/data/indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies (consolidated indicators module)
 - `opposite_side()` (`app/core/actions.py`) — BUY↔SELL, used for exit orders
 - Position amounts are **signed**: positive=LONG, negative=SHORT
 
@@ -102,6 +105,64 @@ Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`
 - `MarketDataStore` caps at 6,000 candles per symbol in memory
 - Main branch: `mua-tren-the-nang`
 - structlog for all logging (zero print statements)
+
+## Enforcement
+
+All coding rules are enforced via automated gates. See `docs/16_enforcement/enforcement.md` for the complete enforcement matrix, CI pipeline details, and how to add new rules.
+
+## IMPORTANT: Architectural Rules (MUST FOLLOW)
+
+These rules are **mandatory** for every code change. Violating them creates tech debt.
+
+### Directory Boundaries — Do NOT put files in the wrong place
+
+```
+app/core/         → ONLY interfaces, models, actions, config, constants, exceptions, events, snapshots
+                    NO implementation logic. NO exchange/strategy/portfolio code.
+app/trading/      → ALL live trading: strategy/, portfolio/, exchange/, engine, runner
+app/data/         → ALL data ingestion: store, stream, normalizer, indicators, resampler
+app/backtest/     → ALL backtest: engine, mock_exchange, service, reporting, download
+app/api/          → ALL HTTP: FastAPI routes, schemas, executor. NO business logic in routes.
+app/notification/ → ALL notifications: telegram, notification service/worker
+app/repository/   → ALL database: ORM models, queries, connections
+```
+
+### File Size Limits
+
+- **Max 400 lines per file.** If a file grows past 400 lines, decompose it.
+- **Max 1 class with real logic per file.** Small dataclasses/enums can share a file.
+
+### No Magic Numbers
+
+- ALL constants go in `app/core/constants.py` — WARMUP, MAX_CANDLES_IN_RAM, fee defaults, etc.
+- Strategy parameters go in the strategy's own frozen config dataclass — NOT in config.yaml, NOT hardcoded.
+- If you add a constant, check constants.py first. Don't duplicate.
+
+### Import Discipline
+
+- `app/core/` may NOT import from `app/trading/`, `app/data/`, `app/backtest/`, `app/api/`, or `app/notification/`
+- `app/trading/` may import from `app/core/` and `app/data/` only
+- `app/backtest/` may import from `app/core/`, `app/data/`, and `app/trading/` (shared strategies/models)
+- `app/api/` may import from anything (it's the outermost layer)
+- **Never create circular imports.** Test with: `python -c "from app.core import interfaces"`
+
+### No God Classes
+
+- Classes should have **one responsibility**. If a class has 5+ unrelated methods, split it.
+- Exchange adapters: delegate fill logic to `FillSimulator`, don't inline it.
+- Portfolio: delegate to `PositionSizer`, `SLTPManager`, `TradeExecutor`, `NotificationDispatcher`.
+- API routes: delegate business logic to service classes. Routes are thin HTTP handlers only.
+
+### DRY — Don't Repeat Yourself
+
+- Shared strategy logic lives in `app/trading/strategy/utils/` — do NOT copy-paste between strategies.
+- Symbol normalization: use `app/core/utils.py` — do NOT write another `_base_asset()` helper.
+- Fee constants: import from `app/core/constants.py` — do NOT hardcode `0.0005` anywhere.
+- dotenv: loaded ONCE in `main.py` entry point — do NOT call `load_dotenv()` in individual modules.
+
+### Before You Code, Check the Spec
+
+If `SPEC_CLEANUP_*.md` files exist at repo root, read them. They document architectural decisions.
 
 ## IMPORTANT: Documentation Maintenance
 

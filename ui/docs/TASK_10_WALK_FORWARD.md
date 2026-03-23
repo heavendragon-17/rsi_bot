@@ -21,7 +21,7 @@ interface WalkForwardState {
   paramToOptimize: string;        // Single parameter to optimize
   paramMin/Max/Step: number;      // Parameter range
   optimizeMetric: WalkForwardMetric; // Sharpe, Net PnL, etc.
-  
+
   // Results
   windows: WalkForwardWindow[];   // All window results
   summary: WalkForwardSummary;    // Aggregated statistics

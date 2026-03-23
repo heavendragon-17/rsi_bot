@@ -5,6 +5,7 @@ GET  /api/data/status           — check if CSV exists
 POST /api/data/download         — start download (SSE-streamed)
 GET  /api/data/download/{job_id}/progress — SSE progress for download
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -94,19 +95,16 @@ async def start_download(body: dict[str, Any]):
     def _run_download():
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
-            from app.backtest.download_data import download_data
+            from app.backtest.data.download import download_data
 
             safe = symbol.replace("/", "")
             download_data(safe, timeframe, limit, DATA_DIR)
-            loop.call_soon_threadsafe(
-                q.put_nowait, {"event": "complete", "pct": 100}
-            )
+            loop.call_soon_threadsafe(q.put_nowait, {"event": "complete", "pct": 100})
         except Exception as exc:
-            loop.call_soon_threadsafe(
-                q.put_nowait, {"event": "error", "message": str(exc)}
-            )
+            loop.call_soon_threadsafe(q.put_nowait, {"event": "error", "message": str(exc)})
 
     import threading
+
     t = threading.Thread(target=_run_download, daemon=True)
     t.start()
 
@@ -119,6 +117,7 @@ async def download_progress(job_id: str):
     q = _download_queues.get(job_id)
     if q is None:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Download job not found")
 
     async def _generate():
@@ -127,12 +126,13 @@ async def download_progress(job_id: str):
                 event = await asyncio.wait_for(q.get(), timeout=60.0)
                 evt_name = event.pop("event", "progress")
                 import json
+
                 yield f"event: {evt_name}\ndata: {json.dumps(event)}\n\n"
                 if evt_name in ("complete", "error"):
                     _download_queues.pop(job_id, None)
                     break
-        except asyncio.TimeoutError:
-            yield "event: error\ndata: {\"message\": \"Download timed out\"}\n\n"
+        except TimeoutError:
+            yield 'event: error\ndata: {"message": "Download timed out"}\n\n'
             _download_queues.pop(job_id, None)
 
     return StreamingResponse(

@@ -15,7 +15,7 @@ interface AddNoteModalProps {
 
 export const AddNoteModal: React.FC<AddNoteModalProps> = ({ trade, onClose }) => {
   const { annotations, addAnnotation, updateAnnotation } = useExportStore();
-  
+
   const existingAnnotation = annotations[trade.id];
   const [note, setNote] = useState(existingAnnotation?.note || "");
   const [selectedTags, setSelectedTags] = useState<TradeTag[]>(

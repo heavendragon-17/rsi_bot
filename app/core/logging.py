@@ -4,6 +4,7 @@ All modules use: logger = structlog.get_logger()
 
 Call setup_logging() once at startup in main.py.
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,9 @@ import threading
 import structlog
 
 
-def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str = "rsi_bot.log", console: bool = True) -> None:
+def setup_logging(
+    level: str = "INFO", json_output: bool = False, log_file: str = "rsi_bot.log", console: bool = True
+) -> None:
     """
     Configure structlog + stdlib logging.
 
@@ -24,7 +27,7 @@ def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str 
     """
     structlog.reset_defaults()
 
-    shared_processors = [
+    shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
@@ -33,6 +36,7 @@ def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str 
         structlog.processors.format_exc_info,
     ]
 
+    renderer: structlog.types.Processor
     if json_output:
         renderer = structlog.processors.JSONRenderer()
     else:
@@ -57,7 +61,7 @@ def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str 
 
     root = logging.getLogger()
     root.handlers.clear()
-    
+
     if console:
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
@@ -69,7 +73,7 @@ def setup_logging(level: str = "INFO", json_output: bool = False, log_file: str 
         root.addHandler(file_handler)
 
     root.setLevel(getattr(logging, level.upper()))
-    
+
     # Suppress verbose 3rd-party loggers
     logging.getLogger("ccxt").setLevel(logging.WARNING)
 

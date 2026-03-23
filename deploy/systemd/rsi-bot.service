@@ -1,0 +1,18 @@
+[Unit]
+Description=RSI Trading Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/rsi_bot
+Environment=PATH=/home/user/rsi_bot/venv/bin:/usr/bin:/bin
+ExecStart=/home/user/rsi_bot/venv/bin/python main.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

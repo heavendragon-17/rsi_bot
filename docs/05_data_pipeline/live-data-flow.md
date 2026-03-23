@@ -34,7 +34,7 @@ Strategy.analyze(symbol, df, position, context)
 
 ## BinanceStreamManager
 
-**Source**: `app/services/market_data/stream_manager.py`
+**Source**: `app/data/stream_manager.py`
 
 ### WebSocket Connection
 
@@ -109,7 +109,7 @@ The stream manager exposes two optional callbacks for `LiveEventSource` integrat
 
 ## DataNormalizer
 
-**Source**: `app/services/market_data/normalizer.py`
+**Source**: `app/data/normalizer.py`
 
 Stateless class with static methods that convert raw exchange data into typed `Candle` / `MarketEvent` objects.
 
@@ -176,7 +176,7 @@ Candle(symbol="BTC", timestamp=..., open=Decimal('51234.5'), ..., closed=True)
 
 ## MarketDataStore
 
-**Source**: `app/services/market_data/store.py`
+**Source**: `app/data/store.py`
 
 ### Purpose
 
@@ -240,7 +240,7 @@ Returns the last candle as a dictionary with `Decimal` values for precise price 
 
 ## LiveEventSource
 
-**Source**: `app/services/market_data/live_event_source.py`
+**Source**: `app/data/live_event_source.py`
 
 Bridges the callback-based `BinanceStreamManager` to the pull-based `IEventSource` interface used by the unified Engine.
 

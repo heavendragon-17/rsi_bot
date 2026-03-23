@@ -4,46 +4,49 @@ Layer 1: Data Ingestion  - IDataProvider, IDataStore
 Layer 2: Core Logic      - IStrategy, IIndicators
 Layer 3: Execution       - IExchange (unified futures exchange), IPortfolio
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Optional, Dict, Any, List, Sequence
+from typing import Any
+
 import pandas as pd
 
-from app.core.events import Candle, SignalEvent, MarketEvent
-from app.core.snapshots import PositionSnapshot, ContextSnapshot
 from app.core.analysis_result import AnalysisResult
-
+from app.core.events import Candle, SignalEvent
+from app.core.snapshots import ContextSnapshot, PositionSnapshot
 
 # ============================================
 # Layer 1: Data Ingestion Interfaces
 # ============================================
 
+
 class IDataProvider(ABC):
     """Interface for market data providers (websocket streams, REST APIs)."""
-    
+
     @abstractmethod
-    def subscribe(self, symbols: List[str]) -> None:
+    def subscribe(self, symbols: list[str]) -> None:
         """Subscribe to market data for given symbols."""
         pass
-    
+
     @abstractmethod
-    def unsubscribe(self, symbols: List[str]) -> None:
+    def unsubscribe(self, symbols: list[str]) -> None:
         """Unsubscribe from market data."""
         pass
 
 
 class IDataStore(ABC):
     """Interface for storing and retrieving candle data."""
-    
+
     @abstractmethod
     def update_candle(self, candle: Candle) -> None:
         """Update or append candle data."""
         pass
-    
+
     @abstractmethod
-    def get_dataframe(self, symbol: str) -> Optional[pd.DataFrame]:
+    def get_dataframe(self, symbol: str) -> pd.DataFrame | None:
         """Get candle data as DataFrame for a symbol."""
         pass
 
@@ -52,24 +55,25 @@ class IDataStore(ABC):
 # Layer 2: Core Logic Interfaces
 # ============================================
 
+
 class IIndicators(ABC):
     """Interface for technical indicator calculations."""
-    
+
     @abstractmethod
     def compute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """Compute all indicators and return DataFrame with new columns."""
         pass
-    
+
     @abstractmethod
     def get_mode(self, df: pd.DataFrame) -> str:
         """Get current market mode (BULLISH, NEUTRAL)."""
         pass
-    
+
     @abstractmethod
     def check_wma_retest(self, df: pd.DataFrame, distance: float) -> bool:
         """Check if RSI is retesting WMA45 within distance."""
         pass
-    
+
     @abstractmethod
     def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Decimal:
         """Calculate the price level for a target RSI value."""
@@ -84,8 +88,8 @@ class IStrategy(ABC):
         self,
         symbol: str,
         df: pd.DataFrame,
-        position: Optional[PositionSnapshot] = None,
-        context: Optional[ContextSnapshot] = None,
+        position: PositionSnapshot | None = None,
+        context: ContextSnapshot | None = None,
     ) -> AnalysisResult:
         """
         Pure analysis function.
@@ -106,6 +110,7 @@ class IStrategy(ABC):
 # Layer 3: Execution Interfaces
 # ============================================
 
+
 class IExchange(ABC):
     """Interface for perpetual futures exchange operations."""
 
@@ -124,9 +129,9 @@ class IExchange(ABC):
         order_type: str,  # normalized: market, limit, stop_market, stop_limit, trailing_stop
         side: str,
         amount: Decimal,
-        price: Optional[Decimal] = None,
-        params: Optional[Dict[str, Any]] = None,  # stopPrice, reduceOnly, callbackRate, etc.
-    ) -> Optional[Dict[str, Any]]:
+        price: Decimal | None = None,
+        params: dict[str, Any] | None = None,  # stopPrice, reduceOnly, callbackRate, etc.
+    ) -> dict[str, Any] | None:
         """
         Create an order using normalized order types.
         Adapter translates to exchange-native format.
@@ -135,7 +140,7 @@ class IExchange(ABC):
         pass
 
     @abstractmethod
-    def fetch_order(self, order_id: str, symbol: str) -> Dict[str, Any]:
+    def fetch_order(self, order_id: str, symbol: str) -> dict[str, Any]:
         """Fetch order status by ID."""
         pass
 
@@ -150,17 +155,17 @@ class IExchange(ABC):
         pass
 
     @abstractmethod
-    def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict]:
+    def fetch_positions(self, symbols: list[str] | None = None) -> list[dict]:
         """Fetch open positions."""
         pass
 
     @abstractmethod
-    def fetch_balance(self, params: Optional[Dict] = None) -> Dict:
+    def fetch_balance(self, params: dict | None = None) -> dict:
         """Fetch balance in CCXT format."""
         pass
 
     @abstractmethod
-    def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    def fetch_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
         """Fetch all open/pending orders for a symbol."""
         pass
 
@@ -193,6 +198,7 @@ class IPortfolio(ABC):
 # Notification Interface
 # ============================================
 
+
 class INotifier(ABC):
     """
     Trade notification interface.
@@ -214,10 +220,10 @@ class INotifier(ABC):
         side: str,
         entry_price: Decimal,
         amount: Decimal,
-        sl_price: Optional[Decimal] = None,
-        tp_prices: Optional[Dict[str, Decimal]] = None,
+        sl_price: Decimal | None = None,
+        tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
-        balance: Optional[Decimal] = None,
+        balance: Decimal | None = None,
     ) -> None:
         """Called when a position is opened (entry order filled)."""
         pass
@@ -229,12 +235,12 @@ class INotifier(ABC):
         exit_reason: str,
         fill_price: Decimal,
         amount: Decimal,
-        pnl_gross: Optional[Decimal] = None,
-        pnl_net: Optional[Decimal] = None,
-        fees: Optional[Decimal] = None,
-        r_multiple: Optional[Decimal] = None,
-        remaining_amount: Optional[Decimal] = None,
-        balance: Optional[Decimal] = None,
+        pnl_gross: Decimal | None = None,
+        pnl_net: Decimal | None = None,
+        fees: Decimal | None = None,
+        r_multiple: Decimal | None = None,
+        remaining_amount: Decimal | None = None,
+        balance: Decimal | None = None,
     ) -> None:
         """Called when an SL or TP order fills (partial or full exit)."""
         pass

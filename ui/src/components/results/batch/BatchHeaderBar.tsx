@@ -8,9 +8,9 @@ import { cn } from "../../../lib/utils";
 export const BatchHeaderBar: React.FC = () => {
   const { strategy } = useBacktestStore();
   const { symbols, allocationMode, hasBatchResults } = useBatchResultsStore();
-  
+
   // Hardcoded Fees for consistency with main header
-  const feesEnabled = true; 
+  const feesEnabled = true;
 
   if (!hasBatchResults) return null;
 
@@ -24,7 +24,7 @@ export const BatchHeaderBar: React.FC = () => {
                   <span className="text-sm font-mono text-accent-main">BATCH ({symbols.length} symbols)</span>
               </h1>
           </div>
-          
+
           <div className="px-2 py-0.5 rounded bg-accent-main/10 border border-accent-main/30 text-accent-main text-xs font-medium uppercase tracking-wide">
               {allocationMode.replace("_", " ")}
           </div>
@@ -34,8 +34,8 @@ export const BatchHeaderBar: React.FC = () => {
           {/* Fees Badge */}
           <div className={cn(
               "px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 select-none",
-              feesEnabled 
-                  ? "bg-success/10 border-success/30 text-success" 
+              feesEnabled
+                  ? "bg-success/10 border-success/30 text-success"
                   : "bg-warning/10 border-warning/30 text-warning"
           )}>
               <span className={cn("w-1.5 h-1.5 rounded-full", feesEnabled ? "bg-success" : "bg-warning")} />

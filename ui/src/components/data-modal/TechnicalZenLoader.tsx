@@ -16,22 +16,22 @@ export const TechnicalZenLoader: React.FC<{ className?: string }> = ({ className
          </defs>
 
          {/* Rotating Rings */}
-         <motion.circle 
-            cx="50" cy="50" r="40" 
+         <motion.circle
+            cx="50" cy="50" r="40"
             stroke="var(--border-main)" strokeWidth="1" fill="none"
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             className="opacity-30"
          />
-         <motion.circle 
-            cx="50" cy="50" r="30" 
+         <motion.circle
+            cx="50" cy="50" r="30"
             stroke="var(--accent-main)" strokeWidth="1" fill="none"
             strokeDasharray="4 8"
             animate={{ rotate: -360 }}
             transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
             className="opacity-50"
          />
-         
+
          {/* Inner Hex or Shape */}
          <motion.path
             d="M50 20 L76 35 L76 65 L50 80 L24 65 L24 35 Z"
@@ -42,7 +42,7 @@ export const TechnicalZenLoader: React.FC<{ className?: string }> = ({ className
             animate={{ scale: [0.8, 1, 0.8], opacity: [0.5, 0.8, 0.5] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
          />
-         
+
          {/* Scanning Line */}
          <motion.line
             x1="20" y1="20" x2="80" y2="20"

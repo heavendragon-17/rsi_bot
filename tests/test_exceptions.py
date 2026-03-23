@@ -6,15 +6,17 @@ Verifies that:
 - The `original` attribute carries the wrapped exception
 - Exceptions can be caught by their base type
 """
+
 import pytest
+
 from app.core.exceptions import (
+    ConnectionError,
     ExchangeError,
     InsufficientFundsError,
-    OrderRejectedError,
     OrderNotFoundError,
-    ConnectionError,
-    RateLimitError,
+    OrderRejectedError,
     PositionError,
+    RateLimitError,
 )
 
 
@@ -28,9 +30,7 @@ def test_exception_hierarchy():
         RateLimitError,
         PositionError,
     ):
-        assert issubclass(exc_class, ExchangeError), (
-            f"{exc_class.__name__} must be a subclass of ExchangeError"
-        )
+        assert issubclass(exc_class, ExchangeError), f"{exc_class.__name__} must be a subclass of ExchangeError"
 
 
 def test_exchange_error_inherits_exception():

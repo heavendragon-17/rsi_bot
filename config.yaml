@@ -31,12 +31,6 @@ symbols:
 # Available: "rsi_wma_retest", "rsi_no_retest"
 strategy: "rsi_no_retest"
 
-# Optional: Override strategy default parameters
-# These will be merged with the strategy's DEFAULT_CONFIG
-# strategy_params:
-#   rsi_period: 14
-#   wma_retest_distance: 0.5
-
 risk:
   # Position sizing
   max_position_size_pct: 10 # Max margin to use per trade (99% of balance)
@@ -56,7 +50,7 @@ backtest:
   initial_balance: 100000
   duration:
     days: 0
-    months: 3
+    months: 5
     years: 0
 
 sim:

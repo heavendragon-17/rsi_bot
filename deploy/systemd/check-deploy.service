@@ -1,0 +1,12 @@
+[Unit]
+Description=Check and deploy RSI Bot if new version available
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=user
+WorkingDirectory=/home/user/rsi_bot
+ExecStart=/home/user/rsi_bot/deploy/check_deploy.sh
+StandardOutput=journal
+StandardError=journal

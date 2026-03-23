@@ -91,32 +91,53 @@ rsi_bot/
 ├── main.py                          # Live bot entry point
 ├── config.yaml                      # Bot configuration
 ├── app/
-│   ├── core/                        # Interfaces, config, portfolio, runner
+│   ├── core/                        # Interfaces, config, constants, events, snapshots
 │   │   ├── interfaces.py            # Abstract base classes
 │   │   ├── config.py                # Typed config (dataclasses)
-│   │   ├── runner.py                # MultiSymbolRunner
-│   │   ├── portfolio.py             # Position sizing, order management
-│   │   ├── context.py               # ContextSnapshot state machine
+│   │   ├── constants.py             # Centralized constants (WARMUP, fees, etc.)
 │   │   ├── actions.py               # Typed action classes
 │   │   ├── snapshots.py             # PositionSnapshot, ContextSnapshot
 │   │   ├── events.py                # SignalEvent, TickEvent, etc.
-│   │   ├── engine.py                # Unified Engine (live + backtest)
-│   │   ├── event_source.py          # IEventSource interface
 │   │   ├── exceptions.py            # Custom exception hierarchy
 │   │   └── logging.py               # structlog setup
-│   ├── strategies/                   # Trading strategies
-│   │   ├── loader.py                # Dynamic strategy loading
-│   │   ├── rsi_no_retest.py         # Primary long strategy
-│   │   ├── rsi_momentum.py          # Short strategy (RSI crossover + divergence)
-│   │   └── rsi_wma_retest.py        # Legacy strategy
-│   ├── services/
-│   │   ├── market_data/             # WebSocket, data store
-│   │   ├── execution/               # Exchange adapters (Binance, DEX)
-│   │   └── notification/            # Telegram bot
+│   ├── trading/                      # All live trading logic
+│   │   ├── engine.py                # Unified Engine (live + backtest)
+│   │   ├── runner.py                # MultiSymbolRunner
+│   │   ├── sl_tp_calculator.py      # Direction-aware SL/TP/sizing
+│   │   ├── strategy/               # Trading strategies
+│   │   │   ├── loader.py            # Dynamic strategy loading
+│   │   │   ├── rsi_no_retest.py     # Primary long strategy
+│   │   │   ├── rsi_momentum.py      # Short strategy (RSI crossover + divergence)
+│   │   │   ├── rsi_wma_retest.py    # Legacy strategy
+│   │   │   └── utils/              # Shared strategy utilities
+│   │   ├── portfolio/              # Position management (decomposed)
+│   │   │   ├── manager.py           # Slim facade (orchestrator)
+│   │   │   ├── trade_executor.py    # Entry/exit orchestration
+│   │   │   ├── position_sizer.py    # Risk-based sizing
+│   │   │   ├── sl_tp_manager.py     # SL/TP placement & moves
+│   │   │   └── notification_dispatch.py  # Telegram dispatch
+│   │   └── exchange/               # Exchange adapters
+│   │       ├── factory.py           # Exchange factory (auto-discovery)
+│   │       ├── binance_adapter.py   # Binance USD-M futures (CCXT)
+│   │       ├── fill_simulator.py    # Pluggable fill logic
+│   │       └── sim/                # Simulation exchanges
+│   │           ├── sim_exchange.py  # PaperExchange
+│   │           └── sim_stream.py   # AggTrade WebSocket for sim
+│   ├── data/                        # Data ingestion & indicators
+│   │   ├── store.py                 # MarketDataStore (thread-safe)
+│   │   ├── stream_manager.py        # BinanceStreamManager (WebSocket)
+│   │   ├── indicators.py            # Consolidated indicators (RSI, EMA, WMA, crossover)
+│   │   ├── normalizer.py            # Data normalization
+│   │   └── resampler.py             # Candle resampling
 │   ├── backtest/                    # Backtest engine, mock exchange
+│   │   ├── engine.py                # BacktestEngine
+│   │   ├── service.py               # BacktestService (extracted from routes)
+│   │   ├── mock_exchange.py         # MockExchange (in-memory sim)
+│   │   └── runners/                # CLI runners (batch, portfolio, tick replay)
 │   ├── api/                         # FastAPI backend for backtest UI
-│   ├── repository/backtest/         # SQLAlchemy ORM models
-│   └── utils/                       # Indicators, helpers
+│   │   └── routes/                 # REST endpoints (split by concern)
+│   ├── notification/                # Telegram notifications
+│   └── repository/                  # SQLAlchemy ORM models
 ├── ui/                              # React frontend (backtest UI)
 │   └── src/
 │       ├── components/              # UI components
@@ -139,7 +160,7 @@ Three strategies are available, selected via `config.yaml`:
 | `rsi_wma_retest` | LONG | Requires RSI to retest WMA45 before entry. Legacy, more conservative. |
 | `rsi_momentum` | SHORT | RSI crossover + bearish divergence. Uses `CrossoverIndicators` and `SLTPCalculator`. |
 
-All strategies share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism. SHORT positions use signed amounts (negative) and `opposite_side()` for exit orders.
+All strategies share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism. SHORT positions use signed amounts (negative) and `opposite_side()` for exit orders. Shared strategy logic lives in `app/trading/strategy/utils/`. SHORT strategies use `CrossoverIndicators` from `app/data/indicators.py` and `SLTPCalculator` from `app/trading/sl_tp_calculator.py`.
 
 ## Database
 

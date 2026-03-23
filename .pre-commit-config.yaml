@@ -1,0 +1,37 @@
+repos:
+  # ── Ruff (lint + format) ──────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ── Standard file hygiene ─────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+
+  # ── Secret detection ──────────────────────────────────────
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+
+  # ── Architecture lint (local custom hook) ─────────────────
+  - repo: local
+    hooks:
+      - id: arch-lint
+        name: Architecture lint
+        entry: python scripts/arch_lint.py
+        language: system
+        pass_filenames: false
+        files: ^app/.*\.py$
+        stages: [pre-commit]

@@ -75,7 +75,7 @@ export const BatchResultsDashboard: React.FC = () => {
 
         {/* 3. Charts Row (Underwater + Correlation) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[400px]">
-          {/* Reusing Underwater Chart logic but we need a Batch specific one or adapt the generic one? 
+          {/* Reusing Underwater Chart logic but we need a Batch specific one or adapt the generic one?
                     The Generic one reads from resultsStore. We are in Batch mode.
                     Actually, we can create a `BatchUnderwaterChart` or just let `PortfolioEquityChart` handle it?
                     The layout asks for separate charts.
@@ -92,7 +92,7 @@ export const BatchResultsDashboard: React.FC = () => {
               Portfolio Drawdown
             </h3>
             <div className="flex-1 bg-bg-elevated/10 rounded relative flex items-center justify-center text-text-muted text-sm">
-              {/* 
+              {/*
                             Ideally reusing logic from EquityUnderwaterChart but mapped to batch data.
                             For MVP/Proto, I will put a placeholder or basic re-implementation.
                         */}

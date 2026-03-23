@@ -1,14 +1,14 @@
 # Add an Indicator Set
 
 > Add new technical indicator columns computed on the OHLCV DataFrame.
-> Reference implementation: `app/utils/indicators.py`
+> Reference implementation: `app/data/indicators.py`
 > Interface: `app/core/interfaces.py` → `IIndicators`
 
 ## Prerequisites
 
 - Read `docs/strategy-reference.md` — understand which indicators existing strategies use
 - Read `app/core/interfaces.py` — `IIndicators` interface (4 abstract methods)
-- Read `app/utils/indicators.py` — the concrete `Indicators` class
+- Read `app/data/indicators.py` — the concrete `Indicators` class
 - Understand which strategy will consume the new indicators
 
 ## Steps
@@ -19,12 +19,12 @@
 - Add parameters to `Indicators.__init__()` and new columns in `Indicators.compute()`
 
 **Create a new class** (preferred for entirely different indicator families — e.g., MACD-based, Bollinger-based, volume profile):
-- Create `app/utils/{name}_indicators.py` implementing `IIndicators` from `app/core/interfaces.py`
+- Create `app/data/{name}_indicators.py` implementing `IIndicators` from `app/core/interfaces.py`
 - Must implement all 4 abstract methods: `compute()`, `get_mode()`, `check_wma_retest()`, `calculate_price_at_rsi()`
 
 ### 2. Add parameters to the constructor
 
-File: `app/utils/indicators.py` (if extending existing)
+File: `app/data/indicators.py` (if extending existing)
 
 Add new parameters with defaults consistent with the consuming strategy's `DEFAULT_CONFIG`:
 
@@ -41,7 +41,7 @@ def __init__(
 
 ### 3. Add computation in `compute()`
 
-File: `app/utils/indicators.py`, in the `compute()` method.
+File: `app/data/indicators.py`, in the `compute()` method.
 
 The existing pattern uses `pandas_ta` with a manual fallback:
 
@@ -66,7 +66,7 @@ The `Indicators` class already has these helpers — add new ones following the 
 
 ### 5. Update the consuming strategy
 
-File: `app/strategies/{your_strategy}.py`
+File: `app/trading/strategy/{your_strategy}.py`
 
 Pass the new parameter when instantiating `Indicators`:
 ```python
@@ -96,5 +96,5 @@ new_val = last.get("new_indicator")
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/utils/indicators.py` supports strategies → update **`docs/strategy-reference.md`**: add the new computed columns to the Indicator Settings parameter table of the affected strategy
+- `app/data/indicators.py` supports strategies → update **`docs/strategy-reference.md`**: add the new computed columns to the Indicator Settings parameter table of the affected strategy
 - If `app/core/interfaces.py` (`IIndicators`) was modified → update **`docs/architecture.md`**, Layer 2 section

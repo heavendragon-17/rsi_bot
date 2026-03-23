@@ -1,15 +1,12 @@
 # Quick test for exchange factory
 import sys
-sys.path.insert(0, '.')
 
-from app.services.execution.exchange_factory import create_exchange
+sys.path.insert(0, ".")
+
+from app.trading.exchange.factory import create_exchange
 
 # Test mock mode
-config = {
-    'bot': {'mode': 'mock'},
-    'backtest': {'initial_balance': 10000},
-    'risk': {'leverage': 10}
-}
+config = {"bot": {"mode": "mock"}, "backtest": {"initial_balance": 10000}, "risk": {"leverage": 10}}
 
 try:
     ex = create_exchange(config)

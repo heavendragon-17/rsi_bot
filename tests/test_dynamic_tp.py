@@ -4,18 +4,20 @@ Verification tests for Dynamic TP allocation logic.
 Tests that strategy produces correct tp_allocations based on nr_tp_count config.
 Uses monkeypatch fixture to safely patch Indicators.last per-test.
 """
-import pandas as pd
-import pytest
+
 from datetime import datetime
 from decimal import Decimal
 
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
-from app.backtest.mock_exchange import MockExchange
-from app.core.portfolio import PortfolioManager
+import pandas as pd
+import pytest
+
+from app.backtest.exchange.mock_exchange import MockExchange
+from app.core.actions import OpenPosition
 from app.core.events import SignalEvent
 from app.core.snapshots import ContextSnapshot
-from app.core.actions import OpenPosition
-from app.utils.indicators import Indicators
+from app.data.indicators import Indicators
+from app.trading.portfolio.manager import PortfolioManager
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 
 def _create_mock_data():
@@ -27,9 +29,15 @@ def _create_mock_data():
         rows.append(
             {
                 "date": timestamps[0],
-                "open": 100.0, "high": 100.0, "low": 100.0, "close": 100.0,
-                "rsi": 50.0, "rsi_ema9": 50.0, "rsi_wma45": 50.0,
-                "ema21": 100.0, "closed": True,
+                "open": 100.0,
+                "high": 100.0,
+                "low": 100.0,
+                "close": 100.0,
+                "rsi_14": 50.0,
+                "rsi_ema9": 50.0,
+                "rsi_wma45": 50.0,
+                "ema21": 100.0,
+                "closed": True,
             }
         )
     return pd.DataFrame(rows, index=timestamps)
@@ -55,8 +63,13 @@ def test_tp_count_1(monkeypatch):
     df.iloc[-1, df.columns.get_loc("ema21")] = 104.0
 
     last = {
-        "close": 105.0, "high": 105.0, "low": 105.0, "open": 105.0,
-        "ema21": 104.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
+        "close": 105.0,
+        "high": 105.0,
+        "low": 105.0,
+        "open": 105.0,
+        "ema21": 104.0,
+        "rsi_ema9": 60.0,
+        "rsi_wma45": 50.0,
         "ts": datetime.now(),
     }
 
@@ -78,7 +91,11 @@ def test_tp_count_1(monkeypatch):
     pm = PortfolioManager(exchange, config)
     exchange.fetch_balance = lambda: {"total": {"USDT": 1000}}
     exchange.update_candle(
-        "BTC/USDT", Decimal("105"), Decimal("105"), Decimal("105"), Decimal("105"),
+        "BTC/USDT",
+        Decimal("105"),
+        Decimal("105"),
+        Decimal("105"),
+        Decimal("105"),
         datetime.now(),
     )
 
@@ -100,7 +117,11 @@ def test_tp_count_1(monkeypatch):
     )
 
     exchange.update_candle(
-        "BTC/USDT", Decimal("105"), Decimal("105"), Decimal("105"), Decimal("105"),
+        "BTC/USDT",
+        Decimal("105"),
+        Decimal("105"),
+        Decimal("105"),
+        Decimal("105"),
         datetime.now(),
     )
     pm.on_signal(signal)
@@ -141,8 +162,13 @@ def test_tp_count_2(monkeypatch):
     df = _create_mock_data()
 
     last = {
-        "close": 105.0, "high": 105.0, "low": 105.0, "open": 105.0,
-        "ema21": 104.0, "rsi_ema9": 60.0, "rsi_wma45": 50.0,
+        "close": 105.0,
+        "high": 105.0,
+        "low": 105.0,
+        "open": 105.0,
+        "ema21": 104.0,
+        "rsi_ema9": 60.0,
+        "rsi_wma45": 50.0,
         "ts": datetime.now(),
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)

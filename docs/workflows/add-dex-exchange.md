@@ -1,7 +1,7 @@
 # Add a DEX Exchange
 
 > Add a new perpetual DEX using a custom SDK or REST API (not available in CCXT).
-> Reference implementation: `app/services/execution/dex/lighter_adapter.py`
+> Reference implementation: `app/trading/exchange/lighter_adapter.py`
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@
 
 Add to project dependencies. Test import in isolation first.
 
-Use a try/except import guard so the server starts even without the SDK installed — fail only when the adapter is actually instantiated. See `app/services/execution/dex/lighter_adapter.py` for the pattern:
+Use a try/except import guard so the server starts even without the SDK installed — fail only when the adapter is actually instantiated. See `app/trading/exchange/lighter_adapter.py` for the pattern:
 
 ```python
 try:
@@ -27,16 +27,16 @@ except ImportError:
 
 ### 2. Create the adapter file
 
-File: `app/services/execution/dex/{name}_adapter.py`
+File: `app/trading/exchange/{name}_adapter.py`
 
 **Naming convention is critical** — the factory auto-discovers based on it:
 - Filename: `{name}_adapter.py` (lowercase, underscores) — e.g., `vertex_adapter.py`
 - Class name: `{Name}Adapter` (first letter capitalized) — e.g., `VertexAdapter`
 - Config value: `exchange.name: vertex` — matches `{name}` exactly
 
-See `app/services/execution/exchange_factory.py` lines 63-88 (`_load_custom_adapter`) for the discovery logic.
+See `app/trading/exchange/factory.py` lines 63-88 (`_load_custom_adapter`) for the discovery logic.
 
-Model on `app/services/execution/dex/lighter_adapter.py`. Required:
+Model on `app/trading/exchange/lighter_adapter.py`. Required:
 
 - **Implement ALL `IExchange` abstract methods** (9 methods from `app/core/interfaces.py`):
   - `fetch_ohlcv(symbol, timeframe, limit)`
@@ -59,11 +59,11 @@ Model on `app/services/execution/dex/lighter_adapter.py`. Required:
 
 ### 3. No factory change needed
 
-The factory auto-discovers `app/services/execution/dex/{name}_adapter.py` via `importlib.import_module`. No edit to `exchange_factory.py` is required.
+The factory auto-discovers `app/trading/exchange/{name}_adapter.py` via `importlib.import_module`. No edit to `factory.py` is required.
 
 Verify auto-discovery: set `exchange.name: {name}` in `config.yaml` and test the import path:
 ```python
-python -c "from app.services.execution.exchange_factory import _load_custom_adapter; print(_load_custom_adapter('vertex', {}))"
+python -c "from app.trading.exchange.factory import _load_custom_adapter; print(_load_custom_adapter('vertex', {}))"
 ```
 
 ### 4. Document required environment variables
@@ -109,5 +109,5 @@ bot:
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- New file in `app/services/execution/dex/` → update **`docs/live-bot.md`**: add the new adapter to the DEX Adapters section with its SDK source, required env vars, and any exchange-specific notes
+- New file in `app/trading/exchange/` → update **`docs/live-bot.md`**: add the new adapter to the DEX Adapters section with its SDK source, required env vars, and any exchange-specific notes
 - If `app/core/interfaces.py` was changed → also update **`docs/architecture.md`**

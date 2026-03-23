@@ -23,8 +23,12 @@ venv/
 
 # Data
 *.csv
+!tests/data/*.csv
 *.db
-data/
+/data/
+app/backtest/data/*.csv
+app/backtest/data/*.zip
+app/backtest/data/*.json
 
 # Logs
 *.log
@@ -44,7 +48,13 @@ desktop.ini
 /.obsidian
 *.base
 *.canvas
-/.claude
+# Deploy (VPS-only files)
+VERSION
+deploy/.env.deploy
+
+# Claude Code (settings.json is committed, local state is not)
+/.claude/settings.local.json
+/.claude/arch_baseline.txt
 /app/backtest/report
 /.obsidian
 /ui/node_modules

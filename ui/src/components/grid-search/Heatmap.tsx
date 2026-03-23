@@ -77,11 +77,11 @@ export const Heatmap: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-text-primary mb-1">
-          Heatmap: {metric === "net_pnl" ? "Net PnL" : 
-                    metric === "sharpe" ? "Sharpe Ratio" : 
-                    metric === "profit_factor" ? "Profit Factor" : 
-                    metric === "win_rate" ? "Win Rate %" : 
-                    metric === "max_dd" ? "Max Drawdown %" : 
+          Heatmap: {metric === "net_pnl" ? "Net PnL" :
+                    metric === "sharpe" ? "Sharpe Ratio" :
+                    metric === "profit_factor" ? "Profit Factor" :
+                    metric === "win_rate" ? "Win Rate %" :
+                    metric === "max_dd" ? "Max Drawdown %" :
                     metric === "calmar" ? "Calmar Ratio" :
                     metric === "sortino" ? "Sortino Ratio" : metric}
         </h3>

@@ -13,7 +13,7 @@ export const ThemeSettings: React.FC = () => {
     if (defaultTheme) {
       setTheme(defaultTheme);
     }
-    
+
     // Reset performance mode to off if it's on
     if (performanceMode) {
       togglePerformanceMode();

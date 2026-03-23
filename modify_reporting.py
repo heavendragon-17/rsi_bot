@@ -1,9 +1,5 @@
-import json
-import re
-import os
-
 filepath = "d:/GitHub/rsi_bot/app/backtest/reporting.py"
-with open(filepath, "r", encoding="utf-8") as f:
+with open(filepath, encoding="utf-8") as f:
     content = f.read()
 
 # Make sure json is imported
@@ -116,17 +112,17 @@ table_logic_replacement = '''        unique_symbols = []
 
         if not round_trips_df.empty and "symbol" in round_trips_df.columns:
             unique_symbols = sorted(round_trips_df["symbol"].unique().tolist())
-            
+
             # Precompute color map based on hash of symbol name
             def get_color(sym):
                 colors = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316", "#14B8A6", "#84CC16"]
                 return colors[hash(sym) % len(colors)]
 
             ticker_colors = {sym: get_color(sym) for sym in unique_symbols}
-            
+
             pnl_series = round_trips_df.groupby("symbol")["pnl"].sum()
             pnl_by_ticker = pnl_series.to_dict()
-            
+
             if len(pnl_series) > 0:
                 best_sym = pnl_series.idxmax()
                 worst_sym = pnl_series.idxmin()
@@ -145,7 +141,7 @@ table_logic_replacement = '''        unique_symbols = []
                 sym_pnl = sym_df["pnl"].sum()
                 sym_hold = sym_df["hold_duration_hours"].mean()
                 pnl_class = "positive" if sym_pnl >= 0 else "negative"
-                
+
                 per_symbol_stats_html += f"""
                 <div class="sym-stat-card" data-symbol="{sym}">
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
@@ -158,7 +154,7 @@ table_logic_replacement = '''        unique_symbols = []
                 </div>
                 """
             per_symbol_stats_html += '</div></div>'
-            
+
             # Generate Filter Pills
             ticker_pills_html = '<div class="filter-bar"><button class="filter-pill active" data-symbol="ALL">All Tickers</button>'
             for sym in unique_symbols:
@@ -193,14 +189,14 @@ table_logic_replacement = '''        unique_symbols = []
                 pnl_class = "positive" if row["pnl"] > 0 else "negative"
                 hold_hours = row.get("hold_duration_hours")
                 exit_reason = str(row.get("exit_reason", "UNKNOWN"))
-                
+
                 sym_col = ""
                 row_attr = ""
                 if "symbol" in row:
                     sym = row['symbol']
                     sym_col = f'<td><span class="ticker-badge" style="background-color: {ticker_colors.get(sym, "#666")}">{sym}</span></td>'
                     row_attr = f'data-symbol="{sym}"'
-                    
+
                 trades_table_html += f"""
                     <tr {row_attr}>
                         <td>{i + 1}</td>
@@ -225,12 +221,12 @@ else:
     print("Could not find table_logic_target")
 
 # 3. CSS
-css_target = '''        .chart-wrapper {
+css_target = """        .chart-wrapper {
             max-width: 300px;
             width: 100%;
             margin: 0 auto;
-        }'''
-css_replacement = '''        .trades-layout {
+        }"""
+css_replacement = """        .trades-layout {
             display: flex;
             gap: 20px;
             align-items: flex-start;
@@ -312,7 +308,7 @@ css_replacement = '''        .trades-layout {
         @media (max-width: 1000px) {
             .trades-layout { flex-direction: column; }
             .side-panel { width: 100%; }
-        }'''
+        }"""
 if css_target in content:
     content = content.replace(css_target, css_replacement)
 else:
@@ -322,11 +318,11 @@ content = content.replace('<div class="chart-wrapper">', '<div class="chart-wrap
 
 
 # 4. JS
-js_target = '''        });
+js_target = """        });
         })();
-    </script>'''
+    </script>"""
 
-js_replacement = '''        });
+js_replacement = """        });
 
         // Ticker filter logic
         document.querySelectorAll('.filter-pill').forEach(pill => {
@@ -334,10 +330,10 @@ js_replacement = '''        });
                 // Update active state
                 document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
                 e.target.classList.add('active');
-                
+
                 const selectedSym = e.target.getAttribute('data-symbol');
                 const rows = document.querySelectorAll('#tradesTable tbody tr');
-                
+
                 rows.forEach(row => {
                     if (selectedSym === 'ALL' || row.getAttribute('data-symbol') === selectedSym) {
                         row.style.display = '';
@@ -409,7 +405,7 @@ js_replacement = '''        });
             });
         }
         })();
-    </script>'''
+    </script>"""
 
 if js_target in content:
     content = content.replace(js_target, js_replacement)
@@ -417,13 +413,13 @@ else:
     print("Could not find js_target")
 
 # 5. PnL Chart HTML injection
-pnl_chart_target = '''        <h2 class="section-title">Trade Details</h2>'''
-pnl_chart_replacement = '''        <h2 class="section-title">Per-Symbol PnL</h2>
+pnl_chart_target = """        <h2 class="section-title">Trade Details</h2>"""
+pnl_chart_replacement = """        <h2 class="section-title">Per-Symbol PnL</h2>
         <div class="chart-container" style="height: {math.max(300, len(unique_symbols) * 30)}px;">
             <canvas id="tickerPnlChart_{safe_symbol}"></canvas>
         </div>
 
-        <h2 class="section-title">Trade Details</h2>'''
+        <h2 class="section-title">Trade Details</h2>"""
 # Need import math for the height calculation above
 content = "import math\n" + content
 

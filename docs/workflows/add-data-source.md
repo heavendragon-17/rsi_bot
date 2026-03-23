@@ -3,8 +3,8 @@
 > Add a new market data stream (live) or historical data source (backtest).
 > Reference implementations:
 >
-> - Live stream: `app/services/market_data/stream_manager.py` (BinanceStreamManager)
-> - Event source bridge: `app/services/market_data/live_event_source.py` (LiveEventSource)
+> - Live stream: `app/data/stream_manager.py` (BinanceStreamManager)
+> - Event source bridge: `app/data/live_event_source.py` (LiveEventSource)
 > - Backtest data: `app/backtest/backtest_event_source.py` (BacktestEventSource)
 > - Event source interface: `app/core/event_source.py`
 
@@ -21,9 +21,9 @@
 
 ### A1. Create a stream manager
 
-File: `app/services/market_data/{name}_stream_manager.py`
+File: `app/data/{name}_stream_manager.py`
 
-Model on `app/services/market_data/stream_manager.py` (BinanceStreamManager). Required:
+Model on `app/data/stream_manager.py` (BinanceStreamManager). Required:
 
 - **`start(store)`** method: begin streaming, populate `MarketDataStore` via `store.update_candle(candle)`
 - **`stop()`** method: graceful shutdown (close WebSocket, join threads)
@@ -34,9 +34,9 @@ Model on `app/services/market_data/stream_manager.py` (BinanceStreamManager). Re
 
 ### A2. Create an event source bridge
 
-File: `app/services/market_data/{name}_live_event_source.py`
+File: `app/data/{name}_live_event_source.py`
 
-Model on `app/services/market_data/live_event_source.py`. Implement `IEventSource`:
+Model on `app/data/live_event_source.py`. Implement `IEventSource`:
 
 - `events()` → `Iterator[EngineEvent]`: yields `CandleCloseEvent` on each closed candle
 - `stop()`: signals the stream to stop and unblocks the `events()` generator
@@ -44,7 +44,7 @@ Model on `app/services/market_data/live_event_source.py`. Implement `IEventSourc
 
 ### A3. Inject into the runner
 
-File: `app/core/runner.py` (MultiSymbolRunner) or wherever `_start_stream()` is called.
+File: `app/trading/runner.py` (MultiSymbolRunner) or wherever `_start_stream()` is called.
 
 Currently hardcoded to `BinanceStreamManager`. Add routing based on `config['exchange']['name']` or a new `config['data_source']` key. The unified `Engine` accepts any `IEventSource`, so swapping is straightforward at the event source level.
 
@@ -80,9 +80,9 @@ Add a download-trigger endpoint that runs the download script. Model on the exis
 
 For `PaperExchange` (sim mode), there are two tick feed sources:
 
-**Live (real-time):** `app/paper/stream_manager.py` subscribes to Binance `aggTrade` WebSocket streams and calls `PaperExchange.on_tick()` every 500 ms. If your new exchange needs sim mode support, create a similar tick-level stream.
+**Live (real-time):** `app/trading/exchange/sim/sim_stream.py` subscribes to Binance `aggTrade` WebSocket streams and calls `PaperExchange.on_tick()` every 500 ms. If your new exchange needs sim mode support, create a similar tick-level stream.
 
-**Historical (replay):** `app/backtest/run_paper_tick_replay.py` replays a downloaded monthly aggTrades CSV through `PaperExchange` for tick-accurate offline backtesting.
+**Historical (replay):** `app/backtest/runners/tick_replay.py` replays a downloaded monthly aggTrades CSV through `PaperExchange` for tick-accurate offline backtesting.
 
 ```bash
 # Step 1 — Download historical tick CSV
@@ -93,7 +93,7 @@ python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1
 python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 9000
 
 # Step 3 — Run tick-level replay
-python app/backtest/run_paper_tick_replay.py \
+python -m app.backtest.runners.tick_replay \
     --ohlc  app/backtest/data/BTCUSDT_5m.csv \
     --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
     --symbol BTC/USDT --timeframe 5m --balance 10000
@@ -122,6 +122,6 @@ Run `pytest tests/ -v` — all existing tests must pass.
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/services/market_data/` modified → update **`docs/live-bot.md`**: Data Ingestion section — add the new stream manager, its WebSocket URL or API, symbol normalization rules, and startup sequence
+- `app/data/` modified → update **`docs/live-bot.md`**: Data Ingestion section — add the new stream manager, its WebSocket URL or API, symbol normalization rules, and startup sequence
 - `app/backtest/` modified → update **`docs/backtest-engine.md`**: data management section — add the new data source and its CSV format
 - If `app/core/event_source.py` modified → also update **`docs/architecture.md`**

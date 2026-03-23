@@ -50,11 +50,11 @@ export const EquityCurveComparison: React.FC = () => {
       // IS point (at end of IS period)
       const isDate = new Date(window.isEndDate);
       const isTime = Math.floor(isDate.getTime() / 1000) as any;
-      
+
       // Assume IS generates similar return as OOS (but slightly better since optimized)
       const isReturn = window.oosReturnPct * 1.2; // IS typically performs better
       isCumulative *= (1 + isReturn / 100);
-      
+
       isData.push({
         time: isTime,
         value: isCumulative,
@@ -63,9 +63,9 @@ export const EquityCurveComparison: React.FC = () => {
       // OOS point (at end of OOS period)
       const oosDate = new Date(window.oosEndDate);
       const oosTime = Math.floor(oosDate.getTime() / 1000) as any;
-      
+
       oosCumulative *= (1 + window.oosReturnPct / 100);
-      
+
       oosData.push({
         time: oosTime,
         value: oosCumulative,
@@ -130,15 +130,15 @@ export const EquityCurveComparison: React.FC = () => {
         </div>
       </div>
 
-      <div 
-        ref={chartContainerRef} 
+      <div
+        ref={chartContainerRef}
         className="rounded-lg border border-border-main overflow-hidden bg-bg-elevated"
       />
 
       <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
         <p className="text-xs text-warning">
-          <strong>⚠️ Interpretation:</strong> If OOS equity consistently underperforms IS equity, 
-          the strategy may be overfit to historical data. A robust strategy shows similar performance 
+          <strong>⚠️ Interpretation:</strong> If OOS equity consistently underperforms IS equity,
+          the strategy may be overfit to historical data. A robust strategy shows similar performance
           in both IS and OOS periods.
         </p>
       </div>

@@ -7,13 +7,14 @@ Usage:
     config = AppConfig.from_yaml("config.yaml")
     legacy = config.to_legacy_dict()  # backward-compat for constructors not yet updated
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 
 @dataclass(frozen=True)
@@ -28,14 +29,10 @@ class ExchangeConfig:
     def __post_init__(self):
         valid_modes = {"mock", "sim", "paper", "testnet", "live"}
         if self.mode not in valid_modes:
-            raise ValueError(
-                f"Invalid mode '{self.mode}'. Must be one of {sorted(valid_modes)}"
-            )
+            raise ValueError(f"Invalid mode '{self.mode}'. Must be one of {sorted(valid_modes)}")
         valid_exchanges = {"binanceusdm", "binance", "hyperliquid", "lighter"}
         if self.name not in valid_exchanges:
-            raise ValueError(
-                f"Invalid exchange '{self.name}'. Must be one of {sorted(valid_exchanges)}"
-            )
+            raise ValueError(f"Invalid exchange '{self.name}'. Must be one of {sorted(valid_exchanges)}")
 
 
 @dataclass(frozen=True)
@@ -53,9 +50,7 @@ class RiskConfig:
 
     def __post_init__(self):
         if not (Decimal("0") < self.risk_per_trade_pct <= Decimal("0.1")):
-            raise ValueError(
-                f"risk_per_trade_pct must be between 0 and 10%, got {self.risk_per_trade_pct}"
-            )
+            raise ValueError(f"risk_per_trade_pct must be between 0 and 10%, got {self.risk_per_trade_pct}")
         if self.leverage < 1 or self.leverage > 125:
             raise ValueError(f"leverage must be 1-125, got {self.leverage}")
 
@@ -95,15 +90,15 @@ class AppConfig:
     notification: NotificationConfig = field(default_factory=NotificationConfig)
     backtest: BacktestConfig = field(default_factory=BacktestConfig)
     sim: SimConfig = field(default_factory=SimConfig)
-    symbols: List[str] = field(default_factory=lambda: ["BTC/USDT"])
+    symbols: list[str] = field(default_factory=lambda: ["BTC/USDT"])
     strategy_name: str = "rsi_no_retest"
-    strategy_params: Dict[str, Any] = field(default_factory=dict)
+    strategy_params: dict[str, Any] = field(default_factory=dict)
     timeframe: str = "5m"
     warmup_candles: int = 200
     debug: bool = False
 
     @classmethod
-    def from_yaml(cls, path: str = "config.yaml") -> "AppConfig":
+    def from_yaml(cls, path: str = "config.yaml") -> AppConfig:
         """Load config from YAML file. Validates on construction via __post_init__."""
         with open(path) as f:
             raw = yaml.safe_load(f) or {}
@@ -131,9 +126,7 @@ class AppConfig:
                 risk_per_trade_pct=Decimal(str(risk_raw.get("risk_per_trade_pct", "0.02"))),
                 max_position_size_pct=Decimal(str(risk_raw.get("max_position_size_pct", "0.99"))),
                 leverage=leverage_val,
-                use_initial_capital_for_risk=bool(
-                    risk_raw.get("use_initial_capital_for_risk", False)
-                ),
+                use_initial_capital_for_risk=bool(risk_raw.get("use_initial_capital_for_risk", False)),
                 use_risk_based_sizing=bool(risk_raw.get("use_risk_based_sizing", True)),
                 tp1_close_pct=Decimal(str(risk_raw.get("tp1_close_pct", "0.33"))),
                 tp2_close_pct=Decimal(str(risk_raw.get("tp2_close_pct", "0.50"))),
@@ -147,9 +140,7 @@ class AppConfig:
             ),
             sim=SimConfig(
                 initial_balance=Decimal(str(paper_sim_raw.get("initial_balance", "10000"))),
-                tick_sample_interval_ms=int(
-                    paper_sim_raw.get("tick_sample_interval_ms", 500)
-                ),
+                tick_sample_interval_ms=int(paper_sim_raw.get("tick_sample_interval_ms", 500)),
             ),
             symbols=raw.get("symbols", ["BTC/USDT"]),
             strategy_name=raw.get("strategy", "rsi_no_retest"),

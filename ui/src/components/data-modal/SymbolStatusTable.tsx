@@ -22,7 +22,7 @@ export const SymbolStatusTable: React.FC<SymbolStatusTableProps> = ({ symbols, o
       {/* Scrollable Body */}
       <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
         {symbols.map((item, index) => (
-          <div 
+          <div
             key={item.symbol}
             className={cn(
                 "grid grid-cols-12 gap-2 px-4 py-2.5 items-center border-b border-border-main/50 last:border-0 text-sm transition-colors hover:bg-bg-elevated/30",
@@ -81,8 +81,8 @@ export const SymbolStatusTable: React.FC<SymbolStatusTableProps> = ({ symbols, o
                      </button>
                  )}
                  {item.status === "outdated" && (
-                     <button 
-                        onClick={() => onAction(item.symbol, "partial")} 
+                     <button
+                        onClick={() => onAction(item.symbol, "partial")}
                         className="px-2 py-0.5 rounded border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 text-[10px] font-medium transition-colors"
                      >
                         Run Partial

@@ -10,8 +10,10 @@ Full execution mode with:
 Usage:
     python main.py
 """
+
 import os
 import sys
+
 from dotenv import load_dotenv
 
 # Add the current directory to sys.path to allow imports from app
@@ -20,19 +22,20 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Load Env first (needed by exchange factory)
 load_dotenv()
 
-from app.core.config import AppConfig
-from app.core.logging import setup_logging
+from app.core.config import AppConfig  # noqa: E402
+from app.core.logging import setup_logging  # noqa: E402
 
 # Setup logging immediately (before any other imports that use loggers)
 setup_logging(level="INFO")
 
-import structlog
+import structlog  # noqa: E402
 
-from app.services.notification.notification_service import NotificationService
-from app.services.notification.null_notifier import NullNotifier
-from app.strategies.loader import load_strategy
-from app.services.execution.exchange_factory import create_exchange
-from app.core.runner import MultiSymbolRunner
+from app.trading.status_writer import StatusWriter  # noqa: E402
+from app.notification.notification_service import NotificationService  # noqa: E402
+from app.notification.null_notifier import NullNotifier  # noqa: E402
+from app.trading.exchange.factory import create_exchange  # noqa: E402
+from app.trading.runner import MultiSymbolRunner  # noqa: E402
+from app.trading.strategy.loader import load_strategy  # noqa: E402
 
 logger = structlog.get_logger()
 
@@ -57,7 +60,8 @@ def main():
     # 2. Build NotificationService (wraps TelegramNotifier or NullNotifier)
     if app_config.notification.telegram_enabled:
         try:
-            from app.services.notification.telegram_notifier import TelegramNotifier
+            from app.notification.telegram_notifier import TelegramNotifier
+
             ns = NotificationService(TelegramNotifier(mode=bot_mode), mode=bot_mode)
             ns.send_message(f"🤖 RSI Bot Started\nMode: {bot_mode.upper()}")
             logger.info("telegram_initialized")
@@ -78,13 +82,18 @@ def main():
         notification_service=ns,
     )
 
-    # 5. Start and wait
+    # 5. Start status writer (background health file for deploy listener)
+    status_writer = StatusWriter(runner)
+
+    # 6. Start and wait
     try:
         runner.start()
+        status_writer.start()
         runner.wait()
     except KeyboardInterrupt:
         logger.info("bot_stopped_by_user")
     finally:
+        status_writer.stop()
         runner.stop()
         ns.send_message("🛑 RSI Bot Stopped")
 

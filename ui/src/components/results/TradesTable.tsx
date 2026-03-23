@@ -2,16 +2,16 @@ import React, { useState } from "react";
 import { useResultsStore, Trade } from "../../stores/resultsStore";
 import { useExportStore, TradeTag } from "../../stores/exportStore";
 import { cn } from "../../lib/utils";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Edit, 
-  Tag as TagIcon, 
-  Star, 
-  AlertTriangle, 
-  BookOpen, 
-  Lightbulb, 
-  Clover, 
+import {
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  Tag as TagIcon,
+  Star,
+  AlertTriangle,
+  BookOpen,
+  Lightbulb,
+  Clover,
   Skull,
   StickyNote
 } from "lucide-react";
@@ -21,14 +21,14 @@ import { Button } from "../ui/button";
 
 export const TradesTable: React.FC = () => {
   const { filteredTrades, activeFilter } = useResultsStore();
-  const { 
-    annotations, 
-    toggleTradeSelection, 
-    selectedTradeIds, 
-    tagFilters, 
-    showOnlyWithNotes 
+  const {
+    annotations,
+    toggleTradeSelection,
+    selectedTradeIds,
+    tagFilters,
+    showOnlyWithNotes
   } = useExportStore();
-  
+
   const [sortField, setSortField] = useState<keyof Trade>("id");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,18 +57,18 @@ export const TradesTable: React.FC = () => {
   // Apply tag filters to trades
   const tagFilteredTrades = filteredTrades.filter((trade) => {
     const annotation = annotations[trade.id];
-    
+
     // Filter by notes
     if (showOnlyWithNotes && !annotation?.note) {
       return false;
     }
-    
+
     // Filter by tags
     if (tagFilters.length > 0) {
       if (!annotation) return false;
       return tagFilters.some((tag) => annotation.tags.includes(tag));
     }
-    
+
     return true;
   });
 
@@ -76,7 +76,7 @@ export const TradesTable: React.FC = () => {
   const sortedTrades = [...tagFilteredTrades].sort((a, b) => {
     const aVal = a[sortField];
     const bVal = b[sortField];
-    
+
     if (typeof aVal === "string" && typeof bVal === "string") {
       return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
@@ -87,7 +87,7 @@ export const TradesTable: React.FC = () => {
   // Pagination
   const totalPages = Math.ceil(sortedTrades.length / itemsPerPage);
   const currentTrades = sortedTrades.slice(
-    (currentPage - 1) * itemsPerPage, 
+    (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
@@ -160,7 +160,7 @@ export const TradesTable: React.FC = () => {
                   { key: "notes", label: "Notes", w: "w-16" },
                   { key: "actions", label: "Actions", w: "w-24" },
                 ].map(col => (
-                  <th 
+                  <th
                     key={col.key}
                     onClick={() => {
                       if (col.key !== "tags" && col.key !== "notes" && col.key !== "actions") {
@@ -188,10 +188,10 @@ export const TradesTable: React.FC = () => {
                 const isWin = trade.pnl >= 0;
                 const annotation = annotations[trade.id];
                 const isSelected = selectedTradeIds.has(trade.id);
-                
+
                 return (
-                  <tr 
-                    key={trade.id} 
+                  <tr
+                    key={trade.id}
                     className={cn(
                       "group hover:bg-bg-elevated/30 transition-colors",
                       isSelected && "bg-accent-main/10"
@@ -210,8 +210,8 @@ export const TradesTable: React.FC = () => {
                     <td className="px-4 py-2.5">
                       <span className={cn(
                         "px-1.5 py-0.5 rounded text-[10px] font-bold border",
-                        trade.side === "LONG" 
-                          ? "bg-success/10 text-success border-success/20" 
+                        trade.side === "LONG"
+                          ? "bg-success/10 text-success border-success/20"
                           : "bg-danger/10 text-danger border-danger/20"
                       )}>
                         {trade.side}
@@ -229,7 +229,7 @@ export const TradesTable: React.FC = () => {
                     <td className="px-4 py-2.5">
                       <span className={cn(
                         "px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                        trade.exitReason.includes("SL") 
+                        trade.exitReason.includes("SL")
                           ? "border-danger/30 text-danger bg-danger/5"
                           : trade.exitReason === "MANUAL"
                           ? "border-text-muted text-text-muted"
@@ -238,7 +238,7 @@ export const TradesTable: React.FC = () => {
                         {trade.exitReason}
                       </span>
                     </td>
-                    
+
                     {/* Tags Column */}
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1">
@@ -254,7 +254,7 @@ export const TradesTable: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     {/* Notes Column */}
                     <td className="px-4 py-2.5">
                       {annotation?.note && (
@@ -269,7 +269,7 @@ export const TradesTable: React.FC = () => {
                         </NotePopover>
                       )}
                     </td>
-                    
+
                     {/* Actions Column */}
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -299,7 +299,7 @@ export const TradesTable: React.FC = () => {
             Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, sortedTrades.length)} of {sortedTrades.length} trades
           </span>
           <div className="flex gap-2">
-            <button 
+            <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
               className="px-2 py-1 rounded border border-border-main hover:bg-bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
@@ -307,7 +307,7 @@ export const TradesTable: React.FC = () => {
               Prev
             </button>
             <span className="flex items-center px-2">{currentPage} / {totalPages}</span>
-            <button 
+            <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
               className="px-2 py-1 rounded border border-border-main hover:bg-bg-surface disabled:opacity-50 disabled:cursor-not-allowed"

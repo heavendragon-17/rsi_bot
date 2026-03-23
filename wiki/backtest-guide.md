@@ -76,7 +76,7 @@ python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balanc
 ### Batch Analysis (CLI)
 
 1. Edit `app/backtest/symbols.txt` — one symbol per line
-2. Run: `python app/backtest/run_batch_analysis.py`
+2. Run: `python -m app.backtest.runners.batch_runner`
 3. View results: `app/backtest/report/batch_report.html`
 
 ### Unified Portfolio Backtest (CLI)
@@ -85,10 +85,10 @@ A true **chronological multi-symbol simulation** where all tickers share a singl
 
 ```bash
 # Run with strategy from config.yaml
-python app/backtest/run_portfolio_backtest.py
+python -m app.backtest.runners.portfolio_runner
 
 # Or specify a strategy directly
-python app/backtest/run_portfolio_backtest.py --strategy rsi_no_retest
+python -m app.backtest.runners.portfolio_runner --strategy rsi_no_retest
 ```
 
 **Key behaviours:**

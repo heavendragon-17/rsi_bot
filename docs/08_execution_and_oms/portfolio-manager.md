@@ -13,7 +13,7 @@
 - Syncs TP fills via polling
 - Handles partial closes, SL moves, and full exits
 
-**Location**: `app/core/portfolio.py`
+**Location**: `app/trading/portfolio/manager.py`
 
 ---
 

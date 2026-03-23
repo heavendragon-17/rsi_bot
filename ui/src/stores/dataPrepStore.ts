@@ -12,15 +12,15 @@ export interface SymbolDataStatus {
 interface DataPrepState {
   isOpen: boolean;
   state: "checking" | "ready" | "downloading" | "error" | "complete";
-  
+
   symbols: SymbolDataStatus[];
-  
+
   currentDownload: string | null;
   overallProgress: number; // 0-100
   estimatedTimeRemaining: number; // seconds
-  
+
   currentFact: string;
-  
+
   // Actions
   openModal: () => void;
   closeModal: () => void;
@@ -45,13 +45,13 @@ export const useDataPrepStore = create<DataPrepState>((set) => ({
   closeModal: () => set({ isOpen: false }),
   setPrepState: (state) => set({ state }),
   setSymbols: (symbols) => set({ symbols }),
-  updateSymbolStatus: (symbol, updates) => 
+  updateSymbolStatus: (symbol, updates) =>
     set((state) => ({
-      symbols: state.symbols.map((s) => 
+      symbols: state.symbols.map((s) =>
         s.symbol === symbol ? { ...s, ...updates } : s
       )
     })),
-  setProgress: (progress, eta) => set((state) => ({ 
+  setProgress: (progress, eta) => set((state) => ({
     overallProgress: progress,
     estimatedTimeRemaining: eta !== undefined ? eta : state.estimatedTimeRemaining
   })),

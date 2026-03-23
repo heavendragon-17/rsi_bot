@@ -1,0 +1,69 @@
+[project]
+name = "rsi-bot"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["."]
+markers = [
+    "slow: marks tests as slow",
+    "integration: requires external services",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 0
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+no_implicit_optional = false
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = [
+    "app.trading.exchange.binance_adapter",
+    "app.trading.exchange.hyperliquid_adapter",
+    "app.trading.exchange.lighter_adapter",
+    "app.trading.exchange.lighter_queries",
+    "app.trading.exchange.factory",
+    "app.trading.runner",
+    "app.trading.strategy.rsi_wma_retest",
+    "app.trading.strategy.rsi_momentum",
+    "app.trading.strategy.loader",
+    "app.backtest.portfolio_engine",
+    "app.backtest.engine",
+    "app.backtest.runners.tick_replay",
+    "app.backtest.runners.portfolio_runner",
+    "app.backtest.runners.batch_runner",
+    "app.backtest.service",
+    "app.repository.backtest.models",
+]
+ignore_errors = true
+
+[tool.bandit]
+targets = ["app"]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101", "B104", "B107", "B106", "B110"]

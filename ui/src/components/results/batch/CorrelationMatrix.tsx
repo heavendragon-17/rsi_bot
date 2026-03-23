@@ -28,10 +28,10 @@ export const CorrelationMatrix: React.FC = () => {
             <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Correlation Matrix</h3>
         </div>
         <div className="overflow-auto p-4 flex-1 flex items-center justify-center custom-scrollbar">
-            <div 
-                className="grid gap-1" 
-                style={{ 
-                    gridTemplateColumns: `auto repeat(${symbols.length}, minmax(30px, 1fr))` 
+            <div
+                className="grid gap-1"
+                style={{
+                    gridTemplateColumns: `auto repeat(${symbols.length}, minmax(30px, 1fr))`
                 }}
             >
                 {/* Header Row */}
@@ -53,7 +53,7 @@ export const CorrelationMatrix: React.FC = () => {
                         {symbols.map(colSym => {
                             const val = getCorrelation(rowSym, colSym);
                             return (
-                                <div 
+                                <div
                                     key={`${rowSym}-${colSym}`}
                                     className={cn(
                                         "h-8 flex items-center justify-center text-[10px] font-mono rounded-sm transition-colors hover:ring-1 hover:ring-text-primary/50 relative group",

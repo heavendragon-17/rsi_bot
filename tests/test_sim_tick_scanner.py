@@ -8,21 +8,20 @@ Focuses on:
   - Multiple symbols do not cross-trigger
   - Filled orders are removed from pending_orders
 """
+
 from __future__ import annotations
 
 import time
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
-from app.sim.exchange import SimExchange
-from app.sim.state import SimTradeState
-
+from app.trading.exchange.sim.sim_exchange import SimExchange
+from app.trading.exchange.sim.sim_state import SimTradeState
 
 # ---------------------------------------------------------------------------
 # Fixture
 # ---------------------------------------------------------------------------
+
 
 def _make_exchange(balance: float = 10_000) -> SimExchange:
     cfg = {
@@ -48,6 +47,7 @@ def _open_position(ex: SimExchange, symbol="BTC/USDT", amount="0.03", entry="100
 # 1. FIFO ordering: first inserted order wins on a gap tick
 # ---------------------------------------------------------------------------
 
+
 class TestFIFOOrdering:
     def test_sl_inserted_before_tp_wins_on_gap(self):
         """
@@ -60,17 +60,24 @@ class TestFIFOOrdering:
 
         # SL at 94000 inserted FIRST
         sl_order = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )
         sl_id = sl_order["id"]
 
         # TP at 105000 inserted SECOND
         tp_order = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("105000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("105000"),
+            params={"reduceOnly": True},
         )
-        tp_id = tp_order["id"]
+        tp_order["id"]
 
         # Gap tick: price drops below SL (94000 → breaches both levels on a gap)
         ex.on_tick("BTC/USDT", Decimal("93000"), time.time())
@@ -96,17 +103,24 @@ class TestFIFOOrdering:
 
         # TP inserted FIRST
         tp_order = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("105000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("105000"),
+            params={"reduceOnly": True},
         )
         tp_id = tp_order["id"]
 
         # SL inserted SECOND
         sl_order = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )
-        sl_id = sl_order["id"]
+        sl_order["id"]
 
         # Tick at TP level
         ex.on_tick("BTC/USDT", Decimal("106000"), time.time())
@@ -121,15 +135,18 @@ class TestFIFOOrdering:
 # 2. Gap scenarios
 # ---------------------------------------------------------------------------
 
+
 class TestGapScenarios:
     def test_sl_fills_at_stop_price_not_gap_price(self):
         """When price gaps below SL, fill must be at stop_price (not the tick price)."""
         ex = _make_exchange(10_000)
         _open_position(ex, entry="100000", amount="0.01")
-        balance_after_entry = ex.state.balance
 
         ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "95000", "reduceOnly": True},
         )
 
@@ -137,8 +154,7 @@ class TestGapScenarios:
         ex.on_tick("BTC/USDT", Decimal("80000"), time.time())
 
         trade = ex.state.closed_trades[-1]
-        assert trade.exit_price == Decimal("95000"), \
-            f"Expected fill at stop_price=95000, got {trade.exit_price}"
+        assert trade.exit_price == Decimal("95000"), f"Expected fill at stop_price=95000, got {trade.exit_price}"
 
     def test_tp_fills_at_limit_price_not_gap_price(self):
         """When price gaps above TP, fill must be at limit_price (not the tick price)."""
@@ -146,16 +162,19 @@ class TestGapScenarios:
         _open_position(ex, entry="100000", amount="0.01")
 
         ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("105000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("105000"),
+            params={"reduceOnly": True},
         )
 
         # Gap: tick is far above limit price
         ex.on_tick("BTC/USDT", Decimal("120000"), time.time())
 
         trade = ex.state.closed_trades[-1]
-        assert trade.exit_price == Decimal("105000"), \
-            f"Expected fill at limit_price=105000, got {trade.exit_price}"
+        assert trade.exit_price == Decimal("105000"), f"Expected fill at limit_price=105000, got {trade.exit_price}"
 
     def test_only_one_order_fills_per_tick(self):
         """
@@ -166,13 +185,20 @@ class TestGapScenarios:
         _open_position(ex, entry="100000", amount="0.01")
 
         # Both SL and TP for the same position
-        sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+        ex.create_order(
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
-        tp_id = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("105000"), params={"reduceOnly": True},
+        ex.create_order(
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("105000"),
+            params={"reduceOnly": True},
         )["id"]
 
         # Tick that would trigger SL (price gap drops below stop)
@@ -186,12 +212,16 @@ class TestGapScenarios:
 # 3. Multiple symbols — no cross-contamination
 # ---------------------------------------------------------------------------
 
+
 class TestMultiSymbol:
     def test_btc_tick_does_not_fill_eth_orders(self):
         ex = _make_exchange()
         _open_position(ex, symbol="ETH/USDT", amount="0.1", entry="3000")
         sl_id = ex.create_order(
-            "ETH/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "ETH/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": "2800", "reduceOnly": True},
         )["id"]
 
@@ -206,31 +236,41 @@ class TestMultiSymbol:
         _open_position(ex, symbol="ETH/USDT", amount="0.1", entry="3000")
 
         btc_sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
         eth_sl_id = ex.create_order(
-            "ETH/USDT", "stop_market", "SELL", Decimal("0.1"),
+            "ETH/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.1"),
             params={"stopPrice": "2800", "reduceOnly": True},
         )["id"]
 
         # Only ETH tick at SL level
         ex.on_tick("ETH/USDT", Decimal("2799"), time.time())
 
-        assert eth_sl_id not in ex.state.pending_orders   # ETH SL filled
-        assert btc_sl_id in ex.state.pending_orders        # BTC SL untouched
+        assert eth_sl_id not in ex.state.pending_orders  # ETH SL filled
+        assert btc_sl_id in ex.state.pending_orders  # BTC SL untouched
 
 
 # ---------------------------------------------------------------------------
 # 4. Filled orders removed from pending_orders
 # ---------------------------------------------------------------------------
 
+
 class TestOrderCleanup:
     def test_filled_sl_removed_from_pending(self):
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.01")
         sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "95000", "reduceOnly": True},
         )["id"]
         ex.on_tick("BTC/USDT", Decimal("94000"), time.time())
@@ -240,8 +280,12 @@ class TestOrderCleanup:
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.03")
         tp_id = ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("103000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("103000"),
+            params={"reduceOnly": True},
         )["id"]
         ex.on_tick("BTC/USDT", Decimal("103500"), time.time())
         assert tp_id not in ex.state.pending_orders
@@ -250,7 +294,10 @@ class TestOrderCleanup:
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.01")
         sl_id = ex.create_order(
-            "BTC/USDT", "stop_market", "SELL", Decimal("0.01"),
+            "BTC/USDT",
+            "stop_market",
+            "SELL",
+            Decimal("0.01"),
             params={"stopPrice": "94000", "reduceOnly": True},
         )["id"]
         # Price has NOT reached SL
@@ -262,14 +309,19 @@ class TestOrderCleanup:
 # 5. Partial TP (position amount decremented correctly)
 # ---------------------------------------------------------------------------
 
+
 class TestPartialTPFills:
     def test_tp1_reduces_position_amount(self):
         """After TP1, remaining position must be reduced."""
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.03")
         ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),  # 33% of 0.03
-            price=Decimal("103000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),  # 33% of 0.03
+            price=Decimal("103000"),
+            params={"reduceOnly": True},
         )
         ex.on_tick("BTC/USDT", Decimal("103000"), time.time())
         pos = ex.state.positions.get("BTC/USDT")
@@ -281,8 +333,12 @@ class TestPartialTPFills:
         ex = _make_exchange()
         _open_position(ex, entry="100000", amount="0.01")
         ex.create_order(
-            "BTC/USDT", "limit", "SELL", Decimal("0.01"),
-            price=Decimal("105000"), params={"reduceOnly": True},
+            "BTC/USDT",
+            "limit",
+            "SELL",
+            Decimal("0.01"),
+            price=Decimal("105000"),
+            params={"reduceOnly": True},
         )
         ex.on_tick("BTC/USDT", Decimal("105000"), time.time())
         assert "BTC/USDT" not in ex.state.positions

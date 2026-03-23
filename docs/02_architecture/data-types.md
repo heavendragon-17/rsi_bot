@@ -676,4 +676,4 @@ This means the last row in the DataFrame may represent a still-forming candle (`
 | `app/core/actions.py` | `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`, `Action`, `SIDE_BUY`, `SIDE_SELL`, `opposite_side()` |
 | `app/core/events.py` | `Candle`, `EventType`, `MarketEvent`, `SignalEvent`, `OrderEvent`, `TPSLEvent`, `TickEvent`, `CandleCloseEvent`, `EngineStopEvent`, `EngineEvent` |
 | `app/core/config.py` | `AppConfig`, `ExchangeConfig`, `RiskConfig`, `NotificationConfig`, `BacktestConfig`, `PaperSimConfig` |
-| `app/services/market_data/store.py` | `MarketDataStore` (DataFrame schema) |
+| `app/data/store.py` | `MarketDataStore` (DataFrame schema) |

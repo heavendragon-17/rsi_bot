@@ -5,10 +5,11 @@ Usage: python scripts/migrate_config.py [config.yaml]
 This script checks that your config.yaml is valid under the new typed config
 and prints the canonical AppConfig representation for review.
 """
+
 from __future__ import annotations
 
-import sys
 import os
+import sys
 
 # Allow running from repo root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

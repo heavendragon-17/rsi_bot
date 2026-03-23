@@ -1,6 +1,6 @@
 # Notifications
 
-> **Location**: `app/services/notification/`
+> **Location**: `app/notification/`
 > **Interface**: `INotifier` in `app/core/interfaces.py`
 
 ## Architecture
@@ -24,11 +24,11 @@ Trading threads are never blocked by Telegram latency.
 | File                                                | Role                                                                            |
 | --------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `app/core/interfaces.py` — `INotifier`              | Abstract contract. Scalar params only.                                          |
-| `app/services/notification/notification_service.py` | Wraps `INotifier` + `NotificationWorker`. Single instance created in `main.py`. |
-| `app/services/notification/telegram_notifier.py`    | Implements `INotifier` with HTML formatting and mode-aware prefix.              |
-| `app/services/notification/null_notifier.py`        | No-op implementation. Used when Telegram is disabled or fails.                  |
-| `app/services/notification/notification_worker.py`  | Background daemon thread. Dispatches queue items to the underlying notifier.    |
-| `app/services/notification/telegram_bot.py`         | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`.      |
+| `app/notification/notification_service.py` | Wraps `INotifier` + `NotificationWorker`. Single instance created in `main.py`. |
+| `app/notification/telegram_notifier.py`    | Implements `INotifier` with HTML formatting and mode-aware prefix.              |
+| `app/notification/null_notifier.py`        | No-op implementation. Used when Telegram is disabled or fails.                  |
+| `app/notification/notification_worker.py`  | Background daemon thread. Dispatches queue items to the underlying notifier.    |
+| `app/notification/telegram_bot.py`         | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`.      |
 
 ---
 

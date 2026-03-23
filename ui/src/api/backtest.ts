@@ -8,7 +8,7 @@ import type {
   BacktestStartResponse,
   RunDetail,
   TimeseriesResponse,
-} from "../types/api-types";
+} from "../types/generated";
 
 // ---------------------------------------------------------------------------
 // startBacktest

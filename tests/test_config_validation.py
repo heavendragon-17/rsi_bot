@@ -1,19 +1,21 @@
 """
 Tests for AppConfig typed configuration (replaces validators.py tests).
 """
-import pytest
-import sys
+
 import os
+import sys
 from decimal import Decimal
+
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import AppConfig, ExchangeConfig, RiskConfig
 
-
 # ---------------------------------------------------------------------------
 # AppConfig.from_yaml (integration test using actual config.yaml)
 # ---------------------------------------------------------------------------
+
 
 def test_from_yaml_loads_actual_config():
     """AppConfig.from_yaml() must load the real config.yaml without error."""
@@ -27,6 +29,7 @@ def test_from_yaml_loads_actual_config():
 # ---------------------------------------------------------------------------
 # ExchangeConfig validation
 # ---------------------------------------------------------------------------
+
 
 def test_valid_exchange_config():
     cfg = ExchangeConfig(name="binanceusdm", mode="paper", leverage=10)
@@ -60,6 +63,7 @@ def test_all_valid_exchanges():
 # RiskConfig validation
 # ---------------------------------------------------------------------------
 
+
 def test_valid_risk_config():
     cfg = RiskConfig(risk_per_trade_pct=Decimal("0.02"), leverage=10)
     assert cfg.risk_per_trade_pct == Decimal("0.02")
@@ -83,6 +87,7 @@ def test_leverage_out_of_range_raises():
 # ---------------------------------------------------------------------------
 # AppConfig to_legacy_dict roundtrip
 # ---------------------------------------------------------------------------
+
 
 def test_to_legacy_dict_structure():
     cfg = AppConfig.from_yaml("config.yaml")

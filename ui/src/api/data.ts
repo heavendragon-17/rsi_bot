@@ -3,7 +3,7 @@
  */
 
 import { apiFetch, apiSSE } from "./client";
-import type { DataStatusResponse, DownloadStartResponse } from "../types/api-types";
+import type { DataStatusResponse, DownloadStartResponse } from "../types/generated";
 
 // ---------------------------------------------------------------------------
 // checkDataStatus

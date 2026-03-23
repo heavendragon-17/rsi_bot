@@ -8,22 +8,22 @@ interface AnimatedProgressBarProps {
   colorClass?: string;
 }
 
-export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({ 
-    progress, 
+export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
+    progress,
     className,
     colorClass = "bg-accent-main"
 }) => {
   return (
     <div className={cn("relative w-full h-2 bg-bg-elevated rounded-full overflow-hidden", className)}>
-      <motion.div 
+      <motion.div
         className={cn("h-full rounded-full relative", colorClass)}
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
         transition={{ type: "spring", stiffness: 50, damping: 20 }}
       >
         {/* Shimmer Effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
-             style={{ backgroundSize: '200% 100%' }} 
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"
+             style={{ backgroundSize: '200% 100%' }}
         />
       </motion.div>
     </div>

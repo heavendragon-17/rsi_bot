@@ -4,11 +4,13 @@ Tests for BacktestEngine.run() results dict contract.
 Verifies that run() returns a dict with the canonical structure expected by
 BacktestReporter and the DB layer, regardless of whether trades occurred.
 """
+
 import os
+
 import pytest
 
-from app.backtest.engine import BacktestEngine
-from app.strategies.rsi_no_retest import RsiNoRetestStrategy
+from app.backtest.engine.backtest_engine import BacktestEngine
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "small_btc.csv")
 
