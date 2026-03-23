@@ -2,7 +2,6 @@ requests
 ccxt
 hyperliquid-python-sdk
 pandas
-pandas_ta
 sqlalchemy
 python-dotenv
 pyyaml
