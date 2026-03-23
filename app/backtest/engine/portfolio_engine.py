@@ -199,7 +199,7 @@ class PortfolioEngine(Engine):
 
                 # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior
                 if exit_reason == "TP1" and pos.amount > Decimal("0"):
-                    self.portfolio._move_sl_to_entry(symbol)
+                    self.portfolio.move_stop_loss(symbol, pos.entry_price)
 
     def _record_equity(self, ts) -> None:
         """Calculate and store the current total portfolio equity"""

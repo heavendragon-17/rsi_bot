@@ -50,7 +50,7 @@ backtest:
   initial_balance: 100000
   duration:
     days: 0
-    months: 3
+    months: 5
     years: 0
 
 sim:

@@ -271,7 +271,7 @@ class BacktestEngine(Engine):
                 pos.amount = max(Decimal("0"), pos.amount - filled_dec)
                 pos.tp_order_ids.pop(exit_reason, None)
                 if exit_reason == "TP1" and pos.amount > Decimal("0"):
-                    self.portfolio._move_sl_to_entry(symbol)
+                    self.portfolio.move_stop_loss(symbol, pos.entry_price)
 
     def _close_open_positions(self) -> None:
         """Close all open positions at final price for accurate EOD reporting."""
