@@ -23,7 +23,7 @@ Exit logic:  see rsi_momentum_exit.py
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as dc_fields
 from decimal import Decimal
 
 import pandas as pd
@@ -95,6 +95,10 @@ class RsiMomentumStrategy(BaseStrategy):
     subsequent candle as long as full alignment (S2+S3+S4) still holds
     and the crossover_detected flag is set in context.
     """
+
+    DEFAULT_CONFIG = {
+        f.name: f.default for f in dc_fields(RsiMomentumConfig)
+    }
 
     def __init__(self, config: dict):
         super().__init__(config)
