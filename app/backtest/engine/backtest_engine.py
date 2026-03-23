@@ -99,6 +99,7 @@ class BacktestEngine(Engine):
             symbols=[symbol],
         )
 
+        self.exchange: MockExchange = exchange
         self.symbol = symbol
         self.config = config
         self._initial_balance = float(initial_balance)
@@ -138,7 +139,8 @@ class BacktestEngine(Engine):
         self._total_steps = max(len(self._full_df) - self.WARMUP, 1)
 
         initial_bal = self.exchange.fetch_balance().get("total", {}).get("USDT", 0)
-        strategy_params = {**self.strategy.DEFAULT_CONFIG, **self.config.get("strategy_params", {})}
+        default_cfg: dict = getattr(self.strategy, "DEFAULT_CONFIG", {})
+        strategy_params = {**default_cfg, **self.config.get("strategy_params", {})}
         logger.info(
             "backtest_start",
             symbol=self.symbol,
@@ -275,8 +277,10 @@ class BacktestEngine(Engine):
         """Close all open positions at final price for accurate EOD reporting."""
         if not self.exchange.positions:
             return
+        from decimal import Decimal
+
         last_row = self._full_df.iloc[-1]
-        final_price = float(last_row["close"])
+        final_price = Decimal(str(last_row["close"]))
         for symbol, amount in list(self.exchange.positions.items()):
             if amount > 0:
                 logger.info("closing_eod_position", symbol=symbol, amount=amount, price=final_price)
@@ -284,7 +288,7 @@ class BacktestEngine(Engine):
                     symbol=symbol,
                     order_type="market",
                     side="SELL",
-                    amount=float(amount),
+                    amount=Decimal(str(amount)),
                     price=final_price,
                     params={"exit_reason": "EOD"},
                 )
