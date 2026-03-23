@@ -7,6 +7,8 @@ Adds global liquidation checks per candle and aggregate metrics calculation.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pandas as pd
 import structlog
 
@@ -49,6 +51,7 @@ class PortfolioEngine(Engine):
             symbols=symbols,
         )
 
+        self.exchange: MockExchange = exchange
         self.config = config
         self._initial_balance = float(exchange.balance)
         self._on_progress = None
@@ -59,9 +62,10 @@ class PortfolioEngine(Engine):
             self.event_source._on_progress = lambda pct: self._report_progress(pct)
 
         # Track global equity over time for the portfolio drawdown curve
-        self.portfolio_equity_curve = []
+        self.portfolio_equity_curve: list[dict] = []
         # Remember the last timestamp processed
-        self._last_ts = None
+        self._last_ts: datetime | None = None
+        self._last_equity_ts: datetime | None = None
 
     def _report_progress(self, pct: float) -> None:
         """Called by event source with percentage 0.0 to 1.0"""
@@ -199,7 +203,7 @@ class PortfolioEngine(Engine):
 
     def _record_equity(self, ts) -> None:
         """Calculate and store the current total portfolio equity"""
-        if not hasattr(self, "_last_equity_ts") or self._last_equity_ts != ts:
+        if self._last_equity_ts != ts:
             equity = self._calculate_current_equity()
             self.portfolio_equity_curve.append(
                 {"date": ts.isoformat() if hasattr(ts, "isoformat") else str(ts), "balance": float(equity)}
@@ -227,12 +231,14 @@ class PortfolioEngine(Engine):
         if not self.exchange.positions:
             return
 
+        from decimal import Decimal
+
         ts = self._last_ts
         for symbol, amount in list(self.exchange.positions.items()):
             if amount > 0:
                 curr_data = self.exchange.current_prices.get(symbol, {})
                 # If we don't have a current price for some reason, use entry
-                final_price = float(curr_data.get("price", self.exchange.entry_prices.get(symbol, 0)))
+                final_price = curr_data.get("price", self.exchange.entry_prices.get(symbol, Decimal("0")))
 
                 logger.info(
                     "closing_eod_position",
@@ -244,8 +250,8 @@ class PortfolioEngine(Engine):
                     symbol=symbol,
                     order_type="market",
                     side="SELL",
-                    amount=float(amount),
-                    price=final_price,
+                    amount=Decimal(str(amount)),
+                    price=Decimal(str(final_price)),
                     params={"exit_reason": reason},
                 )
 
