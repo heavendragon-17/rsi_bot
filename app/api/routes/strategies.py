@@ -23,10 +23,10 @@ def list_strategies(db: Session = Depends(get_db)):
     rows = db.query(Strategy).order_by(Strategy.id).all()
     return [
         StrategyInfo(
-            id=row.id,
-            name=row.name,
-            description=row.description,
-            default_config=row.default_config or {},
+            id=int(row.id),
+            name=str(row.name),
+            description=str(row.description) if row.description else None,
+            default_config=dict(row.default_config) if row.default_config else {},
         )
         for row in rows
     ]

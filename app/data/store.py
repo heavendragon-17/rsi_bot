@@ -22,7 +22,7 @@ class MarketDataStore:
     Decimal precision in separate columns for calculations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data: dict[str, pd.DataFrame] = {}
         self.locks: dict[str, threading.Lock] = {}
         self.global_lock = threading.Lock()
