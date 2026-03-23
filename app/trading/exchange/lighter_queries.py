@@ -10,8 +10,9 @@ and symbol mapping helpers.
 
 from __future__ import annotations
 
-import structlog
 from typing import TYPE_CHECKING, Any
+
+import structlog
 
 from app.core.exceptions import ExchangeError
 

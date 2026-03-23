@@ -23,15 +23,16 @@ Exit logic:  see rsi_momentum_exit.py
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields as dc_fields
+from dataclasses import dataclass
+from dataclasses import fields as dc_fields
 from decimal import Decimal
 
 import pandas as pd
 import structlog
 
 from app.core.actions import DoNothing
-from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.core.analysis_result import AnalysisResult
+from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators

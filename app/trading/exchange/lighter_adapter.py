@@ -17,10 +17,11 @@ Environment Variables:
 from __future__ import annotations
 
 import asyncio
-import structlog
 import os
 from decimal import Decimal
 from typing import Any
+
+import structlog
 
 from app.core.exceptions import ExchangeError
 from app.core.interfaces import IExchange
