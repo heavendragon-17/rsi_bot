@@ -9,7 +9,7 @@ import pytest
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.actions import MoveSL
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators

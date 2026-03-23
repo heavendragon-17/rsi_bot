@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 
 SYMBOL = "BTC/USDT"
 NOW = datetime(2024, 1, 1, 12, 0, 0)

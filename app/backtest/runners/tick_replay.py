@@ -13,8 +13,8 @@ import pandas as pd
 import structlog
 
 from app.backtest.config_builder import build_backtest_config
-from app.backtest.engine_curves import build_drawdown_curve_dated, build_equity_curve_dated
-from app.backtest.engine_metrics import (
+from app.backtest.engine.curves import build_drawdown_curve_dated, build_equity_curve_dated
+from app.backtest.engine.metrics import (
     build_round_trips,
     calculate_drawdown,
     calculate_metrics,

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import structlog
 
-from app.backtest.reporting_styles import REPORT_CSS, build_chart_js
+from app.backtest.reporting.styles import REPORT_CSS, build_chart_js
 
 logger = structlog.get_logger()
 

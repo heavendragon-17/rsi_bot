@@ -95,7 +95,7 @@ async def start_download(body: dict[str, Any]):
     def _run_download():
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
-            from app.backtest.download_data import download_data
+            from app.backtest.data.download import download_data
 
             safe = symbol.replace("/", "")
             download_data(safe, timeframe, limit, DATA_DIR)

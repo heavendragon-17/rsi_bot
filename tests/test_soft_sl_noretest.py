@@ -13,7 +13,7 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.actions import ClosePosition, DoNothing
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators

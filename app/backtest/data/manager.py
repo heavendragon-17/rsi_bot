@@ -12,11 +12,11 @@ import os
 import pandas as pd
 import structlog
 
-from app.backtest.download_data import download_data
+from app.backtest.data.download import download_data
 
 logger = structlog.get_logger()
 
-BACKTEST_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKTEST_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DATA_DIR = os.path.join(BACKTEST_DIR, "data")
 
 

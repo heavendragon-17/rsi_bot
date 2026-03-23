@@ -261,7 +261,7 @@ class BacktestService:
         )
 
         def _run():
-            from app.backtest.engine import BacktestEngine
+            from app.backtest.engine.backtest_engine import BacktestEngine
 
             try:
                 engine = BacktestEngine(csv_path, strategy_class, engine_config)

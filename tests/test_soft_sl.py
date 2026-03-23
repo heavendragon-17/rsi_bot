@@ -9,7 +9,7 @@ import pytest
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.trading.portfolio.manager import PortfolioManager
 from app.trading.strategy.rsi_wma_retest import RsiWmaRetestStrategy
 

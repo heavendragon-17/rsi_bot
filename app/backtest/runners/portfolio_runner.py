@@ -15,15 +15,15 @@ import pandas as pd
 import structlog
 import yaml  # type: ignore[import-untyped]
 
-from app.backtest.data_manager import DataManager
-from app.backtest.download_data import calculate_candle_limit
-from app.backtest.engine import BacktestEngine
+from app.backtest.data.download import calculate_candle_limit
+from app.backtest.data.manager import DataManager
+from app.backtest.engine.backtest_engine import BacktestEngine
+from app.backtest.engine.portfolio_engine import PortfolioEngine
+from app.backtest.engine.portfolio_event_source import PortfolioEventSource
 from app.backtest.enrichment import enrich_round_trips
-from app.backtest.export import export_json_report
-from app.backtest.mock_exchange import MockExchange
-from app.backtest.portfolio_engine import PortfolioEngine
-from app.backtest.portfolio_event_source import PortfolioEventSource
-from app.backtest.reporting import BacktestReporter
+from app.backtest.exchange.mock_exchange import MockExchange
+from app.backtest.reporting.export import export_json_report
+from app.backtest.reporting.reporter import BacktestReporter
 from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE, WARMUP
 from app.core.logging import setup_logging
 from app.trading.strategy.loader import STRATEGY_MAP

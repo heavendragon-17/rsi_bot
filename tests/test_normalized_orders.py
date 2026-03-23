@@ -9,7 +9,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.backtest.mock_exchange import MockExchange
+from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.events import SignalEvent
 from app.trading.portfolio.manager import PortfolioManager
 
