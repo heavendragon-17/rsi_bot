@@ -233,12 +233,15 @@ def main():
 
     setup_logging(level="DEBUG", log_file="backtest.log", console=False)
 
+    from app.backtest.runners.progress import CliProgressBar
+
+    bar = CliProgressBar(f"Portfolio ({strategy_name})")
     runner = PortfolioRunner(symbols, config, strategy_name, timeframe)
-    results = runner.run()
+    results = runner.run(progress_cb=bar.update)
 
     profit = results.get("net_profit", 0.0)
     profit_pct = results.get("net_profit_pct", 0.0)
-    logger.info("portfolio_done", profit=f"${profit:.2f}", pct=f"{profit_pct:+.2f}%")
+    bar.finish(f"P&L: ${profit:+,.2f} ({profit_pct:+.2f}%)")
 
     import webbrowser
 

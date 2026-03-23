@@ -59,14 +59,19 @@ class BatchRunner:
         self.data_dir = data_dir
         self.report_dir = report_dir
 
-    def run(self, max_workers: int = 4) -> list[dict]:
+    def run(self, max_workers: int = 4, progress_cb=None) -> list[dict]:
         """Execute backtests across all symbols and return batch results."""
         os.makedirs(self.report_dir, exist_ok=True)
         start_time = time.time()
         batch_results: list[dict] = []
+        total = len(self.symbols)
+
+        def _report(completed: int) -> None:
+            if progress_cb and total > 0:
+                progress_cb({"pct": int(completed / total * 100)})
 
         if max_workers == 1:
-            for symbol in self.symbols:
+            for i, symbol in enumerate(self.symbols):
                 result = _run_single_symbol(
                     symbol,
                     self.config,
@@ -80,6 +85,7 @@ class BatchRunner:
                     batch_results.append(result)
                 elif result:
                     logger.warning("symbol_failed", symbol=symbol, error=result["error"])
+                _report(i + 1)
         else:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
@@ -103,11 +109,12 @@ class BatchRunner:
                         result = future.result()
                         if result and "error" not in result:
                             batch_results.append(result)
-                            logger.info("symbol_done", symbol=symbol, n=completed, total=len(self.symbols))
+                            logger.info("symbol_done", symbol=symbol, n=completed, total=total)
                         elif result:
                             logger.warning("symbol_failed", symbol=symbol, error=result["error"])
                     except Exception as exc:
                         logger.error("symbol_exception", symbol=symbol, error=str(exc))
+                    _report(completed)
 
         elapsed = time.time() - start_time
         logger.info("batch_complete", elapsed=f"{elapsed:.1f}s", symbols=len(self.symbols))
@@ -246,8 +253,15 @@ def main():
     if args.sequential:
         max_workers = 1
 
+    from app.backtest.runners.progress import CliProgressBar
+
+    bar = CliProgressBar(f"Batch ({strategy_name}, {len(symbols)} symbols)")
+
     runner = BatchRunner(symbols, config, strategy_name, timeframe, balance)
-    batch_results = runner.run(max_workers=max_workers)
+    batch_results = runner.run(max_workers=max_workers, progress_cb=bar.update)
+
+    total_profit = sum(r.get("profit", 0) for r in batch_results)
+    bar.finish(f"{len(batch_results)}/{len(symbols)} ok, P&L: ${total_profit:+,.2f}")
 
     if batch_results:
         report_path = os.path.join(REPORT_DIR, "batch_report.html")

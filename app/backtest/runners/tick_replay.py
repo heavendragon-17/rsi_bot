@@ -156,13 +156,16 @@ class TickReplayRunner:
             if processed % max(1, total_candles // 20) == 0:
                 elapsed = time.time() - t_start
                 rate = total_ticks / elapsed if elapsed > 0 else 0
+                pct = int(processed / total_candles * 100)
                 logger.info(
                     "replay_progress",
-                    pct=f"{processed / total_candles * 100:.1f}%",
+                    pct=f"{pct}%",
                     candle=f"{processed}/{total_candles}",
                     ticks=total_ticks,
                     rate=f"{rate:,.0f}/s",
                 )
+                if progress_cb:
+                    progress_cb({"pct": pct})
 
             if tick_exhausted and pending_tick is None:
                 remaining = total_candles - processed
@@ -233,15 +236,11 @@ def _action_to_signal(action: OpenPosition) -> SignalEvent:
 
 def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
     """Compute P&L metrics from SimExchange closed_trades."""
+    _empty = {"total_trades": 0, "initial_balance": initial_balance,
+              "final_balance": float(exchange.state.balance),
+              "net_profit": 0.0, "net_profit_pct": 0.0, "closed_trades": []}
     if not exchange.state.closed_trades:
-        return {
-            "total_trades": 0,
-            "initial_balance": initial_balance,
-            "final_balance": float(exchange.state.balance),
-            "net_profit": 0.0,
-            "net_profit_pct": 0.0,
-            "closed_trades": [],
-        }
+        return _empty
 
     ordered: list[dict] = []
     for ct in exchange.state.closed_trades:
@@ -278,14 +277,7 @@ def _compute_results(exchange: SimExchange, initial_balance: float) -> dict:
     df_trades = pd.DataFrame(ordered)
     round_trips = build_round_trips(df_trades)
     if round_trips.empty:
-        return {
-            "total_trades": 0,
-            "initial_balance": initial_balance,
-            "final_balance": float(exchange.state.balance),
-            "net_profit": 0.0,
-            "net_profit_pct": 0.0,
-            "closed_trades": [],
-        }
+        return _empty
 
     metrics = calculate_metrics(round_trips)
     drawdown_full = calculate_drawdown(round_trips, initial_balance)
@@ -379,6 +371,9 @@ def main():
     parser.add_argument("--strategy", type=str, default="rsi_no_retest", choices=list(STRATEGY_MAP.keys()))
     args = parser.parse_args()
 
+    from app.backtest.runners.progress import CliProgressBar
+
+    bar = CliProgressBar(f"Tick replay ({args.strategy})")
     runner = TickReplayRunner(
         symbol=args.symbol,
         timeframe=args.timeframe,
@@ -387,7 +382,10 @@ def main():
         ohlc_path=args.ohlc,
         ticks_path=args.ticks,
     )
-    results = runner.run()
+    results = runner.run(progress_cb=bar.update)
+    profit = results.get("net_profit", 0.0)
+    profit_pct = results.get("net_profit_pct", 0.0)
+    bar.finish(f"P&L: ${profit:+,.2f} ({profit_pct:+.2f}%)")
     _print_report(results, args.symbol, args.timeframe, args.strategy)
 
 
