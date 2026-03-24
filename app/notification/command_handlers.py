@@ -150,7 +150,7 @@ def handle_report(exchange: IExchange, prefix: str, send, chat_id: str) -> None:
     total_pnl = sum(t.pnl_net for t in trades)
     gross_pnl = sum(t.pnl_gross for t in trades)
     total_fees = sum(t.fees_paid for t in trades)
-    total_funding = sum(getattr(t, "funding_paid", Decimal("0")) for t in trades)
+    total_funding: Decimal = sum((t.funding_paid for t in trades), Decimal("0"))
 
     initial_bal = getattr(state, "initial_balance", Decimal("10000"))
     return_pct = (total_pnl / initial_bal * 100) if initial_bal else Decimal("0")
