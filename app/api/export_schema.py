@@ -95,6 +95,11 @@ def main() -> None:
         RunSummary,
         StrategyInfo,
         TimeseriesResponse,
+        BatchSymbolResult,
+        BatchRunDetail,
+        PortfolioRunDetail,
+        BatchTimeseriesResponse,
+        PortfolioTimeseriesResponse,
     )
 
     MODELS: dict[str, type] = {
@@ -107,6 +112,11 @@ def main() -> None:
         "DataStatusResponse": DataStatusResponse,
         "DownloadStartResponse": DownloadStartResponse,
         "StrategyInfo": StrategyInfo,
+        "BatchSymbolResult": BatchSymbolResult,
+        "BatchRunDetail": BatchRunDetail,
+        "PortfolioRunDetail": PortfolioRunDetail,
+        "BatchTimeseriesResponse": BatchTimeseriesResponse,
+        "PortfolioTimeseriesResponse": PortfolioTimeseriesResponse,
     }
 
     schemas = {name: model.model_json_schema() for name, model in MODELS.items()}

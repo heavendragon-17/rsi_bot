@@ -28,7 +28,7 @@ export const DataPrepModal: React.FC = () => {
       reset
   } = useDataPrepStore();
 
-  const { runBacktest, timeframe } = useBacktestStore();
+  const { timeframe } = useBacktestStore(); const runBacktest = async () => {};
   
   const [autoCloseTimer, setAutoCloseTimer] = useState<number | null>(null);
 

@@ -1,9 +1,21 @@
 {
   "BacktestRequest": {
     "properties": {
-      "symbol": {
-        "title": "Symbol",
+      "mode": {
+        "enum": [
+          "single",
+          "batch",
+          "portfolio"
+        ],
+        "title": "Mode",
         "type": "string"
+      },
+      "symbols": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Symbols",
+        "type": "array"
       },
       "timeframe": {
         "title": "Timeframe",
@@ -22,8 +34,17 @@
         "type": "string"
       },
       "initial_capital": {
-        "default": "10000.00",
+        "default": "10000",
         "title": "Initial Capital",
+        "type": "string"
+      },
+      "capital_mode": {
+        "default": "split",
+        "enum": [
+          "split",
+          "full"
+        ],
+        "title": "Capital Mode",
         "type": "string"
       },
       "leverage": {
@@ -59,7 +80,8 @@
       }
     },
     "required": [
-      "symbol",
+      "mode",
+      "symbols",
       "timeframe",
       "strategy",
       "start_date",
@@ -71,8 +93,44 @@
   "BacktestStartResponse": {
     "properties": {
       "run_id": {
-        "title": "Run Id",
-        "type": "integer"
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Run Id"
+      },
+      "batch_run_id": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Batch Run Id"
+      },
+      "portfolio_run_id": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Portfolio Run Id"
+      },
+      "mode": {
+        "title": "Mode",
+        "type": "string"
       },
       "status": {
         "title": "Status",
@@ -80,7 +138,7 @@
       }
     },
     "required": [
-      "run_id",
+      "mode",
       "status"
     ],
     "title": "BacktestStartResponse",
@@ -645,6 +703,498 @@
       "default_config"
     ],
     "title": "StrategyInfo",
+    "type": "object"
+  },
+  "BatchSymbolResult": {
+    "properties": {
+      "symbol": {
+        "title": "Symbol",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "completed",
+          "failed"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Error"
+      },
+      "net_profit": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Net Profit"
+      },
+      "net_profit_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Net Profit Pct"
+      },
+      "win_rate": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Win Rate"
+      },
+      "profit_factor": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Profit Factor"
+      },
+      "max_drawdown_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Max Drawdown Pct"
+      },
+      "sharpe_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Sharpe Ratio"
+      },
+      "total_trades": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Total Trades"
+      },
+      "trades": {
+        "anyOf": [
+          {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trades"
+      }
+    },
+    "required": [
+      "symbol",
+      "status"
+    ],
+    "title": "BatchSymbolResult",
+    "type": "object"
+  },
+  "BatchRunDetail": {
+    "$defs": {
+      "BatchSymbolResult": {
+        "properties": {
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "net_profit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Net Profit"
+          },
+          "net_profit_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Net Profit Pct"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Win Rate"
+          },
+          "profit_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profit Factor"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Max Drawdown Pct"
+          },
+          "sharpe_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sharpe Ratio"
+          },
+          "total_trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total Trades"
+          },
+          "trades": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trades"
+          }
+        },
+        "required": [
+          "symbol",
+          "status"
+        ],
+        "title": "BatchSymbolResult",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "integer"
+      },
+      "mode": {
+        "const": "batch",
+        "default": "batch",
+        "title": "Mode",
+        "type": "string"
+      },
+      "strategy_name": {
+        "title": "Strategy Name",
+        "type": "string"
+      },
+      "timeframe": {
+        "title": "Timeframe",
+        "type": "string"
+      },
+      "status": {
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "string"
+      },
+      "config": {
+        "additionalProperties": true,
+        "title": "Config",
+        "type": "object"
+      },
+      "capital_mode": {
+        "title": "Capital Mode",
+        "type": "string"
+      },
+      "symbol_count": {
+        "title": "Symbol Count",
+        "type": "integer"
+      },
+      "failed_symbols": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Failed Symbols",
+        "type": "array"
+      },
+      "aggregate": {
+        "additionalProperties": true,
+        "title": "Aggregate",
+        "type": "object"
+      },
+      "symbols": {
+        "items": {
+          "$ref": "#/$defs/BatchSymbolResult"
+        },
+        "title": "Symbols",
+        "type": "array"
+      }
+    },
+    "required": [
+      "id",
+      "strategy_name",
+      "timeframe",
+      "status",
+      "created_at",
+      "config",
+      "capital_mode",
+      "symbol_count",
+      "failed_symbols",
+      "aggregate",
+      "symbols"
+    ],
+    "title": "BatchRunDetail",
+    "type": "object"
+  },
+  "PortfolioRunDetail": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "integer"
+      },
+      "mode": {
+        "const": "portfolio",
+        "default": "portfolio",
+        "title": "Mode",
+        "type": "string"
+      },
+      "strategy_name": {
+        "title": "Strategy Name",
+        "type": "string"
+      },
+      "timeframe": {
+        "title": "Timeframe",
+        "type": "string"
+      },
+      "status": {
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "string"
+      },
+      "config": {
+        "additionalProperties": true,
+        "title": "Config",
+        "type": "object"
+      },
+      "symbols": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Symbols",
+        "type": "array"
+      },
+      "results": {
+        "additionalProperties": true,
+        "title": "Results",
+        "type": "object"
+      },
+      "trades": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Trades",
+        "type": "array"
+      }
+    },
+    "required": [
+      "id",
+      "strategy_name",
+      "timeframe",
+      "status",
+      "created_at",
+      "config",
+      "symbols",
+      "results",
+      "trades"
+    ],
+    "title": "PortfolioRunDetail",
+    "type": "object"
+  },
+  "BatchTimeseriesResponse": {
+    "properties": {
+      "batch_run_id": {
+        "title": "Batch Run Id",
+        "type": "integer"
+      },
+      "portfolio_equity_curve": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Portfolio Equity Curve",
+        "type": "array"
+      },
+      "per_symbol_equity": {
+        "additionalProperties": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "title": "Per Symbol Equity",
+        "type": "object"
+      },
+      "monthly_returns": {
+        "additionalProperties": true,
+        "title": "Monthly Returns",
+        "type": "object"
+      }
+    },
+    "required": [
+      "batch_run_id",
+      "portfolio_equity_curve",
+      "per_symbol_equity",
+      "monthly_returns"
+    ],
+    "title": "BatchTimeseriesResponse",
+    "type": "object"
+  },
+  "PortfolioTimeseriesResponse": {
+    "properties": {
+      "portfolio_run_id": {
+        "title": "Portfolio Run Id",
+        "type": "integer"
+      },
+      "equity_curve": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Equity Curve",
+        "type": "array"
+      },
+      "drawdown_curve": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Drawdown Curve",
+        "type": "array"
+      },
+      "monthly_returns": {
+        "additionalProperties": true,
+        "title": "Monthly Returns",
+        "type": "object"
+      }
+    },
+    "required": [
+      "portfolio_run_id",
+      "equity_curve",
+      "drawdown_curve",
+      "monthly_returns"
+    ],
+    "title": "PortfolioTimeseriesResponse",
     "type": "object"
   }
 }

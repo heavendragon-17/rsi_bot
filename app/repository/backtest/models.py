@@ -26,6 +26,118 @@ from sqlalchemy.orm import relationship
 from app.repository.backtest.database import Base
 
 
+class BatchRun(Base):
+    __tablename__ = "batch_run"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"))
+    status = Column(Text, nullable=False, default="running")
+    capital_mode = Column(Text, nullable=False, default="split")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+
+    strategy = relationship("Strategy", back_populates="batch_runs")
+    config = relationship("BatchRunConfig", back_populates="run", uselist=False, cascade="all, delete-orphan")
+    result = relationship("BatchRunResult", back_populates="run", uselist=False, cascade="all, delete-orphan")
+
+class BatchRunConfig(Base):
+    __tablename__ = "batch_run_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_run_id = Column(Integer, ForeignKey("batch_run.id"))
+    symbols = Column(Text, nullable=False)
+    timeframe = Column(Text)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    initial_capital = Column(Text)
+    leverage = Column(Integer)
+    risk_per_trade_pct = Column(Text)
+    params = Column(Text)
+
+    run = relationship("BatchRun", back_populates="config")
+
+class BatchRunResult(Base):
+    __tablename__ = "batch_run_result"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_run_id = Column(Integer, ForeignKey("batch_run.id"))
+    aggregate_stats = Column(Text, nullable=False)
+    per_symbol_stats = Column(Text, nullable=False)
+    failed_symbols = Column(Text)
+    equity_curve = Column(LargeBinary)
+    monthly_returns = Column(Text)
+
+    run = relationship("BatchRun", back_populates="result")
+
+class PortfolioRun(Base):
+    __tablename__ = "portfolio_run"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"))
+    status = Column(Text, nullable=False, default="running")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+
+    strategy = relationship("Strategy", back_populates="portfolio_runs")
+    config = relationship("PortfolioRunConfig", back_populates="run", uselist=False, cascade="all, delete-orphan")
+    result = relationship("PortfolioRunResult", back_populates="run", uselist=False, cascade="all, delete-orphan")
+    trades = relationship("PortfolioTrade", back_populates="run", cascade="all, delete-orphan")
+
+class PortfolioRunConfig(Base):
+    __tablename__ = "portfolio_run_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    portfolio_run_id = Column(Integer, ForeignKey("portfolio_run.id"))
+    symbols = Column(Text, nullable=False)
+    timeframe = Column(Text)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    initial_capital = Column(Text)
+    leverage = Column(Integer)
+    risk_per_trade_pct = Column(Text)
+    params = Column(Text)
+
+    run = relationship("PortfolioRun", back_populates="config")
+
+class PortfolioRunResult(Base):
+    __tablename__ = "portfolio_run_result"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    portfolio_run_id = Column(Integer, ForeignKey("portfolio_run.id"))
+    net_profit = Column(Text)
+    net_profit_pct = Column(Float)
+    win_rate = Column(Float)
+    profit_factor = Column(Float)
+    max_drawdown_pct = Column(Float)
+    sharpe_ratio = Column(Float)
+    total_trades = Column(Integer)
+    exit_reasons = Column(Text)
+    equity_curve = Column(LargeBinary)
+    drawdown_curve = Column(LargeBinary)
+    monthly_returns = Column(Text)
+
+    run = relationship("PortfolioRun", back_populates="result")
+
+class PortfolioTrade(Base):
+    __tablename__ = "portfolio_trade"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    portfolio_run_id = Column(Integer, ForeignKey("portfolio_run.id"))
+    symbol = Column(Text)
+    side = Column(Text)
+    entry_time = Column(DateTime)
+    exit_time = Column(DateTime)
+    entry_price = Column(Text)
+    exit_price = Column(Text)
+    quantity = Column(Text)
+    pnl = Column(Text)
+    pnl_pct = Column(Float)
+    exit_reason = Column(Text)
+
+    run = relationship("PortfolioRun", back_populates="trades")
+
 class Strategy(Base):
     __tablename__ = "strategies"
 
@@ -36,6 +148,8 @@ class Strategy(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     runs = relationship("Run", back_populates="strategy")
+    batch_runs = relationship("BatchRun", back_populates="strategy")
+    portfolio_runs = relationship("PortfolioRun", back_populates="strategy")
 
 
 class Run(Base):

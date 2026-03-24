@@ -53,10 +53,8 @@ export interface BacktestState {
   riskPercent: string;
 
   // Execution State
-  isRunning: boolean;
-  runProgress: number;        // 0-100
-  currentRunId: number | null;
   recentConfigs: any[];
+  capitalMode: "split" | "full";
 
   // Actions
   setMode: (mode: BacktestState["mode"]) => void;
@@ -66,6 +64,7 @@ export interface BacktestState {
   setTimeframe: (tf: string) => void;
   setParam: (key: string, value: number) => void;
   setCapital: (val: string) => void;
+  setCapitalMode: (val: "split" | "full") => void;
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
   setDateRange: (start: string, end: string) => void;
@@ -80,8 +79,6 @@ export interface BacktestState {
   loadConfig: (config: any) => void;
   loadStrategies: () => Promise<void>;
 
-  runBacktest: () => Promise<void>;
-  cancelBacktest: () => Promise<void>;
   resetParams: () => void;
   getEstimatedBars: () => number;
   getDaysDuration: () => number;
@@ -122,18 +119,17 @@ export const useBacktestStore = create<BacktestState>()(
       params: { ...DEFAULT_PARAMS },
 
       capital: "10000",
+      capitalMode: "split",
       leverage: "1",
       riskPercent: "1",
 
-      isRunning: false,
-      runProgress: 0,
-      currentRunId: null,
       recentConfigs: [],
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
       setPortfolioInput: (portfolioInput) => set({ portfolioInput }),
       setStrategy: (strategy) => set({ strategy }),
+      setCapitalMode: (capitalMode) => set({ capitalMode }),
       setTimeframe: (timeframe) => {
         set({ timeframe });
         get().syncRelativeDates();
@@ -233,183 +229,6 @@ export const useBacktestStore = create<BacktestState>()(
 
       // ── Real API + SSE ────────────────────────────────────────────────────
 
-      runBacktest: async () => {
-        const state = get();
-        set({ isRunning: true, runProgress: 0 });
-
-        try {
-          const startDate = parse(state.startDate, "dd-MM-yyyy", new Date());
-          const endDate = parse(state.endDate, "dd-MM-yyyy", new Date());
-
-          if (state.mode === "batch") {
-            const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
-            if (symbols.length === 0) throw new Error("No symbols provided for batch run.");
-
-            // Start all backtests
-            const runIds: { id: number, symbol: string }[] = [];
-            const perConfigCap = parseFloat(state.capital) / symbols.length;
-
-            for (const sym of symbols) {
-              const { run_id } = await startBacktest({
-                symbol: sym,
-                timeframe: state.timeframe,
-                strategy: state.strategy,
-                start_date: format(startDate, "yyyy-MM-dd"),
-                end_date: format(endDate, "yyyy-MM-dd"),
-                initial_capital: perConfigCap.toString(),
-                leverage: parseInt(state.leverage) || 1,
-                risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
-                params: state.params,
-              });
-              runIds.push({ id: run_id, symbol: sym });
-            }
-
-            set({ currentRunId: runIds[0].id });
-
-            const progressMap = new Map<number, number>();
-            const promises = runIds.map(({ id, symbol }) => new Promise<any>((resolve, reject) => {
-              const cleanup = streamProgress(id,
-                (pct) => {
-                  progressMap.set(id, pct);
-                  let total = 0;
-                  progressMap.forEach(v => total += v);
-                  set({ runProgress: total / symbols.length });
-                },
-                async () => {
-                  cleanup();
-                  try {
-                    const [detail, timeseries] = await Promise.all([getRunDetail(id), getTimeseries(id)]);
-                    resolve({ symbol, detail, timeseries, initialCapital: perConfigCap });
-                  } catch (e) { reject(e); }
-                },
-                (err) => { cleanup(); reject(new Error(err)); }
-              );
-            }));
-
-            const allResults = await Promise.all(promises);
-
-            // Import util
-            const { aggregateBatchResults } = await import("../lib/batch-utils");
-            const aggregated = aggregateBatchResults(allResults);
-
-            const { useBatchResultsStore } = await import("./batchResultsStore");
-            useBatchResultsStore.getState().setBatchResults(aggregated);
-
-            set({ isRunning: false, runProgress: 0, currentRunId: null });
-            return;
-          }
-
-          if (state.mode === "portfolio") {
-            const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
-            if (symbols.length === 0) throw new Error("No symbols provided for portfolio run.");
-
-            const { run_id } = await startBacktest({
-              symbols: symbols,
-              timeframe: state.timeframe,
-              strategy: state.strategy,
-              start_date: format(startDate, "yyyy-MM-dd"),
-              end_date: format(endDate, "yyyy-MM-dd"),
-              initial_capital: state.capital,
-              leverage: parseInt(state.leverage) || 1,
-              risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
-              params: state.params,
-            });
-
-            set({ currentRunId: run_id });
-
-            await new Promise<void>((resolve, reject) => {
-              const cleanup = streamProgress(
-                run_id,
-                (pct) => set({ runProgress: pct }),
-                async () => {
-                  cleanup();
-                  try {
-                    const [detail, timeseries] = await Promise.all([
-                      getRunDetail(run_id),
-                      getTimeseries(run_id),
-                    ]);
-                    useResultsStore.getState().setResults(
-                      mapApiToResults(detail, timeseries)
-                    );
-                    resolve();
-                  } catch (fetchErr) {
-                    reject(fetchErr);
-                  }
-                },
-                (msg) => {
-                  cleanup();
-                  reject(new Error(msg));
-                }
-              );
-            });
-
-            set({ isRunning: false, runProgress: 100, currentRunId: null });
-            return;
-          }
-
-          // Single run mode
-          const { run_id } = await startBacktest({
-            symbol: state.symbol,
-            timeframe: state.timeframe,
-            strategy: state.strategy,
-            start_date: format(startDate, "yyyy-MM-dd"),
-            end_date: format(endDate, "yyyy-MM-dd"),
-            initial_capital: state.capital,
-            leverage: parseInt(state.leverage) || 1,
-            risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
-            params: state.params,
-          });
-
-          set({ currentRunId: run_id });
-
-          // 3. SSE — store owns the EventSource connection
-          await new Promise<void>((resolve, reject) => {
-            const cleanup = streamProgress(
-              run_id,
-              (pct) => set({ runProgress: pct }),
-              async () => {
-                // Instantly clean up to prevent EventSource from firing onerror when server closes
-                cleanup();
-                
-                // 4. On complete: fetch results and push to resultsStore
-                try {
-                  const [detail, timeseries] = await Promise.all([
-                    getRunDetail(run_id),
-                    getTimeseries(run_id),
-                  ]);
-                  useResultsStore.getState().setResults(
-                    mapApiToResults(detail, timeseries),
-                  );
-                  resolve();
-                } catch (fetchErr) {
-                  reject(fetchErr);
-                }
-              },
-              (msg) => {
-                cleanup();
-                reject(new Error(msg));
-              },
-            );
-          });
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Backtest failed");
-        } finally {
-          set({ isRunning: false, runProgress: 0, currentRunId: null });
-        }
-      },
-
-      cancelBacktest: async () => {
-        const { currentRunId } = get();
-        if (currentRunId) {
-          try {
-            await apiCancelBacktest(currentRunId);
-          } catch {
-            // Ignore — state reset is the priority
-          }
-        }
-        set({ isRunning: false, runProgress: 0, currentRunId: null });
-      },
-
       loadStrategies: async () => {
         try {
           const strategies = await fetchStrategies();
@@ -469,6 +288,7 @@ export const useBacktestStore = create<BacktestState>()(
         lookbackUnit: state.lookbackUnit,
         datePreset: state.datePreset,
         recentConfigs: state.recentConfigs,
+        capitalMode: state.capitalMode,
       }),
     },
   ),

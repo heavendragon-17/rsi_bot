@@ -53,7 +53,7 @@ export const Sidebar: React.FC = () => {
     riskPercent,
     setRiskPercent,
     isRunning,
-    runBacktest,
+    /* runBacktest, */
     setSidebarOpen,
     startDate,
     endDate,
@@ -72,7 +72,7 @@ export const Sidebar: React.FC = () => {
 
   const executeRun = async () => {
     // backtestStore.runBacktest() handles API call, SSE, results, and history (server-side).
-    await runBacktest();
+    /* await runBacktest(); */
   };
 
   const handleRunRequest = async () => {
@@ -168,7 +168,7 @@ export const Sidebar: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     toggleSidebar,
-    runBacktest,
+    /* runBacktest, */
     resetParams,
     params,
     capital,
