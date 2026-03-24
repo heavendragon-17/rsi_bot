@@ -52,6 +52,7 @@ def action_to_signal(action: OpenPosition) -> SignalEvent:
         signal_class=action.signal_class,
         lock_profit_price=action.lock_profit_price,
         tp_allocations=action.tp_allocations,
+        indicators=action.indicators,
     )
 
 

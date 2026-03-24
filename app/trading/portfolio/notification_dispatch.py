@@ -7,6 +7,7 @@ from decimal import Decimal
 import structlog
 
 from app.core.actions import SIDE_BUY
+from app.core.constants import DEFAULT_TAKER_FEE_DECIMAL
 from app.core.events import SignalEvent
 
 logger = structlog.get_logger()
@@ -41,6 +42,7 @@ class NotificationDispatcher:
             for k, v in [("TP1", signal.tp1_price), ("TP2", signal.tp2_price), ("TP3", signal.tp3_price)]
             if v is not None
         }
+        entry_fee = price * amount * DEFAULT_TAKER_FEE_DECIMAL
 
         try:
             self._notification_service.on_entry(
@@ -52,6 +54,8 @@ class NotificationDispatcher:
                 tp_prices=tp_prices or None,
                 leverage=leverage,
                 balance=balance,
+                indicators=signal.indicators,
+                entry_fee=entry_fee,
             )
         except Exception:
             logger.warning(f"[{symbol}] on_entry notification failed")

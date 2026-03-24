@@ -63,6 +63,8 @@ class NotificationService(INotifier):
         tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
         balance: Decimal | None = None,
+        indicators: dict[str, float] | None = None,
+        entry_fee: Decimal | None = None,
     ) -> None:
         self._worker.enqueue(
             "on_entry",
@@ -74,6 +76,8 @@ class NotificationService(INotifier):
             tp_prices=tp_prices,
             leverage=leverage,
             balance=balance,
+            indicators=indicators,
+            entry_fee=entry_fee,
         )
 
     def on_fill(
@@ -88,6 +92,10 @@ class NotificationService(INotifier):
         r_multiple: Decimal | None = None,
         remaining_amount: Decimal | None = None,
         balance: Decimal | None = None,
+        entry_price: Decimal | None = None,
+        total_fees: Decimal | None = None,
+        hold_duration: float | None = None,
+        return_pct: Decimal | None = None,
     ) -> None:
         self._worker.enqueue(
             "on_fill",
@@ -101,6 +109,10 @@ class NotificationService(INotifier):
             r_multiple=r_multiple,
             remaining_amount=remaining_amount,
             balance=balance,
+            entry_price=entry_price,
+            total_fees=total_fees,
+            hold_duration=hold_duration,
+            return_pct=return_pct,
         )
 
     def on_error(self, context: str, error: str) -> None:

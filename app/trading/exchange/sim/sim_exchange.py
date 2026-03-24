@@ -81,6 +81,7 @@ class SimExchange(IExchange):
         self._notification_service = notification_service
         self._fires_entry_notification: bool = True
         self._fires_fill_notification: bool = True
+        self._pending_indicators: dict[str, dict[str, float]] = {}  # staging for entry indicators
 
         # Fill simulator for pending SL/TP order management and fill detection
         self._sim_instance: FillSimulator | None = FillSimulator(TickFillMode(), MAKER_FEE, TAKER_FEE)
@@ -177,6 +178,10 @@ class SimExchange(IExchange):
         stop_price = to_decimal(params.get("stopPrice")) if params.get("stopPrice") else None
         amount = to_decimal(amount)
         price = to_decimal(price) if price else None
+
+        # Stash indicator snapshot for entry notifications
+        if params.get("_indicators") and not reduce_only:
+            self._pending_indicators[symbol] = params["_indicators"]
 
         # reduceOnly guard: skip if no position exists
         if reduce_only:

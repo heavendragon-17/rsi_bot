@@ -349,6 +349,12 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 self.context.transition(key, SCANNING, reason="BUY emitted, reset scan", now_ts=ts)
                 self._r40_price_at_retest.pop(key, None)
 
+                _indicators: dict[str, float] = {
+                    "rsi_ema9": float(rsi_ema9) if rsi_ema9 is not None else 0.0,
+                    "rsi_wma45": float(rsi_wma45) if rsi_wma45 is not None else 0.0,
+                    "spread": float(rsi_ema9 - rsi_wma45) if rsi_ema9 is not None and rsi_wma45 is not None else 0.0,
+                }
+
                 return SignalEvent(
                     symbol=symbol,
                     signal_type="BUY",
@@ -361,6 +367,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                     sl_price=disaster_sl_price,  # Hard limit order on exchange
                     soft_sl_price=soft_sl_price,  # For portfolio reference
                     signal_class=1,
+                    indicators=_indicators,
                 )
 
             # Reset if RSI collapses too far under WMA45

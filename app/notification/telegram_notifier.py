@@ -21,13 +21,20 @@ from decimal import Decimal
 import structlog
 
 from app.core.interfaces import IExchange, INotifier
+from app.notification.command_handlers import (
+    handle_help,
+    handle_history,
+    handle_report,
+    handle_reset,
+    handle_status,
+)
 from app.notification.deploy_commands import (
     handle_bot_version,
     handle_cancel_deploy,
     handle_deploy_status,
     handle_force_deploy,
 )
-from app.notification.formatting import fmt_pct, fmt_pnl, fmt_price, mono, row
+from app.notification.formatting import fmt_duration, fmt_pct, fmt_pnl, fmt_price, mono, row
 from app.notification.telegram_bot import TelegramBot
 
 logger = structlog.get_logger(__name__)
@@ -69,12 +76,15 @@ class TelegramNotifier(INotifier):
         """Start the Telegram polling loop and register commands."""
         send = self._bot.send_message
         verify = self._verify_chat_id
+        ex = self._exchange
+        pfx = self._prefix
         callbacks = {
-            "/status": self._handle_status_cmd,
-            "/history": self._handle_history_cmd,
-            "/winrate": self._handle_winrate_cmd,
-            "/report": self._handle_report_cmd,
-            "/reset": self._handle_reset_cmd,
+            "/status": lambda cid: handle_status(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/history": lambda cid: handle_history(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/report": lambda cid: handle_report(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/winrate": lambda cid: handle_report(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/reset": lambda cid: handle_reset(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/help": lambda cid: handle_help(pfx, send, cid) if verify(cid) else None,
             "/force_deploy": lambda cid: handle_force_deploy(send, cid) if verify(cid) else None,
             "/deploy_status": lambda cid: handle_deploy_status(send, cid) if verify(cid) else None,
             "/cancel_deploy": lambda cid: handle_cancel_deploy(send, cid) if verify(cid) else None,
@@ -87,127 +97,6 @@ class TelegramNotifier(INotifier):
             logger.warning(f"Unauthorized command attempt from chat {chat_id}")
             return False
         return True
-
-    def _handle_status_cmd(self, chat_id: str) -> None:
-        if not self._verify_chat_id(chat_id):
-            return
-        if not self._exchange:
-            return
-
-        balance = self._exchange.fetch_balance()
-        usdt_total = balance.get("total", {}).get("USDT", 0.0)
-        positions = self._exchange.fetch_positions()
-
-        running_status = "⏸ PAUSED" if getattr(self._exchange, "is_paused", lambda: False)() else "▶️ RUNNING"
-
-        lines = [
-            f"{self._prefix} | 📊 STATUS",
-            "",
-            row("Bot State:", running_status),
-            row("Balance:", f"${usdt_total:,.2f}"),
-            row("Positions:", f"{len(positions)} open"),
-        ]
-
-        if positions:
-            lines.append("")
-            for p in positions:
-                upnl = p.get("unrealizedPnl", 0.0)
-                emoji = "🟢" if upnl >= 0 else "🔴"
-                lines.append(
-                    f"{emoji} {p['symbol']} | Size: {p['contracts']:.4f} | PnL: {fmt_pnl(Decimal(str(upnl)))}"
-                )
-
-        msg = "\n".join(lines)
-        self._bot.send_message(mono(msg), chat_id=chat_id)
-
-    def _handle_history_cmd(self, chat_id: str) -> None:
-        if not self._verify_chat_id(chat_id):
-            return
-        if not self._exchange or not hasattr(self._exchange, "state"):
-            return
-
-        state = self._exchange.state
-        trades = state.closed_trades[-10:]  # last 10
-
-        if not trades:
-            self._bot.send_message(mono(f"{self._prefix} | 📜 HISTORY\n\nNo closed trades yet."), chat_id=chat_id)
-            return
-
-        lines = [f"{self._prefix} | 📜 HISTORY (Last {len(trades)})", ""]
-        for t in reversed(trades):
-            emoji = "🟢" if t.pnl_net >= 0 else "🔴"
-            lines.append(f"{emoji} {t.symbol} | {fmt_pnl(t.pnl_net)} ({t.exit_reason}) | {float(t.amount):.4f}")
-
-        self._bot.send_message(mono("\n".join(lines)), chat_id=chat_id)
-
-    def _handle_winrate_cmd(self, chat_id: str) -> None:
-        if not self._verify_chat_id(chat_id):
-            return
-        if not self._exchange or not hasattr(self._exchange, "state"):
-            return
-
-        trades = self._exchange.state.closed_trades
-        total = len(trades)
-        if total == 0:
-            self._bot.send_message(mono(f"{self._prefix} | 🎯 WINRATE\n\nNo trades yet."), chat_id=chat_id)
-            return
-
-        wins = sum(1 for t in trades if t.pnl_net > 0)
-        losses = sum(1 for t in trades if t.pnl_net <= 0)
-        winrate = (wins / total) * 100
-
-        lines = [
-            f"{self._prefix} | 🎯 WINRATE",
-            "",
-            row("Total Trades:", str(total)),
-            row("Wins:", str(wins)),
-            row("Losses:", str(losses)),
-            row("Win Rate:", f"{winrate:.1f}%"),
-        ]
-        self._bot.send_message(mono("\n".join(lines)), chat_id=chat_id)
-
-    def _handle_report_cmd(self, chat_id: str) -> None:
-        if not self._verify_chat_id(chat_id):
-            return
-        if not self._exchange or not hasattr(self._exchange, "state"):
-            return
-
-        state = self._exchange.state
-        trades = state.closed_trades
-
-        total_pnl = sum(t.pnl_net for t in trades)
-        gross_pnl = sum(t.pnl_gross for t in trades)
-        total_fees = sum(t.fees_paid for t in trades)
-        total_funding = sum(getattr(t, "funding_paid", Decimal("0")) for t in trades)
-
-        lines = [
-            f"{self._prefix} | 📈 REPORT",
-            "",
-            row("Trades:", str(len(trades))),
-            row("Net P&L:", fmt_pnl(total_pnl)),
-            row("Gross P&L:", fmt_pnl(gross_pnl)),
-            row("Total Fees:", fmt_pnl(-total_fees)),
-        ]
-        if total_funding != Decimal("0"):
-            lines.append(row("Funding:", fmt_pnl(-total_funding)))  # type: ignore[arg-type]
-
-        self._bot.send_message(mono("\n".join(lines)), chat_id=chat_id)
-
-    def _handle_reset_cmd(self, chat_id: str) -> None:
-        if not self._verify_chat_id(chat_id):
-            return
-        if not self._exchange:
-            return
-
-        if hasattr(self._exchange, "state") and hasattr(self._exchange.state, "reset"):
-            self._exchange.state.reset()
-            self._bot.send_message(
-                mono(f"{self._prefix} | 🔄 RESET\n\nBot state (balance and trades) has been reset."), chat_id=chat_id
-            )
-        else:
-            self._bot.send_message(
-                mono(f"{self._prefix} | ⚠️ RESET FAILED\n\nReset not supported in current mode."), chat_id=chat_id
-            )
 
     # ------------------------------------------------------------------
     # INotifier
@@ -226,6 +115,8 @@ class TelegramNotifier(INotifier):
         tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
         balance: Decimal | None = None,
+        indicators: dict[str, float] | None = None,
+        entry_fee: Decimal | None = None,
     ) -> None:
         notional = entry_price * amount
         margin = notional / Decimal(str(leverage)) if leverage else notional
@@ -254,11 +145,21 @@ class TelegramNotifier(INotifier):
                 if tp_p:
                     diff_pct = (tp_p - entry_price) / entry_price * 100
                     reward = abs(tp_p - entry_price) * amount
-                    body.append(
-                        row(
-                            f"{label}:", f"{fmt_price(tp_p)}  (+{float(diff_pct):.2f}%)  Reward: +{float(reward):,.2f}"
-                        )
-                    )
+                    body.append(row(f"{label}:", f"{fmt_price(tp_p)}  ({fmt_pct(diff_pct)})  +{float(reward):,.2f}"))
+
+        if indicators:
+            body += ["", "─" * 28]
+            if "rsi_ema9" in indicators:
+                body.append(row("RSI EMA9:", f"{indicators['rsi_ema9']:.2f}"))
+            if "rsi_wma45" in indicators:
+                body.append(row("RSI WMA45:", f"{indicators['rsi_wma45']:.2f}"))
+            if "spread" in indicators:
+                body.append(row("Spread:", f"{indicators['spread']:.2f}"))
+            if "above_ema21" in indicators:
+                body.append(row("Above EMA21:", f"{int(indicators['above_ema21'])}"))
+
+        if entry_fee is not None:
+            body += ["", row("Entry Fee:", f"{fmt_pnl(-entry_fee)}")]
 
         if balance is not None:
             body += ["", row("Balance:", f"{fmt_price(balance)}")]
@@ -278,6 +179,10 @@ class TelegramNotifier(INotifier):
         r_multiple: Decimal | None = None,
         remaining_amount: Decimal | None = None,
         balance: Decimal | None = None,
+        entry_price: Decimal | None = None,
+        total_fees: Decimal | None = None,
+        hold_duration: float | None = None,
+        return_pct: Decimal | None = None,
     ) -> None:
         reason_upper = exit_reason.upper()
         is_sl = "SL" in reason_upper or reason_upper in ("STOP_LOSS", "BREAKEVEN", "LOCK_PROFIT")
@@ -294,8 +199,12 @@ class TelegramNotifier(INotifier):
             header = f"📤 EXIT — {symbol}  ({exit_reason})"
 
         lines = [f"{self._prefix} | {header}", ""]
-        body = [
-            row("Fill:", fmt_price(fill_price)),
+        body = []
+
+        if entry_price is not None:
+            body.append(row("Entry:", fmt_price(entry_price)))
+        body += [
+            row("Exit:", fmt_price(fill_price)),
             row("Closed:", f"{float(amount):.4f}  ({fmt_price(fill_price * amount)})"),
         ]
 
@@ -304,6 +213,8 @@ class TelegramNotifier(INotifier):
         if fees is not None:
             fee_label = "Fee (maker):" if is_tp else "Fee (taker):"
             body.append(row(fee_label, f"{fmt_pnl(-fees)}"))
+        if total_fees is not None:
+            body.append(row("Total Fees:", f"{fmt_pnl(-total_fees)}"))
         if pnl_net is not None:
             body.append(row("Net P&L:", fmt_pnl(pnl_net)))
 
@@ -313,6 +224,10 @@ class TelegramNotifier(INotifier):
                 "─" * 33,
                 row("Trade P&L:", f"{fmt_pnl(pnl_net)}  ({float(r_multiple):.2f}R)"),
             ]
+        if return_pct is not None:
+            body.append(row("Return:", fmt_pct(return_pct)))
+        if hold_duration is not None and hold_duration > 0:
+            body.append(row("Hold:", fmt_duration(hold_duration)))
 
         if is_partial and remaining_amount is not None:
             body += ["", row("Remaining:", f"{float(remaining_amount):.4f} contracts")]

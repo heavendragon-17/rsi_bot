@@ -117,6 +117,10 @@ class TradeExecutor:
 
         exit_side = opposite_side(entry_side)
 
+        entry_params: dict = {}
+        if signal.indicators:
+            entry_params["_indicators"] = signal.indicators
+
         try:
             order = self.exchange.create_order(
                 symbol=signal.symbol,
@@ -124,6 +128,7 @@ class TradeExecutor:
                 side=entry_side,
                 amount=amount,
                 price=price,
+                params=entry_params or None,
             )
             if not order:
                 logger.warning(f"[{signal.symbol}] Skipping {entry_side}: create_order returned None")

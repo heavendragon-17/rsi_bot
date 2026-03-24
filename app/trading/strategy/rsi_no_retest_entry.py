@@ -348,6 +348,15 @@ def check_entry(
         _debug_row["signal"] = "BUY"
         debug_rows.append(_debug_row)
 
+        # Build indicator snapshot for notification
+        _, above_count = pullback_filter(df_ind, lookback, max_above_ema21)
+        _indicators = {
+            "rsi_ema9": float(rsi_ema9),
+            "rsi_wma45": float(rsi_wma45),
+            "spread": spread,
+            "above_ema21": above_count,
+        }
+
         return AnalysisResult(
             actions=[
                 OpenPosition(
@@ -361,6 +370,7 @@ def check_entry(
                     lock_profit_price=lock_profit_price,
                     signal_class=2,
                     reason=f"NO-RETEST BUY (spread={spread:.2f} >= {rsi_spread_min})",
+                    indicators=_indicators,
                 )
             ],
             new_context=new_ctx,
