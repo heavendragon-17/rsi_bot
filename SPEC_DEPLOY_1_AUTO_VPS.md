@@ -252,7 +252,7 @@ set -euo pipefail
 
 TAG=$1
 SHA=$2
-BOT_DIR="/home/user/rsi_bot"
+BOT_DIR="/opt/rsi_bot"
 VENV_DIR="$BOT_DIR/venv"
 STATUS_FILE="/tmp/rsi_bot_status.json"
 VERSION_FILE="$BOT_DIR/VERSION"
@@ -357,9 +357,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=user
-WorkingDirectory=/home/user/rsi_bot
-Environment=PATH=/home/user/rsi_bot/venv/bin:/usr/bin:/bin
-ExecStart=/home/user/rsi_bot/venv/bin/python main.py
+WorkingDirectory=/opt/rsi_bot
+Environment=PATH=/opt/rsi_bot/venv/bin:/usr/bin:/bin
+ExecStart=/opt/rsi_bot/venv/bin/python main.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
@@ -380,10 +380,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=user
-WorkingDirectory=/home/user/rsi_bot/deploy
-Environment=PATH=/home/user/rsi_bot/venv/bin:/usr/bin:/bin
-EnvironmentFile=/home/user/rsi_bot/deploy/.env.deploy
-ExecStart=/home/user/rsi_bot/venv/bin/python deploy_listener.py
+WorkingDirectory=/opt/rsi_bot/deploy
+Environment=PATH=/opt/rsi_bot/venv/bin:/usr/bin:/bin
+EnvironmentFile=/opt/rsi_bot/deploy/.env.deploy
+ExecStart=/opt/rsi_bot/venv/bin/python deploy_listener.py
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -434,9 +434,9 @@ For simplicity in v1: set `success` optimistically after the Telegram message is
 ```bash
 DEPLOY_TELEGRAM_BOT_TOKEN=<deploy bot token>
 DEPLOY_TELEGRAM_CHAT_ID=<chat id>
-BOT_DIR=/home/user/rsi_bot
+BOT_DIR=/opt/rsi_bot
 STATUS_FILE=/tmp/rsi_bot_status.json
-VERSION_FILE=/home/user/rsi_bot/VERSION
+VERSION_FILE=/opt/rsi_bot/VERSION
 ```
 
 ### VPS Files NOT in Git

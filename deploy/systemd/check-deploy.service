@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=user
-WorkingDirectory=/home/user/rsi_bot
-ExecStart=/home/user/rsi_bot/deploy/check_deploy.sh
+WorkingDirectory=/opt/rsi_bot
+ExecStart=/opt/rsi_bot/deploy/check_deploy.sh
 StandardOutput=journal
 StandardError=journal

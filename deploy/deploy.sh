@@ -6,7 +6,7 @@ set -euo pipefail
 # Assumes production branch is already checked out at the right commit.
 
 TAG="${1:?Usage: deploy.sh <tag>}"
-BOT_DIR="/home/user/rsi_bot"
+BOT_DIR="/opt/rsi_bot"
 VENV_DIR="$BOT_DIR/venv"
 STATUS_FILE="/tmp/rsi_bot_status.json"
 DEPLOY_STATE="/tmp/rsi_bot_deploy_state.json"

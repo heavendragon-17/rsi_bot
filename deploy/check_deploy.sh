@@ -8,7 +8,7 @@ set -euo pipefail
 # State file: /tmp/rsi_bot_deploy_state.json
 # Flag files: /tmp/rsi_bot_force_deploy, /tmp/rsi_bot_cancel_deploy
 
-BOT_DIR="/home/user/rsi_bot"
+BOT_DIR="/opt/rsi_bot"
 STATUS_FILE="/tmp/rsi_bot_status.json"
 DEPLOY_STATE="/tmp/rsi_bot_deploy_state.json"
 FORCE_FLAG="/tmp/rsi_bot_force_deploy"

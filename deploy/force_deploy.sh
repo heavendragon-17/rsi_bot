@@ -5,7 +5,7 @@ set -euo pipefail
 # Manual SSH fallback deploy. Skips position check.
 # If no tag given, pulls latest from production branch.
 
-BOT_DIR="/home/user/rsi_bot"
+BOT_DIR="/opt/rsi_bot"
 LOG_FILE="/var/log/rsi-bot-deploy.log"
 
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
