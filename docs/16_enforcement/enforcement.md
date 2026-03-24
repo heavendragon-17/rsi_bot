@@ -43,13 +43,13 @@ This project enforces 73+ coding rules through 3 layers:
 | Import sorting | | ✅ | | | ✅ | ✅ |
 | Code style | | ✅ | | | ✅ | ✅ |
 | Bugbear patterns | | ✅ | | | ✅ | ✅ |
-| Type errors | | | ✅ | | ✅ | |
-| Security patterns | | | | ✅ | ✅ | |
+| Type errors | | | ✅ | | ✅ | ✅ |
+| Security patterns | | | | ✅ | ✅ | ✅ |
 | Vulnerable deps | | | | | pip-audit | |
 | Leaked secrets | | | | | ✅ | ✅ |
-| Circular imports | | | | | ✅ | |
+| Circular imports | | | | | ✅ | ✅ |
 | Doc freshness | | | | | reminder | |
-| Test coverage | | | | | ✅ | |
+| Test coverage | | | | | ✅ | ✅ |
 
 ### Rules Enforced by Convention Only
 
@@ -90,7 +90,7 @@ These rules cannot be statically checked and rely on code review:
 
 ## Local Hooks
 
-### pre-commit hooks (~5s total)
+### pre-commit hooks (~60s total)
 
 | Hook | Tool | What |
 |------|------|------|
@@ -103,6 +103,10 @@ These rules cannot be statically checked and rely on code review:
 | check-merge-conflict | pre-commit-hooks | Detect merge conflict markers |
 | detect-secrets | detect-secrets | Prevent credential commits |
 | arch-lint | local | Architecture rule enforcement |
+| mypy | mirrors-mypy | Type checking on app/ |
+| bandit | bandit | Security pattern scanning |
+| circular-imports | local | Import cycle detection |
+| pytest | local | Run test suite (fail-fast) |
 
 ### Claude Code hooks
 
