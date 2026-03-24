@@ -53,7 +53,7 @@ SMOKE_OUTPUT=$(python -c "
 from app.core import interfaces, config, constants, actions
 from app.data import indicators
 cfg = config.AppConfig.from_yaml('config.yaml')
-print(f'Config loaded: mode={cfg.bot.mode}, symbols={cfg.symbols}')
+print(f'Config loaded: mode={cfg.exchange.mode}, symbols={cfg.symbols}')
 print('Smoke test PASSED')
 " 2>&1) || {
     log "ERROR: Smoke test FAILED"
