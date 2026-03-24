@@ -224,6 +224,8 @@ class INotifier(ABC):
         tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
         balance: Decimal | None = None,
+        indicators: dict[str, float] | None = None,
+        entry_fee: Decimal | None = None,
     ) -> None:
         """Called when a position is opened (entry order filled)."""
         pass
@@ -241,6 +243,10 @@ class INotifier(ABC):
         r_multiple: Decimal | None = None,
         remaining_amount: Decimal | None = None,
         balance: Decimal | None = None,
+        entry_price: Decimal | None = None,
+        total_fees: Decimal | None = None,
+        hold_duration: float | None = None,
+        return_pct: Decimal | None = None,
     ) -> None:
         """Called when an SL or TP order fills (partial or full exit)."""
         pass

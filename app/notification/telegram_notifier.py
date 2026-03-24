@@ -27,7 +27,7 @@ from app.notification.deploy_commands import (
     handle_deploy_status,
     handle_force_deploy,
 )
-from app.notification.formatting import fmt_pct, fmt_pnl, fmt_price, mono, row
+from app.notification.formatting import fmt_duration, fmt_pct, fmt_pnl, fmt_price, mono, row
 from app.notification.telegram_bot import TelegramBot
 
 logger = structlog.get_logger(__name__)
@@ -226,6 +226,8 @@ class TelegramNotifier(INotifier):
         tp_prices: dict[str, Decimal] | None = None,
         leverage: int = 1,
         balance: Decimal | None = None,
+        indicators: dict[str, float] | None = None,
+        entry_fee: Decimal | None = None,
     ) -> None:
         notional = entry_price * amount
         margin = notional / Decimal(str(leverage)) if leverage else notional
@@ -254,11 +256,21 @@ class TelegramNotifier(INotifier):
                 if tp_p:
                     diff_pct = (tp_p - entry_price) / entry_price * 100
                     reward = abs(tp_p - entry_price) * amount
-                    body.append(
-                        row(
-                            f"{label}:", f"{fmt_price(tp_p)}  (+{float(diff_pct):.2f}%)  Reward: +{float(reward):,.2f}"
-                        )
-                    )
+                    body.append(row(f"{label}:", f"{fmt_price(tp_p)}  ({fmt_pct(diff_pct)})  +{float(reward):,.2f}"))
+
+        if indicators:
+            body += ["", "─" * 28]
+            if "rsi_ema9" in indicators:
+                body.append(row("RSI EMA9:", f"{indicators['rsi_ema9']:.2f}"))
+            if "rsi_wma45" in indicators:
+                body.append(row("RSI WMA45:", f"{indicators['rsi_wma45']:.2f}"))
+            if "spread" in indicators:
+                body.append(row("Spread:", f"{indicators['spread']:.2f}"))
+            if "above_ema21" in indicators:
+                body.append(row("Above EMA21:", f"{int(indicators['above_ema21'])}"))
+
+        if entry_fee is not None:
+            body += ["", row("Entry Fee:", f"{fmt_pnl(-entry_fee)}")]
 
         if balance is not None:
             body += ["", row("Balance:", f"{fmt_price(balance)}")]
@@ -278,6 +290,10 @@ class TelegramNotifier(INotifier):
         r_multiple: Decimal | None = None,
         remaining_amount: Decimal | None = None,
         balance: Decimal | None = None,
+        entry_price: Decimal | None = None,
+        total_fees: Decimal | None = None,
+        hold_duration: float | None = None,
+        return_pct: Decimal | None = None,
     ) -> None:
         reason_upper = exit_reason.upper()
         is_sl = "SL" in reason_upper or reason_upper in ("STOP_LOSS", "BREAKEVEN", "LOCK_PROFIT")
@@ -294,8 +310,12 @@ class TelegramNotifier(INotifier):
             header = f"📤 EXIT — {symbol}  ({exit_reason})"
 
         lines = [f"{self._prefix} | {header}", ""]
-        body = [
-            row("Fill:", fmt_price(fill_price)),
+        body = []
+
+        if entry_price is not None:
+            body.append(row("Entry:", fmt_price(entry_price)))
+        body += [
+            row("Exit:", fmt_price(fill_price)),
             row("Closed:", f"{float(amount):.4f}  ({fmt_price(fill_price * amount)})"),
         ]
 
@@ -304,6 +324,8 @@ class TelegramNotifier(INotifier):
         if fees is not None:
             fee_label = "Fee (maker):" if is_tp else "Fee (taker):"
             body.append(row(fee_label, f"{fmt_pnl(-fees)}"))
+        if total_fees is not None:
+            body.append(row("Total Fees:", f"{fmt_pnl(-total_fees)}"))
         if pnl_net is not None:
             body.append(row("Net P&L:", fmt_pnl(pnl_net)))
 
@@ -313,6 +335,10 @@ class TelegramNotifier(INotifier):
                 "─" * 33,
                 row("Trade P&L:", f"{fmt_pnl(pnl_net)}  ({float(r_multiple):.2f}R)"),
             ]
+        if return_pct is not None:
+            body.append(row("Return:", fmt_pct(return_pct)))
+        if hold_duration is not None and hold_duration > 0:
+            body.append(row("Hold:", fmt_duration(hold_duration)))
 
         if is_partial and remaining_amount is not None:
             body += ["", row("Remaining:", f"{float(remaining_amount):.4f} contracts")]

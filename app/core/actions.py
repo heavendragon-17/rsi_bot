@@ -54,6 +54,7 @@ class OpenPosition:
     lock_profit_price: Decimal | None
     signal_class: int
     reason: str
+    indicators: dict[str, float] | None = None  # rsi_ema9, rsi_wma45, spread, above_ema21
 
 
 @dataclass(frozen=True)

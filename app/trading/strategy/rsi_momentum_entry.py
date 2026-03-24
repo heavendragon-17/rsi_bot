@@ -213,6 +213,12 @@ def check_entry(
         spread=round(spread, 3),
     )
 
+    _indicators = {
+        "rsi_ema9": float(ema),
+        "rsi_wma45": float(wma),
+        "spread": spread,
+    }
+
     return AnalysisResult(
         actions=[
             OpenPosition(
@@ -226,6 +232,7 @@ def check_entry(
                 lock_profit_price=lock_profit_price,
                 signal_class=1,
                 reason=f"RSI_MOMENTUM SHORT (spread={spread:.2f} > {cfg.spread_threshold})",
+                indicators=_indicators,
             )
         ],
         new_context=new_ctx,

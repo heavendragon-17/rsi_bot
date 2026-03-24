@@ -49,6 +49,9 @@ class SimPosition:
     lock_profit_activated: bool = False
     tp1_hit: bool = False
     tp2_hit: bool = False
+    indicators: dict[str, float] | None = None
+    entry_fee: Decimal = Decimal("0")
+    opened_at: float = 0.0
 
 
 @dataclass

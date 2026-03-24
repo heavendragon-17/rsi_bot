@@ -43,7 +43,9 @@ def _seconds_to_next_funding() -> float:
     for h in _FUNDING_HOURS:
         if h > current_hour or (h == current_hour and (current_minute > 0 or current_second > 0)):
             target = now.replace(hour=h, minute=0, second=5, microsecond=0)
-            return (target - now).total_seconds()
+            delta = (target - now).total_seconds()
+            if delta > 0:
+                return delta
 
     # Next is 00:00 UTC tomorrow
     tomorrow_midnight = now.replace(hour=0, minute=0, second=5, microsecond=0)

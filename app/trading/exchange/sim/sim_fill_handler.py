@@ -148,6 +148,8 @@ def open_position_locked(
     entry_fee: Decimal,
 ) -> None:
     """Create a new SimPosition in state (caller holds the lock)."""
+    pending = getattr(sim_ex, "_pending_indicators", {})
+    indicators = pending.pop(symbol, None) if pending else None
     pos = SimPosition(
         symbol=symbol,
         side="long",
@@ -155,8 +157,10 @@ def open_position_locked(
         entry_price=fill_price,
         initial_amount=amount,
         initial_risk=Decimal("0"),
+        indicators=indicators,
+        entry_fee=entry_fee,
+        opened_at=filled_at,
     )
-    pos._opened_at = filled_at  # type: ignore[attr-defined]
     sim_ex.state.positions[symbol] = pos
     logger.info(f"[SimExchange] Position opened — {symbol} {amount} @ {fill_price}")
 
@@ -189,6 +193,12 @@ def close_position_locked(
 
     exit_reason = exit_reason_from_fields(order_id, order_type, reduce_only, position)
 
+    r_multiple = (pnl_net / position.initial_risk) if position.initial_risk else Decimal("0")
+    total_fees = position.entry_fee + fee
+    hold_duration = (filled_at - position.opened_at) if position.opened_at > 0 else 0.0
+    notional = position.entry_price * close_amount
+    return_pct = (pnl_net / notional * 100) if notional else Decimal("0")
+
     trade = ClosedTrade(
         symbol=symbol,
         entry_price=position.entry_price,
@@ -199,9 +209,9 @@ def close_position_locked(
         fees_paid=fee,
         funding_paid=Decimal("0"),
         pnl_net=pnl_net,
-        r_multiple=(pnl_net / position.initial_risk) if position.initial_risk else Decimal("0"),
+        r_multiple=r_multiple,
         exit_reason=exit_reason,
-        opened_at=0.0,
+        opened_at=position.opened_at,
         closed_at=filled_at,
     )
 
@@ -220,9 +230,13 @@ def close_position_locked(
         pnl_gross,
         pnl_net,
         fee,
-        trade.r_multiple,
+        r_multiple,
         remaining if remaining > Decimal("0.000001") else Decimal("0"),
         balance_after,
+        position.entry_price,
+        total_fees,
+        hold_duration,
+        return_pct,
     )
 
 
@@ -244,7 +258,15 @@ def capture_entry_notification(
                 _sl_price = o.trigger_price
             elif o.order_type == "limit" and o.price:
                 _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
-    return (symbol, "LONG", fill_price, amount, sim_ex.state.balance, _sl_price, _tp_prices or None)
+
+    pos = sim_ex.state.positions.get(symbol)
+    indicators = pos.indicators if pos else None
+    entry_fee = pos.entry_fee if pos else Decimal("0")
+
+    return (
+        symbol, "LONG", fill_price, amount, sim_ex.state.balance,
+        _sl_price, _tp_prices or None, indicators, entry_fee,
+    )
 
 
 def emit_notifications(
@@ -254,7 +276,7 @@ def emit_notifications(
 ) -> None:
     """Dispatch entry/fill notifications to the notification service."""
     if notify_entry and sim_ex._notification_service:
-        sym, side, ep, amt, bal, sl_price, tp_prices = notify_entry
+        sym, side, ep, amt, bal, sl_price, tp_prices, indicators, entry_fee = notify_entry
         leverage = sim_ex._config.get("risk", {}).get("leverage", 1)
         try:
             sim_ex._notification_service.on_entry(
@@ -266,12 +288,17 @@ def emit_notifications(
                 tp_prices=tp_prices,
                 leverage=leverage,
                 balance=bal,
+                indicators=indicators,
+                entry_fee=entry_fee,
             )
         except Exception:
             logger.exception("notification on_entry failed")
 
     if notify_fill and sim_ex._notification_service:
-        sym, reason, fp, amt, pnl_g, pnl_n, fees, r_mult, rem, bal = notify_fill
+        (
+            sym, reason, fp, amt, pnl_g, pnl_n, fees, r_mult, rem, bal,
+            entry_price, total_fees, hold_duration, return_pct,
+        ) = notify_fill
         try:
             sim_ex._notification_service.on_fill(
                 symbol=sym,
@@ -284,6 +311,10 @@ def emit_notifications(
                 r_multiple=r_mult,
                 remaining_amount=rem,
                 balance=bal,
+                entry_price=entry_price,
+                total_fees=total_fees,
+                hold_duration=hold_duration,
+                return_pct=return_pct,
             )
         except Exception:
             logger.exception("notification on_fill failed")

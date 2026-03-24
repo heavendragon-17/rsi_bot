@@ -86,6 +86,9 @@ class SignalEvent:
     # If None, PortfolioManager uses default config
     tp_allocations: dict | None = field(default=None)
 
+    # Indicator snapshot at signal time (rsi_ema9, rsi_wma45, spread, above_ema21)
+    indicators: dict[str, float] | None = field(default=None)
+
 
 @dataclass
 class OrderEvent:
