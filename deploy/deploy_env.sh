@@ -6,7 +6,7 @@
 # and re-run: deploy/install.sh
 
 # ── Core paths ────────────────────────────────────────────────────
-BOT_DIR="/home/user/rsi_bot"
+BOT_DIR="/home/cut_lap/rsi_bot"
 VENV_DIR="$BOT_DIR/venv"
 VERSION_FILE="$BOT_DIR/VERSION"
 
