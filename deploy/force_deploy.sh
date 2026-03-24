@@ -5,10 +5,9 @@ set -euo pipefail
 # Manual SSH fallback deploy. Skips position check.
 # If no tag given, pulls latest from production branch.
 
-BOT_DIR="/home/user/rsi_bot"
-LOG_FILE="/var/log/rsi-bot-deploy.log"
-
-log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
+# ── Load shared variables ─────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/deploy_env.sh"
 
 cd "$BOT_DIR"
 git fetch origin production

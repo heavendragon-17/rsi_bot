@@ -18,35 +18,24 @@ Step-by-step guide to deploy the RSI Bot on a fresh VPS (Ubuntu/Debian).
 
 ## 2. Can I Install in `/opt`?
 
-**Yes**, `/opt` is a perfectly valid location. It's the standard Linux directory for
-optional/third-party software. However, the deploy scripts and systemd services in this
-repo default to `/home/user/rsi_bot`. You have two options:
-
-### Option A: Use `/home/<your-user>/rsi_bot` (default — zero config changes)
-
-Everything works out of the box. The systemd services, deploy scripts, and paths all
-match. **This is the recommended option** unless you have a specific reason to use `/opt`.
-
-### Option B: Use `/opt/rsi_bot` (requires path updates)
-
-After cloning, update these files to replace `/home/user/rsi_bot` with `/opt/rsi_bot`:
-
-| File | What to change |
-|------|----------------|
-| `deploy/deploy.sh` | `BOT_DIR="/opt/rsi_bot"` |
-| `deploy/check_deploy.sh` | `BOT_DIR="/opt/rsi_bot"` |
-| `deploy/force_deploy.sh` | `BOT_DIR="/opt/rsi_bot"` |
-| `deploy/systemd/rsi-bot.service` | `WorkingDirectory`, `Environment`, `ExecStart` |
-| `deploy/systemd/check-deploy.service` | `WorkingDirectory`, `ExecStart` |
-
-Also ensure your bot user has ownership:
+**Yes**, `/opt` is a perfectly valid location. All deploy paths are centralized in a
+single file: `deploy/deploy_env.sh`. To use `/opt/rsi_bot`:
 
 ```bash
+# 1. Clone to /opt
 sudo mkdir -p /opt/rsi_bot
 sudo chown your-user:your-user /opt/rsi_bot
+git clone https://github.com/heavendragon-17/rsi_bot.git /opt/rsi_bot
+
+# 2. Edit the ONE config file
+nano deploy/deploy_env.sh
+# Change: BOT_DIR="/opt/rsi_bot"
+
+# 3. Install services (generates systemd files from deploy_env.sh)
+sudo deploy/install.sh
 ```
 
-The rest of this guide uses `/home/user/rsi_bot` as the default. Replace paths if using `/opt`.
+That's it — all scripts and systemd services read from `deploy_env.sh` automatically.
 
 ---
 
@@ -160,12 +149,13 @@ print('Smoke test PASSED')
 
 ## 5. Set Up systemd Services
 
-### 5.1 Install the bot service
+### 5.1 Install services (one command)
+
+The install script reads `deploy/deploy_env.sh` and generates all systemd service
+files with the correct paths, creates the log file, and enables the bot service:
 
 ```bash
-sudo cp deploy/systemd/rsi-bot.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable rsi-bot
+sudo deploy/install.sh
 sudo systemctl start rsi-bot
 ```
 
@@ -176,22 +166,12 @@ sudo systemctl status rsi-bot
 journalctl -u rsi-bot -f   # follow live logs
 ```
 
-### 5.3 (Optional) Install auto-deploy timer
+### 5.3 (Optional) Enable auto-deploy timer
 
 If you want automatic deployments when you push tagged versions:
 
 ```bash
-sudo cp deploy/systemd/check-deploy.service /etc/systemd/system/
-sudo cp deploy/systemd/check-deploy.timer /etc/systemd/system/
-sudo systemctl daemon-reload
 sudo systemctl enable --now check-deploy.timer
-```
-
-### 5.4 Create deploy log file
-
-```bash
-sudo touch /var/log/rsi-bot-deploy.log
-sudo chown user:user /var/log/rsi-bot-deploy.log
 ```
 
 ---

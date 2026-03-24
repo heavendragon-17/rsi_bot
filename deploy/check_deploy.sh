@@ -4,20 +4,10 @@ set -euo pipefail
 # check_deploy.sh — Run by systemd timer every minute.
 # Checks if production branch has a new tagged commit and deploys
 # when no positions are open.
-#
-# State file: /tmp/rsi_bot_deploy_state.json
-# Flag files: /tmp/rsi_bot_force_deploy, /tmp/rsi_bot_cancel_deploy
 
-BOT_DIR="/home/user/rsi_bot"
-STATUS_FILE="/tmp/rsi_bot_status.json"
-DEPLOY_STATE="/tmp/rsi_bot_deploy_state.json"
-FORCE_FLAG="/tmp/rsi_bot_force_deploy"
-CANCEL_FLAG="/tmp/rsi_bot_cancel_deploy"
-VERSION_FILE="$BOT_DIR/VERSION"
-LOG_FILE="/var/log/rsi-bot-deploy.log"
-STALE_THRESHOLD=300  # 5 minutes
-
-log() { echo "[$(date -Iseconds)] $*" >> "$LOG_FILE"; }
+# ── Load shared variables ─────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/deploy_env.sh"
 
 write_state() {
     # Usage: write_state <state> <tag> <sha> [error]
