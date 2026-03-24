@@ -6,14 +6,10 @@ set -euo pipefail
 # Assumes production branch is already checked out at the right commit.
 
 TAG="${1:?Usage: deploy.sh <tag>}"
-BOT_DIR="/home/user/rsi_bot"
-VENV_DIR="$BOT_DIR/venv"
-STATUS_FILE="/tmp/rsi_bot_status.json"
-DEPLOY_STATE="/tmp/rsi_bot_deploy_state.json"
-VERSION_FILE="$BOT_DIR/VERSION"
-LOG_FILE="/var/log/rsi-bot-deploy.log"
 
-log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
+# ── Load shared variables ─────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/deploy_env.sh"
 
 update_deploy_state() {
     local state="$1" error="${2:-}"
@@ -71,13 +67,13 @@ log "$SMOKE_OUTPUT"
 echo "{\"tag\": \"$TAG\", \"sha\": \"$SHA\", \"deployed_at\": \"$(date -Iseconds)\"}" > "$VERSION_FILE"
 
 # 4. Restart bot
-log "Restarting rsi-bot service..."
-sudo systemctl restart rsi-bot
+log "Restarting $SERVICE_NAME service..."
+sudo systemctl restart "$SERVICE_NAME"
 
 # 5. Health check: wait for status file to refresh with new version
 log "Waiting for health check..."
-sleep 5
-for i in $(seq 1 12); do
+sleep "$HEALTH_CHECK_INTERVAL"
+for i in $(seq 1 "$HEALTH_CHECK_ATTEMPTS"); do
     if [[ -f "$STATUS_FILE" ]]; then
         STATUS=$(HC_PATH="$STATUS_FILE" HC_TAG="$TAG" python3 -c "
 import json, os
@@ -96,11 +92,12 @@ else:
     else
         STATUS="NO_STATUS_FILE"
     fi
-    log "Health check attempt $i/12: $STATUS"
-    sleep 5
+    log "Health check attempt $i/$HEALTH_CHECK_ATTEMPTS: $STATUS"
+    sleep "$HEALTH_CHECK_INTERVAL"
 done
 
-log "ERROR: Health check FAILED after 60s. Stopping bot."
-sudo systemctl stop rsi-bot
+TIMEOUT=$((HEALTH_CHECK_INTERVAL * HEALTH_CHECK_ATTEMPTS))
+log "ERROR: Health check FAILED after ${TIMEOUT}s. Stopping bot."
+sudo systemctl stop "$SERVICE_NAME"
 update_deploy_state "failed" "health_check_timeout"
 exit 3

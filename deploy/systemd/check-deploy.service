@@ -1,3 +1,9 @@
+# TEMPLATE — Do not install directly.
+# Run: sudo deploy/install.sh
+# This generates the real service file from deploy/deploy_env.sh.
+#
+# Shown here for reference only.
+
 [Unit]
 Description=Check and deploy RSI Bot if new version available
 After=network-online.target
@@ -5,8 +11,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=user
-WorkingDirectory=/home/user/rsi_bot
-ExecStart=/home/user/rsi_bot/deploy/check_deploy.sh
+User=__SERVICE_USER__
+WorkingDirectory=__BOT_DIR__
+ExecStart=__BOT_DIR__/deploy/check_deploy.sh
 StandardOutput=journal
 StandardError=journal
