@@ -14,7 +14,7 @@ from decimal import Decimal
 import structlog
 
 from app.core.interfaces import IExchange
-from app.notification.formatting import fmt_duration, fmt_pnl, fmt_price, mono, row
+from app.notification.formatting import fmt_duration, fmt_pnl, mono, row
 
 logger = structlog.get_logger(__name__)
 
