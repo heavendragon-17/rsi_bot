@@ -8,17 +8,18 @@ Complete guide to deploy the RSI bot on a VPS with automatic updates from the `p
 
 1. [VPS Requirements](#1-vps-requirements)
 2. [Initial VPS Setup](#2-initial-vps-setup)
-3. [Clone the Repository](#3-clone-the-repository)
-4. [Python Environment Setup](#4-python-environment-setup)
-5. [Configure the Bot](#5-configure-the-bot)
-6. [Test Run](#6-test-run)
-7. [Install Systemd Services](#7-install-systemd-services)
-8. [Start the Bot](#8-start-the-bot)
-9. [Enable Auto-Deploy](#9-enable-auto-deploy)
-10. [How Auto-Deploy Works](#10-how-auto-deploy-works)
-11. [Day-to-Day Operations](#11-day-to-day-operations)
-12. [Deploying a New Version](#12-deploying-a-new-version)
-13. [Troubleshooting](#13-troubleshooting)
+3. [Set Up GitHub Authentication](#3-set-up-github-authentication)
+4. [Clone the Repository](#4-clone-the-repository)
+5. [Python Environment Setup](#5-python-environment-setup)
+6. [Configure the Bot](#6-configure-the-bot)
+7. [Test Run](#7-test-run)
+8. [Install Systemd Services](#8-install-systemd-services)
+9. [Start the Bot](#9-start-the-bot)
+10. [Enable Auto-Deploy](#10-enable-auto-deploy)
+11. [How Auto-Deploy Works](#11-how-auto-deploy-works)
+12. [Day-to-Day Operations](#12-day-to-day-operations)
+13. [Deploying a New Version](#13-deploying-a-new-version)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -70,17 +71,54 @@ Or just use your existing user — the deploy scripts use `$USER` by default.
 
 ---
 
-## 3. Clone the Repository
+## 3. Set Up GitHub Authentication
+
+GitHub does not support password authentication. Use one of these methods:
+
+### Option A: SSH Key (recommended)
 
 ```bash
-# Navigate to home directory
+# Generate SSH key
+ssh-keygen -t ed25519 -C "your_email@example.com"
+# Press Enter for all prompts (default path, no passphrase)
+
+# Copy the public key
+cat ~/.ssh/id_ed25519.pub
+```
+
+Then add the key on GitHub: **Settings → SSH and GPG keys → New SSH key** → paste and save.
+
+```bash
+# Test the connection
+ssh -T git@github.com
+# Should say: "Hi heavendragon-17! You've successfully authenticated..."
+```
+
+### Option B: Personal Access Token (PAT)
+
+1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic)**
+2. **Generate new token** → name it `vps-deploy`, select **repo** scope, set expiration
+3. Copy the token immediately
+
+Then store it so auto-deploy can use it without prompts:
+```bash
+git config --global credential.helper store
+```
+
+---
+
+## 4. Clone the Repository
+
+```bash
 cd ~
 
-# Clone the repo
-git clone https://github.com/heavendragon-17/rsi_bot.git
-cd rsi_bot
+# If using SSH (Option A):
+git clone git@github.com:heavendragon-17/rsi_bot.git
 
-# Switch to the production branch
+# If using PAT (Option B):
+git clone https://heavendragon-17:<YOUR_TOKEN>@github.com/heavendragon-17/rsi_bot.git
+
+cd rsi_bot
 git checkout production
 ```
 
@@ -88,7 +126,7 @@ git checkout production
 
 ---
 
-## 4. Python Environment Setup
+## 5. Python Environment Setup
 
 ```bash
 # Create virtual environment
@@ -110,9 +148,9 @@ python -c "from app.core import interfaces, config, constants, actions; print('O
 
 ---
 
-## 5. Configure the Bot
+## 6. Configure the Bot
 
-### 5a. Environment Variables
+### 6a. Environment Variables
 
 ```bash
 # Copy the example env file
@@ -136,7 +174,7 @@ TELEGRAM_CHAT_ID=your_telegram_chat_id
 
 > **Security:** The `.env` file contains secrets. Never commit it to git. It's already in `.gitignore`.
 
-### 5b. Bot Configuration
+### 6b. Bot Configuration
 
 ```bash
 nano config.yaml
@@ -170,7 +208,7 @@ risk:
 
 ---
 
-## 6. Test Run
+## 7. Test Run
 
 Before setting up systemd, verify the bot starts correctly:
 
@@ -189,14 +227,14 @@ Press `Ctrl+C` to stop once you confirm it works.
 
 ---
 
-## 7. Install Systemd Services
+## 8. Install Systemd Services
 
 This installs three systemd units:
 - **rsi-bot.service** — Runs the bot, auto-restarts on crash
 - **check-deploy.service** — Checks for new versions
 - **check-deploy.timer** — Triggers the check every 60 seconds
 
-### 7a. Update deploy paths (if needed)
+### 8a. Update deploy paths (if needed)
 
 If your bot is NOT at `/home/user/rsi_bot`, edit `deploy/deploy_env.sh`:
 
@@ -210,7 +248,7 @@ Change `BOT_DIR` to your actual path:
 BOT_DIR="/home/youruser/rsi_bot"
 ```
 
-### 7b. Allow passwordless restart (required for auto-deploy)
+### 8b. Allow passwordless restart (required for auto-deploy)
 
 The deploy script needs `sudo systemctl restart rsi-bot` without a password prompt:
 
@@ -224,7 +262,7 @@ Add this line (replace `user` with your actual username):
 user ALL=(ALL) NOPASSWD: /bin/systemctl restart rsi-bot, /bin/systemctl stop rsi-bot
 ```
 
-### 7c. Run the installer
+### 8c. Run the installer
 
 ```bash
 sudo deploy/install.sh
@@ -234,7 +272,7 @@ This generates the systemd unit files and enables the bot service.
 
 ---
 
-## 8. Start the Bot
+## 9. Start the Bot
 
 ```bash
 # Start the bot
@@ -251,7 +289,7 @@ The bot will automatically restart if it crashes (after 10 seconds).
 
 ---
 
-## 9. Enable Auto-Deploy
+## 10. Enable Auto-Deploy
 
 ```bash
 sudo systemctl enable --now check-deploy.timer
@@ -267,7 +305,7 @@ You should see `check-deploy.timer` listed with the next trigger time.
 
 ---
 
-## 10. How Auto-Deploy Works
+## 11. How Auto-Deploy Works
 
 The auto-deploy system is tag-based and position-aware:
 
@@ -299,7 +337,7 @@ Every 60s:
 
 ---
 
-## 11. Day-to-Day Operations
+## 12. Day-to-Day Operations
 
 ### View bot logs
 ```bash
@@ -353,7 +391,7 @@ touch /tmp/rsi_bot_cancel_deploy
 
 ---
 
-## 12. Deploying a New Version
+## 13. Deploying a New Version
 
 This is the workflow you'll use every time you want to push an update to the VPS:
 
@@ -390,7 +428,7 @@ git push origin production --tags
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 ### Bot won't start
 
