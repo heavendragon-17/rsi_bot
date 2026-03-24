@@ -28,7 +28,7 @@ HEALTH_CHECK_INTERVAL=5  # seconds between health check attempts
 HEALTH_CHECK_ATTEMPTS=12  # total attempts (interval * attempts = timeout)
 
 # ── Service user (for systemd) ───────────────────────────────────
-SERVICE_USER="${USER:-user}"
+SERVICE_USER="${USER:-cut_lap}"
 
 # ── Shared helper ─────────────────────────────────────────────────
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
