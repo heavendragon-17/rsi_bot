@@ -35,3 +35,42 @@ repos:
         pass_filenames: false
         files: ^app/.*\.py$
         stages: [pre-commit]
+
+  # ── Type checking ────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports]
+        additional_dependencies: []
+        files: ^app/
+        pass_filenames: false
+        entry: mypy app/
+
+  # ── Security scan ────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: [-r, app/, -c, pyproject.toml]
+        pass_filenames: false
+        files: ^app/.*\.py$
+
+  # ── Circular import check + Tests (local hooks) ──────────
+  - repo: local
+    hooks:
+      - id: circular-imports
+        name: Circular import check
+        entry: python -c "from app.core import interfaces, actions, config, constants, events, snapshots; from app.data import indicators, store; print('No circular imports detected')"
+        language: system
+        pass_filenames: false
+        files: ^app/.*\.py$
+        stages: [pre-commit]
+
+      - id: pytest
+        name: Run tests
+        entry: pytest tests/ -x -q --tb=short --no-header
+        language: system
+        pass_filenames: false
+        files: \.(py)$
+        stages: [pre-commit]
