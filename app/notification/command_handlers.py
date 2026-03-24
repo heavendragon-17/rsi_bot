@@ -176,9 +176,9 @@ def handle_report(exchange: IExchange, prefix: str, send, chat_id: str) -> None:
     hold_times = [t.closed_at - t.opened_at for t in trades if t.opened_at > 0 and t.closed_at > t.opened_at]
     avg_hold = sum(hold_times) / len(hold_times) if hold_times else 0.0
 
-    # Build message
-    lines = [
-        f"{prefix} | 📈 REPORT",
+    # Message 1: Performance + Costs
+    msg1 = [
+        f"{prefix} | 📈 REPORT (1/2)",
         "",
         "── Performance ─────────────",
         row("Trades:", str(total)),
@@ -186,6 +186,18 @@ def handle_report(exchange: IExchange, prefix: str, send, chat_id: str) -> None:
         row("Net P&L:", fmt_pnl(total_pnl)),
         row("Gross P&L:", fmt_pnl(gross_pnl)),
         row("Return:", f"{float(return_pct):+.2f}%"),
+        "",
+        "── Costs ───────────────────",
+        row("Total Fees:", fmt_pnl(-total_fees)),
+    ]
+    if total_funding != Decimal("0"):
+        msg1.append(row("Funding:", fmt_pnl(-total_funding)))
+
+    send(mono("\n".join(msg1)), chat_id=chat_id)
+
+    # Message 2: Risk + Exits + Time
+    msg2 = [
+        f"{prefix} | 📈 REPORT (2/2)",
         "",
         "── Risk ────────────────────",
         row("Profit Factor:", f"{float(profit_factor):.2f}" if profit_factor else "N/A"),
@@ -203,21 +215,13 @@ def handle_report(exchange: IExchange, prefix: str, send, chat_id: str) -> None:
     other_keys = sorted(k for k in exit_counts if k not in tp_keys and k not in sl_keys)
 
     exit_parts = [f"{k}: {exit_counts[k]}" for k in tp_keys + sl_keys + other_keys]
-    # Pack 3 per line
     for i in range(0, len(exit_parts), 3):
-        lines.append("  ".join(exit_parts[i : i + 3]))
+        msg2.append("  ".join(exit_parts[i : i + 3]))
 
-    lines += [
-        "",
-        "── Costs ───────────────────",
-        row("Total Fees:", fmt_pnl(-total_fees)),
-    ]
-    if total_funding != Decimal("0"):
-        lines.append(row("Funding:", fmt_pnl(-total_funding)))
     if avg_hold > 0:
-        lines.append(row("Avg Hold:", fmt_duration(avg_hold)))
+        msg2 += ["", row("Avg Hold:", fmt_duration(avg_hold))]
 
-    send(mono("\n".join(lines)), chat_id=chat_id)
+    send(mono("\n".join(msg2)), chat_id=chat_id)
 
 
 def handle_reset(exchange: IExchange, prefix: str, send, chat_id: str) -> None:
