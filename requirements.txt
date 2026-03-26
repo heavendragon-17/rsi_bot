@@ -18,3 +18,4 @@ numpy
 python-dateutil
 matplotlib
 ipykernel
+jinja2
