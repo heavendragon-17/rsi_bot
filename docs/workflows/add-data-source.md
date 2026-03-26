@@ -5,7 +5,7 @@
 >
 > - Live stream: `app/data/stream_manager.py` (BinanceStreamManager)
 > - Event source bridge: `app/data/live_event_source.py` (LiveEventSource)
-> - Backtest data: `app/backtest/backtest_event_source.py` (BacktestEventSource)
+> - Backtest data: `app/backtest/engine/event_source.py` (BacktestEventSource)
 > - Event source interface: `app/core/event_source.py`
 
 ## Prerequisites
@@ -66,7 +66,7 @@ timestamp,open,high,low,close,volume
 
 Where `timestamp` is Unix milliseconds. The backtest engine reads from this path via `BacktestEventSource`.
 
-Model on `app/backtest/download_data.py` for CLI argument parsing.
+Model on `app/backtest/data/download.py` for CLI argument parsing.
 
 ### B2. Add a data API endpoint (optional)
 
@@ -86,11 +86,11 @@ For `PaperExchange` (sim mode), there are two tick feed sources:
 
 ```bash
 # Step 1 — Download historical tick CSV
-python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1
+python app/backtest/data/download_tick.py --symbol BTCUSDT --year 2024 --month 1
 # Output: app/backtest/data/BTCUSDT_ticks_2024_01.csv
 
 # Step 2 — Download matching OHLC CSV (for indicator computation)
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 9000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 9000
 
 # Step 3 — Run tick-level replay
 python -m app.backtest.runners.tick_replay \

@@ -128,9 +128,9 @@ Static utility for direction-aware SL/TP/sizing calculations. All methods accept
 - `compute_lock_profit_price(entry_price, soft_sl_price, side, lock_profit_rr, taker_fee)` — Lock-profit SL level
 - `compute_position_size(...)` — Risk-based sizing (direction-agnostic)
 
-### CrossoverIndicators (`app/data/indicators.py`)
+### Indicators (`app/data/indicators.py`)
 
-Alternative `IIndicators` implementation for crossover-based strategies. Adds `rsi_14`, `rsi_ema9`, `rsi_wma45` columns:
+Consolidated `IIndicators` implementation. Adds `rsi_14`, `rsi_ema9`, `rsi_wma45` columns:
 
 - `compute(df)` — Add indicator columns
 - `check_alignment(df, direction)` — Check RSI < EMA9 < WMA45 (bearish) or inverse (bullish)

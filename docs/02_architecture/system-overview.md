@@ -46,7 +46,7 @@ The RSI bot is composed of two independent subsystems that share a common core l
 │             │ DataFrame          │                  │ submit_backtest()      │
 │             v                    │                  v                        │
 │  ┌────────────────────────┐      │  ┌─────────────────────────────────┐      │
-│  │ Strategy.analyze()     │      │  │ ThreadPoolExecutor              │      │
+│  │ Strategy.analyze()     │      │  │ ProcessPoolExecutor              │      │
 │  │ (per-symbol thread)    │      │  │ (max_workers=2)                 │      │
 │  └──────────┬─────────────┘      │  └──────────────┬──────────────────┘      │
 │             │ Actions            │                  │ BacktestEngine.run()   │
@@ -84,7 +84,7 @@ WebSocket (fstream.binance.com)
 ```
 React UI (Zustand store)
   -> POST /api/backtest/run (FastAPI)
-    -> submit_backtest(run_id, fn) -> ThreadPoolExecutor
+    -> submit_backtest(run_id, fn) -> ProcessPoolExecutor
       -> BacktestEngine.run(on_progress=callback)
         -> MockExchange (in-memory order matching)
         -> on_progress(data) -> asyncio.Queue via loop.call_soon_threadsafe
@@ -105,7 +105,7 @@ React UI (Zustand store)
 | **Real-time Streaming** | Binance WebSocket (`fstream.binance.com`) | Server-Sent Events (SSE) |
 | **Charts** | -- | TradingView Lightweight Charts v5, Recharts |
 | **Exchange Library** | CCXT (`binanceusdm`) | MockExchange (in-memory simulation) |
-| **Concurrency** | `threading` (1 stream daemon + N symbol daemons) | `ThreadPoolExecutor` (max_workers=2) |
+| **Concurrency** | `threading` (1 stream daemon + N symbol daemons) | `ProcessPoolExecutor` (max_workers=2) |
 | **Build** | -- | Vite (frontend), pip/conda (backend) |
 | **Logging** | structlog (JSON or console) | structlog (JSON or console) |
 | **Config** | `config.yaml` -> `AppConfig` dataclass | `config.yaml` -> `AppConfig` dataclass |
@@ -141,7 +141,7 @@ All interfaces are defined in `app/core/interfaces.py`. Each layer only depends 
 │                                                                  │
 │  Implementations:                 Implementations:               │
 │  - Indicators                    - RsiNoRetestStrategy           │
-│  - CrossoverIndicators           - RsiMomentumStrategy (SHORT)   │
+│                                  - RsiMomentumStrategy (SHORT)   │
 ├──────────────────────────────────────────────────────────────────┤
 │ Layer 3: Execution                                               │
 │                                                                  │

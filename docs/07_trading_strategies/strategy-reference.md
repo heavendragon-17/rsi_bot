@@ -95,7 +95,7 @@ In priority order (checked each candle):
 
 ## rsi_momentum — Complete Parameter Reference
 
-SHORT-only strategy using RSI momentum crossover with bearish divergence confirmation. Uses `CrossoverIndicators` (RSI14 + EMA9-of-RSI + WMA45-of-RSI) and the reusable `SLTPCalculator` utility.
+SHORT-only strategy using RSI momentum crossover with bearish divergence confirmation. Uses `Indicators` (RSI14 + EMA9-of-RSI + WMA45-of-RSI) and the reusable `SLTPCalculator` utility.
 
 **Files**: `app/trading/strategy/rsi_momentum.py`, `app/data/indicators.py`, `app/trading/sl_tp_calculator.py`
 
@@ -187,18 +187,10 @@ Uses the old stateful API (mutable `self.context`, returns `SignalEvent`). Not f
 
 ## How to Override Parameters
 
-**Option A — config.yaml (recommended)**:
-```yaml
-strategy_params:
-  nr_tp_count: 2
-  nr_tp1_rr: 1.5
-  tp1_close_pct: 0.5
-```
+**Option A — Frozen config dataclass (recommended)**:
+Edit the strategy's frozen config dataclass defaults (e.g., `RsiNoRetestConfig` in `app/trading/strategy/rsi_no_retest.py`). Strategy parameters are no longer stored in `config.yaml`.
 
-**Option B — Strategy DEFAULT_CONFIG (permanent)**:
-Edit `app/trading/strategy/rsi_no_retest.py` → `RsiNoRetestConfig` dataclass defaults.
-
-**Option C — Backtest UI sidebar (per-run)**:
+**Option B — Backtest UI sidebar (per-run)**:
 Override parameters in the UI for individual backtest runs.
 
-Override hierarchy: hardcoded defaults < `DEFAULT_CONFIG` < `config.yaml` < UI sidebar
+Override hierarchy: frozen dataclass defaults < `DEFAULT_CONFIG` < UI sidebar

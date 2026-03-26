@@ -633,27 +633,20 @@ The `MarketDataStore.get_dataframe(symbol)` returns a pandas DataFrame with the 
 
 ### Computed Indicator Columns (after IIndicators.compute())
 
-These columns are added by the `IIndicators.compute()` call before the DataFrame is passed to `Strategy.analyze()`. The exact set depends on the strategy's indicator implementation.
+These columns are added by the `IIndicators.compute()` call before the DataFrame is passed to `Strategy.analyze()`. All indicators are now computed by the unified `Indicators` class (`app/data/indicators.py`).
 
-**Standard Indicators** (used by `rsi_no_retest`):
-
-| Column | dtype | Description |
-|--------|-------|-------------|
-| `rsi` | `float64` | Relative Strength Index (14-period by default) |
-| `wma45` | `float64` | Weighted Moving Average of RSI (45-period) |
-| `ema200` | `float64` | Exponential Moving Average of price (200-period, trend filter) |
-
-**CrossoverIndicators** (used by `rsi_momentum`):
+**Indicators** (used by all strategies):
 
 | Column | dtype | Description |
 |--------|-------|-------------|
-| `rsi_14` | `float64` | RSI (14-period) |
+| `rsi_14` | `float64` | Relative Strength Index (14-period) |
 | `rsi_ema9` | `float64` | EMA(9) of RSI (signal line) |
 | `rsi_wma45` | `float64` | WMA(45) of RSI (trend baseline) |
+| `ema200` | `float64` | Exponential Moving Average of price (200-period, trend filter) |
 
 ### Memory Constraints
 
-- **Maximum candles in RAM**: 6,000 per symbol (`MAX_CANDLES_IN_RAM` in `store.py`)
+- **Maximum candles in RAM**: 6,000 per symbol (`MAX_CANDLES_IN_RAM` in `app/core/constants.py`)
 - When the limit is exceeded, oldest candles are dropped via `df.tail(MAX_CANDLES_IN_RAM)`
 - The `get_dataframe()` method returns a **copy** of the internal DataFrame (thread safety)
 

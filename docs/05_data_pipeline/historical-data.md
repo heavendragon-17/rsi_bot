@@ -4,14 +4,14 @@
 
 ---
 
-## OHLCV Candle Download (`app/backtest/download_data.py`)
+## OHLCV Candle Download (`app/backtest/data/download.py`)
 
 Downloads historical candles from Binance USDT-M Futures via CCXT with automatic pagination.
 
 ### CLI Usage
 
 ```bash
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 5000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
 ```
 
 ### Arguments

@@ -85,7 +85,7 @@ File: `main.py`
 The bot creates a `NotificationService` wrapping either `TelegramNotifier` or `NullNotifier`:
 
 ```python
-from app.services.notification.notification_service import NotificationService
+from app.notification.notification_service import NotificationService
 from app.notification.telegram_notifier import TelegramNotifier
 from app.notification.null_notifier import NullNotifier
 

@@ -75,7 +75,7 @@ Use the bot's download scripts to get data:
 
 ```python
 # In notebook — run once to download
-!python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 50000
+!python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50000
 
 # Load the data
 import pandas as pd

@@ -6,14 +6,21 @@
 
 ## Role
 
-`PortfolioManager` is the orchestrator between strategy decisions and exchange execution:
-- Calculates position sizes based on risk parameters
-- Places entry, TP, and SL orders as a group
-- Tracks open positions in memory
-- Syncs TP fills via polling
-- Handles partial closes, SL moves, and full exits
+`PortfolioManager` is a slim facade/orchestrator between strategy decisions and exchange execution. It delegates to specialized components for each responsibility.
 
 **Location**: `app/trading/portfolio/manager.py`
+
+### Decomposed Structure
+
+| File | Class | Responsibility |
+|------|-------|---------------|
+| `app/trading/portfolio/manager.py` | `PortfolioManager` | Slim facade — routes signals to delegates, holds positions dict |
+| `app/trading/portfolio/trade_executor.py` | `TradeExecutor` | Entry/exit orchestration (market orders, order groups) |
+| `app/trading/portfolio/position_sizer.py` | `PositionSizer` | Risk-based position sizing and max position caps |
+| `app/trading/portfolio/sl_tp_manager.py` | `SLTPManager` | SL/TP placement, trailing SL, SL moves, TP fill sync |
+| `app/trading/portfolio/notification_dispatch.py` | `NotificationDispatcher` | Telegram notification dispatch for trade events |
+
+The facade pattern keeps each component under 400 lines and with a single responsibility. `PortfolioManager` creates the delegates on init and routes calls to them.
 
 ---
 

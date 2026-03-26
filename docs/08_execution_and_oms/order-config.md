@@ -33,8 +33,8 @@ exchange:
 
 | Mode | Taker Fee | Maker Fee | Notes |
 |------|-----------|-----------|-------|
-| `mock` (BacktestEngine) | 0.05% | 0.02% | Hardcoded in MockExchange |
-| `sim` (PaperExchange) | 0.04% | 0.02% | Hardcoded |
+| `mock` (BacktestEngine) | 0.05% | 0.02% | Defaults from `app/core/constants.py` |
+| `sim` (PaperExchange) | 0.04% | 0.02% | Defaults from `app/core/constants.py` |
 | `paper` / `live` | Exchange-determined | Exchange-determined | Depends on VIP level |
 
 ## Exchange Name
