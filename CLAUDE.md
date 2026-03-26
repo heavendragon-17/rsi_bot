@@ -19,9 +19,25 @@ For detailed specs, read `docs/INDEX.md` first — it has a **task-based routing
 # Run live bot
 python main.py
 
-# Run backtest (CLI)
+# Download backtest data
 python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
+
+# Run backtest — single symbol (CLI)
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
+
+# Run backtest — portfolio (multi-symbol, shared capital, chronological)
+python -m app.backtest.runners.portfolio_runner
+python -m app.backtest.runners.portfolio_runner --strategy rsi_no_retest
+
+# Run backtest — batch (independent per-symbol, parallel)
+python -m app.backtest.runners.batch_runner
+python -m app.backtest.runners.batch_runner --workers 8 --strategy rsi_no_retest
+
+# Run backtest — tick-level replay (high-fidelity SL/TP simulation)
+python -m app.backtest.runners.tick_replay \
+  --ohlc app/backtest/data/BTCUSDT_5m.csv \
+  --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
+  --symbol BTC/USDT --timeframe 5m --balance 10000
 
 # Run backtest UI
 python -m uvicorn app.api.main:app --reload --port 8000  # backend
