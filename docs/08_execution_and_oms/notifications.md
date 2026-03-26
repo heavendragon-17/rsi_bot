@@ -29,6 +29,9 @@ Trading threads are never blocked by Telegram latency.
 | `app/notification/null_notifier.py`        | No-op implementation. Used when Telegram is disabled or fails.                  |
 | `app/notification/notification_worker.py`  | Background daemon thread. Dispatches queue items to the underlying notifier.    |
 | `app/notification/telegram_bot.py`         | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`.      |
+| `app/notification/command_handlers.py`     | Handler logic for Telegram bot commands (extracted from notifier).               |
+| `app/notification/deploy_commands.py`      | Registers bot commands with the Telegram Bot API on startup.                     |
+| `app/notification/formatting.py`           | Shared HTML formatting helpers for notification messages.                        |
 
 ---
 
