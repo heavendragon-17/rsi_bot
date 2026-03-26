@@ -112,7 +112,7 @@ On complete:
 1. Read CSV, parse timestamps
 2. Create `MockExchange(initial_balance, leverage, taker_fee=0.05%, maker_fee=0.02%)` (in `app/backtest/exchange/mock_exchange.py`)
 3. Create strategy instance and `PortfolioManager`
-4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `strategy.indicators.compute()` once for the full dataset (O(n) pre-computation instead of per-candle O(n²)). Works with any `IIndicators` implementation (`Indicators` or `CrossoverIndicators`).
+4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `strategy.indicators.compute()` once for the full dataset (O(n) pre-computation instead of per-candle O(n²)). Works with any `IIndicators` implementation (the unified `Indicators` class supports all strategies).
 
 ### WARMUP = 220 candles
 

@@ -10,19 +10,18 @@ Use this as a checklist across multiple sessions.
 
 ## 1. Fee Constants (`0.0005` / `0.0002`)
 
-**Canonical source:** `app/core/actions.py:37-38`
+**Canonical source:** `app/core/constants.py`
 
 | Status | File | Line | Code |
 |--------|------|------|------|
-| [ ] | `app/core/actions.py` | 37-38 | `DEFAULT_TAKER_FEE = 0.0005` / `DEFAULT_MAKER_FEE = 0.0002` (canonical) |
-| [ ] | `app/sim/exchange.py` | 44-45 | `TAKER_FEE = Decimal("0.0005")` / `MAKER_FEE = Decimal("0.0002")` |
-| [ ] | `app/backtest/mock_exchange.py` | 52 | `taker_fee: float = 0.0` (different default!) |
-| [ ] | `app/backtest/engine.py` | 67-68 | `.get("taker_fee", DEFAULT_TAKER_FEE)` (imports canonical) |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 187-188 | `.get("taker_fee", 0.0005)` (hardcoded, should import) |
-| [ ] | `app/strategies/rsi_no_retest.py` | 146-147 | `.get("taker_fee", 0.0005)` (hardcoded, should import) |
-| [ ] | `app/strategies/rsi_momentum.py` | 77-78 | `taker_fee: float = DEFAULT_TAKER_FEE` (imports canonical) |
+| [x] | `app/core/constants.py` | — | `DEFAULT_TAKER_FEE` / `DEFAULT_MAKER_FEE` (canonical, centralized) |
+| [x] | `app/trading/exchange/sim/sim_exchange.py` | — | Imports from constants |
+| [x] | `app/backtest/exchange/mock_exchange.py` | — | Imports from constants |
+| [x] | `app/backtest/engine/backtest_engine.py` | — | Imports from constants |
+| [x] | `app/trading/strategy/rsi_no_retest.py` | — | Uses strategy config dataclass |
+| [x] | `app/trading/strategy/rsi_momentum.py` | — | Uses strategy config dataclass |
 
-**Fix:** All files should import `DEFAULT_TAKER_FEE` / `DEFAULT_MAKER_FEE` from `app.core.actions`.
+**Fix:** All files now import from `app.core.constants`. ✅ Resolved during refactoring.
 
 ---
 
@@ -31,9 +30,9 @@ Use this as a checklist across multiple sessions.
 | Status | File | Line | Value | Code |
 |--------|------|------|-------|------|
 | [ ] | `app/core/config.py` | 74, 81 | 10000 | `initial_balance: Decimal = Decimal("10000")` |
-| [ ] | `app/backtest/mock_exchange.py` | 52 | **1000** | `initial_balance: float = 1000.0` |
-| [ ] | `app/backtest/engine.py` | 63 | **1000** | `.get("initial_balance", 1000.0)` |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 183 | 10000 | `.get("initial_balance", 10000)` |
+| [ ] | `app/backtest/exchange/mock_exchange.py` | — | `initial_balance: float = 1000.0` |
+| [ ] | `app/backtest/engine/backtest_engine.py` | — | `.get("initial_balance", 1000.0)` |
+| [ ] | `app/backtest/runners/portfolio_runner.py` | — | `.get("initial_balance", 10000)` |
 
 **Fix:** Pick one canonical default (probably 10000 from config.py) and import it everywhere.
 
@@ -46,8 +45,8 @@ Use this as a checklist across multiple sessions.
 | [ ] | `app/core/config.py` | 25, 47 | 10 | `leverage: int = 10` |
 | [ ] | `app/backtest/config_builder.py` | 17 | 10 | `leverage: int = 10` |
 | [ ] | `app/api/schemas.py` | 28 | 10 | `leverage: int = 10` |
-| [ ] | `app/backtest/mock_exchange.py` | 52 | **1** | `leverage: int = 1` |
-| [ ] | `app/core/portfolio.py` | 107 | **1** | `.get("leverage", 1)` |
+| [ ] | `app/backtest/exchange/mock_exchange.py` | — | `leverage: int = 1` |
+| [ ] | `app/trading/portfolio/manager.py` | — | `.get("leverage", 1)` |
 
 **Fix:** Use `RiskConfig.leverage` default (10) as canonical. All fallbacks should match.
 
@@ -57,9 +56,9 @@ Use this as a checklist across multiple sessions.
 
 | Status | File | Line | Code |
 |--------|------|------|------|
-| [ ] | `app/backtest/backtest.py` | 27-29 | `def load_config(): with open(CONFIG_PATH) ...` |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 42-44 | `def load_config(): with open(CONFIG_PATH) ...` |
-| [ ] | `app/backtest/run_batch_analysis.py` | 35-37 | `def load_config(): with open(CONFIG_PATH) ...` |
+| [x] | `app/backtest/backtest.py` | — | `def load_config(): with open(CONFIG_PATH) ...` |
+| [x] | `app/backtest/runners/portfolio_runner.py` | — | Uses `AppConfig.from_yaml()` |
+| [x] | `app/backtest/runners/batch_runner.py` | — | Uses `AppConfig.from_yaml()` |
 
 **Canonical alternative:** `AppConfig.from_yaml()` in `app/core/config.py`.
 
@@ -73,18 +72,18 @@ Use this as a checklist across multiple sessions.
 
 | Status | File | Line | Variation |
 |--------|------|------|-----------|
-| [ ] | `app/backtest/download_data.py` | 58 | `symbol.replace('/', '')` |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 112, 171 | `symbol.replace('/', '')` |
-| [ ] | `app/backtest/run_batch_analysis.py` | 259 | `symbol.replace('/', '')` |
-| [ ] | `app/backtest/download_tick_data.py` | 53, 71, 88, 185 | `symbol.replace('/', '').upper()` |
-| [ ] | `app/backtest/reporting.py` | 118, 871, 888 | `symbol.replace("/", "")` |
-| [ ] | `app/api/routes/data.py` | 34, 99 | `symbol.replace("/", "")` |
-| [ ] | `app/api/routes/backtest.py` | 61, 78 | `symbol.replace("/", "")` |
-| [ ] | `app/sim/funding.py` | 152 | `symbol.replace("/", "").upper()` |
-| [ ] | `app/sim/stream_manager.py` | 33, 60 | `symbol.replace("/", "").lower()` / `.upper()` |
-| [ ] | `app/services/market_data/normalizer.py` | 33 | `symbol.upper().replace('/', '')` |
-| [ ] | `app/services/market_data/stream_manager.py` | 74 | `.strip().upper().replace("/", "")` |
-| [ ] | `app/services/notification/telegram_bot.py` | 212, 232 | `symbol.replace("/", "").upper()` |
+| [ ] | `app/backtest/data/download.py` | — | `symbol.replace('/', '')` |
+| [ ] | `app/backtest/runners/portfolio_runner.py` | — | `symbol.replace('/', '')` |
+| [ ] | `app/backtest/runners/batch_runner.py` | — | `symbol.replace('/', '')` |
+| [ ] | `app/backtest/data/download_tick.py` | — | `symbol.replace('/', '').upper()` |
+| [ ] | `app/backtest/reporting/reporter.py` | — | `symbol.replace("/", "")` |
+| [ ] | `app/api/routes/data.py` | — | `symbol.replace("/", "")` |
+| [ ] | `app/api/routes/backtest_run.py` | — | `symbol.replace("/", "")` |
+| [ ] | `app/trading/exchange/sim/sim_funding.py` | — | `symbol.replace("/", "").upper()` |
+| [ ] | `app/trading/exchange/sim/sim_stream.py` | — | `symbol.replace("/", "").lower()` / `.upper()` |
+| [ ] | `app/data/normalizer.py` | — | `symbol.upper().replace('/', '')` |
+| [ ] | `app/data/stream_manager.py` | — | `.strip().upper().replace("/", "")` |
+| [ ] | `app/notification/telegram_bot.py` | — | `symbol.replace("/", "").upper()` |
 
 **Fix:** Create `def sanitize_symbol(symbol: str, case: str = "upper") -> str` in a utils module.
 
@@ -96,12 +95,12 @@ Identical 2-line block in every backtest CLI script.
 
 | Status | File | Line | Code |
 |--------|------|------|------|
-| [ ] | `app/backtest/backtest.py` | 13-14 | `SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))` / `PROJECT_ROOT = ...` |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 15-16 | same |
-| [ ] | `app/backtest/run_batch_analysis.py` | 14-15 | same |
-| [ ] | `app/backtest/run_paper_tick_replay.py` | 44-45 | same |
-| [ ] | `app/backtest/download_data.py` | 13 | `SCRIPT_DIR` only |
-| [ ] | `app/backtest/download_tick_data.py` | 20 | `SCRIPT_DIR` only |
+| [ ] | `app/backtest/backtest.py` | — | `SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))` / `PROJECT_ROOT = ...` |
+| [ ] | `app/backtest/runners/portfolio_runner.py` | — | same |
+| [ ] | `app/backtest/runners/batch_runner.py` | — | same |
+| [ ] | `app/backtest/runners/tick_replay.py` | — | same |
+| [ ] | `app/backtest/data/download.py` | — | `SCRIPT_DIR` only |
+| [ ] | `app/backtest/data/download_tick.py` | — | `SCRIPT_DIR` only |
 
 **Fix:** Create `app/backtest/paths.py` with `SCRIPT_DIR`, `PROJECT_ROOT`, `DATA_DIR`, `CONFIG_PATH`.
 
@@ -112,7 +111,7 @@ Identical 2-line block in every backtest CLI script.
 | Status | File | Line | Code |
 |--------|------|------|------|
 | [ ] | `app/core/config.py` | 45 | `risk_per_trade_pct: Decimal = Decimal("0.02")` |
-| [ ] | `app/core/portfolio.py` | 102 | `.get("risk_per_trade_pct", 0.02)` |
+| [ ] | `app/trading/portfolio/manager.py` | — | `.get("risk_per_trade_pct", 0.02)` |
 | [ ] | `app/backtest/config_builder.py` | 18 | `risk_per_trade_pct: float = 0.02` |
 | [ ] | `app/api/schemas.py` | 29 | `risk_per_trade_pct: str = "0.02"` |
 | [ ] | `app/repository/backtest/models.py` | 86 | `default="0.02"` |
@@ -126,13 +125,13 @@ Identical 2-line block in every backtest CLI script.
 | Status | File | Line | Value | Code |
 |--------|------|------|-------|------|
 | [ ] | `app/core/config.py` | 101 | `5m` | `timeframe: str = "5m"` |
-| [ ] | `app/core/runner.py` | 69 | `15m` | `.get('timeframe', '15m')` |
-| [ ] | `app/backtest/engine.py` | 51 | `15m` | `.get("timeframe", "15m")` |
-| [ ] | `app/backtest/backtest.py` | 82 | `5m` | `.get('timeframe', '5m')` |
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 311 | `15m` | `.get("timeframe", "15m")` |
-| [ ] | `app/backtest/run_batch_analysis.py` | 855 | `15m` | `.get("timeframe", "15m")` |
-| [ ] | `app/strategies/rsi_no_retest.py` | 130-132 | `15m` | `.get("timeframe", "15m")` |
-| [ ] | `app/strategies/rsi_wma_retest.py` | 71 | `1h` | `.get("timeframe", "1h")` |
+| [ ] | `app/trading/runner.py` | — | `15m` | `.get('timeframe', '15m')` |
+| [ ] | `app/backtest/engine/backtest_engine.py` | — | `15m` | `.get("timeframe", "15m")` |
+| [ ] | `app/backtest/backtest.py` | — | `5m` | `.get('timeframe', '5m')` |
+| [ ] | `app/backtest/runners/portfolio_runner.py` | — | `15m` | `.get("timeframe", "15m")` |
+| [ ] | `app/backtest/runners/batch_runner.py` | — | `15m` | `.get("timeframe", "15m")` |
+| [ ] | `app/trading/strategy/rsi_no_retest.py` | — | `15m` | `.get("timeframe", "15m")` |
+| [ ] | `app/trading/strategy/rsi_wma_retest.py` | — | `1h` | `.get("timeframe", "1h")` |
 
 **Fix:** Use `AppConfig.timeframe` default as canonical. Strategy-specific overrides are fine but should be explicit.
 
@@ -143,8 +142,8 @@ Identical 2-line block in every backtest CLI script.
 | Status | File | Line | Value | Code |
 |--------|------|------|-------|------|
 | [ ] | `app/core/config.py` | 102 | 200 | `warmup_candles: int = 200` |
-| [ ] | `app/backtest/engine.py` | 42 | **220** | `WARMUP = 220` |
-| [ ] | `app/backtest/run_paper_tick_replay.py` | 68 | **220** | `WARMUP = 220` |
+| [x] | `app/core/constants.py` | — | **220** | `WARMUP = 220` (canonical, centralized) |
+| [x] | `app/backtest/engine/backtest_engine.py` | — | Imports from constants |
 
 **Fix:** Use one constant. If 220 is intentional (200 + 10% buffer), document it and derive from config.
 
@@ -156,10 +155,10 @@ Nearly identical blocks that check CSV existence, count rows, check recency, and
 
 | Status | File | Lines | Description |
 |--------|------|-------|-------------|
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 115-156 | Full download-if-missing block |
-| [ ] | `app/backtest/run_batch_analysis.py` | 272-314 | Same logic, copy-pasted |
+| [x] | `app/backtest/runners/portfolio_runner.py` | — | Uses `DataManager` |
+| [x] | `app/backtest/runners/batch_runner.py` | — | Uses `DataManager` |
 
-**Fix:** Extract into `app/backtest/data_utils.py:ensure_data_available(symbol, timeframe, limit)`.
+**Fix:** Extracted into `app/backtest/data/manager.py:DataManager`. ✅ Resolved during refactoring.
 
 ---
 
@@ -167,7 +166,7 @@ Nearly identical blocks that check CSV existence, count rows, check recency, and
 
 | Status | File | Line | Code |
 |--------|------|------|------|
-| [ ] | `app/backtest/run_portfolio_backtest.py` | 266-280 | 15-line function handling Timestamp, Series, ndarray, NaN, datetime |
+| [ ] | `app/backtest/runners/portfolio_runner.py` | — | 15-line function handling Timestamp, Series, ndarray, NaN, datetime |
 
 Only one copy currently, but likely needed elsewhere. Consider centralizing preemptively.
 
@@ -177,7 +176,7 @@ Only one copy currently, but likely needed elsewhere. Consider centralizing pree
 
 | Status | File | Line | Code |
 |--------|------|------|------|
-| [ ] | `app/api/routes/backtest.py` | 441-450 | 10-line function: None check, isinstance datetime, pd.to_datetime fallback |
+| [ ] | `app/api/routes/backtest_results.py` | — | 10-line function: None check, isinstance datetime, pd.to_datetime fallback |
 
 Only one copy currently. Monitor for duplication.
 
