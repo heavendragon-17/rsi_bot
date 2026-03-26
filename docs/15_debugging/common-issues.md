@@ -19,5 +19,5 @@
 | 11 | "Reduce only" rejected | `OrderRejectedError` on exit | Position already closed | Hard SL fired before soft SL; `_handle_soft_sl_exit()` handles this |
 | 12 | Database locked | `OperationalError: database is locked` | Concurrent SQLite access | Ensure only 1 uvicorn worker (`--workers 1`) |
 | 13 | Conda env not found | `EnvironmentNotFoundError` | Wrong activation command | `source C:/ProgramData/miniconda3/Scripts/activate rsi` |
-| 14 | CSV not found | Backtest fails: "file not found" | Data not downloaded | Run `python app/backtest/download_data.py` first |
+| 14 | CSV not found | Backtest fails: "file not found" | Data not downloaded | Run `python app/backtest/data/download.py` first |
 | 15 | Decimal conversion error | `InvalidOperation` | Float string passed to Decimal | Check data source — CSV may have malformed numbers |

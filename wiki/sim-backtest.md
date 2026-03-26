@@ -21,7 +21,7 @@ You need **two data files** that cover the **same time window**:
 If you don't already have OHLC data for the symbol and timeframe, download it:
 
 ```bash
-python app/backtest/download_data.py --symbol ZILUSDT --timeframe 5m --limit 8700
+python app/backtest/data/download.py --symbol ZILUSDT --timeframe 5m --limit 8700
 ```
 
 This saves to `app/backtest/data/ZILUSDT_5m.csv`.
@@ -33,19 +33,19 @@ This saves to `app/backtest/data/ZILUSDT_5m.csv`.
 This automatically uses monthly archives for completed months and daily archives for the current (incomplete) month:
 
 ```bash
-python app/backtest/download_tick_data.py --symbol ZILUSDT --recent 3
+python app/backtest/data/download_tick_data.py --symbol ZILUSDT --recent 3
 ```
 
 **Option B — Specific month:**
 
 ```bash
-python app/backtest/download_tick_data.py --symbol ZILUSDT --year 2026 --month 1
+python app/backtest/data/download_tick_data.py --symbol ZILUSDT --year 2026 --month 1
 ```
 
 **Option C — Multiple months (completed months only):**
 
 ```bash
-python app/backtest/download_tick_data.py --symbol ZILUSDT --year 2026 --month 1 --months 3 --merge
+python app/backtest/data/download_tick_data.py --symbol ZILUSDT --year 2026 --month 1 --months 3 --merge
 ```
 
 > **Important:** The OHLC and tick files **must cover the same time window**. If only a partial overlap exists, the replay script will only simulate candles that fall within the tick file's range.
@@ -55,7 +55,7 @@ python app/backtest/download_tick_data.py --symbol ZILUSDT --year 2026 --month 1
 ## Running the Paper Backtest
 
 ```bash
-python app/backtest/run_paper_tick_replay.py \
+python -m app.backtest.runners.tick_replay_runner \
     --ohlc   app/backtest/data/ZILUSDT_5m.csv \
     --ticks  app/backtest/data/ZILUSDT_ticks_2026_01.csv \
     --symbol ZIL/USDT \
@@ -119,7 +119,7 @@ BacktestEngine.compute_results()  ← same P&L / Sharpe / drawdown metrics
 
 ## Comparison with Standard Backtest
 
-| Feature            | Standard (`BacktestEngine`) | Tick Replay (`run_paper_tick_replay.py`) |
+| Feature            | Standard (`BacktestEngine`) | Tick Replay (`tick_replay_runner`) |
 | ------------------ | --------------------------- | ---------------------------------------- |
 | Fill simulation    | Wick-based (MockExchange)   | Tick-by-tick (PaperExchange)             |
 | SL/TP FIFO         | Not modeled                 | Exact, per-tick FIFO                     |
