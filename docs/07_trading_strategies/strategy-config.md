@@ -4,17 +4,15 @@
 
 ---
 
-## 3-Level Override Hierarchy
+## 2-Level Override Hierarchy
 
 ```
-Level 1: Hardcoded defaults (RsiNoRetestConfig dataclass defaults)
+Level 1: Frozen config dataclass defaults (e.g., RsiNoRetestConfig)
     ↓ overridden by
-Level 2: DEFAULT_CONFIG dict (in strategy file)
-    ↓ overridden by
-Level 3: config.yaml strategy_params (or Backtest UI sidebar)
+Level 2: DEFAULT_CONFIG dict (in strategy file) or Backtest UI sidebar
 ```
 
-Higher levels override lower levels. The merge produces the final config passed to the strategy constructor.
+Strategy parameters are defined in frozen config dataclasses within each strategy file. They are **not** stored in `config.yaml`. The `strategy_params` key has been removed from `config.yaml`. Higher levels override lower levels. The merge produces the final config passed to the strategy constructor.
 
 ---
 
@@ -44,29 +42,17 @@ DEFAULT_CONFIG = {
 
 This dict is what the backtest UI shows as default values. It may differ from dataclass defaults for specific deployment scenarios.
 
-## Level 3: config.yaml Overrides
+## Backtest UI Sidebar
 
-```yaml
-strategy_params:
-  nr_tp_count: 2
-  nr_tp1_rr: 1.5
-  tp1_close_pct: 0.5
-```
-
-These override DEFAULT_CONFIG for live bot and CLI backtest runs.
-
-## Level 3b: Backtest UI Sidebar
-
-The UI sidebar lets users override parameters per-run. These overrides are persisted in the `run_configs` table and do not affect `config.yaml`.
+The UI sidebar lets users override parameters per-run. These overrides are persisted in the `run_configs` table and are merged on top of `DEFAULT_CONFIG`.
 
 ---
 
 ## How the Merge Works
 
-In `AppConfig.from_yaml()`:
-1. Load `config.yaml` → extract `strategy_params` dict
-2. Strategy constructor receives merged config
-3. Strategy creates `RsiNoRetestConfig(**merged_params)` — unknown keys are silently ignored by the frozen dataclass
+In live bot:
+1. Strategy is instantiated with its frozen config dataclass defaults
+2. No external parameter overrides from `config.yaml` (strategy params are self-contained)
 
 In backtest API:
 1. `POST /api/backtest/run` body includes `params` dict

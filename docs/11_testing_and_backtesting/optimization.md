@@ -1,6 +1,8 @@
 # Optimization Suite
 
 > Grid search, walk-forward optimization, and sensitivity analysis.
+>
+> **Modules**: `app/backtest/optimization/` (placeholder for future optimization tools), `app/backtest/statistics/` (analyzer.py, metrics.py, visualize.py).
 
 ---
 

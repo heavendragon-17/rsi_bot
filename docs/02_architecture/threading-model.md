@@ -383,7 +383,7 @@ class BinanceAdapter(IExchange):
 
 **File**: `app/api/executor.py`
 
-The backtest UI uses a fundamentally different concurrency model than the live bot: **ThreadPoolExecutor** for running backtest jobs, with no shared mutable state between jobs.
+The backtest UI uses a fundamentally different concurrency model than the live bot: **ProcessPoolExecutor** for running backtest jobs, with no shared mutable state between jobs.
 
 ### Architecture
 
@@ -403,7 +403,7 @@ The backtest UI uses a fundamentally different concurrency model than the live b
 │                           │ submit to pool                    │
 │                           v                                   │
 │  ┌─────────────────────────────────────────────────────────┐  │
-│  │  ThreadPoolExecutor (max_workers=2)                     │  │
+│  │  ProcessPoolExecutor (max_workers=2)                     │  │
 │  │                                                         │  │
 │  │  Worker Thread 1:                                       │  │
 │  │  └── BacktestEngine.run(on_progress=callback)           │  │
@@ -416,7 +416,7 @@ The backtest UI uses a fundamentally different concurrency model than the live b
 │  └─────────────────────────────────────────────────────────┘  │
 │                                                               │
 │  Module-level registries:                                     │
-│  _executor: ThreadPoolExecutor                                │
+│  _executor: ProcessPoolExecutor                                │
 │  _jobs: Dict[int, Future]           (run_id -> Future)       │
 │  _progress_queues: Dict[int, Queue] (run_id -> asyncio.Queue)│
 └───────────────────────────────────────────────────────────────┘
@@ -644,6 +644,6 @@ If you need to add a new resource that multiple threads access:
 | `app/data/stream_manager.py` | `BinanceStreamManager` -- WebSocket daemon thread |
 | `app/data/store.py` | `MarketDataStore` -- thread-safe candle storage |
 | `app/trading/exchange/binance_adapter.py` | `BinanceAdapter` -- single lock for all CCXT calls |
-| `app/api/executor.py` | `ThreadPoolExecutor` + SSE bridge for backtest concurrency |
+| `app/api/executor.py` | `ProcessPoolExecutor` + SSE bridge for backtest concurrency |
 | `app/trading/exchange/sim/sim_stream.py` | `PaperTradeStreamManager` -- aggTrade WebSocket for sim mode |
 | `main.py` | Entry point; main thread lifecycle |

@@ -114,7 +114,7 @@ If your strategy opens SHORT positions (selling to enter, buying to exit):
 2. **SL placement**: SL goes **above** entry for SHORT (price going up = loss). Use `stop_market BUY` with `reduceOnly=True`.
 3. **TP placement**: TP goes **below** entry for SHORT (price going down = profit). Use `limit BUY` with `reduceOnly=True`.
 4. **SLTPCalculator**: Use `app/trading/sl_tp_calculator.py` for direction-aware SL/TP/sizing. All methods accept a `side` parameter.
-5. **CrossoverIndicators**: If you need RSI crossover indicators instead of the standard `Indicators`, use `app/data/indicators.py` (consolidated module with both `Indicators` and `CrossoverIndicators`).
+5. **Indicators**: All indicator computation (including RSI crossover indicators) is provided by the `Indicators` class in `app/data/indicators.py`.
 6. **Position amounts**: PortfolioManager stores SHORT positions with **negative** amounts. PnL formula `amount × (exit - entry)` handles both directions.
 
 See `app/trading/strategy/rsi_momentum.py` and its test files for a complete SHORT strategy example.

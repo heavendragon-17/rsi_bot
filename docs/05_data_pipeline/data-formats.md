@@ -48,7 +48,7 @@ Additional columns may be present depending on strategy configuration. The Indic
 
 ## OHLCV CSV Format
 
-Output of `download_data.py`. Input to `BacktestEngine`.
+Output of `app/backtest/data/download.py`. Input to `BacktestEngine`.
 
 ```csv
 timestamp,open,high,low,close,volume

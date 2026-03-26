@@ -119,7 +119,7 @@ The frontend proxies API requests to `http://localhost:8000`.
 Download historical data then run backtest:
 
 ```bash
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 5000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
 ```
 

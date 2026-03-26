@@ -18,7 +18,9 @@ app = FastAPI(title="RSI Bot Backtest API", version="1.0.0")
 
 | Router | Prefix | Module |
 |--------|--------|--------|
-| backtest | `/api/backtest` | `app/api/routes/backtest.py` |
+| backtest (run) | `/api/backtest` | `app/api/routes/backtest_run.py` |
+| backtest (results) | `/api/backtest` | `app/api/routes/backtest_results.py` |
+| backtest (stream) | `/api/backtest` | `app/api/routes/backtest_stream.py` |
 | history | `/api/history` | `app/api/routes/history.py` |
 | strategies | `/api/strategies` | `app/api/routes/strategies.py` |
 | data | `/api/data` | `app/api/routes/data.py` |
