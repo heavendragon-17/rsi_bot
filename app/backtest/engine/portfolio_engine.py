@@ -79,6 +79,12 @@ class PortfolioEngine(Engine):
         self._last_ts: datetime | None = None
         self._last_equity_ts: datetime | None = None
 
+        # Adaptive equity sampling: skip recording on steady candles
+        self._equity_sample_interval = 3  # Default: every 3 candles (~15min on 5m TF)
+        self._equity_candle_counter = 0
+        self._equity_peak = float(exchange.balance)
+        self._equity_dd_threshold = 0.02  # 2% drawdown triggers every-candle recording
+
     def _report_progress(self, pct: float) -> None:
         """Called by event source with percentage 0.0 to 1.0"""
         if self._on_progress:
@@ -163,8 +169,8 @@ class PortfolioEngine(Engine):
             for sym in self.symbols:
                 self.contexts[sym] = ContextSnapshot(state="SCANNING")
 
-            # Record equity curve drop
-            self._record_equity(ts)
+            # Record equity curve drop (forced)
+            self._record_equity(ts, force=True)
 
             # Since we blew up, we stop processing (optional: we could just wait to recover, but let's halt)
             logger.warning("portfolio_liquidated_halting", timestamp=ts)
@@ -173,11 +179,10 @@ class PortfolioEngine(Engine):
 
         self.portfolio.sync_from_exchange()
 
-        # 3. Record Equity curve periodically (e.g., at the end of each day or every candle)
-        # For a truly accurate portfolio curve, we document equity as it changes.
-        # To avoid massive arrays for tick data, we sample once per day or when orders execute.
-        # But for M15, storing every candle isn't too terrible.
-        self._record_equity(ts)
+        # 3. Record Equity curve with adaptive sampling
+        # Force recording when orders execute (equity changes), sample otherwise
+        has_fills = len(executed_orders) > 0
+        self._record_equity(ts, force=has_fills)
 
         # 4. Strategy Analysis (Unified base Engine handles this seamlessly)
         super()._handle_candle_close(event)
@@ -223,14 +228,32 @@ class PortfolioEngine(Engine):
                 if exit_reason == "TP1" and pos.amount > Decimal("0"):
                     self.portfolio.move_stop_loss(symbol, pos.entry_price)
 
-    def _record_equity(self, ts) -> None:
-        """Calculate and store the current total portfolio equity"""
-        if self._last_equity_ts != ts:
-            equity = self._calculate_current_equity()
-            self.portfolio_equity_curve.append(
-                {"date": ts.isoformat() if hasattr(ts, "isoformat") else str(ts), "balance": float(equity)}
-            )
-            self._last_equity_ts = ts
+    def _record_equity(self, ts, force: bool = False) -> None:
+        """Calculate and store portfolio equity with adaptive sampling.
+
+        Default: sample every `_equity_sample_interval` candles (~15min on 5m).
+        Force=True always records (when orders execute, liquidation, EOD).
+        This avoids the expensive equity calculation on most candles.
+        """
+        if self._last_equity_ts == ts:
+            return
+
+        self._equity_candle_counter += 1
+
+        # Skip calculation unless at sample interval or forced
+        if not force and self._equity_candle_counter % self._equity_sample_interval != 0:
+            return
+
+        equity = self._calculate_current_equity()
+
+        # Update peak tracking
+        if equity > self._equity_peak:
+            self._equity_peak = equity
+
+        self.portfolio_equity_curve.append(
+            {"date": ts.isoformat() if hasattr(ts, "isoformat") else str(ts), "balance": float(equity)}
+        )
+        self._last_equity_ts = ts
 
     def _calculate_current_equity(self) -> float:
         usdt_balance = float(self.exchange.balance)
