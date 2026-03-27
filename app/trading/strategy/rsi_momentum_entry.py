@@ -94,10 +94,9 @@ def check_entry(
 
     # -- S4: Spread constraint
     _idx = current_index if current_index is not None else -1
-    last = df_ind.iloc[_idx]
-    ema = last.get("rsi_ema9")
-    wma = last.get("rsi_wma45")
-    if ema is None or wma is None or pd.isna(ema) or pd.isna(wma):
+    ema = df_ind["rsi_ema9"].values[_idx]
+    wma = df_ind["rsi_wma45"].values[_idx]
+    if pd.isna(ema) or pd.isna(wma):
         return _noop
 
     spread = float(wma) - float(ema)
@@ -119,7 +118,7 @@ def check_entry(
         )
 
     # -- All conditions met -- compute SL/TP
-    close = to_decimal_or_none(last.get("close"))
+    close = to_decimal_or_none(df_ind["close"].values[_idx])
     if close is None:
         return _noop
 

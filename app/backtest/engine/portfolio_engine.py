@@ -61,6 +61,18 @@ class PortfolioEngine(Engine):
             # Event source wants a callable that takes a float percentage
             self.event_source._on_progress = lambda pct: self._report_progress(pct)
 
+        # Pre-extract NumPy arrays per symbol for zero-overhead OHLC access
+        self._symbol_arrays: dict[str, dict[str, object]] = {}
+        if hasattr(event_source, "dfs"):
+            for sym, sym_df in event_source.dfs.items():
+                self._symbol_arrays[sym] = {
+                    "open": sym_df["open"].values,
+                    "high": sym_df["high"].values,
+                    "low": sym_df["low"].values,
+                    "close": sym_df["close"].values,
+                    "index": sym_df.index.values,
+                }
+
         # Track global equity over time for the portfolio drawdown curve
         self.portfolio_equity_curve: list[dict] = []
         # Remember the last timestamp processed
@@ -116,12 +128,21 @@ class PortfolioEngine(Engine):
 
         # 1. Update MockExchange wicks for THIS specific symbol
         idx = event.current_index if event.current_index is not None else len(df) - 1
-        row = df.iloc[idx]
-        ts = df.index[idx]
-        o = float(row["open"])
-        h = float(row["high"])
-        low = float(row["low"])
-        c = float(row["close"])
+        # Use pre-extracted NumPy arrays for zero pandas overhead
+        sym_arrays = self._symbol_arrays.get(candle.symbol)
+        if sym_arrays:
+            o = float(sym_arrays["open"][idx])
+            h = float(sym_arrays["high"][idx])
+            low = float(sym_arrays["low"][idx])
+            c = float(sym_arrays["close"][idx])
+            ts = sym_arrays["index"][idx]
+        else:
+            row = df.iloc[idx]
+            ts = df.index[idx]
+            o = float(row["open"])
+            h = float(row["high"])
+            low = float(row["low"])
+            c = float(row["close"])
 
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)
 

@@ -88,6 +88,14 @@ class BacktestEngine(Engine):
 
         full_df = self._prepare_dataframe(data, strategy, symbol)
         self._full_df = full_df
+        # Pre-extract NumPy arrays for zero-overhead access in hot loop
+        self._ohlc_arrays = {
+            "open": full_df["open"].values,
+            "high": full_df["high"].values,
+            "low": full_df["low"].values,
+            "close": full_df["close"].values,
+        }
+        self._ts_array = full_df.index.values
 
         event_source = BacktestEventSource(full_df, symbol=symbol, start_idx=self.WARMUP)
 
@@ -116,9 +124,12 @@ class BacktestEngine(Engine):
             return
 
         idx = event.current_index if event.current_index is not None else len(df) - 1
-        row = df.iloc[idx]
-        ts = df.index[idx]
-        o, h, low, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
+        # Use pre-extracted NumPy arrays for zero pandas overhead
+        o = float(self._ohlc_arrays["open"][idx])
+        h = float(self._ohlc_arrays["high"][idx])
+        low = float(self._ohlc_arrays["low"][idx])
+        c = float(self._ohlc_arrays["close"][idx])
+        ts = self._ts_array[idx]
 
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)
         self._sync_executed_orders_to_portfolio(candle.symbol, executed_orders)

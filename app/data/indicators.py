@@ -140,16 +140,21 @@ class Indicators(IIndicators):
         if df is None or eff_len < 10:
             return MODE_NEUTRAL
 
-        last = df.iloc[idx]
-        rsi_ema9 = last.get("rsi_ema9")
-        rsi_wma45 = last.get("rsi_wma45")
+        ema9_vals = df["rsi_ema9"].values if "rsi_ema9" in df.columns else None
+        wma45_vals = df["rsi_wma45"].values if "rsi_wma45" in df.columns else None
 
-        if rsi_ema9 is None or rsi_wma45 is None:
+        if ema9_vals is None or wma45_vals is None:
+            return MODE_NEUTRAL
+
+        rsi_ema9 = ema9_vals[idx]
+        rsi_wma45 = wma45_vals[idx]
+
+        if pd.isna(rsi_ema9) or pd.isna(rsi_wma45):
             return MODE_NEUTRAL
 
         wma45_now = rsi_wma45
-        wma45_3 = df.iloc[idx - 3].get("rsi_wma45") if eff_len > 3 else None
-        wma45_9 = df.iloc[idx - 9].get("rsi_wma45") if eff_len > 9 else None
+        wma45_3 = wma45_vals[idx - 3] if eff_len > 3 else None
+        wma45_9 = wma45_vals[idx - 9] if eff_len > 9 else None
 
         if wma45_3 is None or wma45_9 is None:
             return MODE_NEUTRAL
@@ -172,14 +177,17 @@ class Indicators(IIndicators):
         if df is None or eff_len < 4:
             return False
 
-        last = df.iloc[idx]
-        prev = df.iloc[idx - 1]
+        rsi_vals = df["rsi_14"].values if "rsi_14" in df.columns else None
+        wma45_vals = df["rsi_wma45"].values if "rsi_wma45" in df.columns else None
 
-        rsi = last.get("rsi_14")
-        rsi_wma45 = last.get("rsi_wma45")
-        prev_rsi = prev.get("rsi_14")
+        if rsi_vals is None or wma45_vals is None:
+            return False
 
-        if rsi is None or rsi_wma45 is None or prev_rsi is None:
+        rsi = rsi_vals[idx]
+        rsi_wma45 = wma45_vals[idx]
+        prev_rsi = rsi_vals[idx - 1]
+
+        if pd.isna(rsi) or pd.isna(rsi_wma45) or pd.isna(prev_rsi):
             return False
 
         touched = abs(rsi - rsi_wma45) <= distance
@@ -197,10 +205,16 @@ class Indicators(IIndicators):
             return None
 
         idx = current_index if current_index is not None else -1
-        last = df.iloc[idx]
-        close = last.get("close")
-        avg_gain = last.get("_avg_gain")
-        avg_loss = last.get("_avg_loss")
+        # Fast path: direct NumPy array access
+        if current_index is not None:
+            close = df["close"].values[idx]
+            avg_gain = df["_avg_gain"].values[idx] if "_avg_gain" in df.columns else None
+            avg_loss = df["_avg_loss"].values[idx] if "_avg_loss" in df.columns else None
+        else:
+            last = df.iloc[idx]
+            close = last.get("close")
+            avg_gain = last.get("_avg_gain")
+            avg_loss = last.get("_avg_loss")
 
         if close is None or avg_gain is None or avg_loss is None:
             return None
@@ -240,13 +254,13 @@ class Indicators(IIndicators):
             return False
 
         idx = current_index if current_index is not None else len(df) - 1
-        curr = df.iloc[idx]
-        prev = df.iloc[idx - 1]
-
-        curr_ema = curr["rsi_ema9"]
-        curr_wma = curr["rsi_wma45"]
-        prev_ema = prev["rsi_ema9"]
-        prev_wma = prev["rsi_wma45"]
+        # Direct NumPy array access avoids Series creation
+        ema_vals = df["rsi_ema9"].values
+        wma_vals = df["rsi_wma45"].values
+        curr_ema = ema_vals[idx]
+        curr_wma = wma_vals[idx]
+        prev_ema = ema_vals[idx - 1]
+        prev_wma = wma_vals[idx - 1]
 
         if any(pd.isna(v) for v in [curr_ema, curr_wma, prev_ema, prev_wma]):
             return False
@@ -267,10 +281,9 @@ class Indicators(IIndicators):
             return False
 
         idx = current_index if current_index is not None else -1
-        last = df.iloc[idx]
-        rsi = last["rsi_14"]
-        ema = last["rsi_ema9"]
-        wma = last["rsi_wma45"]
+        rsi = df["rsi_14"].values[idx]
+        ema = df["rsi_ema9"].values[idx]
+        wma = df["rsi_wma45"].values[idx]
 
         if any(pd.isna(v) for v in [rsi, ema, wma]):
             return False
@@ -377,10 +390,16 @@ class Indicators(IIndicators):
             return {}
 
         idx = current_index if current_index is not None else -1
-        row = df.iloc[idx].to_dict()
+        # Fast path: use .values arrays for direct NumPy access (avoids Series creation)
+        if current_index is not None:
+            row = {}
+            for col in df.columns:
+                v = df[col].values[idx]
+                row[col] = v.item() if hasattr(v, "item") else v
+            return row
 
+        row = df.iloc[idx].to_dict()
         for k, v in list(row.items()):
             if hasattr(v, "item"):
                 row[k] = v.item()
-
         return row

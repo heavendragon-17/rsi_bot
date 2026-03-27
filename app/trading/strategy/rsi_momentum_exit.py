@@ -72,10 +72,9 @@ def manage_exit(
     lock_profit_price = to_decimal_or_none(ts.lock_profit_price)
 
     _idx = current_index if current_index is not None else -1
-    last = df_ind.iloc[_idx]
-    close = to_decimal_or_none(last.get("close"))
-    low = to_decimal_or_none(last.get("low"))
-    open_price = to_decimal_or_none(last.get("open"))
+    close = to_decimal_or_none(df_ind["close"].values[_idx])
+    low = to_decimal_or_none(df_ind["low"].values[_idx])
+    open_price = to_decimal_or_none(df_ind["open"].values[_idx])
 
     if lock_profit_price is None and original_soft_sl and entry_price:
         lock_profit_price = SLTPCalculator.compute_lock_profit_price(
