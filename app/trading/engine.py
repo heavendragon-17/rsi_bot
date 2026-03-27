@@ -114,14 +114,16 @@ class Engine:
         candle = event.candle
         symbol = candle.symbol
         df = event.df
+        current_index = event.current_index
 
-        if df is None or len(df) < 50:
+        effective_len = (current_index + 1) if current_index is not None else (len(df) if df is not None else 0)
+        if df is None or effective_len < 50:
             return
 
         position = self.portfolio.get_position_snapshot(symbol)
         ctx = self.contexts.get(symbol, ContextSnapshot(state="SCANNING"))
 
-        result = self.strategy.analyze(symbol, df, position=position, context=ctx)
+        result = self.strategy.analyze(symbol, df, position=position, context=ctx, current_index=current_index)
 
         self.contexts[symbol] = result.new_context
 

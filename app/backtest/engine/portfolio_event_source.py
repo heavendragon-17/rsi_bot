@@ -73,10 +73,8 @@ class PortfolioEventSource(IEventSource):
                 closed=True,
             )
 
-            # df slice up to and including this candle
-            df_slice = df.iloc[: idx + 1]
-
-            yield CandleCloseEvent(candle=candle, df=df_slice)
+            # Pass full df + current index (zero-copy, avoids O(n²) slicing)
+            yield CandleCloseEvent(candle=candle, df=df, current_index=idx)
 
             self.events_yielded += 1
             if self._on_progress and self.total_events > 0:

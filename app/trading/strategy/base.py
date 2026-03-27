@@ -28,6 +28,7 @@ class BaseStrategy(IStrategy):
         df,
         position: PositionSnapshot | None = None,
         context: ContextSnapshot | None = None,
+        current_index: int | None = None,
     ) -> AnalysisResult:
         """Analyze market data and return typed actions + new context."""
         pass

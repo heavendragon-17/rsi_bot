@@ -65,10 +65,8 @@ class BacktestEventSource(IEventSource):
                 closed=True,
             )
 
-            # df slice includes all history up to and including this candle
-            df_slice = self.df.iloc[: i + 1]
-
-            yield CandleCloseEvent(candle=candle, df=df_slice)
+            # Pass full df + current index (zero-copy, avoids O(n²) slicing)
+            yield CandleCloseEvent(candle=candle, df=self.df, current_index=i)
 
             if self._on_progress and total > 0:
                 self._on_progress((i - self.start_idx + 1) / total)

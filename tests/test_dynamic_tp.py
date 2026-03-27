@@ -74,7 +74,7 @@ def test_tp_count_1(monkeypatch):
     }
 
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="CONFIRMING")
     result = strategy.analyze("BTC/USDT", df, context=ctx)
@@ -172,7 +172,7 @@ def test_tp_count_2(monkeypatch):
         "ts": datetime.now(),
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="CONFIRMING")
     result = strategy.analyze("BTC/USDT", df, context=ctx)

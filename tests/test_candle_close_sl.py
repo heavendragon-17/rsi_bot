@@ -98,7 +98,7 @@ def test_wick_below_sl_no_close(strategy, monkeypatch):
     df = _make_df()
     last = {"open": 98.0, "high": 99.0, "low": 93.0, "close": 97.0, "ema21": 100.0, "rsi_ema9": 52.0, "rsi_wma45": 50.0}
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     result = strategy.analyze(SYMBOL, df, position=_position(), context=_ctx())
 
@@ -113,7 +113,7 @@ def test_close_below_sl_sets_flag(strategy, monkeypatch):
     df = _make_df()
     last = {"open": 98.0, "high": 99.0, "low": 92.0, "close": 94.0, "ema21": 100.0, "rsi_ema9": 50.0, "rsi_wma45": 55.0}
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     result = strategy.analyze(SYMBOL, df, position=_position(), context=_ctx())
 
@@ -137,7 +137,7 @@ def test_pending_flag_triggers_close_at_open(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     result = strategy.analyze(SYMBOL, df, position=_position(), context=_ctx(pending=True))
 
@@ -154,7 +154,7 @@ def test_context_resets_to_scanning_after_close(strategy, monkeypatch):
     df = _make_df()
     last = {"open": 96.0, "high": 97.0, "low": 95.0, "close": 97.0, "ema21": 100.0, "rsi_ema9": 49.0, "rsi_wma45": 50.0}
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     result = strategy.analyze(SYMBOL, df, position=_position(), context=_ctx(pending=True))
 

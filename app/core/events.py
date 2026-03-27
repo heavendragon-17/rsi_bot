@@ -135,10 +135,16 @@ class CandleCloseEvent:
     The optional ``df`` field carries a pre-built DataFrame with indicators
     already computed (used by BacktestEventSource). When ``df`` is None the
     Engine is responsible for fetching the DataFrame from its data store.
+
+    In backtest mode, ``df`` is the FULL pre-computed DataFrame (not a slice)
+    and ``current_index`` indicates which row is the "current" candle.
+    This avoids O(n²) memory allocation from df.iloc[:i+1] on every bar.
+    When ``current_index`` is None, ``df`` is a real slice (live mode).
     """
 
     candle: Candle
     df: pd.DataFrame | None = None  # type: ignore[type-arg]
+    current_index: int | None = None
 
 
 @dataclass

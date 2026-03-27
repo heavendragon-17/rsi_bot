@@ -10,22 +10,23 @@ if TYPE_CHECKING:
     from app.data.indicators import Indicators
 
 
-def detect_crossover_signal(indicators: Indicators, df: pd.DataFrame, direction: str) -> bool:
+def detect_crossover_signal(indicators: Indicators, df: pd.DataFrame, direction: str, current_index: int | None = None) -> bool:
     """Detect EMA9/WMA45 crossover. Delegates to Indicators.detect_crossover."""
-    return indicators.detect_crossover(df, direction=direction)
+    return indicators.detect_crossover(df, direction=direction, current_index=current_index)
 
 
-def check_rsi_alignment(indicators: Indicators, df: pd.DataFrame, direction: str) -> bool:
+def check_rsi_alignment(indicators: Indicators, df: pd.DataFrame, direction: str, current_index: int | None = None) -> bool:
     """Check RSI < EMA9 < WMA45 (bearish) or inverse. Delegates to Indicators.check_alignment."""
-    return indicators.check_alignment(df, direction=direction)
+    return indicators.check_alignment(df, direction=direction, current_index=current_index)
 
 
-def check_rsi_spread(df: pd.DataFrame, min_spread: float) -> bool:
+def check_rsi_spread(df: pd.DataFrame, min_spread: float, current_index: int | None = None) -> bool:
     """Check if WMA45-EMA9 spread exceeds threshold on the last candle."""
     if df is None or df.empty:
         return False
 
-    last = df.iloc[-1]
+    _idx = current_index if current_index is not None else -1
+    last = df.iloc[_idx]
     ema = last.get("rsi_ema9")
     wma = last.get("rsi_wma45")
 

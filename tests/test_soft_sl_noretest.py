@@ -128,7 +128,7 @@ def test_soft_sl_two_candle_pattern(setup):
         }
     )
     strategy.indicators.compute = lambda df, **kw: df1
-    Indicators.last = lambda df: last1
+    Indicators.last = lambda df, **kw: last1
 
     result1 = strategy.analyze(symbol, df1, position=position, context=ctx1)
 
@@ -169,7 +169,7 @@ def test_soft_sl_two_candle_pattern(setup):
         }
     )
     strategy.indicators.compute = lambda df, **kw: df2
-    Indicators.last = lambda df: last2
+    Indicators.last = lambda df, **kw: last2
 
     result2 = strategy.analyze(symbol, df2, position=position, context=ctx2)
 
@@ -236,7 +236,7 @@ def test_wick_below_soft_sl_no_close(setup):
         }
     )
     strategy.indicators.compute = lambda df, **kw: df
-    Indicators.last = lambda df: last
+    Indicators.last = lambda df, **kw: last
 
     result = strategy.analyze(symbol, df, position=position, context=ctx)
 

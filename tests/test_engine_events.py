@@ -262,17 +262,20 @@ def test_backtest_event_source_yields_correct_count():
 
 
 def test_backtest_event_source_df_slice_grows():
-    """Each successive CandleCloseEvent's df must be one row longer than the previous."""
+    """Each successive CandleCloseEvent's current_index must increment by 1."""
     n = 225
     start = 220
     df = _make_full_df(n)
     source = BacktestEventSource(df, symbol="BTC/USDT", start_idx=start)
 
     events = [e for e in source.events() if isinstance(e, CandleCloseEvent)]
-    lengths = [len(e.df) for e in events]
+    # All events share the same full df (zero-copy optimization)
+    assert all(e.df is df for e in events), "All events should share the same df reference"
+    indices = [e.current_index for e in events]
 
-    for i in range(1, len(lengths)):
-        assert lengths[i] == lengths[i - 1] + 1, f"df slice at event {i} should be one longer than event {i-1}"
+    for i in range(1, len(indices)):
+        assert indices[i] == indices[i - 1] + 1, f"current_index at event {i} should be one more than event {i-1}"
+    assert indices[0] == start, "First event current_index should equal start_idx"
 
 
 def test_backtest_event_source_stop():

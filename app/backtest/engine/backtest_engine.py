@@ -115,8 +115,9 @@ class BacktestEngine(Engine):
         if df is None:
             return
 
-        row = df.iloc[-1]
-        ts = df.index[-1]
+        idx = event.current_index if event.current_index is not None else len(df) - 1
+        row = df.iloc[idx]
+        ts = df.index[idx]
         o, h, low, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
 
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)

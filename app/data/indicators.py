@@ -129,16 +129,18 @@ class Indicators(IIndicators):
 
         return out
 
-    def get_mode(self, df: pd.DataFrame) -> str:
+    def get_mode(self, df: pd.DataFrame, current_index: int | None = None) -> str:
         """Detect market mode: BULLISH or NEUTRAL.
 
         Based on WMA45 momentum and EMA9/WMA45 relationship.
         Used by long strategies for mode filtering.
         """
-        if df is None or len(df) < 10:
+        idx = current_index if current_index is not None else (len(df) - 1 if df is not None else -1)
+        eff_len = idx + 1
+        if df is None or eff_len < 10:
             return MODE_NEUTRAL
 
-        last = df.iloc[-1]
+        last = df.iloc[idx]
         rsi_ema9 = last.get("rsi_ema9")
         rsi_wma45 = last.get("rsi_wma45")
 
@@ -146,8 +148,8 @@ class Indicators(IIndicators):
             return MODE_NEUTRAL
 
         wma45_now = rsi_wma45
-        wma45_3 = df.iloc[-4].get("rsi_wma45") if len(df) > 3 else None
-        wma45_9 = df.iloc[-10].get("rsi_wma45") if len(df) > 9 else None
+        wma45_3 = df.iloc[idx - 3].get("rsi_wma45") if eff_len > 3 else None
+        wma45_9 = df.iloc[idx - 9].get("rsi_wma45") if eff_len > 9 else None
 
         if wma45_3 is None or wma45_9 is None:
             return MODE_NEUTRAL
@@ -160,16 +162,18 @@ class Indicators(IIndicators):
 
         return MODE_NEUTRAL
 
-    def check_wma_retest(self, df: pd.DataFrame, distance: float = 1.0) -> bool:
+    def check_wma_retest(self, df: pd.DataFrame, distance: float = 1.0, current_index: int | None = None) -> bool:
         """Check if RSI is retesting WMA45 within specified distance.
 
         Returns True if RSI is within distance of WMA45 and came from above.
         """
-        if df is None or len(df) < 4:
+        idx = current_index if current_index is not None else (len(df) - 1 if df is not None else -1)
+        eff_len = idx + 1
+        if df is None or eff_len < 4:
             return False
 
-        last = df.iloc[-1]
-        prev = df.iloc[-2]
+        last = df.iloc[idx]
+        prev = df.iloc[idx - 1]
 
         rsi = last.get("rsi_14")
         rsi_wma45 = last.get("rsi_wma45")
@@ -183,7 +187,7 @@ class Indicators(IIndicators):
 
         return touched and came_from_above
 
-    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float) -> Decimal | None:  # type: ignore[override]
+    def calculate_price_at_rsi(self, df: pd.DataFrame, target_rsi: float, current_index: int | None = None) -> Decimal | None:  # type: ignore[override]
         """Calculate the price level for a target RSI value.
 
         Used for R40 (SL level), R60, R70, R80 (TP levels).
@@ -192,7 +196,8 @@ class Indicators(IIndicators):
         if df is None or df.empty:
             return None
 
-        last = df.iloc[-1]
+        idx = current_index if current_index is not None else -1
+        last = df.iloc[idx]
         close = last.get("close")
         avg_gain = last.get("_avg_gain")
         avg_loss = last.get("_avg_loss")
@@ -223,18 +228,20 @@ class Indicators(IIndicators):
     # Crossover detection (shared by SHORT and LONG strategies)
     # ------------------------------------------------------------------
 
-    def detect_crossover(self, df: pd.DataFrame, direction: str = "bearish") -> bool:
+    def detect_crossover(self, df: pd.DataFrame, direction: str = "bearish", current_index: int | None = None) -> bool:
         """Detect EMA9/WMA45 crossover on the most recent closed candle.
 
         direction='bearish' (down cross): EMA9 was >= WMA45, now < WMA45
         direction='bullish' (up cross): EMA9 was <= WMA45, now > WMA45
         """
         required = {"rsi_ema9", "rsi_wma45"}
-        if df is None or len(df) < 2 or not required.issubset(df.columns):
+        eff_len = (current_index + 1) if current_index is not None else len(df) if df is not None else 0
+        if df is None or eff_len < 2 or not required.issubset(df.columns):
             return False
 
-        curr = df.iloc[-1]
-        prev = df.iloc[-2]
+        idx = current_index if current_index is not None else len(df) - 1
+        curr = df.iloc[idx]
+        prev = df.iloc[idx - 1]
 
         curr_ema = curr["rsi_ema9"]
         curr_wma = curr["rsi_wma45"]
@@ -249,7 +256,7 @@ class Indicators(IIndicators):
         else:  # bullish
             return prev_ema <= prev_wma and curr_ema > curr_wma
 
-    def check_alignment(self, df: pd.DataFrame, direction: str = "bearish") -> bool:
+    def check_alignment(self, df: pd.DataFrame, direction: str = "bearish", current_index: int | None = None) -> bool:
         """Check indicator alignment on the last candle.
 
         Bearish: RSI < EMA9 < WMA45
@@ -259,7 +266,8 @@ class Indicators(IIndicators):
         if df is None or df.empty or not required.issubset(df.columns):
             return False
 
-        last = df.iloc[-1]
+        idx = current_index if current_index is not None else -1
+        last = df.iloc[idx]
         rsi = last["rsi_14"]
         ema = last["rsi_ema9"]
         wma = last["rsi_wma45"]
@@ -277,6 +285,7 @@ class Indicators(IIndicators):
         df: pd.DataFrame,
         lookback: int = 30,
         pivot_strength: int = 5,
+        current_index: int | None = None,
     ) -> bool:
         """Detect bearish RSI divergence in the last `lookback` candles.
 
@@ -287,13 +296,16 @@ class Indicators(IIndicators):
         for all j in [i-N, i+N] (strict, N = pivot_strength).
         """
         required_cols = {"high", "rsi_14"}
-        if df is None or len(df) < lookback or not required_cols.issubset(df.columns):
+        idx = current_index if current_index is not None else (len(df) - 1 if df is not None else -1)
+        eff_len = idx + 1
+        if df is None or eff_len < lookback or not required_cols.issubset(df.columns):
             return False
 
-        start = len(df) - lookback
+        start = eff_len - lookback
+        end = idx + 1
         n = pivot_strength
-        highs = df["high"].values[start:]
-        rsis = df["rsi_14"].values[start:]
+        highs = df["high"].values[start:end]
+        rsis = df["rsi_14"].values[start:end]
         wlen = len(highs)
 
         swing_high_idxs = []
@@ -327,22 +339,23 @@ class Indicators(IIndicators):
     # Price ladder helpers (long strategies, requires include_price_emas)
     # ------------------------------------------------------------------
 
-    def check_r40_floor(self, df: pd.DataFrame, lookback: int = 5) -> bool:
+    def check_r40_floor(self, df: pd.DataFrame, lookback: int = 5, current_index: int | None = None) -> bool:
         """Verify no candle in lookback period closed below R40 price level.
 
         Wicks are allowed, only closes are checked.
         Returns True if floor is intact (valid for entry).
         """
-        if df is None or len(df) < lookback:
+        idx = current_index if current_index is not None else (len(df) - 1 if df is not None else -1)
+        eff_len = idx + 1
+        if df is None or eff_len < lookback:
             return False
 
-        check_period = df.tail(lookback)
-
-        for i in range(len(check_period)):
-            row = check_period.iloc[i]
+        start = idx - lookback + 1
+        for i in range(lookback):
+            row = df.iloc[start + i]
             close = row.get("close")
 
-            r40_price = self.calculate_price_at_rsi(df.iloc[: len(df) - lookback + i + 1], 40)
+            r40_price = self.calculate_price_at_rsi(df, 40, current_index=start + i)
 
             if r40_price is None:
                 continue
@@ -353,12 +366,18 @@ class Indicators(IIndicators):
         return True
 
     @staticmethod
-    def last(df: pd.DataFrame) -> dict:
-        """Extract the last row as a dictionary, converting numpy types."""
+    def last(df: pd.DataFrame, current_index: int | None = None) -> dict:
+        """Extract the current row as a dictionary, converting numpy types.
+
+        Args:
+            df: DataFrame with indicator columns.
+            current_index: Absolute row index (backtest mode). None = last row.
+        """
         if df is None or df.empty:
             return {}
 
-        row = df.iloc[-1].to_dict()
+        idx = current_index if current_index is not None else -1
+        row = df.iloc[idx].to_dict()
 
         for k, v in list(row.items()):
             if hasattr(v, "item"):

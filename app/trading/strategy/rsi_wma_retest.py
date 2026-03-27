@@ -112,18 +112,20 @@ class RsiWmaRetestStrategy(BaseStrategy):
             trade.meta = {}
         return trade.meta
 
-    def analyze(self, symbol: str, df) -> SignalEvent | None:
-        if df is None or len(df) < WARMUP:
+    def analyze(self, symbol: str, df, position=None, context=None, current_index: int | None = None) -> SignalEvent | None:
+        eff_len = (current_index + 1) if current_index is not None else (len(df) if df is not None else 0)
+        if df is None or eff_len < WARMUP:
             return None
 
+        _idx = current_index if current_index is not None else -1
         # Only evaluate on closed candles
-        if "closed" in df.columns and not bool(df.iloc[-1]["closed"]):
+        if "closed" in df.columns and not bool(df.iloc[_idx]["closed"]):
             return None
 
         key = f"{symbol}:{self.timeframe}"
 
         df_ind = self.indicators.compute(df, symbol=symbol, timeframe=self.timeframe)
-        last = Indicators.last(df_ind)
+        last = Indicators.last(df_ind, current_index=current_index)
         if not last:
             return None
 
@@ -137,14 +139,14 @@ class RsiWmaRetestStrategy(BaseStrategy):
         rsi_ema9 = last.get("rsi_ema9")
         rsi_wma45 = last.get("rsi_wma45")
 
-        prev = df_ind.iloc[-2] if len(df_ind) > 1 else None
+        prev = df_ind.iloc[_idx - 1] if eff_len > 1 else None
         prev_close = prev.get("close") if prev is not None else None
         prev_ema21 = prev.get("ema21") if prev is not None else None
 
         ts = last.get("ts")
         if ts is None:
             try:
-                ts = df.index[-1]
+                ts = df.index[_idx]
             except Exception:
                 ts = None
 
@@ -239,7 +241,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 and rsi > rsi_wma45
                 and rsi_ema9 > rsi_wma45
             ):
-                r40_price = self.indicators.calculate_price_at_rsi(df_ind, 40)
+                r40_price = self.indicators.calculate_price_at_rsi(df_ind, 40, current_index=current_index)
                 self._r40_price_at_retest[key] = r40_price
                 self.context.transition(key, RETESTING, reason="Setup valid - watching retest", now_ts=ts)
             return None
@@ -284,8 +286,9 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
                 # Check H1 condition: WMA45 > 45
                 if self.check_h1_wma45:
-                    # Resample to H1
-                    df_h1 = resample_dataframe(df, "1h")
+                    # Resample to H1 (must use data up to current candle only)
+                    df_for_resample = df.iloc[:_idx + 1] if current_index is not None else df
+                    df_h1 = resample_dataframe(df_for_resample, "1h")
                     if not df_h1.empty:
                         # Compute indicators on H1
                         df_h1_ind = self.indicators.compute(df_h1, symbol=symbol, timeframe="1h")
@@ -304,10 +307,10 @@ class RsiWmaRetestStrategy(BaseStrategy):
                             return None
 
                 # Compute TP/SL prices for PortfolioManager
-                tp1_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp1_rsi)
-                tp2_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp2_rsi)
-                tp3_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp3_rsi)
-                sl_price_raw = self.indicators.calculate_price_at_rsi(df_ind, 40)
+                tp1_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp1_rsi, current_index=current_index)
+                tp2_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp2_rsi, current_index=current_index)
+                tp3_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp3_rsi, current_index=current_index)
+                sl_price_raw = self.indicators.calculate_price_at_rsi(df_ind, 40, current_index=current_index)
 
                 # -------------------------------------------------
                 # Dual SL System:

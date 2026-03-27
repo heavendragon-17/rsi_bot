@@ -36,6 +36,7 @@ def manage_exit(
     lock_profit_rr: float,
     taker_fee: Decimal,
     maker_fee: Decimal,
+    current_index: int | None = None,
 ) -> AnalysisResult:
     """Manage exit for an open SHORT position.
 
@@ -70,7 +71,8 @@ def manage_exit(
     pending_candle_sl = ts.pending_candle_sl
     lock_profit_price = to_decimal_or_none(ts.lock_profit_price)
 
-    last = df_ind.iloc[-1]
+    _idx = current_index if current_index is not None else -1
+    last = df_ind.iloc[_idx]
     close = to_decimal_or_none(last.get("close"))
     low = to_decimal_or_none(last.get("low"))
     open_price = to_decimal_or_none(last.get("open"))

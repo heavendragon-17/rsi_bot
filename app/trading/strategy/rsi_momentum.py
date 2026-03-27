@@ -118,6 +118,7 @@ class RsiMomentumStrategy(BaseStrategy):
         df: pd.DataFrame,
         position: PositionSnapshot | None = None,
         context: ContextSnapshot | None = None,
+        current_index: int | None = None,
     ) -> AnalysisResult:
         if context is None:
             context = ContextSnapshot(state=SCANNING)
@@ -125,16 +126,17 @@ class RsiMomentumStrategy(BaseStrategy):
         _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
         # -- Warm-up check
-        if df is None or len(df) < self.cfg.min_candles:
+        eff_len = (current_index + 1) if current_index is not None else (len(df) if df is not None else 0)
+        if df is None or eff_len < self.cfg.min_candles:
             logger.debug(
                 "rsi_momentum.warmup",
                 symbol=symbol,
-                candles=len(df) if df is not None else 0,
+                candles=eff_len,
                 required=self.cfg.min_candles,
             )
             return _noop
 
-        # Compute indicators
+        # Compute indicators (no-op when pre-computed in backtest)
         df_ind = self.indicators.compute(df)
 
         # -- EXIT management (position open)
@@ -148,6 +150,7 @@ class RsiMomentumStrategy(BaseStrategy):
                 lock_profit_rr=self.cfg.lock_profit_rr,
                 taker_fee=self.taker_fee,
                 maker_fee=self.maker_fee,
+                current_index=current_index,
             )
 
         # -- ENTRY logic (no position)
@@ -159,4 +162,5 @@ class RsiMomentumStrategy(BaseStrategy):
             indicators=self.indicators,
             taker_fee=self.taker_fee,
             maker_fee=self.maker_fee,
+            current_index=current_index,
         )

@@ -32,14 +32,16 @@ logger = structlog.get_logger()
 # ---------------------------------------------------------------------------
 
 
-def detect_reclaim(df_ind: pd.DataFrame, *, debug_enabled: bool = False) -> bool:
+def detect_reclaim(df_ind: pd.DataFrame, *, debug_enabled: bool = False, current_index: int | None = None) -> bool:
     """Return True if the confirmed candle (-2) closed above EMA21
     while the prior candle (-3) closed at or below EMA21."""
-    if len(df_ind) < 3:
+    idx = current_index if current_index is not None else len(df_ind) - 1
+    eff_len = idx + 1
+    if eff_len < 3:
         return False
 
-    confirmed_close_candle = df_ind.iloc[-2]
-    prior_candle = df_ind.iloc[-3]
+    confirmed_close_candle = df_ind.iloc[idx - 1]
+    prior_candle = df_ind.iloc[idx - 2]
 
     curr_close = confirmed_close_candle.get("close")
     curr_ema21 = confirmed_close_candle.get("ema21")
@@ -64,15 +66,18 @@ def pullback_filter(
     df_ind: pd.DataFrame,
     lookback: int,
     max_above_ema21: int,
+    current_index: int | None = None,
 ) -> tuple[bool, int]:
     """Check that the lookback window had a prolonged decline.
 
     Returns ``(passed, above_count)`` where *passed* is True when the
     number of candles closing above EMA21 is within the allowed limit.
     """
-    if len(df_ind) < lookback + 2:
+    idx = current_index if current_index is not None else len(df_ind) - 1
+    eff_len = idx + 1
+    if eff_len < lookback + 2:
         return False, 0
-    window = df_ind.iloc[-(lookback + 1) : -1]
+    window = df_ind.iloc[idx - lookback : idx]
     closes = window["close"]
     ema21s = window["ema21"]
     above = int((closes > ema21s).sum())
@@ -90,17 +95,18 @@ def compute_entry_sl(
     lookback: int,
     sl_buffer_pct: float,
     indicators: Indicators,
+    current_index: int | None = None,
 ) -> tuple[Decimal | None, str]:
     """Compute the soft SL price for a new entry.
 
     Returns ``(sl_price, sl_mode_used)`` — *sl_mode_used* may differ from
     *sl_mode* when the primary mode fails and we fall back to ``lowest_wick``.
     """
-    sl = _raw_sl(df_ind, sl_mode, lookback, indicators)
+    sl = _raw_sl(df_ind, sl_mode, lookback, indicators, current_index=current_index)
     used_mode = sl_mode
 
     if sl is None:
-        sl = _raw_sl(df_ind, "lowest_wick", lookback, indicators)
+        sl = _raw_sl(df_ind, "lowest_wick", lookback, indicators, current_index=current_index)
         used_mode = "lowest_wick"
 
     if sl is None:
@@ -116,28 +122,30 @@ def _raw_sl(
     sl_mode: str,
     lookback: int,
     indicators: Indicators,
+    current_index: int | None = None,
 ) -> Decimal | None:
     """Compute raw (unbuffered) SL for the given *sl_mode*."""
+    idx = current_index if current_index is not None else len(df_ind) - 1
     if sl_mode == "lowest_wick":
-        window = df_ind.iloc[-(lookback + 1) : -1]
+        window = df_ind.iloc[idx - lookback : idx]
         if "low" not in window.columns:
             return None
         return to_decimal_or_none(window["low"].min())
 
     if sl_mode == "lowest_close":
-        window = df_ind.iloc[-(lookback + 1) : -1]
+        window = df_ind.iloc[idx - lookback : idx]
         if "close" not in window.columns:
             return None
         return to_decimal_or_none(window["close"].min())
 
     # Default: rsi_ema9
-    last = Indicators.last(df_ind)
+    last = Indicators.last(df_ind, current_index=current_index)
     if not last:
         return None
     rsi_ema9 = last.get("rsi_ema9")
     if rsi_ema9 is None:
         return None
-    return indicators.calculate_price_at_rsi(df_ind, float(rsi_ema9))
+    return indicators.calculate_price_at_rsi(df_ind, float(rsi_ema9), current_index=current_index)
 
 
 def compute_price_at_rr(
@@ -199,6 +207,7 @@ def check_entry(
     debug_enabled: bool,
     debug_rows: list[dict],
     df_ind_index_last,
+    current_index: int | None = None,
 ) -> AnalysisResult:
     """Run the SCANNING/CONFIRMING state machine for entries.
 
@@ -228,14 +237,14 @@ def check_entry(
 
     # --- SCANNING ---
     if current_state == SCANNING:
-        if not detect_reclaim(df_ind, debug_enabled=debug_enabled):
+        if not detect_reclaim(df_ind, debug_enabled=debug_enabled, current_index=current_index):
             if debug_enabled:
                 logger.debug(f"[{symbol}] DEBUG: Reclaim not detected.")
             debug_rows.append(_debug_row)
             return _noop
 
         _debug_row["reclaim_detected"] = True
-        pullback_ok, above_count = pullback_filter(df_ind, lookback, max_above_ema21)
+        pullback_ok, above_count = pullback_filter(df_ind, lookback, max_above_ema21, current_index=current_index)
         _debug_row["above_count"] = above_count
         _debug_row["pullback_ok"] = pullback_ok
 
@@ -276,7 +285,7 @@ def check_entry(
         _debug_row["spread_ok"] = True
 
         # Compute SL
-        sl_price, _used_mode = compute_entry_sl(df_ind, sl_mode, lookback, sl_buffer_pct, indicators)
+        sl_price, _used_mode = compute_entry_sl(df_ind, sl_mode, lookback, sl_buffer_pct, indicators, current_index=current_index)
 
         if sl_price is None:
             if debug_enabled:
@@ -349,7 +358,7 @@ def check_entry(
         debug_rows.append(_debug_row)
 
         # Build indicator snapshot for notification
-        _, above_count = pullback_filter(df_ind, lookback, max_above_ema21)
+        _, above_count = pullback_filter(df_ind, lookback, max_above_ema21, current_index=current_index)
         _indicators = {
             "rsi_ema9": float(rsi_ema9),
             "rsi_wma45": float(rsi_wma45),

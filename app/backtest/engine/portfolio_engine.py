@@ -115,8 +115,9 @@ class PortfolioEngine(Engine):
         self._last_ts = candle.timestamp
 
         # 1. Update MockExchange wicks for THIS specific symbol
-        row = df.iloc[-1]
-        ts = df.index[-1]
+        idx = event.current_index if event.current_index is not None else len(df) - 1
+        row = df.iloc[idx]
+        ts = df.index[idx]
         o = float(row["open"])
         h = float(row["high"])
         low = float(row["low"])

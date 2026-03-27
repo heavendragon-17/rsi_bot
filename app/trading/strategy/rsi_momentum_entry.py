@@ -50,6 +50,7 @@ def check_entry(
     indicators: Indicators,
     taker_fee: Decimal,
     maker_fee: Decimal,
+    current_index: int | None = None,
 ) -> AnalysisResult:
     """Check SHORT entry conditions S1-S5 and return an AnalysisResult.
 
@@ -74,7 +75,7 @@ def check_entry(
     _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
     # -- S2 + S3: Alignment check
-    if not indicators.check_alignment(df_ind, direction="bearish"):
+    if not indicators.check_alignment(df_ind, direction="bearish", current_index=current_index):
         # Alignment broken -> reset crossover flag
         if ts.crossover_detected:
             ts.crossover_detected = False
@@ -85,14 +86,15 @@ def check_entry(
         return _noop
 
     # -- S1: Crossover or persistent alignment
-    crossover_now = indicators.detect_crossover(df_ind, direction="bearish")
+    crossover_now = indicators.detect_crossover(df_ind, direction="bearish", current_index=current_index)
     crossover_before = ts.crossover_detected
 
     if not crossover_now and not crossover_before:
         return _noop
 
     # -- S4: Spread constraint
-    last = df_ind.iloc[-1]
+    _idx = current_index if current_index is not None else -1
+    last = df_ind.iloc[_idx]
     ema = last.get("rsi_ema9")
     wma = last.get("rsi_wma45")
     if ema is None or wma is None or pd.isna(ema) or pd.isna(wma):
@@ -107,6 +109,7 @@ def check_entry(
         df_ind,
         lookback=cfg.divergence_lookback,
         pivot_strength=cfg.pivot_strength,
+        current_index=current_index,
     ):
         # Preserve crossover flag so persistence still works
         ts.crossover_detected = crossover_now or crossover_before
@@ -123,7 +126,7 @@ def check_entry(
     entry_price = close
 
     # Soft SL: highest high of last sl_lookback candles
-    soft_sl = SLTPCalculator.compute_soft_sl(df_ind, side=SIDE_SELL, lookback=cfg.sl_lookback)
+    soft_sl = SLTPCalculator.compute_soft_sl(df_ind, side=SIDE_SELL, lookback=cfg.sl_lookback, current_index=current_index)
     if soft_sl is None:
         logger.warning("rsi_momentum.no_soft_sl", symbol=symbol)
         return _noop

@@ -158,11 +158,12 @@ class RsiNoRetestStrategy(BaseStrategy):
         self._debug_rows: list[dict] = []
 
     # ---------------- helpers ----------------
-    def _ts_from_last(self, df: pd.DataFrame, last: dict) -> Any:
+    def _ts_from_last(self, df: pd.DataFrame, last: dict, current_index: int | None = None) -> Any:
         ts = last.get("ts")
         if ts is None:
             try:
-                return df.index[-1]
+                idx = current_index if current_index is not None else -1
+                return df.index[idx]
             except Exception:
                 return None
         return ts
@@ -183,21 +184,26 @@ class RsiNoRetestStrategy(BaseStrategy):
         df,
         position: PositionSnapshot | None = None,
         context: ContextSnapshot | None = None,
+        current_index: int | None = None,
     ) -> AnalysisResult:
         if context is None:
             context = ContextSnapshot(state=SCANNING)
 
         _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
-        if df is None or len(df) < max(WARMUP, self.lookback + 10):
+        eff_len = (current_index + 1) if current_index is not None else (len(df) if df is not None else 0)
+        if df is None or eff_len < max(WARMUP, self.lookback + 10):
             return _noop
 
-        if "closed" in df.columns and not bool(df.iloc[-1]["closed"]):
+        _idx = current_index if current_index is not None else -1
+        if "closed" in df.columns and not bool(df.iloc[_idx]["closed"]):
             return _noop
 
         df_tf = resample_dataframe(df, self.timeframe) if "timestamp" in getattr(df, "columns", []) else df
+        # When using full df in backtest, current_index applies to df_tf
+        # (resample is skipped in backtest since timestamp is the index, not a column)
         df_ind = self.indicators.compute(df_tf, symbol=symbol, timeframe=self.timeframe)
-        last = Indicators.last(df_ind)
+        last = Indicators.last(df_ind, current_index=current_index)
         if not last:
             return _noop
 
@@ -228,7 +234,7 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         # ---- ENTRY (no open position) ----
         if self.debug_enabled:
-            logger.debug(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={len(df)}")
+            logger.debug(f"[{symbol}] DEBUG: State={context.state}, OHLCV Size={eff_len}")
 
         return check_entry(
             symbol=symbol,
@@ -257,5 +263,6 @@ class RsiNoRetestStrategy(BaseStrategy):
             indicators=self.indicators,
             debug_enabled=self.debug_enabled,
             debug_rows=self._debug_rows,
-            df_ind_index_last=df_ind.index[-1] if len(df_ind) >= 1 else None,
+            df_ind_index_last=df_ind.index[current_index] if current_index is not None else (df_ind.index[-1] if len(df_ind) >= 1 else None),
+            current_index=current_index,
         )

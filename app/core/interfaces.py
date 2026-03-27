@@ -90,15 +90,18 @@ class IStrategy(ABC):
         df: pd.DataFrame,
         position: PositionSnapshot | None = None,
         context: ContextSnapshot | None = None,
+        current_index: int | None = None,
     ) -> AnalysisResult:
         """
         Pure analysis function.
 
         Args:
-            symbol:   Trading pair.
-            df:       OHLCV DataFrame with pre-computed indicators.
-            position: Current position state from Portfolio (None = no position).
-            context:  Strategy state machine snapshot (None = start fresh).
+            symbol:        Trading pair.
+            df:            OHLCV DataFrame with pre-computed indicators.
+            position:      Current position state from Portfolio (None = no position).
+            context:       Strategy state machine snapshot (None = start fresh).
+            current_index: In backtest mode, the row index of the current candle
+                           in the full DataFrame. None in live mode (df is already sliced).
 
         Returns:
             AnalysisResult with typed actions and the new context to store.

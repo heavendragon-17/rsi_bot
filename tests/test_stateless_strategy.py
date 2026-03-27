@@ -65,7 +65,7 @@ def test_analyze_returns_analysis_result(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="SCANNING")
     result = strategy.analyze("BTC/USDT", df, context=ctx)
@@ -86,7 +86,7 @@ def test_analyze_does_not_mutate_self_context(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     # Capture the context object identity before the call
     original_context = strategy.context
@@ -112,7 +112,7 @@ def test_same_inputs_same_outputs(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="SCANNING")
     r1 = strategy.analyze("BTC/USDT", df, context=ctx)
@@ -137,7 +137,7 @@ def test_new_context_is_frozen(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="SCANNING")
     result = strategy.analyze("BTC/USDT", df, context=ctx)
@@ -160,7 +160,7 @@ def test_no_position_returns_do_nothing_or_scanning(strategy, monkeypatch):
         "rsi_wma45": 50.0,
     }
     monkeypatch.setattr(strategy.indicators, "compute", lambda *a, **kw: df)
-    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df: last))
+    monkeypatch.setattr(Indicators, "last", staticmethod(lambda df, **kw: last))
 
     ctx = ContextSnapshot(state="SCANNING")
     result = strategy.analyze("BTC/USDT", df, position=None, context=ctx)

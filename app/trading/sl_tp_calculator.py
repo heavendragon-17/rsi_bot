@@ -25,6 +25,7 @@ class SLTPCalculator:
         side: str,
         lookback: int = 30,
         mode: str = "swing",
+        current_index: int | None = None,
     ) -> Decimal | None:
         """
         Compute the soft stop-loss price from recent price history.
@@ -33,18 +34,21 @@ class SLTPCalculator:
         SHORT (SELL): highest high of the last `lookback` candles
 
         Args:
-            df:       OHLCV DataFrame (must contain 'high' and 'low' columns).
-            side:     "BUY" for long, "SELL" for short.
-            lookback: Number of candles to look back (default 30).
-            mode:     "swing" uses high/low wicks; "close" uses close prices.
+            df:            OHLCV DataFrame (must contain 'high' and 'low' columns).
+            side:          "BUY" for long, "SELL" for short.
+            lookback:      Number of candles to look back (default 30).
+            mode:          "swing" uses high/low wicks; "close" uses close prices.
+            current_index: Absolute row index (backtest). None = use last rows.
 
         Returns:
             SL price as Decimal, or None if insufficient data.
         """
-        if df is None or len(df) < lookback:
+        idx = current_index if current_index is not None else (len(df) - 1 if df is not None else -1)
+        eff_len = idx + 1
+        if df is None or eff_len < lookback:
             return None
 
-        window = df.iloc[-lookback:]
+        window = df.iloc[idx - lookback + 1 : idx + 1]
 
         try:
             if side.upper() == SIDE_BUY:

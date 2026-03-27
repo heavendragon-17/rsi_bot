@@ -159,7 +159,7 @@ def test_partial_tp_and_sl_move(setup):
         "rsi_wma45": 50.0,
     }
     strategy.indicators.compute = lambda df, **ks: df_mock
-    Indicators.last = lambda df: last_vals
+    Indicators.last = lambda df, **kw: last_vals
 
     # 3. Analyze - Should return MoveSL action (lock profit triggered at +0.5R)
     result = strategy.analyze(symbol, df_mock, position=position, context=ctx)
