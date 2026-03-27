@@ -236,15 +236,40 @@ class PortfolioEngine(Engine):
         usdt_balance = float(self.exchange.balance)
         used_usdt = float(sum(self.exchange.margin_used.values()))
 
+        positions = self.exchange.positions
+        if not positions:
+            return usdt_balance + used_usdt
+
+        # Use Numba JIT fast path for equity calculation
+        try:
+            import numpy as np
+
+            from app.backtest.engine.numba_fills import calculate_equity_numeric
+
+            n = len(positions)
+            amounts = np.empty(n, dtype=np.float64)
+            entries = np.empty(n, dtype=np.float64)
+            currents = np.empty(n, dtype=np.float64)
+
+            for i, (symbol, amt_dec) in enumerate(positions.items()):
+                amounts[i] = float(amt_dec)
+                entries[i] = float(self.exchange.entry_prices.get(symbol, 0))
+                curr_data = self.exchange.current_prices.get(symbol, {})
+                currents[i] = float(curr_data.get("price", entries[i]))
+
+            return calculate_equity_numeric(usdt_balance, used_usdt, amounts, entries, currents)
+        except Exception:
+            pass
+
+        # Pure Python fallback
         total_upnl = 0.0
-        for symbol, amt_dec in self.exchange.positions.items():
+        for symbol, amt_dec in positions.items():
             if amt_dec == 0:
                 continue
             entry = float(self.exchange.entry_prices.get(symbol, 0))
             curr_data = self.exchange.current_prices.get(symbol, {})
             curr = float(curr_data.get("price", entry))
-            upnl = (curr - entry) * float(amt_dec)
-            total_upnl += upnl
+            total_upnl += (curr - entry) * float(amt_dec)
 
         return usdt_balance + used_usdt + total_upnl
 

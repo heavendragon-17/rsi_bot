@@ -95,6 +95,9 @@ class WickFillMode(FillMode):
       BUY  stop_market  → high >= trigger_price    (SL short)
     """
 
+    # Order type code mapping for Numba path
+    _TYPE_MAP = {"stop_market": 0, "limit": 1, "stop_limit": 2, "trailing_stop": 3}
+
     def check_fills(
         self,
         orders: list[PendingOrder],
@@ -103,6 +106,67 @@ class WickFillMode(FillMode):
         high = market_data["high"]
         low = market_data["low"]
 
+        if not orders:
+            return []
+
+        # Try Numba JIT fast path for bulk order matching
+        try:
+            return self._check_fills_jit(orders, high, low)
+        except Exception:
+            pass
+
+        return self._check_fills_python(orders, high, low)
+
+    def _check_fills_jit(
+        self,
+        orders: list[PendingOrder],
+        high: Decimal,
+        low: Decimal,
+    ) -> list[tuple[PendingOrder, Decimal]]:
+        """Numba-accelerated fill matching."""
+        from app.backtest.engine.numba_fills import check_fills_numeric
+
+        import numpy as np
+
+        n = len(orders)
+        trigger_prices = np.empty(n, dtype=np.float64)
+        limit_prices = np.zeros(n, dtype=np.float64)
+        side_codes = np.empty(n, dtype=np.int64)
+        type_codes = np.empty(n, dtype=np.int64)
+        peak_prices = np.zeros(n, dtype=np.float64)
+        callback_rates = np.zeros(n, dtype=np.float64)
+
+        for i, order in enumerate(orders):
+            tp = order.trigger_price or order.price
+            trigger_prices[i] = float(tp) if tp is not None else 0.0
+            limit_prices[i] = float(order.limit_price) if order.limit_price else 0.0
+            side_codes[i] = 0 if order.side == "SELL" else 1
+            type_codes[i] = self._TYPE_MAP.get(order.order_type, -1)
+            peak_prices[i] = float(order.peak_price) if order.peak_price else 0.0
+            callback_rates[i] = float(order.callback_rate) if order.callback_rate else 0.0
+
+        filled_mask, fill_prices, new_peaks = check_fills_numeric(
+            trigger_prices, limit_prices, side_codes, type_codes,
+            peak_prices, callback_rates, float(high), float(low),
+        )
+
+        fills: list[tuple[PendingOrder, Decimal]] = []
+        for i, order in enumerate(orders):
+            if filled_mask[i]:
+                fills.append((order, Decimal(str(fill_prices[i]))))
+            # Update trailing stop peak prices
+            if order.order_type == "trailing_stop" and new_peaks[i] != peak_prices[i]:
+                order.peak_price = Decimal(str(new_peaks[i]))
+
+        return fills
+
+    def _check_fills_python(
+        self,
+        orders: list[PendingOrder],
+        high: Decimal,
+        low: Decimal,
+    ) -> list[tuple[PendingOrder, Decimal]]:
+        """Pure Python fallback for fill matching."""
         fills: list[tuple[PendingOrder, Decimal]] = []
 
         for order in orders:
