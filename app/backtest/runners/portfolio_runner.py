@@ -152,6 +152,8 @@ class PortfolioRunner:
             f.write(html)
         logger.info("report_saved", path=report_path)
 
+        reporter._export_csv(output_dir=self.report_dir)
+
         json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
         export_json_report(results, json_path)
 
