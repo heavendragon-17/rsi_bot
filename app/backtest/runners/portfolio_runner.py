@@ -19,7 +19,7 @@ from app.backtest.data.download import calculate_candle_limit
 from app.backtest.data.manager import DataManager
 from app.backtest.engine.backtest_engine import BacktestEngine
 from app.backtest.engine.portfolio_engine import PortfolioEngine
-from app.backtest.engine.portfolio_event_source import PortfolioEventSource
+from app.backtest.engine.batch_event_source import BatchPortfolioEventSource
 from app.backtest.enrichment import enrich_round_trips
 from app.backtest.exchange.mock_exchange import MockExchange
 from app.backtest.reporting.export import export_json_report
@@ -102,7 +102,7 @@ class PortfolioRunner:
             taker_fee=taker_fee,
             maker_fee=maker_fee,
         )
-        event_source = PortfolioEventSource(dfs, start_idx=WARMUP)
+        event_source = BatchPortfolioEventSource(dfs, start_idx=WARMUP)
         engine = PortfolioEngine(
             event_source=event_source,
             strategy_class=strategy_class,
