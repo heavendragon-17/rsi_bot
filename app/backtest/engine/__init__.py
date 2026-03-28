@@ -11,11 +11,13 @@ from app.backtest.engine.metrics import (
     calculate_risk_metrics,
 )
 from app.backtest.engine.portfolio_engine import PortfolioEngine
+from app.backtest.engine.batch_event_source import BatchPortfolioEventSource
 from app.backtest.engine.portfolio_event_source import PortfolioEventSource
 
 __all__ = [
     "BacktestEngine",
     "BacktestEventSource",
+    "BatchPortfolioEventSource",
     "PortfolioEngine",
     "PortfolioEventSource",
     "build_drawdown_curve_dated",
