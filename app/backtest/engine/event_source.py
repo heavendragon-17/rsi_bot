@@ -46,29 +46,36 @@ class BacktestEventSource(IEventSource):
         n_rows = len(self.df)
         total = n_rows - self.start_idx  # events that will actually be yielded
 
+        # Pre-extract numpy arrays for fast Candle construction (Phase 1.1)
+        _open = self.df["open"].values
+        _high = self.df["high"].values
+        _low = self.df["low"].values
+        _close = self.df["close"].values
+        _volume = self.df["volume"].values if "volume" in self.df.columns else None
+        _index = self.df.index
+
         for i in range(self.start_idx, n_rows):
             if self._stopped:
                 yield EngineStopEvent(reason="cancelled")
                 return
 
-            row = self.df.iloc[i]
-            ts = self.df.index[i]
+            ts = _index[i]
 
             candle = Candle(
                 symbol=self.symbol,
                 timestamp=ts,
-                open=Decimal(str(row["open"])),
-                high=Decimal(str(row["high"])),
-                low=Decimal(str(row["low"])),
-                close=Decimal(str(row["close"])),
-                volume=Decimal(str(row.get("volume", 0))),
+                open=Decimal(str(_open[i])),
+                high=Decimal(str(_high[i])),
+                low=Decimal(str(_low[i])),
+                close=Decimal(str(_close[i])),
+                volume=Decimal(str(_volume[i])) if _volume is not None else Decimal("0"),
                 closed=True,
             )
 
-            # df slice includes all history up to and including this candle
-            df_slice = self.df.iloc[: i + 1]
-
-            yield CandleCloseEvent(candle=candle, df=df_slice)
+            # Phase 1.1: pass the full DataFrame + current_index instead of
+            # an O(n) slice.  Downstream code uses current_index to locate
+            # the "last" row, avoiding quadratic memory allocation.
+            yield CandleCloseEvent(candle=candle, df=self.df, current_index=i)
 
             if self._on_progress and total > 0:
                 self._on_progress((i - self.start_idx + 1) / total)

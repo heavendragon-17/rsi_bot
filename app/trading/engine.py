@@ -110,18 +110,46 @@ class Engine:
         (live, where the caller is expected to attach the store DataFrame).
         Subclasses may call super() after performing mode-specific setup
         (e.g. BacktestEngine calls exchange.update_candle first).
+
+        Phase 1.1: When ``event.current_index`` is set, ``event.df`` is the
+        *full* pre-computed DataFrame (zero-copy). We pass a slice
+        ``df.iloc[:current_index+1]`` only when actually calling strategy.analyze()
+        to maintain the same contract.  This slice is cheap because strategies
+        are updated to use current_index for direct access instead of scanning
+        from the end.
         """
         candle = event.candle
         symbol = candle.symbol
         df = event.df
+        ci = event.current_index
 
-        if df is None or len(df) < 50:
+        if df is None:
+            return
+
+        # For backtest fast-path (current_index set), check length via index
+        effective_len = (ci + 1) if ci is not None else len(df)
+        if effective_len < 50:
             return
 
         position = self.portfolio.get_position_snapshot(symbol)
         ctx = self.contexts.get(symbol, ContextSnapshot(state="SCANNING"))
 
-        result = self.strategy.analyze(symbol, df, position=position, context=ctx)
+        # Phase 1.2: use FastFrame when available (zero pandas overhead)
+        fast_frames = getattr(self, "_fast_frames", None)
+        fast_frame = getattr(self, "_fast_frame", None)
+
+        if ci is not None and fast_frames and symbol in fast_frames:
+            # Portfolio mode: per-symbol FastFrame
+            df_view = fast_frames[symbol]._subview(0, ci + 1)
+        elif ci is not None and fast_frame is not None:
+            # Single-symbol mode
+            df_view = fast_frame._subview(0, ci + 1)
+        elif ci is not None:
+            df_view = df.iloc[: ci + 1]
+        else:
+            df_view = df
+
+        result = self.strategy.analyze(symbol, df_view, position=position, context=ctx)
 
         self.contexts[symbol] = result.new_context
 

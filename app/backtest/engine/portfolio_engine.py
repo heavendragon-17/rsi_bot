@@ -12,6 +12,8 @@ from datetime import datetime
 import pandas as pd
 import structlog
 
+from app.backtest.engine.fast_frame import FastFrame
+from app.backtest.engine.jit_functions import calculate_equity_jit
 from app.backtest.engine.metrics import (
     build_round_trips,
     calculate_metrics,
@@ -61,6 +63,12 @@ class PortfolioEngine(Engine):
             # Event source wants a callable that takes a float percentage
             self.event_source._on_progress = lambda pct: self._report_progress(pct)
 
+        # Phase 1.2: pre-build FastFrames per symbol for zero-overhead access
+        self._fast_frames: dict[str, FastFrame] = {}
+        if hasattr(event_source, "dfs"):
+            for sym, sym_df in event_source.dfs.items():
+                self._fast_frames[sym] = FastFrame.from_dataframe(sym_df)
+
         # Track global equity over time for the portfolio drawdown curve
         self.portfolio_equity_curve: list[dict] = []
         # Remember the last timestamp processed
@@ -107,6 +115,7 @@ class PortfolioEngine(Engine):
     def _handle_candle_close(self, event: CandleCloseEvent) -> None:
         candle = event.candle
         df = event.df
+        ci = event.current_index
 
         if df is None:
             return
@@ -114,13 +123,20 @@ class PortfolioEngine(Engine):
         # Update last timestamp
         self._last_ts = candle.timestamp
 
-        # 1. Update MockExchange wicks for THIS specific symbol
-        row = df.iloc[-1]
-        ts = df.index[-1]
-        o = float(row["open"])
-        h = float(row["high"])
-        low = float(row["low"])
-        c = float(row["close"])
+        # Phase 1.1: use current_index for direct OHLC access
+        if ci is not None:
+            ts = df.index[ci]
+            o = float(df["open"].values[ci])
+            h = float(df["high"].values[ci])
+            low = float(df["low"].values[ci])
+            c = float(df["close"].values[ci])
+        else:
+            row = df.iloc[-1]
+            ts = df.index[-1]
+            o = float(row["open"])
+            h = float(row["high"])
+            low = float(row["low"])
+            c = float(row["close"])
 
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)
 
@@ -211,20 +227,30 @@ class PortfolioEngine(Engine):
             self._last_equity_ts = ts
 
     def _calculate_current_equity(self) -> float:
-        usdt_balance = float(self.exchange.balance)
-        used_usdt = float(sum(self.exchange.margin_used.values()))
+        """Phase 1.3: JIT-accelerated equity calculation."""
+        positions = self.exchange.positions
+        if not positions:
+            return float(self.exchange.balance)
 
-        total_upnl = 0.0
-        for symbol, amt_dec in self.exchange.positions.items():
-            if amt_dec == 0:
-                continue
-            entry = float(self.exchange.entry_prices.get(symbol, 0))
-            curr_data = self.exchange.current_prices.get(symbol, {})
-            curr = float(curr_data.get("price", entry))
-            upnl = (curr - entry) * float(amt_dec)
-            total_upnl += upnl
+        import numpy as np
 
-        return usdt_balance + used_usdt + total_upnl
+        symbols = list(positions.keys())
+        n = len(symbols)
+        amounts = np.empty(n, dtype=np.float64)
+        entries = np.empty(n, dtype=np.float64)
+        currents = np.empty(n, dtype=np.float64)
+        margins = np.empty(n, dtype=np.float64)
+
+        for i, sym in enumerate(symbols):
+            amounts[i] = float(positions[sym])
+            entries[i] = float(self.exchange.entry_prices.get(sym, 0))
+            curr_data = self.exchange.current_prices.get(sym, {})
+            currents[i] = float(curr_data.get("price", entries[i]))
+            margins[i] = float(self.exchange.margin_used.get(sym, 0))
+
+        return calculate_equity_jit(
+            amounts, entries, currents, margins, float(self.exchange.balance)
+        )
 
     def _close_all_positions(self, reason: str = "EOD") -> None:
         """Close all open positions at final price."""
