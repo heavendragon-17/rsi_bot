@@ -18,6 +18,7 @@ import structlog
 
 from app.backtest.engine.curves import build_drawdown_curve_dated, build_equity_curve_dated
 from app.backtest.engine.event_source import BacktestEventSource
+from app.backtest.engine.fast_frame import FastFrame
 from app.backtest.engine.metrics import (
     build_round_trips,
     calculate_drawdown,
@@ -108,16 +109,34 @@ class BacktestEngine(Engine):
         self._last_progress_pct = -1
         self._total_steps = 0
 
+        # Phase 1.1/1.2: pre-extract NumPy arrays for fast candle access
+        self._np_open = full_df["open"].values
+        self._np_high = full_df["high"].values
+        self._np_low = full_df["low"].values
+        self._np_close = full_df["close"].values
+
+        # Phase 1.2: pre-extract full FastFrame for zero-overhead strategy access
+        self._fast_frame = FastFrame.from_dataframe(full_df)
+
     def _handle_candle_close(self, event: CandleCloseEvent) -> None:
         """Run MockExchange wick-fill checking before strategy analysis."""
         candle = event.candle
         df = event.df
+        ci = event.current_index
         if df is None:
             return
 
-        row = df.iloc[-1]
-        ts = df.index[-1]
-        o, h, low, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
+        # Phase 1.1: use current_index for direct access (avoid iloc[-1] on slice)
+        if ci is not None:
+            o = float(self._np_open[ci])
+            h = float(self._np_high[ci])
+            low = float(self._np_low[ci])
+            c = float(self._np_close[ci])
+            ts = df.index[ci]
+        else:
+            row = df.iloc[-1]
+            ts = df.index[-1]
+            o, h, low, c = float(row["open"]), float(row["high"]), float(row["low"]), float(row["close"])
 
         executed_orders = self.exchange.update_candle(candle.symbol, o, h, low, c, ts)
         self._sync_executed_orders_to_portfolio(candle.symbol, executed_orders)
