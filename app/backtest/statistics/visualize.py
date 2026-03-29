@@ -113,7 +113,7 @@ def _plot_monthly_performance(monthly: pd.DataFrame, output_dir: str) -> str:
 
     colors = ["#4CAF50" if p >= 0 else "#F44336" for p in monthly["pnl"]]
     x = range(len(monthly))
-    bars = ax1.bar(x, monthly["pnl"], color=colors, alpha=0.7, label="P&L ($)")
+    ax1.bar(x, monthly["pnl"], color=colors, alpha=0.7, label="P&L ($)")
     ax1.set_ylabel("P&L ($)", color="black")
     ax1.axhline(y=0, color="gray", linestyle="-", linewidth=0.5)
 

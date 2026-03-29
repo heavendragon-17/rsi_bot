@@ -24,8 +24,8 @@ from app.core.utils import to_decimal
 from app.trading.exchange.fill_simulator import (
     FillSimulator,
     PendingOrder,
-    WickFillMode,
 )
+from app.trading.exchange.wick_fill_mode import WickFillMode
 
 logger = structlog.get_logger()
 

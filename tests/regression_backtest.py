@@ -12,8 +12,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.backtest.engine.backtest_engine import BacktestEngine
-from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
+from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "regression_btc_2k.csv")
 
@@ -55,8 +55,8 @@ CONFIGS = [
 
 def serialize(obj):
     """JSON-safe serialization for Decimal and other types."""
-    from decimal import Decimal
     import datetime
+    from decimal import Decimal
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, (datetime.datetime, datetime.date)):

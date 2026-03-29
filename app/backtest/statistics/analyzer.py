@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 
-import numpy as np
 import pandas as pd
 import structlog
 
@@ -47,16 +45,14 @@ def load_trades(path: str) -> pd.DataFrame:
 
 def print_section(title: str) -> None:
     width = 60
-    print(f"\n{'=' * width}")
-    print(f"  {title}")
-    print(f"{'=' * width}")
+    logger.info("section", title=title, separator="=" * width)
 
 
 def print_metric(label: str, value, fmt: str = "") -> None:
     if fmt:
-        print(f"  {label:<35s} {value:{fmt}}")
+        logger.info("metric", label=label, value=f"{value:{fmt}}")
     else:
-        print(f"  {label:<35s} {value}")
+        logger.info("metric", label=label, value=value)
 
 
 def run_analysis(trades_path: str, initial_balance: float, output_dir: str) -> dict:
@@ -86,37 +82,40 @@ def run_analysis(trades_path: str, initial_balance: float, output_dir: str) -> d
     # ── 2. Stress Tests ──────────────────────────────────────────────
     monthly = compute_monthly_breakdown(df)
     print_section("MONTHLY BREAKDOWN")
-    print(f"  {'Month':<12s} {'Trades':>7s} {'Wins':>6s} {'WR%':>7s} {'PnL ($)':>12s}")
-    print(f"  {'-' * 46}")
     for _, row in monthly.iterrows():
-        print(
-            f"  {row['month']:<12s} {row['trades']:>7d} "
-            f"{row['wins']:>6d} {row['win_rate']:>6.1f}% "
-            f"{row['pnl']:>12,.2f}"
+        logger.info(
+            "monthly_row",
+            month=row["month"],
+            trades=int(row["trades"]),
+            wins=int(row["wins"]),
+            win_rate=f"{row['win_rate']:.1f}%",
+            pnl=f"{row['pnl']:,.2f}",
         )
 
     quarterly = compute_quarterly_breakdown(df)
     if not quarterly.empty:
         print_section("QUARTERLY BREAKDOWN")
-        print(f"  {'Quarter':<12s} {'Trades':>7s} {'Wins':>6s} {'WR%':>7s} {'PnL ($)':>12s}")
-        print(f"  {'-' * 46}")
         for _, row in quarterly.iterrows():
-            print(
-                f"  {row['quarter']:<12s} {row['trades']:>7d} "
-                f"{row['wins']:>6d} {row['win_rate']:>6.1f}% "
-                f"{row['pnl']:>12,.2f}"
+            logger.info(
+                "quarterly_row",
+                quarter=row["quarter"],
+                trades=int(row["trades"]),
+                wins=int(row["wins"]),
+                win_rate=f"{row['win_rate']:.1f}%",
+                pnl=f"{row['pnl']:,.2f}",
             )
 
     regime = compute_regime_breakdown(df)
     if regime is not None:
         print_section("MARKET REGIME BREAKDOWN")
-        print(f"  {'Regime':<15s} {'Trades':>7s} {'Wins':>6s} {'WR%':>7s} {'PnL ($)':>12s}")
-        print(f"  {'-' * 49}")
         for _, row in regime.iterrows():
-            print(
-                f"  {row['regime']:<15s} {row['trades']:>7d} "
-                f"{row['wins']:>6d} {row['win_rate']:>6.1f}% "
-                f"{row['pnl']:>12,.2f}"
+            logger.info(
+                "regime_row",
+                regime=row["regime"],
+                trades=int(row["trades"]),
+                wins=int(row["wins"]),
+                win_rate=f"{row['win_rate']:.1f}%",
+                pnl=f"{row['pnl']:,.2f}",
             )
 
     # ── 3. Risk Metrics ──────────────────────────────────────────────
@@ -138,7 +137,7 @@ def run_analysis(trades_path: str, initial_balance: float, output_dir: str) -> d
     )
     print_section("CHARTS SAVED")
     for name, path in chart_paths.items():
-        print(f"  {name:<30s} {path}")
+        logger.info("chart_saved", name=name, path=path)
 
     results = {
         "core": core,

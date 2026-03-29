@@ -216,7 +216,7 @@ def _run_single_portfolio(
             dm = DataManager(data_dir=data_dir, timeframe=timeframe)
             dm.ensure_bulk_data(missing, limit)
 
-        strategy_instance = strategy_class(config)
+        strategy_instance = strategy_class(config)  # type: ignore[abstract]
         dfs: dict[str, pd.DataFrame] = {}
         for symbol in symbols:
             df = pd.read_csv(_csv_path(symbol))
@@ -300,7 +300,7 @@ def main():
             symbols = [line.strip() for line in f if line.strip()]
 
     if not symbols:
-        print("No symbols found")
+        logger.error("no_symbols_found")
         return
 
     setup_logging(level="INFO", log_file="sweep.log", console=False)
@@ -316,19 +316,18 @@ def main():
     results = runner.run(param_grid, max_workers=args.workers, progress_cb=bar.update)
     bar.finish(f"{len(results)} runs complete")
 
-    print(f"\n{'Params':<40} {'P&L':>12} {'DD%':>8} {'Sharpe':>8} {'Trades':>7}")
-    print("-" * 80)
     for r in results:
         if r.get("error"):
-            print(f"{str(r['params']):<40} ERROR: {r['error']}")
+            logger.warning("sweep_result_error", params=r["params"], error=r["error"])
             continue
         res = r["results"]
-        print(
-            f"{str(r['params']):<40} "
-            f"${res['net_profit']:>10,.2f} "
-            f"{res['max_drawdown_pct']:>7.2f}% "
-            f"{res['sharpe_ratio']:>7.3f} "
-            f"{res['total_trades']:>6d}"
+        logger.info(
+            "sweep_result",
+            params=r["params"],
+            pnl=f"${res['net_profit']:,.2f}",
+            dd_pct=f"{res['max_drawdown_pct']:.2f}%",
+            sharpe=f"{res['sharpe_ratio']:.3f}",
+            trades=res["total_trades"],
         )
 
 
