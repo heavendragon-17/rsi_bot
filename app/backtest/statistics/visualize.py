@@ -80,7 +80,7 @@ def _plot_pnl_distribution(df: pd.DataFrame, output_dir: str) -> str:
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
-    bin_edges = np.linspace(df["pnl"].min(), df["pnl"].max(), 25)
+    bin_edges: list[float] = np.linspace(df["pnl"].min(), df["pnl"].max(), 25).tolist()
     ax.hist(wins, bins=bin_edges, color="#4CAF50", alpha=0.7, label=f"Wins ({len(wins)})")
     ax.hist(losses, bins=bin_edges, color="#F44336", alpha=0.7, label=f"Losses ({len(losses)})")
     ax.axvline(x=0, color="black", linestyle="-", linewidth=0.8)
