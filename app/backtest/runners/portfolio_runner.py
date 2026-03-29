@@ -18,8 +18,8 @@ import yaml  # type: ignore[import-untyped]
 from app.backtest.data.download import calculate_candle_limit
 from app.backtest.data.manager import DataManager
 from app.backtest.engine.backtest_engine import BacktestEngine
+from app.backtest.engine.batch_event_source import BatchPortfolioEventSource
 from app.backtest.engine.portfolio_engine import PortfolioEngine
-from app.backtest.engine.portfolio_event_source import PortfolioEventSource
 from app.backtest.enrichment import enrich_round_trips
 from app.backtest.exchange.mock_exchange import MockExchange
 from app.backtest.reporting.export import export_json_report
@@ -102,7 +102,7 @@ class PortfolioRunner:
             taker_fee=taker_fee,
             maker_fee=maker_fee,
         )
-        event_source = PortfolioEventSource(dfs, start_idx=WARMUP)
+        event_source = BatchPortfolioEventSource(dfs, start_idx=WARMUP)
         engine = PortfolioEngine(
             event_source=event_source,
             strategy_class=strategy_class,
@@ -151,6 +151,8 @@ class PortfolioRunner:
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(html)
         logger.info("report_saved", path=report_path)
+
+        reporter._export_csv(output_dir=self.report_dir)
 
         json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
         export_json_report(results, json_path)

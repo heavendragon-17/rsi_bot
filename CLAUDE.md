@@ -19,9 +19,25 @@ For detailed specs, read `docs/INDEX.md` first — it has a **task-based routing
 # Run live bot
 python main.py
 
-# Run backtest (CLI)
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 5000
+# Download backtest data
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
+
+# Run backtest — single symbol (CLI)
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
+
+# Run backtest — portfolio (multi-symbol, shared capital, chronological)
+python -m app.backtest.runners.portfolio_runner
+python -m app.backtest.runners.portfolio_runner --strategy rsi_no_retest
+
+# Run backtest — batch (independent per-symbol, parallel)
+python -m app.backtest.runners.batch_runner
+python -m app.backtest.runners.batch_runner --workers 8 --strategy rsi_no_retest
+
+# Run backtest — tick-level replay (high-fidelity SL/TP simulation)
+python -m app.backtest.runners.tick_replay \
+  --ohlc app/backtest/data/BTCUSDT_5m.csv \
+  --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
+  --symbol BTC/USDT --timeframe 5m --balance 10000
 
 # Run backtest UI
 python -m uvicorn app.api.main:app --reload --port 8000  # backend
@@ -81,7 +97,7 @@ Actions: `OpenPosition` (side="BUY" for long, "SELL" for short), `ClosePosition`
 ### Key Utilities
 
 - `SLTPCalculator` (`app/trading/sl_tp_calculator.py`) — Direction-aware SL/TP/sizing (static methods, accepts `side` param)
-- `CrossoverIndicators` (`app/data/indicators.py`) — RSI14 + EMA9/WMA45 of RSI for crossover strategies (consolidated indicators module)
+- `Indicators` (`app/data/indicators.py`) — Unified indicator class: RSI14 + EMA9/WMA45 of RSI, crossover detection (direction="bearish" for SHORT, "bullish" for LONG), alignment checks, divergence detection
 - `opposite_side()` (`app/core/actions.py`) — BUY↔SELL, used for exit orders
 - Position amounts are **signed**: positive=LONG, negative=SHORT
 
@@ -121,7 +137,7 @@ app/core/         → ONLY interfaces, models, actions, config, constants, excep
                     NO implementation logic. NO exchange/strategy/portfolio code.
 app/trading/      → ALL live trading: strategy/, portfolio/, exchange/, engine, runner
 app/data/         → ALL data ingestion: store, stream, normalizer, indicators, resampler
-app/backtest/     → ALL backtest: engine, mock_exchange, service, reporting, download
+app/backtest/     → ALL backtest: engine/, exchange/, data/, runners/, reporting/, statistics/, service, persistence
 app/api/          → ALL HTTP: FastAPI routes, schemas, executor. NO business logic in routes.
 app/notification/ → ALL notifications: telegram, notification service/worker
 app/repository/   → ALL database: ORM models, queries, connections
@@ -159,10 +175,6 @@ app/repository/   → ALL database: ORM models, queries, connections
 - Symbol normalization: use `app/core/utils.py` — do NOT write another `_base_asset()` helper.
 - Fee constants: import from `app/core/constants.py` — do NOT hardcode `0.0005` anywhere.
 - dotenv: loaded ONCE in `main.py` entry point — do NOT call `load_dotenv()` in individual modules.
-
-### Before You Code, Check the Spec
-
-If `SPEC_CLEANUP_*.md` files exist at repo root, read them. They document architectural decisions.
 
 ## IMPORTANT: Documentation Maintenance
 

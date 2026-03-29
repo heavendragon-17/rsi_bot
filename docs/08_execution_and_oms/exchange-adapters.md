@@ -53,7 +53,7 @@ CCXT exceptions are caught and re-raised as custom types:
 
 ---
 
-## MockExchange (`app/backtest/mock_exchange.py`)
+## MockExchange (`app/backtest/exchange/mock_exchange.py`)
 
 In-memory order simulation for backtesting. Implements `IExchange`.
 
@@ -79,6 +79,17 @@ Each candle, MockExchange checks all pending orders against OHLC:
 - No partial fills (all-or-nothing)
 - No rate limits
 - No network latency
+
+---
+
+## FillSimulator (`app/trading/exchange/fill_simulator.py`)
+
+Shared fill simulation logic used by both MockExchange (backtest) and SimExchange (sim mode). Provides two fill modes:
+
+- **WickFillMode**: Used by MockExchange — checks if a candle's OHLC wick crosses the order's trigger price.
+- **TickFillMode**: Used by SimExchange — checks tick-by-tick against live aggTrade prices.
+
+This avoids duplicating fill logic across exchange implementations.
 
 ---
 

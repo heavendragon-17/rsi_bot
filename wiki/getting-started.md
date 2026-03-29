@@ -112,7 +112,7 @@ Open `http://localhost:5173` in your browser.
 ### 1. Download historical data
 
 ```bash
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 5000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
 ```
 
 ### 2. Run backtest

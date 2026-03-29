@@ -65,7 +65,7 @@ These rules cannot be statically checked and rely on code review:
 
 ## CI Pipeline
 
-### Jobs (10 total)
+### Jobs (9 total)
 
 | Job | Tool | Blocking | Speed |
 |-----|------|----------|-------|

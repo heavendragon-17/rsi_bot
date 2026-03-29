@@ -82,7 +82,7 @@ For exchanges not in the CCXT registry (e.g., Lighter, Hyperliquid), the factory
 1. Create `app/trading/exchange/{name}_adapter.py`.
 2. Define class `{Name}Adapter` implementing `IExchange`.
 3. Set `exchange.name: '{name}'` in `config.yaml`.
-4. No changes to `exchange_factory.py` are needed.
+4. No changes to `factory.py` are needed.
 
 The factory calls `_load_custom_adapter(exchange_name, config)` which will:
 - `importlib.import_module(f"app.trading.exchange.{exchange_name}_adapter")`
@@ -90,6 +90,23 @@ The factory calls `_load_custom_adapter(exchange_name, config)` which will:
 - Instantiate with `adapter_class(config)`
 
 Raises `ValueError` if the module or class cannot be found.
+
+---
+
+## FillSimulator
+
+**File:** `app/trading/exchange/fill_simulator.py`
+
+**Purpose:** Unified fill simulation logic shared across MockExchange and PaperExchange. Uses the `FillMode` ABC pattern to support different fill strategies.
+
+### Fill Modes
+
+| Mode | Class | Used By | Description |
+|------|-------|---------|-------------|
+| Wick fill | `WickFillMode` | `MockExchange` (backtest) | Checks pending orders against candle high/low wicks |
+| Tick fill | `TickFillMode` | `PaperExchange` (sim) | Checks pending orders against individual tick prices |
+
+The `FillSimulator` accepts a `FillMode` instance at construction, decoupling the trigger logic from the order management logic. Both modes share the same order execution and state update code.
 
 ---
 

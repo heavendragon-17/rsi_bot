@@ -2,7 +2,7 @@
 
 > Add a new metric, optimization mode, or quant analysis feature to the backtest system.
 > Reference implementations:
->   - Engine: `app/trading/engine.py`, `app/backtest/event_source.py`
+>   - Engine: `app/trading/engine.py`, `app/backtest/engine/event_source.py`
 >   - API (SSE pattern): `app/api/routes/backtest.py`, `app/api/executor.py`
 >   - Optimization spec: `docs/optimization.md`
 >   - UI stores: `ui/src/stores/backtestStore.ts`
@@ -22,7 +22,7 @@
 
 ### A1. Compute in the engine
 
-File: `app/backtest/backtest_engine.py`
+File: `app/backtest/engine/backtest_engine.py`
 
 Find the method that computes metrics after the backtest completes. Add the new metric to the results dict:
 
@@ -56,7 +56,7 @@ Add a metric card following existing patterns. The metric value comes from the `
 
 ### B1. Create the optimization runner
 
-File: `app/backtest/{name}_optimizer.py`
+File: `app/backtest/runners/{name}_optimizer.py`
 
 The runner:
 - Accepts a config (strategy params, parameter space definition, data path)
@@ -126,9 +126,9 @@ The base `Engine` processes events from an `IEventSource` and dispatches to hand
 
 ### C2. Create a new event source if needed
 
-File: `app/backtest/{name}_event_source.py`
+File: `app/backtest/engine/{name}_event_source.py`
 
-Implement `IEventSource` from `app/trading/event_source.py`. Model on `app/backtest/event_source.py`.
+Implement `IEventSource` from `app/trading/event_source.py`. Model on `app/backtest/engine/event_source.py`.
 
 The `IEventSource` interface requires:
 - `events()` → `Iterator[EngineEvent]`: yields events in chronological order

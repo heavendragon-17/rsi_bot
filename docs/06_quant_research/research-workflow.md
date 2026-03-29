@@ -32,7 +32,7 @@ Document in the notebook:
 Download historical data using the bot's scripts:
 
 ```bash
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 50000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50000
 ```
 
 In your notebook, explore:

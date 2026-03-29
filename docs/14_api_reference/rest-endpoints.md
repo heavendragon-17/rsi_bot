@@ -16,9 +16,14 @@ Allowed origins: `http://localhost:3000`, `http://localhost:5173` (Vite dev serv
 
 ## Backtest (`/api/backtest`)
 
+Route files:
+- `app/api/routes/backtest_run.py` — run creation and cancellation
+- `app/api/routes/backtest_results.py` — run detail, timeseries, history
+- `app/api/routes/backtest_stream.py` — SSE progress streaming
+
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/backtest/run` | Start a backtest (single-symbol or portfolio mode) |
+| `POST` | `/api/backtest/run` | Start a backtest (any mode) |
 | `GET` | `/api/backtest/{run_id}/progress` | SSE stream of progress events |
 | `DELETE` | `/api/backtest/{run_id}` | Cancel a running backtest |
 | `GET` | `/api/backtest/{run_id}` | Run detail (config + metrics + trades) |
@@ -26,18 +31,20 @@ Allowed origins: `http://localhost:3000`, `http://localhost:5173` (Vite dev serv
 
 ### `POST /api/backtest/run`
 
-**Mode**: Determined by which field is provided — mutually exclusive:
+**Mode**: Specified via `BacktestMode` enum:
 
-| Field | Type | Mode |
-|-------|------|------|
-| `symbol` | `string` | Single-symbol — runs one `BacktestEngine` against a local CSV |
-| `symbols` | `string[]` | Portfolio — runs `_run_portfolio_backtest` across all symbols |
+| Mode | Description |
+|------|-------------|
+| `single` | Single-symbol backtest against a local CSV via `BacktestEngine` |
+| `portfolio` | Multi-symbol chronological portfolio simulation via `portfolio_runner` |
+| `batch` | Batch runs across multiple configs/symbols via `batch_runner` |
+| `tick_replay` | Tick-by-tick replay through `PaperExchange` via `tick_replay` runner |
 
 **Common body fields**: `timeframe`, `strategy`, `start_date`, `end_date`, `initial_capital`, `leverage`, `risk_per_trade_pct`, `fee_tier`, `slippage_model`, `slippage_pct`, `params`
 
 **Response**: `{ run_id, status: "running" }`
 
-**Flow**: Validates request → creates `Run` + `RunConfig` DB rows (`symbol="PORTFOLIO"` for portfolio mode) → submits to ThreadPoolExecutor → returns immediately.
+**Flow**: Validates request → `BacktestService` (`app/backtest/service.py`) creates `Run` + `RunConfig` DB rows → dispatches to the appropriate runner → returns immediately.
 
 ### `GET /api/backtest/{run_id}/progress` (SSE)
 

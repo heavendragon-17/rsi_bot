@@ -89,7 +89,7 @@ VERTEX_ACCOUNT_INDEX=0
 
 ```yaml
 exchange:
-  name: vertex   # must match {name} in dex/{name}_adapter.py
+  name: vertex   # must match {name} in exchange/{name}_adapter.py
 bot:
   mode: live     # or paper — adapter handles mode internally
 ```
