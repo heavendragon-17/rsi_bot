@@ -14,11 +14,10 @@ from collections import defaultdict
 from collections.abc import Iterator
 from decimal import Decimal
 
-import numpy as np
 import pandas as pd
 
 from app.core.constants import WARMUP
-from app.core.events import Candle, CandleCloseEvent, EngineEvent, EngineStopEvent
+from app.core.events import Candle, CandleCloseEvent, EngineStopEvent
 from app.trading.event_source import IEventSource
 
 
@@ -75,7 +74,7 @@ class BatchPortfolioEventSource(IEventSource):
         # Sort by timestamp
         self._timeline = sorted(ts_to_items.items(), key=lambda x: x[0])
 
-    def events(self) -> Iterator[EngineEvent]:
+    def events(self) -> Iterator[BatchCandleCloseEvent | EngineStopEvent]:  # type: ignore[override]
         """Yield BatchCandleCloseEvents grouped by timestamp."""
         # Pre-extract numpy arrays per symbol
         _arrays: dict[str, tuple] = {}

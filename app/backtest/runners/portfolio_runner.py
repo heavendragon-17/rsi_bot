@@ -18,8 +18,8 @@ import yaml  # type: ignore[import-untyped]
 from app.backtest.data.download import calculate_candle_limit
 from app.backtest.data.manager import DataManager
 from app.backtest.engine.backtest_engine import BacktestEngine
-from app.backtest.engine.portfolio_engine import PortfolioEngine
 from app.backtest.engine.batch_event_source import BatchPortfolioEventSource
+from app.backtest.engine.portfolio_engine import PortfolioEngine
 from app.backtest.enrichment import enrich_round_trips
 from app.backtest.exchange.mock_exchange import MockExchange
 from app.backtest.reporting.export import export_json_report

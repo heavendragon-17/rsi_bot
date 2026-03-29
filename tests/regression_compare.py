@@ -35,8 +35,8 @@ def _silence_logging():
 
 
 def _serialize(obj):
-    from decimal import Decimal
     import datetime
+    from decimal import Decimal
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, (datetime.datetime, datetime.date)):
@@ -83,8 +83,8 @@ def _extract_comparable(results: dict, name: str) -> dict:
 def run_single_backtests() -> dict:
     """Run single-symbol backtests for regression."""
     from app.backtest.engine.backtest_engine import BacktestEngine
-    from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
     from app.trading.strategy.rsi_momentum import RsiMomentumStrategy
+    from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
 
     configs = [
         {
@@ -135,14 +135,14 @@ def run_single_backtests() -> dict:
 
 def run_portfolio_backtests() -> dict:
     """Run portfolio-mode backtests for regression."""
+    import pandas as pd
+
     from app.backtest.engine.backtest_engine import BacktestEngine
-    from app.backtest.engine.portfolio_engine import PortfolioEngine
     from app.backtest.engine.batch_event_source import BatchPortfolioEventSource
+    from app.backtest.engine.portfolio_engine import PortfolioEngine
     from app.backtest.exchange.mock_exchange import MockExchange
     from app.core.constants import WARMUP
     from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
-
-    import pandas as pd
 
     strategy_class = RsiNoRetestStrategy
     config = {
@@ -245,7 +245,7 @@ def compare(baseline_path: str, after_path: str):
             print(f"  OK: {name}.total_trades = {b['total_trades']}")
 
         # Compare trade-by-trade
-        for i, (bt, at) in enumerate(zip(b["trades"], a["trades"])):
+        for i, (bt, at) in enumerate(zip(b["trades"], a["trades"], strict=False)):
             for field in ["entry_time", "exit_time", "side", "symbol"]:
                 if bt[field] != at[field]:
                     print(
