@@ -12,43 +12,11 @@ for complex operations (divergence detection, resampling, etc.).
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 
-
-class FastRow:
-    """Lightweight row proxy — replaces pandas Series for single-row access.
-
-    Supports ``row["col"]``, ``row.get("col")``, and ``row.name`` (timestamp).
-    """
-
-    __slots__ = ("_arrays", "_idx", "name")
-
-    def __init__(self, arrays: dict[str, np.ndarray], idx: int, name: Any = None) -> None:
-        self._arrays = arrays
-        self._idx = idx
-        self.name = name
-
-    def __getitem__(self, key: str) -> Any:
-        return self._arrays[key][self._idx]
-
-    def get(self, key: str, default: Any = None) -> Any:
-        arr = self._arrays.get(key)
-        if arr is None:
-            return default
-        val = arr[self._idx]
-        # Convert numpy scalar to Python scalar for compatibility
-        if hasattr(val, "item"):
-            return val.item()
-        return val
-
-    def to_dict(self) -> dict[str, Any]:
-        result = {}
-        for col, arr in self._arrays.items():
-            val = arr[self._idx]
-            result[col] = val.item() if hasattr(val, "item") else val
-        return result
+from app.backtest.engine.fast_column import FastColumn
+from app.backtest.engine.fast_frame_types import _FastILoc, _FastIndex
+from app.backtest.engine.fast_row import FastRow
 
 
 class FastFrame:
@@ -125,102 +93,3 @@ class FastFrame:
 
     def _subview(self, abs_start: int, abs_end: int) -> FastFrame:
         return FastFrame(self._arrays, self._index, abs_start, abs_end)
-
-
-class _FastILoc:
-    """Supports ff.iloc[i] and ff.iloc[a:b]."""
-
-    __slots__ = ("_ff",)
-
-    def __init__(self, ff: FastFrame) -> None:
-        self._ff = ff
-
-    def __getitem__(self, key):
-        ff = self._ff
-        if isinstance(key, int):
-            # Support negative indexing
-            if key < 0:
-                abs_idx = ff._end + key
-            else:
-                abs_idx = ff._start + key
-            if abs_idx < ff._start or abs_idx >= ff._end:
-                raise IndexError(f"iloc index {key} out of range for FastFrame of length {ff._n}")
-            return ff._row(abs_idx)
-        elif isinstance(key, slice):
-            start, stop, step = key.indices(ff._n)
-            if step != 1:
-                raise ValueError("FastFrame.iloc only supports step=1 slices")
-            abs_start = ff._start + start
-            abs_end = ff._start + stop
-            return ff._subview(abs_start, abs_end)
-        raise TypeError(f"FastFrame.iloc: unsupported key type {type(key)}")
-
-
-class _FastIndex:
-    """Minimal index proxy supporting index[-1] and iteration."""
-
-    __slots__ = ("_index", "_start", "_end")
-
-    def __init__(self, index: np.ndarray, start: int, end: int) -> None:
-        self._index = index
-        self._start = start
-        self._end = end
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            if key < 0:
-                abs_idx = self._end + key
-            else:
-                abs_idx = self._start + key
-            return self._index[abs_idx]
-        raise TypeError(f"FastIndex: unsupported key type {type(key)}")
-
-    def __len__(self) -> int:
-        return self._end - self._start
-
-
-class FastColumn:
-    """Lightweight column proxy with .values, .min(), .max(), .sum()."""
-
-    __slots__ = ("_arr", "_start", "_end")
-
-    def __init__(self, arr: np.ndarray, start: int, end: int) -> None:
-        self._arr = arr
-        self._start = start
-        self._end = end
-
-    @property
-    def values(self) -> np.ndarray:
-        return self._arr[self._start : self._end]
-
-    def min(self) -> Any:
-        return self._arr[self._start : self._end].min()
-
-    def max(self) -> Any:
-        return self._arr[self._start : self._end].max()
-
-    def sum(self) -> Any:
-        return self._arr[self._start : self._end].sum()
-
-    def __gt__(self, other) -> np.ndarray:
-        v = self._arr[self._start : self._end]
-        o = other.values if isinstance(other, FastColumn) else other
-        return v > o
-
-    def __lt__(self, other) -> np.ndarray:
-        v = self._arr[self._start : self._end]
-        o = other.values if isinstance(other, FastColumn) else other
-        return v < o
-
-    def __ge__(self, other) -> np.ndarray:
-        v = self._arr[self._start : self._end]
-        o = other.values if isinstance(other, FastColumn) else other
-        return v >= o
-
-    def __le__(self, other) -> np.ndarray:
-        v = self._arr[self._start : self._end]
-        o = other.values if isinstance(other, FastColumn) else other
-        return v <= o
-
-    def __len__(self) -> int:
-        return self._end - self._start
