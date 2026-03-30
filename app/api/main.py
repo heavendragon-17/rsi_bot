@@ -15,7 +15,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import backtest_results, backtest_run, backtest_stream, data, history, presets, strategies
+from app.api.routes import backtest_results, backtest_run, backtest_stream, data, history, presets, settings, strategies, trade_chart
 from app.repository.backtest.database import SessionLocal, init_db
 from app.repository.backtest.seed import seed_strategies
 
@@ -59,6 +59,8 @@ app.include_router(history.router)
 app.include_router(strategies.router)
 app.include_router(data.router)
 app.include_router(presets.router)
+app.include_router(settings.router)
+app.include_router(trade_chart.router)
 
 
 @app.get("/health")
