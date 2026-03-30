@@ -130,10 +130,17 @@ rsi_bot/
 │   │   ├── normalizer.py            # Data normalization
 │   │   └── resampler.py             # Candle resampling
 │   ├── backtest/                    # Backtest engine, mock exchange
-│   │   ├── engine.py                # BacktestEngine
+│   │   ├── engine/                  # Backtest engine
+│   │   │   └── backtest_engine.py   # BacktestEngine
+│   │   ├── exchange/                # Backtest exchange adapters
+│   │   │   └── mock_exchange.py     # MockExchange (in-memory sim)
+│   │   ├── data/                    # Data download & management
+│   │   │   └── download.py          # Historical data downloader
+│   │   ├── reporting/               # Result reporting
+│   │   │   └── reporter.py          # Report generation
+│   │   ├── statistics/              # Statistical analysis
 │   │   ├── service.py               # BacktestService (extracted from routes)
-│   │   ├── mock_exchange.py         # MockExchange (in-memory sim)
-│   │   └── runners/                # CLI runners (batch, portfolio, tick replay)
+│   │   └── runners/                # CLI runners (single, batch, portfolio, tick_replay)
 │   ├── api/                         # FastAPI backend for backtest UI
 │   │   └── routes/                 # REST endpoints (split by concern)
 │   ├── notification/                # Telegram notifications
@@ -158,9 +165,9 @@ Three strategies are available, selected via `config.yaml`:
 |----------|------|---------------|
 | `rsi_no_retest` | LONG | Entry on EMA21 reclaim + RSI momentum spread. Primary long strategy. |
 | `rsi_wma_retest` | LONG | Requires RSI to retest WMA45 before entry. Legacy, more conservative. |
-| `rsi_momentum` | SHORT | RSI crossover + bearish divergence. Uses `CrossoverIndicators` and `SLTPCalculator`. |
+| `rsi_momentum` | SHORT | RSI crossover + bearish divergence. Uses `Indicators` and `SLTPCalculator`. |
 
-All strategies share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism. SHORT positions use signed amounts (negative) and `opposite_side()` for exit orders. Shared strategy logic lives in `app/trading/strategy/utils/`. SHORT strategies use `CrossoverIndicators` from `app/data/indicators.py` and `SLTPCalculator` from `app/trading/sl_tp_calculator.py`.
+All strategies share the same position management system: partial TP at 3 levels, dual SL (soft + hard), lock-profit mechanism. SHORT positions use signed amounts (negative) and `opposite_side()` for exit orders. Shared strategy logic lives in `app/trading/strategy/utils/`. SHORT strategies use `Indicators` from `app/data/indicators.py` and `SLTPCalculator` from `app/trading/sl_tp_calculator.py`.
 
 ## Database
 

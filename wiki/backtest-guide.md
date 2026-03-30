@@ -1,5 +1,16 @@
 # Backtest Guide
 
+## Backtest Modes
+
+The system supports 4 backtest modes, each in its own runner under `app/backtest/runners/`:
+
+| Mode | Runner | Description |
+|------|--------|-------------|
+| **single** | `single_runner` | One symbol, one strategy. Default UI mode. |
+| **portfolio** | `portfolio_runner` | Multiple symbols sharing a single capital pool, chronological simulation. |
+| **batch** | `batch_runner` | Independent backtests across multiple symbols, aggregated report. |
+| **tick_replay** | `tick_replay_runner` | Tick-level replay through `PaperExchange` for higher-fidelity fill simulation. |
+
 ## Using the Backtest UI
 
 ### Starting the Application
@@ -67,7 +78,7 @@ For quick testing without the UI:
 
 ```bash
 # Download data
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 5000
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
 
 # Run backtest
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000

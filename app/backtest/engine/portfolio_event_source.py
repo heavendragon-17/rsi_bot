@@ -56,27 +56,37 @@ class PortfolioEventSource(IEventSource):
         self._on_progress = None
 
     def events(self) -> Iterator[EngineEvent]:
+        # Pre-extract numpy arrays per symbol for fast Candle construction (Phase 1.1)
+        _arrays: dict[str, tuple] = {}
+        for symbol, df in self.dfs.items():
+            _arrays[symbol] = (
+                df["open"].values,
+                df["high"].values,
+                df["low"].values,
+                df["close"].values,
+                df["volume"].values if "volume" in df.columns else None,
+                df.index,
+            )
+
         while self.pq and not self._stopped:
             # Pop the earliest event
             ts, _, symbol, idx = heapq.heappop(self.pq)
             df = self.dfs[symbol]
-            row = df.iloc[idx]
+            _open, _high, _low, _close, _volume, _index = _arrays[symbol]
 
             candle = Candle(
                 symbol=symbol,
                 timestamp=ts,
-                open=Decimal(str(row["open"])),
-                high=Decimal(str(row["high"])),
-                low=Decimal(str(row["low"])),
-                close=Decimal(str(row["close"])),
-                volume=Decimal(str(row.get("volume", 0))),
+                open=Decimal(str(_open[idx])),
+                high=Decimal(str(_high[idx])),
+                low=Decimal(str(_low[idx])),
+                close=Decimal(str(_close[idx])),
+                volume=Decimal(str(_volume[idx])) if _volume is not None else Decimal("0"),
                 closed=True,
             )
 
-            # df slice up to and including this candle
-            df_slice = df.iloc[: idx + 1]
-
-            yield CandleCloseEvent(candle=candle, df=df_slice)
+            # Phase 1.1: pass the full DataFrame + current_index
+            yield CandleCloseEvent(candle=candle, df=df, current_index=idx)
 
             self.events_yielded += 1
             if self._on_progress and self.total_events > 0:
@@ -85,7 +95,7 @@ class PortfolioEventSource(IEventSource):
             # Push the next candle for this symbol
             next_idx = idx + 1
             if next_idx < len(df):
-                next_ts = df.index[next_idx]
+                next_ts = _index[next_idx]
                 heapq.heappush(self.pq, (next_ts, self._counter, symbol, next_idx))
                 self._counter += 1
 

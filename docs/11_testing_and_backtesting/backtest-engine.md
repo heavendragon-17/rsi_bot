@@ -1,6 +1,64 @@
 # Backtest Engine
 
-> Single backtest flow, batch mode, tick-level paper replay, engine internals, and performance optimizations.
+> Single backtest flow, portfolio mode, batch mode, tick-level paper replay, engine internals, and performance optimizations.
+
+---
+
+## Module Structure
+
+The backtest module is organized into sub-packages under `app/backtest/`:
+
+```
+app/backtest/
+├── engine/          # Core engines and event sources
+│   ├── backtest_engine.py      # Single-symbol BacktestEngine
+│   ├── portfolio_engine.py     # Multi-symbol PortfolioEngine
+│   ├── event_source.py         # Candle event source for single backtest
+│   ├── portfolio_event_source.py  # Time-sorted event multiplexer
+│   ├── metrics.py              # Metrics computation
+│   └── curves.py               # Equity/drawdown curve generation
+├── exchange/        # Mock/simulated exchange adapters
+│   ├── executor.py             # Order execution logic
+│   └── mock_exchange.py        # MockExchange for backtesting
+├── data/            # Data loading and downloading
+│   ├── manager.py              # Data manager
+│   ├── download.py             # OHLCV data download (CLI)
+│   └── download_tick.py        # Tick data download
+├── runners/         # Runner scripts for each backtest mode
+│   ├── batch_runner.py         # Batch (multi-config) runner
+│   ├── portfolio_runner.py     # Portfolio backtest runner
+│   ├── tick_replay.py          # Tick-level paper replay
+│   └── progress.py             # Progress reporting utilities
+├── reporting/       # Report generation and export
+│   ├── reporter.py             # Main report generator
+│   ├── html.py                 # HTML report output
+│   ├── export.py               # CSV/JSON export
+│   ├── batch_report.py         # Batch run reports
+│   └── styles.py               # Report styling
+├── statistics/      # Statistical analysis and visualization
+│   ├── analyzer.py             # Statistical analysis
+│   ├── metrics.py              # Statistical metrics
+│   └── visualize.py            # Chart/plot generation
+├── optimization/    # (placeholder for future optimization tools)
+├── service.py       # BacktestService — orchestrates runs
+├── persistence.py   # DB persistence for backtest results
+├── enrichment.py    # Result enrichment
+├── config_builder.py # Config construction helpers
+└── backtest.py      # CLI entry point
+```
+
+---
+
+## Backtest Modes
+
+The system supports 4 backtest modes via the `BacktestMode` enum:
+
+| Mode | Runner | Description |
+|------|--------|-------------|
+| `single` | `BacktestEngine` | Single-symbol backtest against a local CSV |
+| `portfolio` | `app/backtest/runners/portfolio_runner.py` | Multi-symbol chronological portfolio simulation |
+| `batch` | `app/backtest/runners/batch_runner.py` | Batch runs across multiple configs/symbols |
+| `tick_replay` | `app/backtest/runners/tick_replay.py` | Tick-by-tick replay through PaperExchange |
 
 ---
 
@@ -10,7 +68,8 @@
 React Frontend (Zustand stores)
     │ HTTP / SSE
 FastAPI Backend
-    ├── Routes: /backtest, /history, /data, /strategies
+    ├── Routes: backtest_run.py, backtest_results.py, backtest_stream.py
+    ├── BacktestService (app/backtest/service.py)
     ├── Executor (ThreadPoolExecutor, SSE queues)
     ├── BacktestEngine (MockExchange, Strategy, PortfolioManager)
     └── SQLite DB (runs, configs, results, trades)
@@ -46,14 +105,14 @@ On complete:
 
 ## BacktestEngine Internals
 
-**Class**: `BacktestEngine(Engine)` in `app/backtest/engine.py`
+**Class**: `BacktestEngine(Engine)` in `app/backtest/engine/backtest_engine.py`
 
 ### Initialization
 
 1. Read CSV, parse timestamps
-2. Create `MockExchange(initial_balance, leverage, taker_fee=0.05%, maker_fee=0.02%)`
+2. Create `MockExchange(initial_balance, leverage, taker_fee=0.05%, maker_fee=0.02%)` (in `app/backtest/exchange/mock_exchange.py`)
 3. Create strategy instance and `PortfolioManager`
-4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `strategy.indicators.compute()` once for the full dataset (O(n) pre-computation instead of per-candle O(n²)). Works with any `IIndicators` implementation (`Indicators` or `CrossoverIndicators`).
+4. `_prepare_dataframe()`: set index, mark all `closed=True`, add `ts` column, run `strategy.indicators.compute()` once for the full dataset (O(n) pre-computation instead of per-candle O(n²)). Works with any `IIndicators` implementation (the unified `Indicators` class supports all strategies).
 
 ### WARMUP = 220 candles
 
@@ -111,9 +170,9 @@ Single engine instance simulating portfolio across all symbols simultaneously (N
 
 ## Unified Portfolio Mode
 
-A true chronological portfolio simulation via `app/backtest/run_portfolio_backtest.py`.
+A true chronological portfolio simulation via `app/backtest/runners/portfolio_runner.py`.
 
-- **Event Multiplexing**: `PortfolioEventSource` loads pre-computed CSVs for all configured symbols and uses a priority queue to yield `CandleCloseEvent`s sorted strictly by time.
+- **Event Multiplexing**: `PortfolioEventSource` (in `app/backtest/engine/portfolio_event_source.py`) loads pre-computed CSVs for all configured symbols and uses a priority queue to yield `CandleCloseEvent`s sorted strictly by time.
 - **Global Liquidation**: `MockExchange.check_liquidation()` continuously monitors total portfolio equity (balance + margin + unrealized PnL). If it drops below zero, all positions are force-closed with an additional 0.5% liquidation fee penalty.
 - **Sizing**: Trades use the exact same strategy config, but position sizing calculates risk based on a fixed initial portfolio capital percentage (if `use_initial_capital_for_risk` is set).
 - **Auto Data Fetching**: On startup, it checks for missing historical data across all requested tickers and seamlessly attempts to download the data before processing to execution.
@@ -124,10 +183,10 @@ A true chronological portfolio simulation via `app/backtest/run_portfolio_backte
 
 Tick-by-tick replay through `PaperExchange` for high-fidelity SL/TP fill simulation.
 
-**Entry**: `app/backtest/run_paper_tick_replay.py`
+**Entry**: `app/backtest/runners/tick_replay.py`
 
 ```bash
-python app/backtest/run_paper_tick_replay.py \
+python -m app.backtest.runners.tick_replay \
     --ohlc app/backtest/data/BTCUSDT_5m.csv \
     --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
     --symbol BTC/USDT --timeframe 5m --balance 10000

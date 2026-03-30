@@ -28,11 +28,10 @@ symbols:                      # List[str], default: ['BTC/USDT']
 # Strategy selection
 strategy: 'rsi_no_retest'    # str, default: 'rsi_no_retest' — strategy module name
 
-# Optional: Override strategy default parameters
-# Merged with strategy's DEFAULT_CONFIG (see Strategy Param Hierarchy below)
-strategy_params:              # Dict[str, Any], default: {} (empty dict)
-    # rsi_period: 14
-    # wma_retest_distance: 0.5
+# NOTE: strategy_params has been removed from config.yaml.
+# Strategy parameters are now defined in frozen config dataclasses
+# within each strategy file (e.g., RsiNoRetestConfig, RsiMomentumConfig).
+# See docs/07_trading_strategies/strategy-config.md for details.
 
 risk:
     max_position_size_pct: 0.99       # Decimal, default: 0.99 — max margin % per trade
@@ -72,7 +71,6 @@ class AppConfig:
     paper_sim: PaperSimConfig
     symbols: List[str]           # default: ["BTC/USDT"]
     strategy_name: str           # default: "rsi_no_retest"
-    strategy_params: Dict[str, Any]  # default: {}
     timeframe: str               # default: "5m"
     warmup_candles: int          # default: 200
     debug: bool                  # default: False
@@ -177,7 +175,6 @@ The `from_yaml` method flattens and remaps certain YAML keys. This is important 
 | `paper_sim.tick_sample_interval_ms` | `PaperSimConfig.tick_sample_interval_ms` |
 | `symbols` | `AppConfig.symbols` |
 | `strategy` | `AppConfig.strategy_name` |
-| `strategy_params` | `AppConfig.strategy_params` |
 | `timeframe` | `AppConfig.timeframe` |
 | `warmup_candles` | `AppConfig.warmup_candles` |
 
@@ -187,23 +184,28 @@ Note: `bot.active` and `paper_sim.telegram_token` / `paper_sim.chat_id` are pres
 
 ## Strategy Parameter Hierarchy
 
-Strategy parameters follow a 3-level merge hierarchy (lowest to highest priority):
+Strategy parameters are now self-contained in frozen config dataclasses within each strategy file (e.g., `RsiNoRetestConfig`, `RsiMomentumConfig`). They are **not** stored in `config.yaml`.
 
-1. **Hardcoded defaults** -- Built into the strategy class constructor as fallback values.
+The hierarchy (lowest to highest priority):
+
+1. **Frozen dataclass defaults** -- Built into the strategy's config dataclass (e.g., `RsiNoRetestConfig`).
 2. **DEFAULT_CONFIG** -- Class-level dict on the strategy defining its standard parameters.
-3. **config.yaml `strategy_params`** -- User overrides from the YAML file.
+3. **Backtest UI sidebar** -- Per-run overrides in the backtest UI.
 
-At runtime, `strategy_params` from the YAML is merged on top of the strategy's `DEFAULT_CONFIG`. Any key in `strategy_params` overwrites the same key in `DEFAULT_CONFIG`. Keys not present in `strategy_params` retain their `DEFAULT_CONFIG` values.
+See `docs/07_trading_strategies/strategy-config.md` for full details.
 
-Example:
+## Constants (`app/core/constants.py`)
 
-```yaml
-# config.yaml
-strategy: 'rsi_no_retest'
-strategy_params:
-    rsi_period: 21          # overrides DEFAULT_CONFIG's rsi_period
-    # wma_period not specified → uses DEFAULT_CONFIG value
-```
+System-wide constants are centralized in `app/core/constants.py`:
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `WARMUP` | `220` | Minimum candles before first signal |
+| `MAX_CANDLES_IN_RAM` | `6000` | Memory cap per symbol in MarketDataStore |
+| `DEFAULT_TAKER_FEE` | `0.0005` | Default taker fee rate (0.05%) |
+| `DEFAULT_MAKER_FEE` | `0.0002` | Default maker fee rate (0.02%) |
+
+All constants must be imported from this module. Do not hardcode these values elsewhere.
 
 ---
 
