@@ -151,7 +151,7 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 5. `spec_phase1_frontend.md` — Phase 1 Frontend
+## 5. `spec_phase1_frontend.md` — Phase 1 Frontend ✅ RESOLVED
 
 ### Strengths
 - Accurately identifies the 3 main fixes (params mapping, date format, DataPrepModal)
@@ -159,22 +159,27 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 - Recovery-on-refresh logic is well-designed
 - FloatingProgressPill component is thorough
 
-### Issues
+### Issues — All Fixed
 
 **5.1 — Spec rewrites existing code instead of showing diffs**
-`backtestStore.ts` (lines 236-399) already handles all three modes. `streamProgress()` already exists in `api/backtest.ts`. The spec should show surgical changes, not full rewrites that risk losing existing functionality.
+~~Full rewrites of `runBacktest()` and `streamProgress()` risk losing existing functionality.~~
+**Fixed:** All changes now shown as surgical diffs against the existing code.
 
 **5.2 — Wrong component paths**
-`DynamicParamForm` imports from `../../stores/backtestStore` assuming it lives in `components/sidebar/`. The codebase has no `components/sidebar/` — sidebar components are in `components/layout/`.
+~~`DynamicParamForm` assumed `components/sidebar/` which doesn't exist.~~
+**Fixed:** New `components/sidebar/` directory created for sidebar sub-components. Import paths corrected.
 
 **5.3 — `window.confirm()` breaks design system (Stage 1H)**
-Browser `confirm()` dialog is inconsistent with the existing toast/modal UI. Use the project's existing modal or confirmation pattern.
+~~Browser `confirm()` dialog is inconsistent with the UI.~~
+**Fixed:** Replaced with `sonner` toast + "Run Anyway" action button. Non-blocking, consistent with existing patterns.
 
 **5.4 — Missing `resetParams` store action**
-`DynamicParamForm` references `resetParams` from the store, but this action isn't defined in the spec's store changes.
+~~`DynamicParamForm` references `resetParams` which wasn't in the spec.~~
+**Fixed:** `resetParams` already exists in the store (line 422). Updated to reset to strategy `default_config` instead of hardcoded `DEFAULT_PARAMS`.
 
 **5.5 — `DEFAULT_PARAMS` keys don't match dataclass fields**
-The spec correctly identifies this (e.g. `ema_fast` vs `rsi_ema_length`) but the fix relies entirely on schema loading working correctly. Add a fallback for when schema hasn't loaded yet.
+~~No fallback for when schema hasn't loaded.~~
+**Fixed:** `DynamicParamForm` shows a loading skeleton until `loadStrategies()` completes. No fallback params needed — the form renders only after schema is available.
 
 ---
 
