@@ -70,35 +70,42 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 3. `spec_api_contracts.md` — API Contracts
+## 3. `spec_api_contracts.md` — API Contracts ✅ RESOLVED
 
 ### Strengths
 - Comprehensive endpoint catalog with request/response examples
 - SSE event table is clear and well-typed
 - Error codes table is practical
 
-### Issues
+### Issues — All Fixed
 
 **3.1 — `BacktestRequest` schema is incomplete**
-The spec shows a subset. The actual schema in `app/api/schemas.py` includes additional fields used by `service.py`: `fee_tier`, `slippage_model`, `slippage_pct`, `symbols`, `mode`. Document the **full** schema.
+~~Spec showed only a subset of fields.~~
+**Fixed:** Full schema documented with all 16 fields (`mode`, `symbols`, `fee_tier`, `slippage_model`, `slippage_pct`, `max_workers`, `tick_data_path`), field reference table, and mode validation rules.
 
 **3.2 — Inline download creates race condition**
-Currently `service.py:96-99` raises `FileNotFoundError` if CSV is missing. With inline download, the validation moves to the worker thread. What happens if two concurrent requests trigger downloads for the same symbol simultaneously? Need a file lock or "downloading" sentinel.
+~~Concurrent requests could trigger duplicate downloads for the same symbol.~~
+**Fixed:** Added file lock strategy using `fcntl.flock()` with double-check pattern (check → lock → re-check → download → unlock).
 
 **3.3 — `RunDetail.trades` response omits existing fields**
-The spec's trade schema omits fields the actual `_build_trades_list()` returns: `hold_time_hours`, `stop_loss_price`, `tp1_price`, `tp2_price`, `tp3_price`, `quantity`.
+~~Missing `hold_time_hours`, `stop_loss_price`, `tp1_price`, `tp2_price`, `tp3_price`, `quantity`.~~
+**Fixed:** Response example now includes all fields matching `_build_trades_list()` output.
 
 **3.4 — `RunDetail.results` response omits existing fields**
-Missing: `gross_profit`, `gross_loss`, `max_drawdown_duration_days`, `max_consecutive_losses`, `avg_hold_time_hours` — all present in `RunResult` model and serialized by `_build_results_dict()`.
+~~Missing `gross_profit`, `gross_loss`, `max_drawdown_duration_days`, `max_consecutive_losses`, `avg_hold_time_hours`.~~
+**Fixed:** Response example now includes all fields matching `_build_results_dict()` output.
 
 **3.5 — `GET /api/strategies/{name}/schema` (Endpoint 11) is redundant**
-`GET /api/strategies` already returns `param_schema` per strategy. A separate per-strategy endpoint adds surface area with minimal benefit. Consider dropping.
+~~Separate endpoint duplicated `GET /api/strategies` which already returns `param_schema`.~~
+**Fixed:** Removed the endpoint entirely. Endpoint numbering adjusted.
 
 **3.6 — `PUT /api/settings/concurrency` is unsafe**
-Cannot rebuild `ThreadPoolExecutor` while jobs are running. Spec needs to specify behavior when active jobs exist (reject? drain first? adjust for next job only?).
+~~No behavior defined when jobs are running.~~
+**Fixed:** Spec now requires 409 Conflict rejection if any jobs are active. Code example included.
 
 **3.7 — SSE timeout mismatch**
-Spec proposes 30s timeout with heartbeat; existing `service.py:212` uses 300s. Align or justify the change.
+~~Spec proposed 30s, existing code uses 300s.~~
+**Fixed:** Spec now states 300s timeout to match existing `service.py:212`. Added `CONCURRENCY_BUSY` error code.
 
 ---
 
