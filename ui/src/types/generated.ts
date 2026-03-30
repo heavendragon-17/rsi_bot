@@ -1,7 +1,7 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-03-20T18:03:16Z
+ * Generated: 2026-03-30T16:50:14Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
@@ -27,13 +27,14 @@ export interface RunSummary {
   tags: string[];
 }
 
-export interface DataStatusResponse {
-  symbol: string;
-  timeframe: string;
-  available: boolean;
-  file_path: string | null;
-  candle_count: number | null;
-  date_range: Record<string, string> | null;
+export interface DownloadStartResponse {
+  job_id: string;
+  status: string;
+}
+
+export interface PresetUpdate {
+  name?: string | null;
+  config?: Record<string, unknown> | null;
 }
 
 export interface TimeseriesResponse {
@@ -43,9 +44,60 @@ export interface TimeseriesResponse {
   monthly_returns: Record<string, unknown>;
 }
 
-export interface DownloadStartResponse {
-  job_id: string;
+export interface StrategyInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  default_config: Record<string, unknown>;
+  param_schema?: Record<string, unknown>;
+}
+
+export interface HistoryResponse {
+  runs: RunSummary[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface BacktestStartResponse {
+  run_id: number;
   status: string;
+}
+
+export interface PresetCreate {
+  name: string;
+  strategy: string;
+  config: Record<string, unknown>;
+}
+
+export interface RunDetail {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  config: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  trades: Record<string, unknown>[] | null;
+}
+
+export interface DataStatusResponse {
+  symbol: string;
+  timeframe: string;
+  available: boolean;
+  file_path: string | null;
+  candle_count: number | null;
+  date_range: Record<string, string> | null;
+}
+
+export interface PresetResponse {
+  id: number;
+  name: string;
+  strategy: string;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BacktestRequest {
@@ -65,58 +117,4 @@ export interface BacktestRequest {
   params?: Record<string, unknown>;
   max_workers?: number | null;
   tick_data_path?: string | null;
-}
-
-export interface ParamSchemaProp {
-  type: "integer" | "number" | "boolean" | "string";
-  title: string;
-  default?: unknown;
-  minimum?: number;
-  maximum?: number;
-  enum?: string[];
-  description?: string;
-  ui_group?: string;
-  ui_order?: number;
-  ui_step?: number;
-  ui_suffix?: string;
-  ui_hidden?: boolean;
-}
-
-export interface JSONSchema {
-  type: "object";
-  properties: Record<string, ParamSchemaProp>;
-  ui_groups?: Record<string, { title: string; icon?: string; order: number }>;
-  required?: string[];
-}
-
-export interface StrategyInfo {
-  id: number;
-  name: string;
-  description: string | null;
-  default_config: Record<string, unknown>;
-  param_schema: JSONSchema;
-}
-
-export interface RunDetail {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  config: Record<string, unknown>;
-  results: Record<string, unknown> | null;
-  trades: Record<string, unknown>[] | null;
-}
-
-export interface HistoryResponse {
-  runs: RunSummary[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-export interface BacktestStartResponse {
-  run_id: number;
-  status: string;
 }

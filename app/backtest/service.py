@@ -88,9 +88,11 @@ class BacktestService:
         if strat_row is None:
             raise ValueError(f"Strategy '{req.strategy}' not seeded in DB")
 
+        is_batch = mode == BacktestMode.BATCH
+
         # 2. Resolve CSV path (single mode; download happens inline in worker)
         csv_path = None
-        if not is_portfolio:
+        if not is_portfolio and not is_batch:
             csv_path = _csv_path(req.symbol, req.timeframe)
 
         # 3. Create Run + RunConfig rows
@@ -102,9 +104,16 @@ class BacktestService:
         db.add(run)
         db.flush()
 
+        if is_batch or is_portfolio:
+            cfg_symbol = "BATCH" if is_batch else "PORTFOLIO"
+        else:
+            cfg_symbol = req.symbol
+
         cfg = RunConfig(
             run_id=run.id,
-            symbol="PORTFOLIO" if is_portfolio else req.symbol,
+            symbol=cfg_symbol,
+            symbols_list=req.symbols if (is_batch or is_portfolio) else None,
+            is_batch_mode=is_batch,
             timeframe=req.timeframe,
             start_date=date.fromisoformat(req.start_date),
             end_date=date.fromisoformat(req.end_date),
@@ -238,10 +247,19 @@ class BacktestService:
     ):
         """Return a callable to execute in the thread pool."""
         from app.api.schemas import BacktestMode
-        from app.backtest.workers import run_portfolio_worker, run_single_worker
+        from app.backtest.workers import run_batch_worker, run_portfolio_worker, run_single_worker
 
         if mode == BacktestMode.PORTFOLIO:
             return lambda: run_portfolio_worker(
+                req=req,
+                run_id=run_id,
+                loop=loop,
+                progress_cb=progress_cb,
+                publish_event_fn=exc_mod.publish_event,
+                cleanup_fn=exc_mod.cleanup_job,
+            )
+        if mode == BacktestMode.BATCH:
+            return lambda: run_batch_worker(
                 req=req,
                 run_id=run_id,
                 loop=loop,

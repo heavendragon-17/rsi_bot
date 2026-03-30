@@ -36,6 +36,18 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+def _migrate_add_batch_id(eng) -> None:
+    """Add batch_id column to runs table if missing. One-time migration."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(runs)"))
+        columns = {row[1] for row in result}
+        if "batch_id" not in columns:
+            conn.execute(
+                sa.text("ALTER TABLE runs ADD COLUMN batch_id INTEGER REFERENCES batches(id)")
+            )
+            conn.commit()
+
+
 def init_db() -> None:
     """
     Create all tables (idempotent) and seed initial strategy rows.
@@ -50,6 +62,7 @@ def init_db() -> None:
     import app.repository.backtest.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_batch_id(engine)
 
     session = SessionLocal()
     try:

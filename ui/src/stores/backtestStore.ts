@@ -239,58 +239,56 @@ export const useBacktestStore = create<BacktestState>()(
             const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
             if (symbols.length === 0) throw new Error("No symbols provided for batch run.");
 
-            // Start all backtests
-            const runIds: { id: number, symbol: string }[] = [];
-            const perConfigCap = parseFloat(state.capital) / symbols.length;
+            // Single API call with mode=batch — server handles parallel execution
+            const { run_id } = await startBacktest({
+              mode: "batch",
+              symbols,
+              timeframe: state.timeframe,
+              strategy: state.strategy,
+              start_date: format(startDate, "yyyy-MM-dd"),
+              end_date: format(endDate, "yyyy-MM-dd"),
+              initial_capital: state.capital,
+              leverage: parseInt(state.leverage) || 1,
+              risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
+              params: state.params,
+            });
 
-            for (const sym of symbols) {
-              const { run_id } = await startBacktest({
-                symbol: sym,
-                timeframe: state.timeframe,
-                strategy: state.strategy,
-                start_date: format(startDate, "yyyy-MM-dd"),
-                end_date: format(endDate, "yyyy-MM-dd"),
-                initial_capital: perConfigCap.toString(),
-                leverage: parseInt(state.leverage) || 1,
-                risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
-                params: state.params,
-              });
-              runIds.push({ id: run_id, symbol: sym });
-            }
+            set({ currentRunId: run_id });
+            localStorage.setItem("activeRunId", String(run_id));
 
-            set({ currentRunId: runIds[0].id });
-            localStorage.setItem("activeRunId", String(runIds[0].id));
-
-            const progressMap = new Map<number, number>();
-            const promises = runIds.map(({ id, symbol }) => new Promise<any>((resolve, reject) => {
-              const cleanup = streamProgress(id,
-                (pct) => {
-                  progressMap.set(id, pct);
-                  let total = 0;
-                  progressMap.forEach(v => total += v);
-                  set({ runProgress: total / symbols.length });
+            await new Promise<void>((resolve, reject) => {
+              const cleanup = streamProgress(
+                run_id,
+                (pct, phase) => {
+                  if (phase === "download") {
+                    set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
+                  } else {
+                    set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
+                  }
                 },
                 async () => {
                   cleanup();
                   try {
-                    const [detail, timeseries] = await Promise.all([getRunDetail(id), getTimeseries(id)]);
-                    resolve({ symbol, detail, timeseries, initialCapital: perConfigCap });
-                  } catch (e) { reject(e); }
+                    const [detail, timeseries] = await Promise.all([
+                      getRunDetail(run_id),
+                      getTimeseries(run_id),
+                    ]);
+                    useResultsStore.getState().setResults(
+                      mapApiToResults(detail, timeseries)
+                    );
+                    resolve();
+                  } catch (fetchErr) {
+                    reject(fetchErr);
+                  }
                 },
-                (err) => { cleanup(); reject(new Error(err)); }
+                (msg) => {
+                  cleanup();
+                  reject(new Error(msg));
+                }
               );
-            }));
+            });
 
-            const allResults = await Promise.all(promises);
-
-            // Import util
-            const { aggregateBatchResults } = await import("../lib/batch-utils");
-            const aggregated = aggregateBatchResults(allResults);
-
-            const { useBatchResultsStore } = await import("./batchResultsStore");
-            useBatchResultsStore.getState().setBatchResults(aggregated);
-
-            set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
+            set({ isRunning: false, runProgress: 100, currentRunId: null, runPhase: "idle" });
             localStorage.removeItem("activeRunId");
             return;
           }

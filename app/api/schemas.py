@@ -165,3 +165,30 @@ class StrategyInfo(BaseModel):
     description: str | None
     default_config: dict[str, Any]
     param_schema: dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# Presets
+# ---------------------------------------------------------------------------
+
+
+class PresetCreate(BaseModel):
+    name: str
+    strategy: str
+    config: dict[str, Any]
+
+
+class PresetUpdate(BaseModel):
+    name: str | None = None
+    config: dict[str, Any] | None = None
+
+
+class PresetResponse(BaseModel):
+    id: int
+    name: str
+    strategy: str
+    config: dict[str, Any]
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}
