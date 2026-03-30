@@ -11,7 +11,7 @@ import {
 import { mapApiToResults, useResultsStore } from "./resultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
-import type { StrategyInfo } from "../types/generated";
+import type { StrategyInfo, JSONSchema } from "../types/generated";
 
 export interface BacktestState {
   // Navigation State
@@ -25,6 +25,7 @@ export interface BacktestState {
   portfolioInput: string;
   strategy: string;
   availableStrategies: StrategyInfo[];
+  currentParamSchema: JSONSchema | null;
   timeframe: string;
   startDate: string;
   endDate: string;
@@ -34,18 +35,8 @@ export interface BacktestState {
   lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months" | "years";
   datePreset: string | null;
 
-  // Strategy Parameters
-  params: {
-    rsi_period: number;
-    ema_fast: number;
-    ema_slow: number;
-    tp1_rr: number;
-    tp2_rr: number;
-    sl_buffer_pct: number;
-    overbought: number;
-    oversold: number;
-    [key: string]: number;
-  };
+  // Strategy Parameters (dynamic — populated from API default_config)
+  params: Record<string, unknown>;
 
   // Risk Management
   capital: string;
@@ -55,6 +46,9 @@ export interface BacktestState {
   // Execution State
   isRunning: boolean;
   runProgress: number;        // 0-100
+  runPhase: "idle" | "download" | "backtest";
+  downloadProgress: number;
+  backtestProgress: number;
   currentRunId: number | null;
   recentConfigs: any[];
 
@@ -64,7 +58,7 @@ export interface BacktestState {
   setPortfolioInput: (input: string) => void;
   setStrategy: (strategy: string) => void;
   setTimeframe: (tf: string) => void;
-  setParam: (key: string, value: number) => void;
+  setParam: (key: string, value: unknown) => void;
   setCapital: (val: string) => void;
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
@@ -79,6 +73,7 @@ export interface BacktestState {
   syncRelativeDates: () => void;
   loadConfig: (config: any) => void;
   loadStrategies: () => Promise<void>;
+  recoverActiveRun: () => Promise<void>;
 
   runBacktest: () => Promise<void>;
   cancelBacktest: () => Promise<void>;
@@ -86,17 +81,6 @@ export interface BacktestState {
   getEstimatedBars: () => number;
   getDaysDuration: () => number;
 }
-
-const DEFAULT_PARAMS = {
-  rsi_period: 14,
-  ema_fast: 9,
-  ema_slow: 21,
-  tp1_rr: 1.5,
-  tp2_rr: 3.0,
-  sl_buffer_pct: 1.0,
-  overbought: 70,
-  oversold: 30,
-};
 
 export const useBacktestStore = create<BacktestState>()(
   persist(
@@ -110,6 +94,7 @@ export const useBacktestStore = create<BacktestState>()(
       portfolioInput: "BTC/USDT\nETH/USDT\nSOL/USDT\nBNB/USDT\nADA/USDT\nXRP/USDT\nDOGE/USDT\nDOT/USDT\nMATIC/USDT\nLTC/USDT\nUNI/USDT\nLINK/USDT",
       strategy: "rsi_no_retest",
       availableStrategies: [],
+      currentParamSchema: null,
       timeframe: "1h",
       startDate: "01-01-2024",
       endDate: "31-12-2024",
@@ -119,7 +104,7 @@ export const useBacktestStore = create<BacktestState>()(
       lookbackUnit: "bars",
       datePreset: null,
 
-      params: { ...DEFAULT_PARAMS },
+      params: {},
 
       capital: "10000",
       leverage: "1",
@@ -127,25 +112,34 @@ export const useBacktestStore = create<BacktestState>()(
 
       isRunning: false,
       runProgress: 0,
+      runPhase: "idle",
+      downloadProgress: 0,
+      backtestProgress: 0,
       currentRunId: null,
       recentConfigs: [],
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
       setPortfolioInput: (portfolioInput) => set({ portfolioInput }),
-      setStrategy: (strategy) => set({ strategy }),
+      setStrategy: (strategy) => {
+        const strat = get().availableStrategies.find(s => s.name === strategy);
+        set({
+          strategy,
+          currentParamSchema: strat?.param_schema || null,
+          params: strat?.default_config ? { ...strat.default_config } : {},
+        });
+      },
       setTimeframe: (timeframe) => {
         set({ timeframe });
         get().syncRelativeDates();
       },
       setParam: (key, value) =>
-        set((s) => ({ params: { ...s.params, [key]: Number(value) } })),
+        set((s) => ({ params: { ...s.params, [key]: value } })),
       setCapital: (capital) => set({ capital }),
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
       setStartDate: (startDate) => {
-        console.log("Store updating startDate to:", startDate);
         set({ startDate, dateMode: "absolute", datePreset: null });
       },
       setEndDate: (endDate) => set({ endDate, dateMode: "absolute", datePreset: null }),
@@ -235,7 +229,7 @@ export const useBacktestStore = create<BacktestState>()(
 
       runBacktest: async () => {
         const state = get();
-        set({ isRunning: true, runProgress: 0 });
+        set({ isRunning: true, runProgress: 0, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
 
         try {
           const startDate = parse(state.startDate, "dd-MM-yyyy", new Date());
@@ -265,6 +259,7 @@ export const useBacktestStore = create<BacktestState>()(
             }
 
             set({ currentRunId: runIds[0].id });
+            localStorage.setItem("activeRunId", String(runIds[0].id));
 
             const progressMap = new Map<number, number>();
             const promises = runIds.map(({ id, symbol }) => new Promise<any>((resolve, reject) => {
@@ -295,7 +290,8 @@ export const useBacktestStore = create<BacktestState>()(
             const { useBatchResultsStore } = await import("./batchResultsStore");
             useBatchResultsStore.getState().setBatchResults(aggregated);
 
-            set({ isRunning: false, runProgress: 0, currentRunId: null });
+            set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
+            localStorage.removeItem("activeRunId");
             return;
           }
 
@@ -316,11 +312,18 @@ export const useBacktestStore = create<BacktestState>()(
             });
 
             set({ currentRunId: run_id });
+            localStorage.setItem("activeRunId", String(run_id));
 
             await new Promise<void>((resolve, reject) => {
               const cleanup = streamProgress(
                 run_id,
-                (pct) => set({ runProgress: pct }),
+                (pct, phase) => {
+                  if (phase === "download") {
+                    set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
+                  } else {
+                    set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
+                  }
+                },
                 async () => {
                   cleanup();
                   try {
@@ -343,7 +346,8 @@ export const useBacktestStore = create<BacktestState>()(
               );
             });
 
-            set({ isRunning: false, runProgress: 100, currentRunId: null });
+            set({ isRunning: false, runProgress: 100, currentRunId: null, runPhase: "idle" });
+            localStorage.removeItem("activeRunId");
             return;
           }
 
@@ -361,12 +365,19 @@ export const useBacktestStore = create<BacktestState>()(
           });
 
           set({ currentRunId: run_id });
+          localStorage.setItem("activeRunId", String(run_id));
 
           // 3. SSE — store owns the EventSource connection
           await new Promise<void>((resolve, reject) => {
             const cleanup = streamProgress(
               run_id,
-              (pct) => set({ runProgress: pct }),
+              (pct, phase) => {
+                if (phase === "download") {
+                  set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
+                } else {
+                  set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
+                }
+              },
               async () => {
                 // Instantly clean up to prevent EventSource from firing onerror when server closes
                 cleanup();
@@ -394,7 +405,8 @@ export const useBacktestStore = create<BacktestState>()(
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Backtest failed");
         } finally {
-          set({ isRunning: false, runProgress: 0, currentRunId: null });
+          set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
+          localStorage.removeItem("activeRunId");
         }
       },
 
@@ -407,25 +419,92 @@ export const useBacktestStore = create<BacktestState>()(
             // Ignore — state reset is the priority
           }
         }
-        set({ isRunning: false, runProgress: 0, currentRunId: null });
+        set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
+        localStorage.removeItem("activeRunId");
       },
 
       loadStrategies: async () => {
         try {
           const strategies = await fetchStrategies();
           set({ availableStrategies: strategies });
+
+          // Set schema + defaults for current strategy
+          const current = strategies.find(s => s.name === get().strategy);
+          if (current) {
+            const currentParams = get().params;
+            const hasParams = Object.keys(currentParams).length > 0;
+            set({
+              currentParamSchema: current.param_schema,
+              // Only set defaults if no params are loaded (e.g., fresh load)
+              ...(!hasParams ? { params: { ...current.default_config } } : {}),
+            });
+          }
         } catch (err) {
           console.error("Failed to load strategies:", err);
         }
       },
 
-      resetParams: () =>
+      recoverActiveRun: async () => {
+        const activeRunId = localStorage.getItem("activeRunId");
+        if (!activeRunId) return;
+
+        const runId = parseInt(activeRunId);
+        try {
+          const detail = await getRunDetail(runId);
+
+          if (detail.status === "completed") {
+            const timeseries = await getTimeseries(runId);
+            useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
+            localStorage.removeItem("activeRunId");
+            toast.success("Previous backtest completed!");
+          } else if (detail.status === "running") {
+            // Reconnect SSE for this run
+            set({ isRunning: true, currentRunId: runId, runPhase: "backtest" });
+            const cleanup = streamProgress(
+              runId,
+              (pct, phase) => {
+                if (phase === "download") {
+                  set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
+                } else {
+                  set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
+                }
+              },
+              async () => {
+                cleanup();
+                try {
+                  const [detail, timeseries] = await Promise.all([
+                    getRunDetail(runId),
+                    getTimeseries(runId),
+                  ]);
+                  useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
+                  toast.success("Backtest completed!");
+                } catch { /* ignore */ }
+                set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
+                localStorage.removeItem("activeRunId");
+              },
+              () => {
+                cleanup();
+                set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
+                localStorage.removeItem("activeRunId");
+              },
+            );
+          } else {
+            localStorage.removeItem("activeRunId");
+          }
+        } catch {
+          localStorage.removeItem("activeRunId");
+        }
+      },
+
+      resetParams: () => {
+        const strat = get().availableStrategies.find(s => s.name === get().strategy);
         set({
-          params: { ...DEFAULT_PARAMS },
+          params: strat?.default_config ? { ...strat.default_config } : {},
           capital: "10000",
           leverage: "1",
           riskPercent: "1",
-        }),
+        });
+      },
 
       getDaysDuration: () => {
         const { startDate, endDate } = get();

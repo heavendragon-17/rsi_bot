@@ -60,3 +60,34 @@ export const validateParam = (key: string, value: string): ValidationResult => {
   const error = validator ? validator(value) : null;
   return { isValid: !error, error };
 };
+
+// Schema-aware validation (used by DynamicParamForm)
+export const validateFromSchema = (
+  key: string,
+  value: string,
+  schema?: any
+): ValidationResult => {
+  if (value === "") return { isValid: false, error: "Required" };
+
+  const prop = schema?.properties?.[key];
+  if (!prop) {
+    const n = parseFloat(value);
+    if (isNaN(n)) return { isValid: false, error: "Must be a number" };
+    return { isValid: true, error: null };
+  }
+
+  if (prop.type === "integer" || prop.type === "number") {
+    const n = prop.type === "integer" ? parseInt(value) : parseFloat(value);
+    if (isNaN(n)) return { isValid: false, error: `${prop.title} must be a number` };
+    if (prop.minimum !== undefined && n < prop.minimum)
+      return { isValid: false, error: `Min: ${prop.minimum}` };
+    if (prop.maximum !== undefined && n > prop.maximum)
+      return { isValid: false, error: `Max: ${prop.maximum}` };
+  }
+
+  if (prop.enum && !prop.enum.includes(value)) {
+    return { isValid: false, error: `Must be one of: ${prop.enum.join(", ")}` };
+  }
+
+  return { isValid: true, error: null };
+};

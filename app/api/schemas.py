@@ -164,3 +164,4 @@ class StrategyInfo(BaseModel):
     name: str
     description: str | None
     default_config: dict[str, Any]
+    param_schema: dict[str, Any] = {}

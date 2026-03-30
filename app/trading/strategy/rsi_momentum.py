@@ -40,13 +40,21 @@ from app.trading.strategy.base import BaseStrategy
 from app.trading.strategy.rsi_momentum_entry import check_entry
 from app.trading.strategy.rsi_momentum_exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
+from app.trading.strategy.utils.param_metadata import (
+    RSI_MOMENTUM_METADATA,
+    RSI_MOMENTUM_GROUPS,
+)
+from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 
 logger = structlog.get_logger()
 
 
 @dataclass(frozen=True)
-class RsiMomentumConfig:
+class RsiMomentumConfig(SchemaConfigMixin):
     """Typed config for RsiMomentumStrategy. Uses sensible defaults."""
+
+    METADATA = RSI_MOMENTUM_METADATA
+    UI_GROUPS = RSI_MOMENTUM_GROUPS
 
     # Indicator params
     rsi_period: int = 14
@@ -96,6 +104,8 @@ class RsiMomentumStrategy(BaseStrategy):
     subsequent candle as long as full alignment (S2+S3+S4) still holds
     and the crossover_detected flag is set in context.
     """
+
+    CONFIG_CLASS = RsiMomentumConfig
 
     DEFAULT_CONFIG = {
         f.name: f.default for f in dc_fields(RsiMomentumConfig)
