@@ -109,37 +109,45 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 4. `spec_phase1_backend.md` — Phase 1 Backend
+## 4. `spec_phase1_backend.md` — Phase 1 Backend ✅ RESOLVED
 
 ### Strengths
 - Clear stage decomposition (1A through 1D)
 - Result persistence verification checklist is thorough
 
-### Issues
+### Issues — All Fixed
 
 **4.1 — CRITICAL: `strategy_registry.py` duplicates existing `seed.py`**
-`app/repository/backtest/seed.py` already has `seed_strategies()` that iterates `STRATEGY_MAP`, checks DB, inserts missing strategies. The spec should modify the existing file, not create a parallel system.
+~~Spec proposed creating new `app/backtest/strategy_registry.py`.~~
+**Fixed:** Spec now modifies existing `app/repository/backtest/seed.py`. No new file.
 
 **4.2 — CRITICAL: ProgressBus (Section 1B.4) reimplements existing `executor.py`**
-The spec proposes new `app/api/progress.py` with `ProgressBus`, `_progress_queues`, `subscribe/unsubscribe`. But `app/api/executor.py` already has all of this: `_progress_queues`, `create_progress_queue()`, `get_progress_queue()`, `publish_event()`, `make_progress_callback()`. **This entire section is redundant.**
+~~Spec proposed new `app/api/progress.py` with duplicate queue infrastructure.~~
+**Fixed:** Entire section removed. Workers use existing `executor.publish_event()` directly.
 
 **4.3 — CRITICAL: SSE endpoint reimplements existing `stream_progress()`**
-`BacktestService.stream_progress()` in `service.py:203-218` already implements the SSE generator. The spec proposes creating a new route handler that duplicates this.
+~~Spec proposed new SSE route handler.~~
+**Fixed:** Section removed. Existing `BacktestService.stream_progress()` and `backtest_stream.py` route are sufficient.
 
 **4.4 — `@app.on_event("startup")` is deprecated**
-FastAPI deprecated `on_event` in favor of `lifespan` context managers. Use the existing startup pattern.
+~~Spec used deprecated FastAPI pattern.~~
+**Fixed:** Spec now references existing `lifespan` context manager in `main.py`. No changes to `main.py` needed.
 
 **4.5 — Default extraction logic misses `default_factory` fields**
-Lines 43-44 skip fields with `default_factory`. The existing `seed.py` uses `getattr(cls, "DEFAULT_CONFIG", {})` — both approaches have gaps and need alignment.
+~~Both approaches had gaps.~~
+**Fixed:** `seed.py` now extracts defaults from `CONFIG_CLASS` frozen dataclass fields, filtering `METADATA`/`UI_GROUPS` class vars.
 
 **4.6 — "Missing fields likely" are already present**
-The spec says `exit_reasons`, `max_consecutive_wins`, `volatility`, `calmar_ratio`, `expectancy` are "likely missing." But `RunResult` model already has ALL of these columns, and `_build_results_dict()` serializes them all. This section is based on stale assumptions.
+~~Spec assumed `exit_reasons`, `max_consecutive_wins`, etc. were missing.~~
+**Fixed:** Stage 1C rewritten as "ALREADY COMPLETE — verify only". All 22 fields documented with file:line references.
 
 **4.7 — File boundary violation**
-Proposed `strategy_registry.py` in `app/backtest/` — per CLAUDE.md, strategy-related code belongs in `app/trading/strategy/` or the existing `app/repository/backtest/seed.py`.
+~~`strategy_registry.py` proposed in `app/backtest/`.~~
+**Fixed:** No new strategy-related file. Existing `seed.py` in `app/repository/backtest/` is modified.
 
 **4.8 — `service.py` already at 388 lines**
-Adding inline download logic will push it over the 400-line limit. Plan to decompose before adding code.
+~~Adding inline download would exceed 400-line limit.~~
+**Fixed:** Worker functions extracted to `app/backtest/workers.py`. Download logic isolated in `app/backtest/data/inline_download.py`. `service.py` stays under 400 lines.
 
 ---
 
