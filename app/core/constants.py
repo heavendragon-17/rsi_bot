@@ -39,3 +39,10 @@ EQUITY_SAMPLE_INTERVAL = 3  # candles between samples (normal mode)
 EQUITY_SAMPLE_HIGH_RES = 1  # every candle when drawdown is steep
 EQUITY_SAMPLE_LOW_RES = 6  # relaxed interval when flat/steady
 EQUITY_DRAWDOWN_THRESHOLD = 2.0  # % drawdown to trigger high-res mode
+
+# ── Monte Carlo / Simulation defaults ────────────────────────────────
+SIM_DEFAULT_NUM_PATHS = 1000  # number of simulated price paths
+SIM_DEFAULT_PATH_LENGTH = 252  # trading days per path (~1 year crypto)
+SIM_BLOCK_BOOTSTRAP_SIZE = 20  # consecutive days per block (preserves vol clustering)
+SIM_REGIME_COUNT = 3  # bull / neutral / bear
+SIM_GARCH_DIST = "skewt"  # skewed Student-t for fat tails + asymmetry
