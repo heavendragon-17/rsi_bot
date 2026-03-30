@@ -165,6 +165,49 @@ Legend: `[EXISTS]` = already implemented, `[NEW]` = to be built, `[MODIFY]` = ne
 
 ---
 
+## Testing Plan
+
+Each phase must include tests before moving to the next. Run all tests with `pytest tests/`.
+
+### Phase 1 — Tests
+
+**Backend:**
+- Schema generation round-trip: `dataclass → param_schema() → validate all fields present + types correct`
+- `seed.py` extracts correct defaults from `CONFIG_CLASS`
+- Inline download with file lock: mock `download_data()`, verify lock prevents concurrent duplicates
+- SSE event sequence: mock worker → verify events arrive in order (`download_progress → download_complete → progress → complete`)
+- `persist_results()` → `get_run_detail()` round-trip: verify all 22 metrics survive persist + query
+- Timeseries keys: verify zlib output uses `{date, balance}` / `{date, drawdown}` keys
+
+**Frontend (manual or Playwright):**
+- `loadStrategies()` → `currentParamSchema` populated → `DynamicParamForm` renders correct fields
+- Strategy change → params reset to new strategy's defaults
+- Run backtest → progress pill appears → results render in `ResultsDashboard`
+- Page refresh during run → `recoverActiveRun()` reconnects or shows results
+
+### Phase 2 — Tests
+
+**Backend:**
+- Batch mode: `mode=batch` with 3 symbols → 3 parallel runs → aggregated results
+- Portfolio mode: `mode=portfolio` → `PortfolioEngine` runs → results persisted
+- Presets CRUD: create, list, update (with `name=None`), delete
+- `_migrate_add_batch_id()`: runs idempotently (no error on second call)
+
+**Frontend (manual or Playwright):**
+- Batch run → `batchResultsStore` populated → `BatchResultsDashboard` renders
+- Preset save → reload → preset appears in list → load applies config
+
+### Phase 4 — Tests
+
+**Backend:**
+- Concurrency endpoint: GET returns default, PUT with no active jobs succeeds, PUT with active jobs returns 409
+
+**Frontend (manual or Playwright):**
+- History page: filters trigger refetch, search is debounced
+- Export: PDF/CSV/ZIP contain real data
+
+---
+
 ## File Organization
 
 ```

@@ -218,68 +218,87 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 7. `spec_phase2_frontend_and_phase3_4.md` — Phase 2 Frontend + Phase 3-4
+## 7. `spec_phase2_frontend_and_phase3_4.md` — Phase 2 Frontend + Phase 3-4 ✅ RESOLVED
 
 ### Strengths
 - Batch flow correctly uses `Promise.all` for parallel result fetching
 - "Untouched Files" section is helpful for scoping
-- Phase 3-4 correctly identifies mostly verification tasks
 
-### Issues
+### Issues — All Fixed
 
 **7.1 — `require()` in ESM codebase**
-Line 245: `const { useBacktestStore } = require("./backtestStore")` — the codebase uses ESM imports. This will fail in Vite. Use `import()`.
+~~`require("./backtestStore")` fails in Vite ESM environment.~~
+**Fixed:** Changed to `await import("./backtestStore")` (dynamic ESM import).
 
 **7.2 — Batch symbol-to-result mapping is brittle**
-`symbol: symbols[i]` assumes `run_ids` order matches `symbols` array order. If any symbol fails or executes out of order, mapping breaks. Backend should include `symbol` in each run's response.
+~~`symbol: symbols[i]` assumes order matches.~~
+**Fixed:** Use `detail.symbol` from `RunDetail` response instead of index-based mapping.
 
 **7.3 — Phase 3 quant tool endpoints may not exist**
-The route files show: `backtest_run.py`, `backtest_results.py`, `backtest_stream.py`, `history.py`, `strategies.py`, `data.py` — **no grid search, walk-forward, or sensitivity routes**. These may need to be built from scratch, not just "verified."
+~~Spec said "verify/fix" but endpoints don't exist at all.~~
+**Fixed:** Phase 3 fully descoped. Documented as "frontend ready, backend not built (~30-40h standalone project)." API contracts preserved for future reference.
 
 **7.4 — History filter lacks debounce**
-`useEffect` watching 6 filter dependencies fires on every keystroke in search. Needs debounce.
+~~`useEffect` fires on every keystroke.~~
+**Fixed:** Added `useDebouncedValue` hook for `searchQuery` (300ms debounce).
 
 **7.5 — Timeline estimate is optimistic**
-62 hours total given the discrepancies found. Budget 20-30% contingency (~80h).
+~~62h total with discrepancies.~~
+**Fixed:** Revised to ~41.5h (Phase 3 descoped, Phase 1-2 estimates updated from prior section fixes) + 20% contingency = ~50h.
 
 ---
 
-## Cross-Cutting Concerns
+## Cross-Cutting Concerns ✅ ALL RESOLVED
 
 ### A. Missing Test Plan
-None of the 7 specs include testing strategy. For SSE streaming, thread pools, progress callbacks, and dynamic schema generation — tests are critical:
-- Schema generation round-trip tests
-- SSE event sequence tests (mock worker → verify event order)
-- Frontend store integration tests (mock API → verify state transitions)
+~~No specs included testing strategy.~~
+**Fixed:** Testing Plan section added to `spec_overview.md` with per-phase test requirements (backend unit tests + frontend manual/Playwright tests).
 
 ### B. Missing DB Migration Plan
-Adding `batch_id` to `Run`, new `Preset`/`Batch` tables — no migration tooling mentioned.
+~~No migration tooling mentioned.~~
+**Fixed:** Resolved in Section 6. `create_all()` handles new tables. `_migrate_add_batch_id()` helper added for existing `runs` table column.
 
 ### C. No Rollback Plan
-What if Phase 1 is partially implemented? Can the system still function? Consider ensuring each stage is independently deployable.
+Each phase is independently deployable:
+- Phase 1 adds schema + inline download — existing single-mode flow is enhanced, not replaced
+- Phase 2 adds batch/portfolio/presets — new capabilities, doesn't break Phase 1
+- Phase 4 is polish — optional, doesn't affect core flow
 
 ### D. Architectural Rule Compliance
-- `service.py` at 388 lines — will exceed 400-line limit with additions
-- Progress split constants (30/70, 50/50) should go in `app/core/constants.py`
+~~`service.py` at 388 lines would exceed limit.~~
+**Fixed:** Resolved in Section 4. Workers extracted to `workers.py`, download logic to `inline_download.py`.
 
 ---
 
-## Priority Action Items
+## Priority Action Items — ✅ ALL RESOLVED
 
-| Priority | Item | Spec |
-|----------|------|------|
-| **Critical** | Don't recreate ProgressBus — use existing `executor.py` | Phase 1 Backend §1B.4 |
-| **Critical** | Don't recreate strategy seeding — modify existing `seed.py` | Phase 1 Backend §1A.1 |
-| **Critical** | Include `rsi_wma_retest` in all strategy references | All specs |
-| **Critical** | Verify quant tool endpoints exist before planning Phase 3 | Phase 2 Frontend §3A |
-| **High** | Document full `BacktestRequest`/`RunDetail` schemas | API Contracts §3.1-3.4 |
-| **High** | Address concurrent download race condition | API Contracts §3.2 |
-| **High** | Fix `require()` → `import()` in presetStore | Phase 2 Frontend §7.1 |
-| **High** | Make batch worker parallel (match existing `batch_runner.py`) | Phase 2 Backend §6.1 |
-| **Medium** | Use `dataclasses.field(metadata=)` instead of global `PARAM_METADATA` | Strategy Schema §2.2 |
-| **Medium** | Add testing strategy across all phases | All specs |
-| **Medium** | Plan DB migrations for new tables/columns | Phase 2 Backend §6.6 |
-| **Medium** | Fix component paths (`components/sidebar/` → `components/layout/`) | Phase 1 Frontend §5.2 |
-| **Low** | Replace `window.confirm()` with design-system modal | Phase 1 Frontend §5.3 |
-| **Low** | Add debounce to history filter `useEffect` | Phase 2 Frontend §7.4 |
-| **Low** | Drop redundant `GET /api/strategies/{name}/schema` endpoint | API Contracts §3.5 |
+All 15 original action items have been addressed across the 7 spec rewrites:
+
+| # | Item | Resolution |
+|---|------|-----------|
+| 1 | Don't recreate ProgressBus | Removed — use existing `executor.py` |
+| 2 | Don't recreate strategy seeding | Modified existing `seed.py` with `CONFIG_CLASS` |
+| 3 | Include `rsi_wma_retest` | Added to all specs + pre-requisite for frozen dataclass |
+| 4 | Quant tool endpoints don't exist | Phase 3 descoped entirely |
+| 5 | Document full API schemas | Complete `BacktestRequest` (16 fields) + `RunDetail` (22+15 fields) |
+| 6 | Concurrent download race condition | File lock with `fcntl.flock()` + double-check |
+| 7 | `require()` → `import()` | Fixed to dynamic ESM import |
+| 8 | Batch worker parallel | Wraps existing `BatchRunner` with `ProcessPoolExecutor` |
+| 9 | Shared metadata file | `param_metadata.py` + `SchemaConfigMixin` (not global dict) |
+| 10 | Testing plan | Added per-phase test requirements to `spec_overview.md` |
+| 11 | DB migration | `_migrate_add_batch_id()` for existing table, `create_all()` for new tables |
+| 12 | Component paths | New `components/sidebar/` directory for sidebar sub-components |
+| 13 | `window.confirm()` | Replaced with `sonner` toast + action button |
+| 14 | History debounce | `useDebouncedValue` hook (300ms) |
+| 15 | Redundant schema endpoint | Dropped `GET /api/strategies/{name}/schema` |
+
+### Revised Timeline
+
+| Phase | Scope | Estimate |
+|-------|-------|----------|
+| **1** | Single backtest E2E | ~20h |
+| **2** | Batch + Portfolio + Presets | ~13.5h |
+| **3** | ~~Quant tools~~ | **Descoped** |
+| **4** | Polish + infrastructure | ~8h |
+| | **Subtotal** | **~41.5h** |
+| | +20% contingency | **~50h** |
