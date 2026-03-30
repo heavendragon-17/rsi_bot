@@ -13,26 +13,29 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 1. `spec_overview.md` — Master Overview
+## 1. `spec_overview.md` — Master Overview ✅ RESOLVED
 
 ### Strengths
 - Decision log is excellent — captures 25 key decisions with clear rationale
 - Phase plan is well-scoped with sensible dependency ordering
 - Architecture diagram accurately reflects the data flow
 
-### Issues
+### Issues — All Fixed
 
 **1.1 — Architecture diagram implies infrastructure needs to be built, but it already exists**
-The diagram shows `ThreadPoolExecutor`, SSE streaming, and progress callbacks as if they're new. But `app/api/executor.py` already has a working `ThreadPoolExecutor(max_workers=2)`, progress queues (`_progress_queues`), a thread-safe callback bridge (`make_progress_callback`, `publish_event`), and `BacktestService.stream_progress()` already implements the SSE generator. The spec should acknowledge existing infrastructure and describe **deltas only**.
+~~The diagram shows `ThreadPoolExecutor`, SSE streaming, and progress callbacks as if they're new.~~
+**Fixed:** Added "Already Implemented" section to Current State. Architecture diagram now uses `[EXISTS]`/`[NEW]`/`[MODIFY]` legend.
 
 **1.2 — Missing strategy: `rsi_wma_retest`**
-`STRATEGY_MAP` in `app/trading/strategy/loader.py:15` has **three** strategies: `rsi_wma_retest`, `rsi_no_retest`, `rsi_momentum`. All downstream specs only mention two. The third strategy will be silently omitted from param schemas, auto-seeding examples, and testing.
+~~All downstream specs only mention two strategies.~~
+**Fixed:** Decision #5 now lists all 3 strategies. Added Pre-requisites section: create `RsiWmaRetestConfig` frozen dataclass before Phase 1.
 
 **1.3 — File organization references wrong paths**
-Lists files in `specs/` subdirectory, but they're at repo root. Also references `spec_phase2_frontend.md` separately, but the actual file is `spec_phase2_frontend_and_phase3_4.md`.
+~~Lists files in `specs/` subdirectory.~~
+**Fixed:** Updated to repo root paths with correct filenames.
 
 **1.4 — `POST /api/backtest/run` already returns `run_id`**
-`app/api/routes/backtest_run.py:30` already returns `BacktestStartResponse(run_id=run_id, status="running")`. No change needed here.
+**Fixed:** Covered by the `[EXISTS]` annotations in the architecture diagram.
 
 ---
 
