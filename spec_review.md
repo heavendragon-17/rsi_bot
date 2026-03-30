@@ -183,32 +183,38 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 6. `spec_phase2_backend.md` — Phase 2 Backend
+## 6. `spec_phase2_backend.md` — Phase 2 Backend ✅ RESOLVED
 
 ### Strengths
 - Clean separation of batch vs portfolio modes
 - Preset CRUD is straightforward
 - Batch DB schema is sensible
 
-### Issues
+### Issues — All Fixed
 
 **6.1 — Batch worker runs sequentially, not in parallel**
-Line 79: `for i, (run_id, symbol) in enumerate(...)` processes symbols sequentially. The existing `batch_runner.py` uses `ProcessPoolExecutor` for parallel execution. The spec **downgrades performance** without explanation.
+~~Sequential for-loop downgrades performance vs existing `BatchRunner`.~~
+**Fixed:** Batch worker now wraps existing `BatchRunner` which uses `ProcessPoolExecutor` with configurable `max_workers`.
 
 **6.2 — Separate batch endpoint vs existing mode discriminator**
-`BacktestService.start_run()` already detects portfolio mode via `req.symbols` and `req.mode`. Adding a separate `POST /api/backtest/batch` creates two entry points. Consider routing batch through the existing endpoint with `mode=batch`.
+~~Separate `POST /api/backtest/batch` creates duplicate entry points.~~
+**Fixed:** All modes route through existing `POST /api/backtest/run` with `mode=batch`. No new endpoint.
 
 **6.3 — `Batch` model missing SQLAlchemy relationship**
-Adds `batch_id` FK to `Run` but doesn't update `Run.relationship()` or add `back_populates`. SQLAlchemy needs both sides.
+~~`batch_id` FK added without `back_populates`.~~
+**Fixed:** Both `Batch.runs` and `Run.batch` relationships added with `back_populates`.
 
 **6.4 — `PresetUpdate` falsy check bug**
-`if body.name: preset.name = body.name` — empty string `""` is falsy and won't update. Use `is not None` instead.
+~~`if body.name:` treats empty string as no-update.~~
+**Fixed:** Changed to `if body.name is not None:` and `if body.config is not None:`.
 
 **6.5 — Portfolio progress split is static**
-50/50 download/backtest split means progress jumps from 0% to 50% instantly when data is already cached. Make dynamic.
+~~50/50 split causes instant jump when data is cached.~~
+**Fixed:** Dynamic split — download gets 30% only if files need downloading, otherwise backtest gets 100%.
 
 **6.6 — No DB migration mentioned**
-Adding `Preset`, `Batch` tables and `Run.batch_id` column requires migration tooling (Alembic). Not mentioned.
+~~New column on existing table requires migration.~~
+**Fixed:** Confirmed project uses `create_all()` (no Alembic). New tables auto-create. Added `_migrate_add_batch_id()` helper using `ALTER TABLE` for the existing `runs` table, called from `init_db()`.
 
 ---
 
