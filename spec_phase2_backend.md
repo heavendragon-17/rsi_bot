@@ -6,190 +6,164 @@ Batch mode (N independent runs via single API call), portfolio mode (single bala
 
 **Prerequisite:** Phase 1 complete — single backtest works end-to-end.
 
----
-
-## Stage 2A: Batch Endpoint
-
-### Three Modes Clarification
-
-| Mode | Description | Backend Implementation |
-|------|-------------|----------------------|
-| **Single** | 1 symbol, 1 run | Existing flow from Phase 1 |
-| **Batch** | N symbols, N independent runs, each with its own balance | `batch_runner.py` already exists for CLI (`python -m app.backtest.runners.batch_runner`) — wrap in API endpoint |
-| **Portfolio** | N symbols, 1 shared balance, multiplexed chronologically | `PortfolioEngine` — single run with interleaved candles |
-
-### `POST /api/backtest/batch`
-
-**File:** `app/api/routes/backtest.py`
-
-```python
-@router.post("/api/backtest/batch", status_code=201)
-async def start_batch(req: BatchRequest, db: Session = Depends(get_db)):
-    """
-    Starts N independent backtests — one per symbol.
-    Returns a batch_id + individual run_ids.
-    Progress streamed via GET /api/backtest/batch/{batch_id}/progress
-    """
-    if not req.symbols or len(req.symbols) == 0:
-        raise HTTPException(400, "No symbols provided")
-
-    # Create parent batch record
-    batch = Batch(status="running", total_symbols=len(req.symbols))
-    db.add(batch)
-    db.flush()
-
-    # Create individual run records
-    run_ids = []
-    for symbol in req.symbols:
-        run = create_run_record(db, req, symbol=symbol, batch_id=batch.id)
-        run_ids.append(run.id)
-    db.commit()
-
-    # Submit to executor
-    executor.submit(run_batch_worker, batch.id, run_ids, req)
-
-    return {"batch_id": batch.id, "run_ids": run_ids, "status": "running"}
-```
-
-### Pydantic Schema:
-
-```python
-class BatchRequest(BaseModel):
-    symbols: list[str]
-    timeframe: str
-    strategy: str
-    start_date: str
-    end_date: str
-    initial_capital: str = "10000.00"  # per symbol
-    leverage: int = 10
-    risk_per_trade_pct: str = "0.02"
-    params: dict = {}
-```
-
-### Batch Worker:
-
-```python
-# app/backtest/workers/batch_worker.py
-
-def run_batch_worker(batch_id: int, run_ids: list[int], req: BatchRequest):
-    """Runs N backtests sequentially (or limited parallelism)."""
-    progress_bus = get_progress_bus(batch_id)
-    completed = 0
-
-    for i, (run_id, symbol) in enumerate(zip(run_ids, req.symbols)):
-        try:
-            # Run single backtest (reuse Phase 1 worker logic)
-            run_single_backtest(run_id, symbol, req, progress_callback=lambda pct: (
-                progress_bus.emit("batch_progress", {
-                    "pct": int(((completed + pct / 100) / len(run_ids)) * 100),
-                    "symbol": symbol,
-                    "symbol_pct": pct,
-                    "completed": completed,
-                    "total": len(run_ids),
-                })
-            ))
-            completed += 1
-
-            progress_bus.emit("batch_symbol_complete", {
-                "symbol": symbol,
-                "run_id": run_id,
-                "completed": completed,
-                "total": len(run_ids),
-            })
-
-        except Exception as e:
-            progress_bus.emit("error", {
-                "message": f"Failed on {symbol}: {str(e)}",
-                "symbol": symbol,
-            })
-
-    progress_bus.emit("batch_complete", {
-        "batch_id": batch_id,
-        "completed": completed,
-        "total": len(run_ids),
-        "run_ids": run_ids,
-    })
-```
-
-### Batch Progress SSE:
-
-```
-GET /api/backtest/batch/{batch_id}/progress
-```
-
-SSE events:
-| Event | Payload |
-|-------|---------|
-| `batch_progress` | `{pct, symbol, symbol_pct, completed, total}` |
-| `batch_symbol_complete` | `{symbol, run_id, completed, total}` |
-| `batch_complete` | `{batch_id, completed, total, run_ids}` |
-| `error` | `{message, symbol}` |
+**Key principle:** Route all modes through existing `POST /api/backtest/run` with `mode` discriminator. Wrap existing `BatchRunner` for parallel execution — don't reimplement.
 
 ---
 
-## Stage 2B: Portfolio Endpoint
+## Stage 2A: Batch Mode via Existing Endpoint
 
-### `POST /api/backtest/run` (with `symbols` array)
+### Three Modes — All Through `POST /api/backtest/run`
 
-The existing `BacktestRequest` already has a `symbols` field. When `symbols` is provided (and `symbol` is null), use portfolio mode.
+| Mode | Request | Backend Implementation |
+|------|---------|----------------------|
+| **Single** | `mode=single`, `symbol="BTC/USDT"` | Phase 1 flow (exists) |
+| **Batch** | `mode=batch`, `symbols=["BTC/USDT", "ETH/USDT"]` | Wraps existing `BatchRunner` with `ProcessPoolExecutor` |
+| **Portfolio** | `mode=portfolio`, `symbols=["BTC/USDT", "ETH/USDT"]` | Existing `_portfolio_worker` in `service.py` (exists) |
 
-**File:** `app/api/routes/backtest.py`
+No separate `POST /api/backtest/batch` endpoint — `BacktestService.start_run()` already routes by `mode`.
 
-```python
-@router.post("/api/backtest/run", status_code=201)
-async def start_backtest(req: BacktestRequest, db: Session = Depends(get_db)):
-    # Detect mode
-    if req.symbols and len(req.symbols) > 1:
-        # Portfolio mode
-        run = create_run_record(db, req, symbol=",".join(req.symbols))
-        executor.submit(run_portfolio_worker, run.id, req)
-    elif req.symbol:
-        # Single mode (Phase 1)
-        run = create_run_record(db, req, symbol=req.symbol)
-        executor.submit(run_single_worker, run.id, req)
-    else:
-        raise HTTPException(400, "Provide symbol or symbols")
+### Add Batch Mode to `BacktestService.start_run()` [MODIFY]
 
-    return {"run_id": run.id, "status": "running"}
+**File:** `app/backtest/service.py`
+
+**Diff — add batch case to `_resolve_mode()` and `_build_worker()`:**
+
+```diff
+  @staticmethod
+  def _resolve_mode(req: BacktestRequest) -> BacktestMode:
+      if req.mode is not None:
+          return req.mode
+-     return BacktestMode.PORTFOLIO if req.symbols else BacktestMode.SINGLE
++     if req.symbols:
++         return BacktestMode.BATCH if req.mode == BacktestMode.BATCH else BacktestMode.PORTFOLIO
++     return BacktestMode.SINGLE
+
+  def _build_worker(self, *, mode, req, run_id, loop, progress_cb, strategy_class, csv_path):
+      if mode == BacktestMode.PORTFOLIO:
+          return self._portfolio_worker(req, run_id, loop, progress_cb)
++     if mode == BacktestMode.BATCH:
++         return self._batch_worker(req, run_id, loop, progress_cb)
+      return self._single_worker(req, run_id, loop, progress_cb, strategy_class, csv_path)
 ```
 
-### Portfolio Worker:
+### Batch Worker — Wraps Existing `BatchRunner`
+
+**File:** `app/backtest/workers.py` [MODIFY — add batch_worker]
+
+The existing `BatchRunner` in `app/backtest/runners/batch_runner.py` already uses `ProcessPoolExecutor` for parallel execution. The API worker wraps it.
 
 ```python
-def run_portfolio_worker(run_id: int, req: BacktestRequest):
-    """Runs PortfolioEngine with all symbols under single balance."""
-    progress_bus = get_progress_bus(run_id)
+def batch_worker(
+    *,
+    req,
+    run_id: int,
+    loop,
+    progress_cb,
+    publish_event_fn,
+):
+    """Worker fn for batch backtest. Wraps existing BatchRunner."""
+    from app.backtest.runners.batch_runner import BatchRunner
 
     try:
-        # Download data for all symbols (inline)
-        for i, symbol in enumerate(req.symbols):
-            data_path = resolve_data_path(symbol, req.timeframe)
-            if not data_path.exists():
-                progress_bus.emit("download_progress", {
-                    "pct": int(i / len(req.symbols) * 50),  # download = 50%
-                    "symbol": symbol,
-                })
-                download_data_with_progress(symbol, req.timeframe, req.start_date, req.end_date)
-                progress_bus.emit("download_complete", {"symbol": symbol})
-
-        # Run portfolio engine
-        config = build_portfolio_config(req)
-        engine = PortfolioEngine(config)
-
-        engine.run(
-            progress_callback=lambda candle, total: progress_bus.emit(
-                "progress",
-                {"pct": 50 + int(candle / total * 50), "candle": candle, "total": total}
+        # Download data for all symbols if missing (with file lock)
+        for symbol in req.symbols:
+            csv_path = _csv_path(symbol, req.timeframe)
+            download_if_missing(
+                csv_path=csv_path,
+                symbol=symbol,
+                timeframe=req.timeframe,
+                start_date=req.start_date,
+                end_date=req.end_date,
+                run_id=run_id,
+                loop=loop,
+                publish_event_fn=publish_event_fn,
             )
+
+        # Build config dict for BatchRunner
+        config = {
+            "strategy": req.strategy,
+            "strategy_params": req.params,
+            "bot": {"timeframe": req.timeframe},
+            "risk": {
+                "leverage": req.leverage,
+                "risk_per_trade_pct": float(req.risk_per_trade_pct),
+            },
+        }
+
+        runner = BatchRunner(
+            symbols=req.symbols,
+            config=config,
+            strategy_name=req.strategy,
+            timeframe=req.timeframe,
+            balance=float(req.initial_capital),
         )
 
-        results = engine.compute_results()
-        persist_results(run_id, results, engine)
-        progress_bus.emit("complete", {"run_id": run_id, "status": "completed"})
+        max_workers = req.max_workers or min(4, len(req.symbols))
+        batch_results = runner.run(
+            max_workers=max_workers,
+            progress_cb=progress_cb,
+        )
 
-    except Exception as e:
-        mark_failed(run_id, str(e))
-        progress_bus.emit("error", {"message": str(e)})
+        # Persist aggregated results
+        persist_results(run_id, _aggregate_batch_results(batch_results))
+        publish_event_fn(run_id, loop, "complete", {
+            "run_id": run_id,
+            "status": "completed",
+        })
+
+    except Exception as err:
+        logger.error("batch_worker_error", run_id=run_id, error=str(err))
+        mark_failed(run_id, str(err))
+        publish_event_fn(run_id, loop, "error", {
+            "run_id": run_id,
+            "message": str(err),
+        })
+```
+
+**Note:** The SSE events use the same `progress` / `complete` / `error` event types as single mode. The `BatchRunner.run()` already calls the progress callback with `{"pct": ...}` after each symbol completes.
+
+---
+
+## Stage 2B: Portfolio Mode [EXISTS — VERIFY]
+
+Portfolio mode already works via `BacktestService._portfolio_worker()` in `service.py`. It calls `_run_portfolio_backtest()` from `portfolio_runner.py`.
+
+### Dynamic Progress Split
+
+**Current problem:** The portfolio worker hardcodes 50% download / 50% backtest. When data is cached, progress jumps 0→50% instantly.
+
+**Fix — in `workers.py` `portfolio_worker()`:**
+
+```python
+def portfolio_worker(*, req, run_id, loop, progress_cb, publish_event_fn):
+    # Check which symbols need download
+    symbols_needing_download = [
+        s for s in req.symbols
+        if not os.path.exists(_csv_path(s, req.timeframe))
+    ]
+    needs_download = len(symbols_needing_download) > 0
+
+    # Dynamic split: download gets 30% only if needed, otherwise backtest gets 100%
+    download_weight = 0.3 if needs_download else 0.0
+    backtest_weight = 1.0 - download_weight
+
+    # Phase 1: Download (only if needed)
+    if needs_download:
+        for i, symbol in enumerate(symbols_needing_download):
+            download_if_missing(...)
+            pct = int((i + 1) / len(symbols_needing_download) * download_weight * 100)
+            publish_event_fn(run_id, loop, "download_progress", {"pct": pct, "symbol": symbol})
+        publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
+
+    # Phase 2: Run portfolio engine
+    base_pct = int(download_weight * 100)
+    results = _run_portfolio_backtest(
+        ...,
+        progress_cb=lambda data: progress_cb({
+            "pct": base_pct + int(data.get("pct", 0) * backtest_weight),
+        }),
+    )
+    # ... persist and emit complete
 ```
 
 ---
@@ -198,37 +172,58 @@ def run_portfolio_worker(run_id: int, req: BacktestRequest):
 
 ### New DB Table: `presets`
 
-```python
-# app/repository/backtest/models.py
+**File:** `app/repository/backtest/models.py` [MODIFY — add model]
 
+```python
 class Preset(Base):
     __tablename__ = "presets"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    strategy = Column(String, nullable=False, index=True)
-    config = Column(JSON, nullable=False)  # Full config snapshot
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    name = Column(Text, nullable=False)
+    strategy = Column(Text, nullable=False, index=True)
+    config = Column(JSON, nullable=False)  # {symbol, timeframe, leverage, params: {...}}
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("name", "strategy", name="uq_preset_name_strategy"),
     )
 ```
 
+**Migration note:** The project uses `Base.metadata.create_all()` on startup, which auto-creates new tables. The `Preset` table will be created automatically on next server start. No Alembic needed.
+
 ### CRUD Routes
 
-**File:** `app/api/routes/presets.py`
+**File:** `app/api/routes/presets.py` [NEW]
 
 ```python
-@router.get("/api/presets")
-def list_presets(strategy: str = None, db: Session = Depends(get_db)):
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.api.schemas import PresetCreate, PresetResponse, PresetUpdate
+from app.repository.backtest.database import SessionLocal
+from app.repository.backtest.models import Preset
+
+router = APIRouter(prefix="/api/presets", tags=["presets"])
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@router.get("", response_model=list[PresetResponse])
+def list_presets(strategy: str | None = None, db: Session = Depends(get_db)):
     query = db.query(Preset)
     if strategy:
         query = query.filter(Preset.strategy == strategy)
     return query.order_by(Preset.updated_at.desc()).all()
 
-@router.post("/api/presets", status_code=201)
+
+@router.post("", status_code=201, response_model=PresetResponse)
 def create_preset(body: PresetCreate, db: Session = Depends(get_db)):
     preset = Preset(name=body.name, strategy=body.strategy, config=body.config)
     db.add(preset)
@@ -236,66 +231,132 @@ def create_preset(body: PresetCreate, db: Session = Depends(get_db)):
     db.refresh(preset)
     return preset
 
-@router.put("/api/presets/{preset_id}")
+
+@router.put("/{preset_id}", response_model=PresetResponse)
 def update_preset(preset_id: int, body: PresetUpdate, db: Session = Depends(get_db)):
-    preset = db.query(Preset).get(preset_id)
+    preset = db.query(Preset).filter_by(id=preset_id).first()
     if not preset:
         raise HTTPException(404, "Preset not found")
-    if body.name: preset.name = body.name
-    if body.config: preset.config = body.config
+    if body.name is not None:
+        preset.name = body.name
+    if body.config is not None:
+        preset.config = body.config
     db.commit()
+    db.refresh(preset)
     return preset
 
-@router.delete("/api/presets/{preset_id}", status_code=204)
+
+@router.delete("/{preset_id}", status_code=204)
 def delete_preset(preset_id: int, db: Session = Depends(get_db)):
-    preset = db.query(Preset).get(preset_id)
+    preset = db.query(Preset).filter_by(id=preset_id).first()
     if not preset:
         raise HTTPException(404, "Preset not found")
     db.delete(preset)
     db.commit()
 ```
 
-### Pydantic Schemas:
+### Pydantic Schemas
+
+**File:** `app/api/schemas.py` [MODIFY — add preset schemas]
 
 ```python
 class PresetCreate(BaseModel):
     name: str
     strategy: str
-    config: dict  # {symbol, timeframe, leverage, params: {...}}
+    config: dict[str, Any]  # {symbol, timeframe, leverage, params: {...}}
 
 class PresetUpdate(BaseModel):
     name: str | None = None
-    config: dict | None = None
+    config: dict[str, Any] | None = None
 
 class PresetResponse(BaseModel):
     id: int
     name: str
     strategy: str
-    config: dict
+    config: dict[str, Any]
     created_at: str
     updated_at: str
+
+    class Config:
+        from_attributes = True
+```
+
+### Register Routes
+
+**File:** `app/api/main.py` [MODIFY — add include_router]
+
+```diff
++ from app.api.routes.presets import router as presets_router
+
+  app.include_router(...)  # existing routers
++ app.include_router(presets_router)
 ```
 
 ---
 
-## Stage 2D: Batch DB Schema (Optional)
+## Stage 2D: Batch DB Schema
 
-For tracking batch runs as a group:
+### New Table: `batches`
+
+**File:** `app/repository/backtest/models.py` [MODIFY — add model]
 
 ```python
 class Batch(Base):
     __tablename__ = "batches"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    status = Column(String, default="running")  # running, completed, partial, failed
+    status = Column(Text, default="running")  # running, completed, partial, failed
     total_symbols = Column(Integer)
     completed_symbols = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-# Add batch_id FK to Run table:
-class Run(Base):
-    # ... existing columns ...
-    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=True)
+    runs = relationship("Run", back_populates="batch")
+```
+
+### Add `batch_id` FK to `Run` Table
+
+**File:** `app/repository/backtest/models.py` [MODIFY]
+
+```diff
+  class Run(Base):
+      # ... existing columns ...
++     batch_id = Column(Integer, ForeignKey("batches.id"), nullable=True)
+
+      strategy = relationship("Strategy", back_populates="runs")
++     batch = relationship("Batch", back_populates="runs")
+      config = relationship("RunConfig", ...)
+      # ... rest unchanged
+```
+
+### Migration for Existing `runs` Table
+
+`create_all()` does **not** add columns to existing tables. A one-time migration is needed:
+
+**File:** `app/repository/backtest/database.py` [MODIFY — add migration helper]
+
+```python
+def _migrate_add_batch_id(engine) -> None:
+    """Add batch_id column to runs table if missing. One-time migration."""
+    with engine.connect() as conn:
+        # Check if column exists (SQLite-specific)
+        result = conn.execute(sa.text("PRAGMA table_info(runs)"))
+        columns = {row[1] for row in result}
+        if "batch_id" not in columns:
+            conn.execute(sa.text("ALTER TABLE runs ADD COLUMN batch_id INTEGER REFERENCES batches(id)"))
+            conn.commit()
+```
+
+Call from `init_db()`:
+
+```diff
+  def init_db() -> None:
+      DB_DIR.mkdir(parents=True, exist_ok=True)
+      import app.repository.backtest.models  # noqa: F401
+      Base.metadata.create_all(bind=engine)
++     _migrate_add_batch_id(engine)
+
+      session = SessionLocal()
+      # ... seed_strategies ...
 ```
 
 ---
@@ -303,21 +364,32 @@ class Run(Base):
 ## Implementation Order
 
 ```
-2A    Batch endpoint + batch worker           ~4 hours
-2B    Portfolio worker                         ~3 hours
-2C    Presets DB table + CRUD                  ~2 hours
-2D    Batch DB schema (optional)               ~1 hour
-                                        Total: ~10 hours
+2A    Add batch mode to start_run() + batch_worker    ~3 hours
+2B    Dynamic progress split for portfolio worker     ~1 hour
+2C    Presets DB table + CRUD routes                  ~2 hours
+2D    Batch DB schema + migration helper              ~1.5 hours
+                                              Total: ~7.5 hours
 ```
+
+**Note:** Reduced from 10h — batch endpoint eliminated (uses existing route), portfolio worker already exists.
+
+---
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `app/api/routes/backtest.py` | Batch endpoint, portfolio detection |
-| `app/api/routes/presets.py` | NEW — preset CRUD |
-| `app/api/schemas.py` | BatchRequest, PresetCreate/Update/Response |
-| `app/backtest/workers/batch_worker.py` | NEW — batch orchestration |
-| `app/backtest/workers/portfolio_worker.py` | NEW — portfolio engine wrapper |
-| `app/repository/backtest/models.py` | Preset table, Batch table, Run.batch_id |
-| `app/main.py` | Register preset routes |
+| `app/backtest/service.py` | MODIFY — add batch case to `_resolve_mode()` / `_build_worker()` |
+| `app/backtest/workers.py` | MODIFY — add `batch_worker()`, update `portfolio_worker()` with dynamic progress |
+| `app/api/routes/presets.py` | NEW — preset CRUD routes |
+| `app/api/schemas.py` | MODIFY — add `PresetCreate`, `PresetUpdate`, `PresetResponse` |
+| `app/repository/backtest/models.py` | MODIFY — add `Preset`, `Batch` models, `Run.batch_id` FK + relationship |
+| `app/repository/backtest/database.py` | MODIFY — add `_migrate_add_batch_id()` to `init_db()` |
+| `app/api/main.py` | MODIFY — register preset router |
+
+**Files NOT changed (already working):**
+| File | Reason |
+|------|--------|
+| `app/api/routes/backtest_run.py` | Still routes to `BacktestService.start_run()` — no change |
+| `app/backtest/runners/batch_runner.py` | `BatchRunner` used as-is via wrapper |
+| `app/backtest/runners/portfolio_runner.py` | `_run_portfolio_backtest` used as-is |

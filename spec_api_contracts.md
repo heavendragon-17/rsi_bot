@@ -2,19 +2,22 @@
 
 ## Existing Endpoints (Verify & Fix)
 
-### 1. `POST /api/backtest/run`
+### 1. `POST /api/backtest/run` [EXISTS — MODIFY]
 
-**Current state:** Exists, accepts `BacktestRequest`, returns `{run_id, status}`.
+**Current state:** Exists in `app/api/routes/backtest_run.py`. Accepts `BacktestRequest`, returns `BacktestStartResponse`. Currently raises 400 if CSV missing.
 
 **Changes needed for Phase 1:**
-- Add server-side inline download: if CSV file missing, download before running backtest.
+- Move data-file check into worker thread: if CSV missing, download inline before running backtest.
 - Emit `download_progress` and `download_complete` SSE events on the progress stream.
-- Auto-seed strategy into DB if it exists in `STRATEGY_MAP` but not in `strategies` table.
+- Add file lock during inline download to prevent concurrent duplicate downloads.
+- Auto-seed strategy into DB already handled by startup hook (`seed.py`).
 
-**Request — `BacktestRequest` (no schema changes needed):**
+**Request — `BacktestRequest` (full schema from `app/api/schemas.py`):**
 ```json
 {
+  "mode": "single",
   "symbol": "BTC/USDT",
+  "symbols": null,
   "timeframe": "1h",
   "strategy": "rsi_no_retest",
   "start_date": "2024-01-01",
@@ -22,13 +25,44 @@
   "initial_capital": "10000.00",
   "leverage": 10,
   "risk_per_trade_pct": "0.02",
+  "fee_tier": "0.001",
+  "slippage_model": "none",
+  "slippage_pct": "0.0",
   "params": {
     "rsi_period": 14,
     "rsi_ema_length": 9,
     "nr_tp1_rr": 1.5
-  }
+  },
+  "max_workers": null,
+  "tick_data_path": null
 }
 ```
+
+**Field reference:**
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `mode` | `BacktestMode \| null` | `null` (auto-detect) | `single`, `portfolio`, `batch`, `tick_replay` |
+| `symbol` | `str \| null` | `null` | Required for `single`, `tick_replay` |
+| `symbols` | `list[str] \| null` | `null` | Required for `portfolio`, `batch` |
+| `timeframe` | `str` | — | Required |
+| `strategy` | `str` | — | Required, must be in `STRATEGY_MAP` |
+| `start_date` | `str` | — | ISO format `yyyy-MM-dd` |
+| `end_date` | `str` | — | ISO format `yyyy-MM-dd` |
+| `initial_capital` | `str` | `"10000.00"` | Decimal string |
+| `leverage` | `int` | `10` | |
+| `risk_per_trade_pct` | `str` | `"0.02"` | Decimal string |
+| `fee_tier` | `str` | `"0.001"` | Taker fee rate |
+| `slippage_model` | `str` | `"none"` | `none`, `fixed`, `proportional` |
+| `slippage_pct` | `str` | `"0.0"` | Slippage percentage |
+| `params` | `dict` | `{}` | Strategy-specific params (must match config dataclass fields) |
+| `max_workers` | `int \| null` | `null` | Batch mode only |
+| `tick_data_path` | `str \| null` | `null` | Tick replay mode only |
+
+**Mode validation (model_validator):**
+- `single` / `tick_replay` → requires `symbol`
+- `portfolio` / `batch` → requires `symbols`
+- `null` → auto-detect from `symbol` vs `symbols`
 
 **Response — 201:**
 ```json
@@ -45,11 +79,37 @@
 }
 ```
 
+### Inline Download — File Lock Strategy
+
+When the worker thread detects a missing CSV, it must acquire a file lock before downloading to prevent concurrent duplicate downloads for the same symbol.
+
+```python
+# Implementation approach:
+# 1. Check if CSV exists → if yes, skip download
+# 2. Try to acquire lock file: {csv_path}.lock
+# 3. After acquiring lock, re-check CSV (another worker may have finished)
+# 4. Download if still missing
+# 5. Release lock
+
+import fcntl
+
+lock_path = f"{csv_path}.lock"
+with open(lock_path, "w") as lock_file:
+    fcntl.flock(lock_file, fcntl.LOCK_EX)  # Block until lock acquired
+    try:
+        if not os.path.exists(csv_path):  # Double-check after lock
+            download_data_with_progress(...)
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+```
+
 ---
 
-### 2. `GET /api/backtest/{run_id}/progress` (SSE)
+### 2. `GET /api/backtest/{run_id}/progress` (SSE) [EXISTS — MODIFY]
 
-**Current state:** Emits `progress` and `complete` events. Frontend `apiSSE()` already listens for `download_progress` and `download_complete`.
+**Current state:** Emits `progress` and `complete` events via `BacktestService.stream_progress()` (already implemented in `service.py:203-218`). Uses existing `_progress_queues` from `executor.py`. Timeout: **300s** (keep as-is).
+
+**Changes needed:** Add `download_progress` and `download_complete` event types to the worker's event emissions. The SSE generator itself needs no changes — it already forwards any event type from the queue.
 
 **Required SSE event types (typed events):**
 
@@ -74,13 +134,13 @@ data: {"run_id": 42, "status": "completed"}
 ```
 
 **Implementation notes:**
-- The SSE stream has two phases: download (optional, only if data missing) → backtest.
-- The progress callback in `BacktestEngine` already emits `{pct, candle, total}` — just need to wire to SSE.
+- The SSE generator (`stream_progress()`) already forwards any `event` key from the queue — no change needed.
+- The worker thread emits download events via `executor.publish_event(run_id, loop, "download_progress", {...})`.
 - Download progress comes from `download_data()` pagination — emit after each 1000-candle page.
 
 ---
 
-### 3. `DELETE /api/backtest/{run_id}`
+### 3. `DELETE /api/backtest/{run_id}` [EXISTS — NO CHANGES]
 
 **Current state:** Exists. Cancels a running backtest.
 
@@ -88,11 +148,11 @@ data: {"run_id": 42, "status": "completed"}
 
 ---
 
-### 4. `GET /api/backtest/{run_id}`
+### 4. `GET /api/backtest/{run_id}` [EXISTS — VERIFY]
 
-**Current state:** Returns `RunDetail` with results + trades.
+**Current state:** Returns `RunDetail` with results + trades via `BacktestService.get_run_detail()`.
 
-**Response — `RunDetail`:**
+**Response — `RunDetail` (complete — matches `_build_results_dict()` + `_build_trades_list()`):**
 ```json
 {
   "id": 42,
@@ -102,6 +162,10 @@ data: {"run_id": 42, "status": "completed"}
   "status": "completed",
   "created_at": "2024-03-20T18:00:00Z",
   "config": {
+    "symbol": "BTC/USDT",
+    "timeframe": "1h",
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-31",
     "initial_capital": "10000.00",
     "leverage": 10,
     "risk_per_trade_pct": "0.02",
@@ -110,23 +174,28 @@ data: {"run_id": 42, "status": "completed"}
   "results": {
     "net_profit": "1234.56",
     "net_profit_pct": 12.35,
+    "gross_profit": "2500.00",
+    "gross_loss": "-1265.44",
     "win_rate": 65.2,
     "profit_factor": 1.85,
+    "expectancy": "23.45",
     "max_drawdown_pct": 8.3,
     "max_drawdown_value": "830.00",
+    "max_drawdown_duration_days": 12.5,
+    "volatility": 12.5,
     "sharpe_ratio": 1.42,
     "sortino_ratio": 1.89,
     "calmar_ratio": 1.49,
-    "volatility": 12.5,
-    "expectancy": "23.45",
-    "max_consecutive_wins": 8,
+    "total_trades": 69,
     "winning_trades": 45,
     "losing_trades": 24,
-    "total_trades": 69,
     "avg_win": "56.78",
     "avg_loss": "-32.10",
     "largest_win": "245.00",
     "largest_loss": "-89.50",
+    "max_consecutive_wins": 8,
+    "max_consecutive_losses": 4,
+    "avg_hold_time_hours": 6.5,
     "exit_reasons": {
       "TP1": 25,
       "TP2": 15,
@@ -138,29 +207,34 @@ data: {"run_id": 42, "status": "completed"}
   "trades": [
     {
       "id": 1,
-      "entry_time": "2024-01-15T08:00:00",
-      "exit_time": "2024-01-15T14:00:00",
       "symbol": "BTC/USDT",
       "side": "LONG",
+      "entry_time": "2024-01-15T08:00:00",
+      "exit_time": "2024-01-15T14:00:00",
+      "hold_time_hours": 6.0,
       "entry_price": "42150.00",
       "exit_price": "42890.00",
+      "stop_loss_price": "41800.00",
+      "tp1_price": "42500.00",
+      "tp2_price": "43200.00",
+      "tp3_price": null,
+      "quantity": "0.012",
       "size_usd": "500.00",
       "pnl": "87.65",
       "pnl_pct": 1.75,
-      "exit_reason": "TP1",
-      "fee": "0.85"
+      "exit_reason": "TP1"
     }
   ]
 }
 ```
 
-**Verification needed:** Ensure `results` dict includes all fields that `mapApiToResults()` in `resultsStore.ts` expects: `exit_reasons`, `largest_win`, `largest_loss`, `max_consecutive_wins`, `volatility`, `calmar_ratio`, `sortino_ratio`, `expectancy`.
+**Note:** All fields above match the actual `_build_results_dict()` and `_build_trades_list()` output in `service.py:334-387`. The frontend `mapApiToResults()` must handle all of these.
 
 ---
 
-### 5. `GET /api/backtest/{run_id}/timeseries`
+### 5. `GET /api/backtest/{run_id}/timeseries` [EXISTS — VERIFY]
 
-**Current state:** Returns compressed equity + drawdown curves.
+**Current state:** Returns compressed equity + drawdown curves via `BacktestService.get_timeseries()`.
 
 **Response — `TimeseriesResponse`:**
 ```json
@@ -185,11 +259,14 @@ data: {"run_id": 42, "status": "completed"}
 
 ---
 
-### 6. `GET /api/strategies`
+### 6. `GET /api/strategies` [EXISTS — MODIFY]
 
-**Current state:** Returns `[{id, name, description, default_config}]`.
+**Current state:** Returns `[{id, name, description, default_config}]` via `app/api/routes/strategies.py`.
 
 **Changes for Phase 1 — add `param_schema`:**
+
+The schema is generated via `STRATEGY_MAP[name].CONFIG_CLASS.param_schema()` (see `spec_strategy_schema.md`).
+
 ```json
 [
   {
@@ -199,7 +276,7 @@ data: {"run_id": 42, "status": "completed"}
     "default_config": {
       "rsi_period": 21,
       "rsi_ema_length": 9,
-      "nr_tp1_rr": 1.5
+      "nr_tp1_rr": 1.0
     },
     "param_schema": {
       "type": "object",
@@ -211,30 +288,59 @@ data: {"run_id": 42, "status": "completed"}
           "minimum": 2,
           "maximum": 100,
           "description": "RSI calculation period",
-          "ui_group": "indicators"
-        },
-        "nr_tp1_rr": {
-          "type": "number",
-          "title": "TP1 Risk-Reward",
-          "default": 1.5,
-          "minimum": 0.1,
-          "maximum": 10.0,
-          "ui_step": 0.1,
-          "description": "First take-profit level as R multiple",
-          "ui_group": "exit"
+          "ui_group": "indicators",
+          "ui_order": 1
         }
       },
-      "required": ["rsi_period"]
+      "ui_groups": {
+        "indicators": {"title": "Indicators", "icon": "sliders", "order": 1},
+        "entry": {"title": "Entry Conditions", "icon": "activity", "order": 2},
+        "exit_sl": {"title": "Stop Loss", "icon": "shield", "order": 3},
+        "exit_tp": {"title": "Take Profit", "icon": "target", "order": 4},
+        "management": {"title": "Trade Management", "icon": "settings", "order": 5}
+      }
     }
   }
 ]
 ```
 
-**See `spec_strategy_schema.md` for JSON Schema generation details.**
+**Implementation:**
+```python
+# app/api/routes/strategies.py
+from app.trading.strategy.loader import STRATEGY_MAP
+
+@router.get("/api/strategies")
+def list_strategies(db: Session = Depends(get_db)):
+    strategies = db.query(Strategy).all()
+    results = []
+    for s in strategies:
+        strategy_cls = STRATEGY_MAP.get(s.name)
+        config_cls = getattr(strategy_cls, "CONFIG_CLASS", None) if strategy_cls else None
+        schema = config_cls.param_schema() if config_cls and hasattr(config_cls, "param_schema") else {}
+        results.append(StrategyInfo(
+            id=s.id,
+            name=s.name,
+            description=s.description or "",
+            default_config=s.default_config or {},
+            param_schema=schema,
+        ))
+    return results
+```
+
+**Pydantic schema change:**
+```python
+# app/api/schemas.py — add param_schema field
+class StrategyInfo(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    default_config: dict[str, Any]
+    param_schema: dict[str, Any] = {}  # ← NEW
+```
 
 ---
 
-### 7. `GET /api/data/status`
+### 7. `GET /api/data/status` [EXISTS — NO CHANGES]
 
 **Current state:** Returns file existence + date range.
 
@@ -242,15 +348,15 @@ data: {"run_id": 42, "status": "completed"}
 
 ---
 
-### 8. `POST /api/data/download` + `GET /api/data/download/{job_id}/progress`
+### 8. `POST /api/data/download` + `GET /api/data/download/{job_id}/progress` [EXISTS — NO CHANGES]
 
 **Current state:** Standalone download endpoints.
 
-**Phase 1 change:** These become secondary — the primary flow is inline download during backtest. These endpoints remain for the DataPrepModal manual download UX.
+**Phase 1 note:** These become secondary — the primary flow is inline download during backtest. These endpoints remain for the DataPrepModal manual download UX.
 
 ---
 
-### 9. `GET /api/history`
+### 9. `GET /api/history` [EXISTS — NO CHANGES]
 
 **Current state:** Returns paginated `HistoryResponse`.
 
@@ -258,7 +364,7 @@ data: {"run_id": 42, "status": "completed"}
 
 ---
 
-### 10. `DELETE /api/history/{run_id}`
+### 10. `DELETE /api/history/{run_id}` [EXISTS — NO CHANGES]
 
 **Current state:** Cascade deletes run + related rows.
 
@@ -268,23 +374,7 @@ data: {"run_id": 42, "status": "completed"}
 
 ## New Endpoints
 
-### 11. `GET /api/strategies/{name}/schema` (Phase 1)
-
-**Purpose:** Returns only the JSON Schema for a specific strategy's parameters. Useful when user switches strategy in sidebar and needs to rebuild the param form.
-
-**Response:**
-```json
-{
-  "strategy": "rsi_no_retest",
-  "param_schema": { /* JSON Schema object */ }
-}
-```
-
-**Implementation:** Call `strategy_config_class.param_schema()` classmethod.
-
----
-
-### 12. `POST /api/backtest/batch` (Phase 2)
+### 11. `POST /api/backtest/batch` (Phase 2)
 
 **Purpose:** Single API call to run N symbols independently (batch mode).
 
@@ -318,7 +408,7 @@ data: {"run_id": 42, "status": "completed"}
 
 ---
 
-### 13. Preset CRUD Endpoints (Phase 2)
+### 12. Preset CRUD Endpoints (Phase 2)
 
 ```
 GET    /api/presets?strategy=rsi_no_retest     → [{id, name, strategy, config, created_at}]
@@ -345,14 +435,26 @@ DELETE /api/presets/{id}                         → 204
 
 ---
 
-### 14. Concurrency Settings (Phase 4)
+### 13. Concurrency Settings (Phase 4)
 
 ```
 GET /api/settings/concurrency  → {"max_workers": 2}
-PUT /api/settings/concurrency  → body: {"max_workers": 4} → 200
+PUT /api/settings/concurrency  → body: {"max_workers": 4} → 200 or 409
 ```
 
-**Implementation:** Rebuilds `ThreadPoolExecutor` with new `max_workers`.
+**Implementation:**
+- `GET` reads the current `max_workers` value.
+- `PUT` **rejects with 409 Conflict if any jobs are currently running.** Otherwise, rebuilds the `ThreadPoolExecutor` with the new `max_workers` value.
+
+```python
+@router.put("/api/settings/concurrency")
+def update_concurrency(body: ConcurrencyUpdate):
+    if executor.any_jobs_running():
+        raise HTTPException(409, "Cannot change concurrency while backtests are running. "
+                           "Wait for all runs to complete, then retry.")
+    executor.rebuild(body.max_workers)
+    return {"max_workers": body.max_workers}
+```
 
 ---
 
@@ -363,7 +465,7 @@ The frontend `apiSSE()` in `client.ts` already listens for these named events:
 ["progress", "complete", "error", "download_progress", "download_complete"]
 ```
 
-**Phase 1 addition — batch events (Phase 2):**
+**Phase 2 addition — batch events:**
 ```typescript
 ["batch_progress", "batch_symbol_complete", "batch_complete"]
 ```
@@ -383,6 +485,7 @@ These should be added to the `apiSSE()` event listener list.
 | `RUN_NOT_FOUND` | 404 | run_id doesn't exist |
 | `RUN_ALREADY_COMPLETE` | 409 | Trying to cancel already-finished run |
 | `CONCURRENCY_LIMIT` | 429 | Max concurrent backtests reached |
+| `CONCURRENCY_BUSY` | 409 | Cannot change max_workers while jobs running |
 
 ---
 

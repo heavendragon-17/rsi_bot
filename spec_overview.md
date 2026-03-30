@@ -9,6 +9,13 @@
 - Frontend: Full component tree (Sidebar, ResultsDashboard, BatchResults, History, GridSearch, WalkForward, Sensitivity), Zustand stores, API client layer (`api/client.ts`, `api/backtest.ts`, etc.), TypeScript types auto-generated from Pydantic schemas.
 - Integration state: **Fully broken.** The stores/components are wired to mock data generators. The API functions exist but are not called from the correct store actions with correct payloads.
 
+**Already Implemented (do NOT rebuild):**
+- `app/api/executor.py` — `ThreadPoolExecutor(max_workers=2)`, per-run progress queues (`_progress_queues`), thread-safe `make_progress_callback()`, `publish_event()`, `create_progress_queue()`, `cleanup_job()`
+- `app/backtest/service.py` — `BacktestService` with `start_run()`, `get_run_detail()`, `get_timeseries()`, `cancel_run()`, `stream_progress()` (SSE generator)
+- `app/repository/backtest/seed.py` — `seed_strategies()` iterates `STRATEGY_MAP`, inserts missing strategies into DB
+- `app/api/main.py` — lifespan hook calls `init_db()` + `seed_strategies()` on startup
+- `app/api/routes/backtest_run.py` — `POST /api/backtest/run` already returns `{run_id, status}`
+
 ---
 
 ## Decision Log (from Q&A)
@@ -19,7 +26,7 @@
 | 2 | Strategy param UI | API-driven JSON Schema returned per strategy |
 | 3 | Backtest execution UX | Background queue — user can navigate freely |
 | 4 | Phase 1 modes | Single backtest only |
-| 5 | Strategy support | All strategies (generic system) |
+| 5 | Strategy support | All 3 strategies: `rsi_no_retest`, `rsi_momentum`, `rsi_wma_retest` (generic system) |
 | 6 | Concurrent backtests | Configurable server-side (REST endpoint for max_workers) |
 | 7 | Error surfacing | Toast notification + retry button |
 | 8 | SSE event design | Typed events (`download_progress`, `download_complete`, `progress`, `complete`, `error`) |
@@ -40,6 +47,14 @@
 | 23 | Batch orchestration | Single API call to backend batch_runner |
 | 24 | Candlestick + trades chart | Deferred (skip Phase 1 — already on paper in TradeDeepDive) |
 | 25 | Results presentation | Auto-swap to results dashboard on complete |
+
+---
+
+## Pre-requisites (before Phase 1)
+
+| Task | Why |
+|------|-----|
+| Create `RsiWmaRetestConfig` frozen dataclass in `app/trading/strategy/rsi_wma_retest.py` | Currently uses dict-based config; needs a frozen dataclass to participate in the `param_schema()` system. Model after `RsiNoRetestConfig`/`RsiMomentumConfig`. |
 
 ---
 
@@ -94,68 +109,115 @@
 
 ## Architecture Diagram
 
+Legend: `[EXISTS]` = already implemented, `[NEW]` = to be built, `[MODIFY]` = needs changes.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    React Frontend                        │
 │                                                          │
 │  Sidebar ──→ backtestStore.runBacktest()                │
 │                    │                                     │
-│                    ├─→ POST /api/backtest/run             │
+│                    ├─→ POST /api/backtest/run  [EXISTS]   │
 │                    │       returns { run_id }             │
 │                    │                                     │
 │                    ├─→ GET /api/backtest/{id}/progress    │
-│                    │       SSE: download_progress →       │
-│                    │       SSE: download_complete →       │
-│                    │       SSE: progress →                │
-│                    │       SSE: complete →                │
+│                    │       SSE: download_progress [NEW]   │
+│                    │       SSE: download_complete [NEW]   │
+│                    │       SSE: progress →     [EXISTS]   │
+│                    │       SSE: complete →     [EXISTS]   │
 │                    │                                     │
-│                    ├─→ GET /api/backtest/{id}             │
+│                    ├─→ GET /api/backtest/{id}  [EXISTS]   │
 │                    │       (RunDetail + trades)           │
 │                    │                                     │
 │                    └─→ GET /api/backtest/{id}/timeseries  │
-│                            (equity + drawdown curves)    │
+│                            (equity + drawdown) [EXISTS]   │
 │                                                          │
 │  resultsStore.setResults(mapApiToResults(detail, ts))    │
 │           │                                              │
 │           └──→ ResultsDashboard renders                  │
 │                                                          │
 │  Floating Pill ←── backtestStore.{isRunning, progress}   │
+│           [NEW]                                          │
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
 │                   FastAPI Backend                         │
 │                                                          │
-│  POST /api/backtest/run                                  │
-│    1. Resolve strategy from DB (auto-seed if missing)    │
+│  POST /api/backtest/run  [MODIFY — add inline download]  │
+│    1. Resolve strategy from DB (auto-seed) [EXISTS]      │
 │    2. Check data file exists                             │
-│       → If missing: inline download via download.py      │
-│       → Emit download_progress / download_complete SSE   │
-│    3. Build config via config_builder.py                 │
-│    4. Submit to ThreadPoolExecutor                       │
-│    5. Engine runs with progress callback → SSE progress  │
-│    6. persist_results() on complete → SSE complete       │
+│       → If missing: inline download       [NEW]          │
+│       → Emit download_progress/complete   [NEW]          │
+│    3. Build config via config_builder.py  [EXISTS]        │
+│    4. Submit to ThreadPoolExecutor        [EXISTS]        │
+│    5. Engine runs with progress callback  [EXISTS]        │
+│    6. persist_results() on complete       [EXISTS]        │
 │                                                          │
-│  GET /api/strategies                                     │
+│  GET /api/strategies  [MODIFY — add param_schema]        │
 │    → Returns [{id, name, description, param_schema}]     │
-│    → param_schema = JSON Schema from dataclass method    │
+│    → param_schema = JSON Schema from dataclass  [NEW]    │
 │                                                          │
-│  GET /api/settings/concurrency                           │
-│  PUT /api/settings/concurrency                           │
+│  GET /api/settings/concurrency            [NEW]          │
+│  PUT /api/settings/concurrency            [NEW]          │
 │    → Runtime-adjustable ThreadPoolExecutor.max_workers   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
+## Testing Plan
+
+Each phase must include tests before moving to the next. Run all tests with `pytest tests/`.
+
+### Phase 1 — Tests
+
+**Backend:**
+- Schema generation round-trip: `dataclass → param_schema() → validate all fields present + types correct`
+- `seed.py` extracts correct defaults from `CONFIG_CLASS`
+- Inline download with file lock: mock `download_data()`, verify lock prevents concurrent duplicates
+- SSE event sequence: mock worker → verify events arrive in order (`download_progress → download_complete → progress → complete`)
+- `persist_results()` → `get_run_detail()` round-trip: verify all 22 metrics survive persist + query
+- Timeseries keys: verify zlib output uses `{date, balance}` / `{date, drawdown}` keys
+
+**Frontend (manual or Playwright):**
+- `loadStrategies()` → `currentParamSchema` populated → `DynamicParamForm` renders correct fields
+- Strategy change → params reset to new strategy's defaults
+- Run backtest → progress pill appears → results render in `ResultsDashboard`
+- Page refresh during run → `recoverActiveRun()` reconnects or shows results
+
+### Phase 2 — Tests
+
+**Backend:**
+- Batch mode: `mode=batch` with 3 symbols → 3 parallel runs → aggregated results
+- Portfolio mode: `mode=portfolio` → `PortfolioEngine` runs → results persisted
+- Presets CRUD: create, list, update (with `name=None`), delete
+- `_migrate_add_batch_id()`: runs idempotently (no error on second call)
+
+**Frontend (manual or Playwright):**
+- Batch run → `batchResultsStore` populated → `BatchResultsDashboard` renders
+- Preset save → reload → preset appears in list → load applies config
+
+### Phase 4 — Tests
+
+**Backend:**
+- Concurrency endpoint: GET returns default, PUT with no active jobs succeeds, PUT with active jobs returns 409
+
+**Frontend (manual or Playwright):**
+- History page: filters trigger refetch, search is debounced
+- Export: PDF/CSV/ZIP contain real data
+
+---
+
 ## File Organization
 
 ```
-specs/
-├── spec_overview.md          ← This file
-├── spec_phase1_backend.md    ← Phase 1 backend changes
-├── spec_phase1_frontend.md   ← Phase 1 frontend wiring
-├── spec_phase2_backend.md    ← Phase 2 batch/portfolio/presets
-├── spec_phase2_frontend.md   ← Phase 2 frontend wiring
-├── spec_api_contracts.md     ← All API endpoint contracts
-└── spec_strategy_schema.md   ← JSON Schema generation system
+(repo root)
+├── spec_overview.md                      ← This file
+├── spec_phase1_backend.md                ← Phase 1 backend changes
+├── spec_phase1_frontend.md               ← Phase 1 frontend wiring
+├── spec_phase2_backend.md                ← Phase 2 batch/portfolio/presets
+├── spec_phase2_frontend_and_phase3_4.md  ← Phase 2 frontend + Phase 3-4
+├── spec_api_contracts.md                 ← All API endpoint contracts
+├── spec_strategy_schema.md               ← JSON Schema generation system
+└── spec_review.md                        ← Review findings & action items
 ```
