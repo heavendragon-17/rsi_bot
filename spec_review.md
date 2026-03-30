@@ -39,29 +39,34 @@ These are **well-structured, detailed specs** with clear phase breakdown, decisi
 
 ---
 
-## 2. `spec_strategy_schema.md` — JSON Schema System
+## 2. `spec_strategy_schema.md` — JSON Schema System ✅ RESOLVED
 
 ### Strengths
 - Clean approach: auto-generate base schema from dataclass, enrich with metadata
 - UI extensions (`ui_group`, `ui_order`, `ui_step`, `ui_suffix`) are practical
 - Frontend consumption examples are well-thought-out
 
-### Issues
+### Issues — All Fixed
 
 **2.1 — No `RsiWmaRetestConfig` dataclass exists**
-`rsi_wma_retest.py` does **not** have a frozen config dataclass (only `RsiNoRetestConfig` and `RsiMomentumConfig` exist). The spec needs to either create one or document how strategies without config dataclasses are handled.
+~~`rsi_wma_retest.py` does not have a frozen config dataclass.~~
+**Fixed:** Spec now includes `RsiWmaRetestConfig` definition derived from existing `DEFAULT_CONFIG` dict, with full metadata.
 
 **2.2 — `PARAM_METADATA` global dict pattern is fragile**
-The registry pattern creates import-order dependencies and tight coupling. **Recommendation:** Use `dataclasses.field(metadata={...})` on each field instead, keeping metadata co-located with the field definition.
+~~The registry pattern creates import-order dependencies and tight coupling.~~
+**Fixed:** Replaced with shared metadata file (`param_metadata.py`) + explicit imports. No global mutable registry.
 
 **2.3 — Dual approach confusion: `param_schema()` vs `generate_schema_from_dataclass()`**
-The spec defines both a hand-written `param_schema()` classmethod AND an auto-generation helper. It's unclear which is primary. Clarify that `param_schema()` should call `generate_schema_from_dataclass()` internally.
+~~The spec defines both without clarifying how they relate.~~
+**Fixed:** `param_schema()` is written once in `SchemaConfigMixin`, delegates to `generate_schema_from_dataclass()`. DRY — no per-strategy duplication.
 
 **2.4 — `default_factory` handling bug**
-Line 148: `prop["default"] = field.default_factory()` calls the factory at schema generation time. For mutable defaults (lists, dicts), this creates shared instances. Should serialize the result to JSON-safe value.
+~~Calling the factory at schema generation time creates shared mutable instances.~~
+**Fixed:** Schema helper now deep-copies factory output before storing in schema.
 
 **2.5 — `STRATEGY_CONFIG_MAP` missing `rsi_wma_retest`**
-Only maps two strategies; the third would return an empty schema.
+~~Separate config map only listed 2 of 3 strategies.~~
+**Fixed:** Eliminated `STRATEGY_CONFIG_MAP` entirely. Each strategy class exposes `CONFIG_CLASS` attribute. Config discovered via `STRATEGY_MAP[name].CONFIG_CLASS` — single source of truth.
 
 ---
 
