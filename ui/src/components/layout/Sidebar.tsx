@@ -24,6 +24,7 @@ import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
 import { DynamicParamForm } from "../sidebar/DynamicParamForm";
+import { PresetManager } from "../sidebar/PresetManager";
 import {
   Select,
   SelectContent,
@@ -350,6 +351,9 @@ export const Sidebar: React.FC = () => {
 
                 {/* Dynamic Strategy Parameters */}
                 <DynamicParamForm />
+
+                {/* Presets */}
+                <PresetManager />
 
                 {/* Risk Settings */}
                 <CollapsibleSection title="Risk Management">

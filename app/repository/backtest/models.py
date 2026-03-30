@@ -39,6 +39,18 @@ class Strategy(Base):
     runs = relationship("Run", back_populates="strategy")
 
 
+class Batch(Base):
+    __tablename__ = "batches"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(Text, default="running")  # running, completed, partial, failed
+    total_symbols = Column(Integer)
+    completed_symbols = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    runs = relationship("Run", back_populates="batch")
+
+
 class Run(Base):
     __tablename__ = "runs"
 
@@ -54,8 +66,10 @@ class Run(Base):
     grid_search_parent_id = Column(Integer, ForeignKey("runs.id"))
     grid_search_total = Column(Integer)
     grid_search_completed = Column(Integer)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=True)
 
     strategy = relationship("Strategy", back_populates="runs")
+    batch = relationship("Batch", back_populates="runs")
     config = relationship("RunConfig", back_populates="run", uselist=False, cascade="all, delete-orphan")
     result = relationship("RunResult", back_populates="run", uselist=False, cascade="all, delete-orphan")
     timeseries = relationship("RunTimeseries", back_populates="run", uselist=False, cascade="all, delete-orphan")
@@ -166,6 +180,21 @@ class Trade(Base):
     __table_args__ = (
         Index("idx_trades_run", "run_id"),
         Index("idx_trades_symbol", "symbol"),
+    )
+
+
+class Preset(Base):
+    __tablename__ = "presets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False)
+    strategy = Column(Text, nullable=False, index=True)
+    config = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("name", "strategy", name="uq_preset_name_strategy"),
     )
 
 
