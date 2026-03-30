@@ -23,6 +23,7 @@ import { ValidatedInput } from "../ui/ValidatedInput";
 import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
+import { DynamicParamForm } from "../sidebar/DynamicParamForm";
 import {
   Select,
   SelectContent,
@@ -106,42 +107,8 @@ export const Sidebar: React.FC = () => {
 
     if (!isValid) return;
 
-    // 2. Data Check Logic (Grace Period)
-    resetPrep();
-    const startTime = Date.now();
-
-    const symbolsToCheck =
-      mode === "batch" || mode === "portfolio"
-        ? portfolioInput
-            .split("\n")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0)
-        : [symbol];
-
-    try {
-      const { allFresh, symbolStatuses } = await checkDataStatus(
-        symbolsToCheck,
-        timeframe,
-        startDate,
-        endDate
-      );
-
-      const elapsedTime = Date.now() - startTime;
-      setSymbols(symbolStatuses);
-
-      if (allFresh && elapsedTime < 500) {
-        executeRun();
-      } else if (allFresh) {
-        setPrepState("ready");
-        openModal();
-      } else {
-        setPrepState("downloading");
-        openModal();
-      }
-    } catch (e) {
-      toast.error("Could not check data status. Is the backend running?");
-      return;
-    }
+    // Data download is now inline (server-side) — go straight to run
+    executeRun();
   };
 
   // Keyboard Shortcuts
@@ -381,57 +348,8 @@ export const Sidebar: React.FC = () => {
                   </Select>
                 </CollapsibleSection>
 
-                {/* Parameters */}
-                <CollapsibleSection
-                  title="Parameters"
-                  headerAction={
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        resetParams();
-                      }}
-                      className="p-1 hover:bg-bg-elevated rounded text-text-muted hover:text-text-primary transition-colors"
-                      title="Reset to Defaults"
-                    >
-                      <RotateCcw size={12} />
-                    </button>
-                  }
-                >
-                  <div className="space-y-3">
-                    <ValidatedInput
-                      label="RSI Period"
-                      paramKey="rsi_period"
-                      value={params.rsi_period}
-                      onChangeValue={(v) => setParam("rsi_period", v)}
-                    />
-                    <ValidatedInput
-                      label="EMA Fast"
-                      paramKey="ema_fast"
-                      value={params.ema_fast}
-                      onChangeValue={(v) => setParam("ema_fast", v)}
-                    />
-                    <ValidatedInput
-                      label="EMA Slow"
-                      paramKey="ema_slow"
-                      value={params.ema_slow}
-                      onChangeValue={(v) => setParam("ema_slow", v)}
-                    />
-                    <ValidatedInput
-                      label="TP1 Risk Ratio"
-                      paramKey="tp1_rr"
-                      value={params.tp1_rr}
-                      onChangeValue={(v) => setParam("tp1_rr", v)}
-                      suffix="R"
-                    />
-                    <ValidatedInput
-                      label="SL Buffer"
-                      paramKey="sl_buffer_pct"
-                      value={params.sl_buffer_pct}
-                      onChangeValue={(v) => setParam("sl_buffer_pct", v)}
-                      suffix="%"
-                    />
-                  </div>
-                </CollapsibleSection>
+                {/* Dynamic Strategy Parameters */}
+                <DynamicParamForm />
 
                 {/* Risk Settings */}
                 <CollapsibleSection title="Risk Management">

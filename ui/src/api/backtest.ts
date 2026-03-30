@@ -44,16 +44,21 @@ export async function startBacktest(
  */
 export function streamProgress(
   runId: number,
-  onProgress: (pct: number) => void,
+  onProgress: (pct: number, phase?: "download" | "backtest") => void,
   onComplete: (data: { run_id: number; status: string }) => void,
   onError: (message: string) => void,
 ): () => void {
   return apiSSE(
     `/api/backtest/${runId}/progress`,
     (eventName, data) => {
-      if (eventName === "progress") {
+      if (eventName === "download_progress") {
         const d = data as { pct?: number };
-        onProgress(d.pct ?? 0);
+        onProgress(d.pct ?? 0, "download");
+      } else if (eventName === "download_complete") {
+        onProgress(100, "download");
+      } else if (eventName === "progress") {
+        const d = data as { pct?: number };
+        onProgress(d.pct ?? 0, "backtest");
       } else if (eventName === "complete") {
         onComplete(data as { run_id: number; status: string });
       } else if (eventName === "error") {

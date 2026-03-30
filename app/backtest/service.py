@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from app.api import executor as exc_mod
     from app.api.schemas import BacktestMode, BacktestRequest, RunDetail, TimeseriesResponse
 
-from app.backtest.config_builder import build_backtest_config
-from app.backtest.persistence import mark_failed, persist_results
 from app.repository.backtest.models import (
     Run,
     RunConfig,
@@ -90,13 +88,10 @@ class BacktestService:
         if strat_row is None:
             raise ValueError(f"Strategy '{req.strategy}' not seeded in DB")
 
-        # 2. Validate data file (single mode only; portfolio downloads dynamically)
+        # 2. Resolve CSV path (single mode; download happens inline in worker)
         csv_path = None
         if not is_portfolio:
             csv_path = _csv_path(req.symbol, req.timeframe)
-            if not os.path.exists(csv_path):
-                safe = req.symbol.replace("/", "")
-                raise FileNotFoundError(f"Data file not found: {safe}_{req.timeframe}.csv. Download data first.")
 
         # 3. Create Run + RunConfig rows
         run = Run(
@@ -243,72 +238,27 @@ class BacktestService:
     ):
         """Return a callable to execute in the thread pool."""
         from app.api.schemas import BacktestMode
+        from app.backtest.workers import run_portfolio_worker, run_single_worker
 
         if mode == BacktestMode.PORTFOLIO:
-            return self._portfolio_worker(req, run_id, loop, progress_cb)
-        return self._single_worker(req, run_id, loop, progress_cb, strategy_class, csv_path)
-
-    def _single_worker(self, req, run_id, loop, progress_cb, strategy_class, csv_path):
-        """Create worker fn for single-symbol backtest."""
-        engine_config = build_backtest_config(
-            symbol=req.symbol,
-            timeframe=req.timeframe,
-            strategy_name=req.strategy,
-            initial_balance=float(req.initial_capital),
-            leverage=req.leverage,
-            risk_per_trade_pct=float(req.risk_per_trade_pct),
-            params=req.params,
+            return lambda: run_portfolio_worker(
+                req=req,
+                run_id=run_id,
+                loop=loop,
+                progress_cb=progress_cb,
+                publish_event_fn=exc_mod.publish_event,
+                cleanup_fn=exc_mod.cleanup_job,
+            )
+        return lambda: run_single_worker(
+            req=req,
+            run_id=run_id,
+            loop=loop,
+            progress_cb=progress_cb,
+            publish_event_fn=exc_mod.publish_event,
+            cleanup_fn=exc_mod.cleanup_job,
+            strategy_class=strategy_class,
+            csv_path=csv_path,
         )
-
-        def _run():
-            from app.backtest.engine.backtest_engine import BacktestEngine
-
-            try:
-                engine = BacktestEngine(csv_path, strategy_class, engine_config)
-                results = engine.run(on_progress=progress_cb)
-                persist_results(run_id, results)
-                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
-            except Exception as err:
-                logger.error("backtest_worker_error", run_id=run_id, error=str(err))
-                mark_failed(run_id, str(err))
-                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
-            finally:
-                exc_mod.cleanup_job(run_id)
-
-        return _run
-
-    def _portfolio_worker(self, req, run_id, loop, progress_cb):
-        """Create worker fn for portfolio backtest."""
-
-        def _run():
-            from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
-
-            try:
-                results = _run_portfolio_backtest(
-                    symbols=req.symbols,
-                    strategy_name=req.strategy,
-                    timeframe=req.timeframe,
-                    start_date=req.start_date,
-                    end_date=req.end_date,
-                    initial_capital=float(req.initial_capital),
-                    leverage=req.leverage,
-                    risk_per_trade_pct=float(req.risk_per_trade_pct),
-                    fee_tier=req.fee_tier,
-                    slippage_model=req.slippage_model,
-                    slippage_pct=float(req.slippage_pct),
-                    params=req.params,
-                    progress_cb=progress_cb,
-                )
-                persist_results(run_id, results)
-                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
-            except Exception as err:
-                logger.error("portfolio_backtest_worker_error", run_id=run_id, error=str(err))
-                mark_failed(run_id, str(err))
-                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
-            finally:
-                exc_mod.cleanup_job(run_id)
-
-        return _run
 
 
 # ------------------------------------------------------------------

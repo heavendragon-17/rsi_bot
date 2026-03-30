@@ -69,34 +69,57 @@ export function apiSSE(
   path: string,
   onMessage: (event: string, data: unknown) => void,
   onError?: (err: Event) => void,
+  maxRetries: number = 3,
 ): () => void {
-  const url = `${BASE_URL}${path}`;
-  const es = new EventSource(url);
+  let es: EventSource | null = null;
+  let retryCount = 0;
+  let isClosed = false;
 
-  // Generic message handler (handles unnamed `data:` lines)
-  es.onmessage = (e: MessageEvent) => {
-    try {
-      onMessage("message", JSON.parse(e.data as string));
-    } catch {
-      onMessage("message", e.data);
+  const connect = () => {
+    if (isClosed) return;
+    es = new EventSource(`${BASE_URL}${path}`);
+
+    // Generic message handler (handles unnamed `data:` lines)
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        onMessage("message", JSON.parse(e.data as string));
+      } catch {
+        onMessage("message", e.data);
+      }
+    };
+
+    // Named event types from SSE spec
+    for (const eventName of ["progress", "complete", "error", "download_progress", "download_complete"]) {
+      es.addEventListener(eventName, (e: Event) => {
+        const me = e as MessageEvent;
+        try {
+          onMessage(eventName, JSON.parse(me.data as string));
+        } catch {
+          onMessage(eventName, me.data);
+        }
+      });
     }
+
+    es.onerror = (e) => {
+      if (isClosed) return;
+      es?.close();
+      if (retryCount < maxRetries) {
+        retryCount++;
+        setTimeout(connect, 1000 * retryCount);
+      } else {
+        onError?.(e);
+      }
+    };
+
+    es.onopen = () => {
+      retryCount = 0;
+    };
   };
 
-  // Named event types from SSE spec
-  for (const eventName of ["progress", "complete", "error", "download_progress", "download_complete"]) {
-    es.addEventListener(eventName, (e: Event) => {
-      const me = e as MessageEvent;
-      try {
-        onMessage(eventName, JSON.parse(me.data as string));
-      } catch {
-        onMessage(eventName, me.data);
-      }
-    });
-  }
+  connect();
 
-  if (onError) {
-    es.onerror = onError;
-  }
-
-  return () => es.close();
+  return () => {
+    isClosed = true;
+    es?.close();
+  };
 }

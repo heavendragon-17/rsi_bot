@@ -67,11 +67,34 @@ export interface BacktestRequest {
   tick_data_path?: string | null;
 }
 
+export interface ParamSchemaProp {
+  type: "integer" | "number" | "boolean" | "string";
+  title: string;
+  default?: unknown;
+  minimum?: number;
+  maximum?: number;
+  enum?: string[];
+  description?: string;
+  ui_group?: string;
+  ui_order?: number;
+  ui_step?: number;
+  ui_suffix?: string;
+  ui_hidden?: boolean;
+}
+
+export interface JSONSchema {
+  type: "object";
+  properties: Record<string, ParamSchemaProp>;
+  ui_groups?: Record<string, { title: string; icon?: string; order: number }>;
+  required?: string[];
+}
+
 export interface StrategyInfo {
   id: number;
   name: string;
   description: string | null;
   default_config: Record<string, unknown>;
+  param_schema: JSONSchema;
 }
 
 export interface RunDetail {
