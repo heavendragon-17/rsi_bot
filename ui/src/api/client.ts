@@ -31,18 +31,27 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    ...options,
-  });
+  console.log(`[API] ${options?.method ?? "GET"} ${path}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      ...options,
+    });
+  } catch (networkErr) {
+    console.error(`[API] Network error on ${path}:`, networkErr);
+    throw networkErr;
+  }
 
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
-      const body = await res.json() as { detail?: string; error?: string };
+      const body = await res.json() as { detail?: string; error?: string; type?: string };
       message = body.detail ?? body.error ?? message;
+      console.error(`[API] ${res.status} ${path}:`, body);
     } catch {
-      // ignore parse error, keep default message
+      console.error(`[API] ${res.status} ${path}: (no JSON body)`);
     }
     throw new ApiError(res.status, message);
   }
@@ -50,6 +59,7 @@ export async function apiFetch<T>(
   // 204 No Content — return empty object cast to T
   if (res.status === 204) return {} as T;
 
+  console.log(`[API] ${res.status} ${path} OK`);
   return res.json() as Promise<T>;
 }
 
@@ -77,6 +87,7 @@ export function apiSSE(
 
   const connect = () => {
     if (isClosed) return;
+    console.log(`[SSE] Connecting to ${path}`);
     es = new EventSource(`${BASE_URL}${path}`);
 
     // Generic message handler (handles unnamed `data:` lines)
@@ -92,6 +103,7 @@ export function apiSSE(
     for (const eventName of ["progress", "complete", "error", "download_progress", "download_complete"]) {
       es.addEventListener(eventName, (e: Event) => {
         const me = e as MessageEvent;
+        console.log(`[SSE] Event: ${eventName}`, me.data);
         try {
           onMessage(eventName, JSON.parse(me.data as string));
         } catch {
@@ -102,16 +114,19 @@ export function apiSSE(
 
     es.onerror = (e) => {
       if (isClosed) return;
+      console.warn(`[SSE] Connection error (retry ${retryCount + 1}/${maxRetries})`, e);
       es?.close();
       if (retryCount < maxRetries) {
         retryCount++;
         setTimeout(connect, 1000 * retryCount);
       } else {
+        console.error(`[SSE] Max retries reached, giving up`);
         onError?.(e);
       }
     };
 
     es.onopen = () => {
+      console.log(`[SSE] Connected to ${path}`);
       retryCount = 0;
     };
   };

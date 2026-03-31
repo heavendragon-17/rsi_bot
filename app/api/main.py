@@ -9,15 +9,20 @@ Run with:
 
 from __future__ import annotations
 
+import traceback
 from contextlib import asynccontextmanager
 
+import structlog
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.routes import backtest_results, backtest_run, backtest_stream, data, history, presets, settings, strategies, trade_chart
 from app.repository.backtest.database import SessionLocal, init_db
 from app.repository.backtest.seed import seed_strategies
+
+logger = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -45,6 +50,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -61,6 +68,26 @@ app.include_router(data.router)
 app.include_router(presets.router)
 app.include_router(settings.router)
 app.include_router(trade_chart.router)
+
+
+# ── Global exception handler ───────────────────────────────────────────────
+# Catches ALL unhandled exceptions and returns a proper JSON response.
+# Without this, unhandled 500s bypass CORS middleware and the browser
+# blocks the response entirely, hiding the real error from the developer.
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    logger.error(
+        "unhandled_exception",
+        method=request.method,
+        url=str(request.url),
+        error=str(exc),
+        traceback="".join(tb),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__},
+    )
 
 
 @app.get("/health")
