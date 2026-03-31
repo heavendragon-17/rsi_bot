@@ -138,7 +138,7 @@ class BacktestService:
         run_id = run.id
 
         # 4. Create SSE queue + submit to executor
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         _get_exc_mod().create_progress_queue(run_id)
         progress_cb = _get_exc_mod().make_progress_callback(run_id, loop)
 
