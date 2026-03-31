@@ -6,8 +6,8 @@ Used by backtest workers when data file doesn't exist.
 
 from __future__ import annotations
 
-import fcntl
 import os
+import sys
 from typing import Callable
 
 import structlog
@@ -15,6 +15,27 @@ import structlog
 from app.backtest.data.download import calculate_candle_limit, download_data
 
 logger = structlog.get_logger()
+
+_IS_WIN = sys.platform == "win32"
+
+
+def _lock_file(f) -> None:
+    if _IS_WIN:
+        import msvcrt
+        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+
+def _unlock_file(f) -> None:
+    if _IS_WIN:
+        import msvcrt
+        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(f, fcntl.LOCK_UN)
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,7 +59,7 @@ def download_if_missing(
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
 
     with open(lock_path, "w") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        _lock_file(lock_file)
         try:
             # Double-check after acquiring lock (another worker may have finished)
             if os.path.exists(csv_path):
@@ -81,4 +102,4 @@ def download_if_missing(
             })
 
         finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
+            _unlock_file(lock_file)
