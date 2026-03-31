@@ -51,6 +51,13 @@ def _load_exc_mod():
     return executor
 
 
+def _get_exc_mod():
+    """Get exc_mod, lazy-loading it on first call. Use this for intra-module access."""
+    if "exc_mod" not in globals():
+        return _load_exc_mod()
+    return exc_mod
+
+
 def __getattr__(name: str):
     if name == "exc_mod":
         return _load_exc_mod()
@@ -132,8 +139,8 @@ class BacktestService:
 
         # 4. Create SSE queue + submit to executor
         loop = asyncio.get_event_loop()
-        exc_mod.create_progress_queue(run_id)
-        progress_cb = exc_mod.make_progress_callback(run_id, loop)
+        _get_exc_mod().create_progress_queue(run_id)
+        progress_cb = _get_exc_mod().make_progress_callback(run_id, loop)
 
         worker_fn = self._build_worker(
             mode=mode,
@@ -144,7 +151,7 @@ class BacktestService:
             strategy_class=strategy_class,
             csv_path=csv_path,
         )
-        exc_mod.submit_backtest(run_id, worker_fn)
+        _get_exc_mod().submit_backtest(run_id, worker_fn)
 
         return run_id
 
@@ -197,7 +204,7 @@ class BacktestService:
 
     def cancel_run(self, run_id: int, db: Session) -> dict:
         """Cancel a running backtest."""
-        cancelled = exc_mod.cancel_job(run_id)
+        cancelled = _get_exc_mod().cancel_job(run_id)
         run = db.query(Run).filter_by(id=run_id).first()
         if run:
             run.status = "cancelled"
@@ -206,7 +213,7 @@ class BacktestService:
 
     async def stream_progress(self, run_id: int) -> AsyncIterator[str]:
         """Yield SSE-formatted progress events."""
-        q = exc_mod.get_progress_queue(run_id)
+        q = _get_exc_mod().get_progress_queue(run_id)
         if q is None:
             yield f"event: complete\ndata: {json.dumps({'run_id': run_id, 'status': 'completed'})}\n\n"
             return
@@ -255,8 +262,8 @@ class BacktestService:
                 run_id=run_id,
                 loop=loop,
                 progress_cb=progress_cb,
-                publish_event_fn=exc_mod.publish_event,
-                cleanup_fn=exc_mod.cleanup_job,
+                publish_event_fn=_get_exc_mod().publish_event,
+                cleanup_fn=_get_exc_mod().cleanup_job,
             )
         if mode == BacktestMode.BATCH:
             return lambda: run_batch_worker(
@@ -264,16 +271,16 @@ class BacktestService:
                 run_id=run_id,
                 loop=loop,
                 progress_cb=progress_cb,
-                publish_event_fn=exc_mod.publish_event,
-                cleanup_fn=exc_mod.cleanup_job,
+                publish_event_fn=_get_exc_mod().publish_event,
+                cleanup_fn=_get_exc_mod().cleanup_job,
             )
         return lambda: run_single_worker(
             req=req,
             run_id=run_id,
             loop=loop,
             progress_cb=progress_cb,
-            publish_event_fn=exc_mod.publish_event,
-            cleanup_fn=exc_mod.cleanup_job,
+            publish_event_fn=_get_exc_mod().publish_event,
+            cleanup_fn=_get_exc_mod().cleanup_job,
             strategy_class=strategy_class,
             csv_path=csv_path,
         )
