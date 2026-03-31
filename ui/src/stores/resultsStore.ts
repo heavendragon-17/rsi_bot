@@ -37,6 +37,8 @@ export interface ResultsState {
   netProfitPct: number;
   benchmarkProfitPct: number;
   profitFactor: number;
+  grossWin: number;
+  grossLoss: number;
   maxDrawdownPct: number;
   maxDrawdownValue: number;
   sharpeRatio: number;
@@ -94,6 +96,8 @@ export function mapApiToResults(
     netProfitPct: _num(r["net_profit_pct"]),
     benchmarkProfitPct: 0, // not provided by backend yet
     profitFactor: _num(r["profit_factor"]),
+    grossWin: _str(r["gross_profit"]),
+    grossLoss: _str(r["gross_loss"]),
     maxDrawdownPct: _num(r["max_drawdown_pct"]),
     maxDrawdownValue: _str(r["max_drawdown_value"]),
     sharpeRatio: _num(r["sharpe_ratio"]),
@@ -156,6 +160,8 @@ export const useResultsStore = create<ResultsState>()((set, get) => ({
   netProfitPct: 0,
   benchmarkProfitPct: 0,
   profitFactor: 0,
+  grossWin: 0,
+  grossLoss: 0,
   maxDrawdownPct: 0,
   maxDrawdownValue: 0,
   sharpeRatio: 0,

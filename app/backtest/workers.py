@@ -57,6 +57,14 @@ def run_single_worker(
         results = engine.run(on_progress=progress_cb)
 
         # Phase 3: Persist
+        total_trades = results.get("metrics", {}).get("total_trades", 0) or len(results.get("round_trips", []))
+        logger.info(
+            "backtest_result_summary",
+            run_id=run_id,
+            total_trades=total_trades,
+            net_profit=results.get("net_profit"),
+            net_profit_pct=results.get("net_profit_pct"),
+        )
         persist_results(run_id, results)
         publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
 
