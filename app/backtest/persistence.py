@@ -102,7 +102,16 @@ def persist_results(run_id: int, results: dict[str, Any]) -> None:
             db.add(trade_row)
 
         db.commit()
-        logger.info("backtest_persisted", run_id=run_id)
+        logger.info(
+            "backtest_persisted",
+            run_id=run_id,
+            total_trades=result_row.total_trades,
+            net_profit=str(result_row.net_profit),
+            net_profit_pct=result_row.net_profit_pct,
+            equity_curve_points=len(equity_curve),
+            drawdown_curve_points=len(drawdown_curve),
+            trade_rows_inserted=len(results.get("round_trips", [])),
+        )
     except Exception as err:
         db.rollback()
         logger.error("persist_error", run_id=run_id, error=str(err))

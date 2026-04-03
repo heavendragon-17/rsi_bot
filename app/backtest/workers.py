@@ -7,6 +7,9 @@ Handles inline download + backtest execution + result persistence.
 
 from __future__ import annotations
 
+import os
+import webbrowser
+
 import structlog
 
 from app.backtest.config_builder import build_backtest_config
@@ -14,6 +17,8 @@ from app.backtest.data.inline_download import download_if_missing
 from app.backtest.persistence import mark_failed, persist_results
 
 logger = structlog.get_logger()
+
+REPORT_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "report", "ui"))
 
 
 def run_single_worker(
@@ -53,10 +58,24 @@ def run_single_worker(
             risk_per_trade_pct=float(req.risk_per_trade_pct),
             params=req.params,
         )
+        logger.info(
+            "engine_config_debug",
+            run_id=run_id,
+            symbol=req.symbol,
+            timeframe=req.timeframe,
+            strategy=req.strategy,
+            leverage=engine_config.get("risk", {}).get("leverage"),
+            risk_pct=engine_config.get("risk", {}).get("risk_per_trade_pct"),
+            initial_balance=engine_config.get("backtest", {}).get("initial_balance"),
+            max_position_size_pct=engine_config.get("risk", {}).get("max_position_size_pct"),
+            use_risk_based_sizing=engine_config.get("risk", {}).get("use_risk_based_sizing"),
+            strategy_params=engine_config.get("strategy_params"),
+            ui_params=req.params,
+        )
         engine = BacktestEngine(csv_path, strategy_class, engine_config)
         results = engine.run(on_progress=progress_cb)
 
-        # Phase 3: Persist
+        # Phase 3: Persist + generate debug HTML report
         total_trades = results.get("metrics", {}).get("total_trades", 0) or len(results.get("round_trips", []))
         logger.info(
             "backtest_result_summary",
@@ -66,6 +85,18 @@ def run_single_worker(
             net_profit_pct=results.get("net_profit_pct"),
         )
         persist_results(run_id, results)
+
+        # Generate and open HTML report for debugging
+        report_path = _generate_and_open_report(
+            results=results,
+            symbol=req.symbol,
+            timeframe=req.timeframe,
+            strategy_name=req.strategy,
+            leverage=req.leverage,
+            strategy_params=req.params,
+            run_id=run_id,
+        )
+
         publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
 
     except Exception as err:
@@ -132,6 +163,17 @@ def run_batch_worker(
         # Phase 3: Aggregate and persist
         aggregated = _aggregate_batch_results(batch_results, float(req.initial_capital))
         persist_results(run_id, aggregated)
+
+        _generate_and_open_report(
+            results=aggregated,
+            symbol="BATCH",
+            timeframe=req.timeframe,
+            strategy_name=req.strategy,
+            leverage=req.leverage,
+            strategy_params=req.params,
+            run_id=run_id,
+        )
+
         publish_event_fn(run_id, loop, "complete", {
             "run_id": run_id,
             "status": "completed",
@@ -143,6 +185,45 @@ def run_batch_worker(
         publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
     finally:
         cleanup_fn(run_id)
+
+
+def _generate_and_open_report(
+    *,
+    results: dict,
+    symbol: str,
+    timeframe: str,
+    strategy_name: str,
+    leverage: int,
+    strategy_params: dict | None,
+    run_id: int,
+) -> str | None:
+    """Generate HTML report and open it in the browser for debugging.
+
+    Always generates the report even with 0 trades so you can see
+    the equity curve and metrics to debug why no signals fired.
+    """
+    from app.backtest.reporting.html import generate_html_report
+
+    try:
+        os.makedirs(REPORT_DIR, exist_ok=True)
+        report_path = generate_html_report(
+            results=results,
+            symbol=symbol,
+            timeframe=timeframe,
+            strategy_name=strategy_name,
+            leverage=leverage,
+            strategy_params=strategy_params or {},
+            return_only=False,
+            output_dir=REPORT_DIR,
+        )
+        if report_path:
+            logger.info("ui_report_generated", run_id=run_id, path=report_path)
+            webbrowser.open("file://" + os.path.abspath(report_path))
+            return report_path
+        return None
+    except Exception as err:
+        logger.warning("ui_report_failed", run_id=run_id, error=str(err))
+        return None
 
 
 def _csv_path(symbol: str, timeframe: str) -> str:
@@ -236,8 +317,6 @@ def run_portfolio_worker(
     cleanup_fn,
 ):
     """Worker fn for portfolio backtest. Called from ThreadPoolExecutor."""
-    import os
-
     from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
 
     try:
@@ -288,6 +367,17 @@ def run_portfolio_worker(
             }),
         )
         persist_results(run_id, results)
+
+        _generate_and_open_report(
+            results=results,
+            symbol="PORTFOLIO",
+            timeframe=req.timeframe,
+            strategy_name=req.strategy,
+            leverage=req.leverage,
+            strategy_params=req.params,
+            run_id=run_id,
+        )
+
         publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
 
     except Exception as err:

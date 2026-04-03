@@ -343,6 +343,10 @@ class RsiWmaRetestStrategy(BaseStrategy):
                     entry_price = Decimal(str(close))
                     soft_sl_distance = entry_price - soft_sl_price
                     disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
+                    # Floor at 1% of entry — a stop loss price must never be zero or negative
+                    min_sl = entry_price * Decimal("0.01")
+                    if disaster_sl_price < min_sl:
+                        disaster_sl_price = min_sl
 
                 # Register trade
                 if self.use_active_trades:

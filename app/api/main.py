@@ -28,12 +28,16 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Initialise DB and seed strategies on server start."""
+    from app.core.logging import setup_logging
+
+    setup_logging(level="INFO", log_file="backtest_api.log")
     init_db()
     db = SessionLocal()
     try:
         seed_strategies(db)
     finally:
         db.close()
+    logger.info("backtest_api_ready")
     yield
 
 

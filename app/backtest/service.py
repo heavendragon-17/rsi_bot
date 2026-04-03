@@ -215,6 +215,7 @@ class BacktestService:
         """Yield SSE-formatted progress events."""
         q = _get_exc_mod().get_progress_queue(run_id)
         if q is None:
+            logger.info("sse_no_queue_immediate_complete", run_id=run_id)
             yield f"event: complete\ndata: {json.dumps({'run_id': run_id, 'status': 'completed'})}\n\n"
             return
 
@@ -222,10 +223,16 @@ class BacktestService:
             while True:
                 event = await asyncio.wait_for(q.get(), timeout=300.0)
                 evt_name = event.pop("event", "progress")
+                # Log terminal events and every 25% progress
+                if evt_name in ("complete", "error", "download_complete"):
+                    logger.info("sse_event", run_id=run_id, sse_type=evt_name, payload=event)
+                elif evt_name == "progress" and event.get("pct", 0) % 25 == 0:
+                    logger.info("sse_progress", run_id=run_id, pct=event.get("pct"))
                 yield f"event: {evt_name}\ndata: {json.dumps(event)}\n\n"
                 if evt_name in ("complete", "error"):
                     break
         except TimeoutError:
+            logger.warning("sse_timeout", run_id=run_id)
             yield f"event: error\ndata: {json.dumps({'message': 'timeout'})}\n\n"
 
     # ------------------------------------------------------------------

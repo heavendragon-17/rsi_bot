@@ -240,34 +240,13 @@ export const Sidebar: React.FC = () => {
                         <label className="text-xs font-medium text-text-secondary mb-1.5 block">
                           Symbol
                         </label>
-                        <Select
+                        <input
+                          type="text"
                           value={symbol}
-                          onValueChange={(val) => setSymbol(val)}
-                        >
-                          <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto data-[state=open]:bg-bg-elevated shadow-none transition-colors border-none sm:border-solid">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
-                            <SelectItem
-                              value="BTC/USDT"
-                              className="cursor-pointer hover:bg-bg-elevated"
-                            >
-                              BTC/USDT
-                            </SelectItem>
-                            <SelectItem
-                              value="ETH/USDT"
-                              className="cursor-pointer hover:bg-bg-elevated"
-                            >
-                              ETH/USDT
-                            </SelectItem>
-                            <SelectItem
-                              value="SOL/USDT"
-                              className="cursor-pointer hover:bg-bg-elevated"
-                            >
-                              SOL/USDT
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                          placeholder="e.g. BTC/USDT"
+                          className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 focus:outline-none h-auto shadow-none transition-colors border-none sm:border-solid"
+                        />
                       </div>
                     ) : (
                       <div className="col-span-2">
