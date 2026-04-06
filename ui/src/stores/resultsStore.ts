@@ -75,6 +75,20 @@ export interface ResultsState {
 }
 
 // ---------------------------------------------------------------------------
+// dedupeByDate — keep the last point per date so lightweight-charts never
+// sees duplicate or non-ascending timestamps after yyyy-mm-dd truncation.
+// ---------------------------------------------------------------------------
+function dedupeByDate<T extends { time: string }>(points: T[]): T[] {
+  const seen = new Map<string, T>();
+  for (const p of points) {
+    seen.set(p.time, p); // last write wins
+  }
+  return Array.from(seen.values()).sort((a, b) =>
+    a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // mapApiToResults — converts API RunDetail + TimeseriesResponse to store state
 // ---------------------------------------------------------------------------
 
@@ -116,15 +130,19 @@ export function mapApiToResults(
     worstTrade: _str(r["largest_loss"]),
     exitReasons: (r["exit_reasons"] as Record<string, number>) ?? {},
 
-    equityCurve: timeseries.equity_curve.map((p) => ({
-      time: String(p["date"] ?? p["time"] ?? ""),
-      value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
-    })),
+    equityCurve: dedupeByDate(
+      timeseries.equity_curve.map((p) => ({
+        time: String(p["date"] ?? p["time"] ?? "").slice(0, 10),
+        value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
+      }))
+    ),
 
-    underwaterCurve: timeseries.drawdown_curve.map((p) => ({
-      time: String(p["date"] ?? p["time"] ?? ""),
-      value: -(typeof p["drawdown"] === "number" ? p["drawdown"] : _str(p["drawdown"])),
-    })),
+    underwaterCurve: dedupeByDate(
+      timeseries.drawdown_curve.map((p) => ({
+        time: String(p["date"] ?? p["time"] ?? "").slice(0, 10),
+        value: -(typeof p["drawdown"] === "number" ? p["drawdown"] : _str(p["drawdown"])),
+      }))
+    ),
 
     benchmarkCurve: [],
 
@@ -196,8 +214,39 @@ export const useResultsStore = create<ResultsState>()((set, get) => ({
       const filtered = reason
         ? state.trades.filter((t) => t.exitReason === reason)
         : state.trades;
-      return { activeFilter: reason, filteredTrades: filtered };
+      return { filteredTrades: filtered, activeFilter: reason };
     }),
 
-  clearResults: () => set({ hasResults: false, activeFilter: null }),
-}));
+  clearResults: () =>
+    set({
+      hasResults: false,
+      netProfit: 0,
+      netProfitPct: 0,
+      benchmarkProfitPct: 0,
+      profitFactor: 0,
+      grossWin: 0,
+      grossLoss: 0,
+      maxDrawdownPct: 0,
+      maxDrawdownValue: 0,
+      sharpeRatio: 0,
+      sortinoRatio: 0,
+      calmarRatio: 0,
+      volatility: 0,
+      expectancy: 0,
+      maxConsecWins: 0,
+      winRate: 0,
+      winCount: 0,
+      lossCount: 0,
+      avgWin: 0,
+      avgLoss: 0,
+      bestTrade: 0,
+      worstTrade: 0,
+      equityCurve: [],
+      benchmarkCurve: [],
+      underwaterCurve: [],
+      exitReasons: {},
+      trades: [],
+      filteredTrades: [],
+      activeFilter: null,
+    }),
+}));

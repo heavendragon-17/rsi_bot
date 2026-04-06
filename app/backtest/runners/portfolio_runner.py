@@ -177,6 +177,15 @@ def _run_portfolio_backtest(
     slippage_pct: float = 0.0,
     params: dict | None = None,
     progress_cb=None,
+    # --- Extended risk params (defaults match config.yaml) ---
+    tp1_close_pct: float = 1.0,
+    tp2_close_pct: float = 0.0,
+    max_position_size_pct: float = 10.0,
+    min_sl_distance_pct: float = 0.003,
+    use_risk_based_sizing: bool = True,
+    use_initial_capital_for_risk: bool = True,
+    taker_fee: float | None = None,
+    maker_fee: float | None = None,
 ) -> dict:
     """Thin wrapper that ``BacktestService._portfolio_worker()`` imports."""
     config = {
@@ -190,8 +199,14 @@ def _run_portfolio_backtest(
         "risk": {
             "leverage": leverage,
             "risk_per_trade_pct": risk_per_trade_pct,
-            "taker_fee": DEFAULT_TAKER_FEE,
-            "maker_fee": DEFAULT_MAKER_FEE,
+            "taker_fee": taker_fee if taker_fee is not None else DEFAULT_TAKER_FEE,
+            "maker_fee": maker_fee if maker_fee is not None else DEFAULT_MAKER_FEE,
+            "tp1_close_pct": tp1_close_pct,
+            "tp2_close_pct": tp2_close_pct,
+            "max_position_size_pct": max_position_size_pct,
+            "min_sl_distance_pct": min_sl_distance_pct,
+            "use_risk_based_sizing": use_risk_based_sizing,
+            "use_initial_capital_for_risk": use_initial_capital_for_risk,
         },
         "strategy_params": params or {},
     }

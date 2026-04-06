@@ -48,6 +48,16 @@ def _migrate_add_batch_id(eng) -> None:
             conn.commit()
 
 
+def _migrate_add_final_balance(eng) -> None:
+    """Add final_balance column to run_results table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_results)"))
+        columns = {row[1] for row in result}
+        if "final_balance" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_results ADD COLUMN final_balance TEXT"))
+            conn.commit()
+
+
 def init_db() -> None:
     """
     Create all tables (idempotent) and seed initial strategy rows.
@@ -63,6 +73,7 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_batch_id(engine)
+    _migrate_add_final_balance(engine)
 
     session = SessionLocal()
     try:

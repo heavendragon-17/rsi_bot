@@ -112,6 +112,7 @@ class RunResult(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     run_id = Column(Integer, ForeignKey("runs.id"), nullable=False, unique=True)
+    final_balance = Column(Text)
     net_profit = Column(Text)
     net_profit_pct = Column(Float)
     gross_profit = Column(Text)

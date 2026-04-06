@@ -41,6 +41,7 @@ def persist_results(run_id: int, results: dict[str, Any]) -> None:
 
         result_row = RunResult(
             run_id=run_id,
+            final_balance=str(results.get("final_balance", 0)),
             net_profit=str(results.get("net_profit", 0)),
             net_profit_pct=results.get("net_profit_pct", 0.0),
             gross_profit=str(metrics.get("gross_profit", 0)),

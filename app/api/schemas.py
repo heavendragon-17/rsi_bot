@@ -49,6 +49,14 @@ class BacktestRequest(BaseModel):
     max_workers: int | None = None  # batch only
     tick_data_path: str | None = None  # tick_replay only
 
+    # --- Risk / portfolio params (defaults match config.yaml) ---
+    tp1_close_pct: float = 1.0  # Close 100% at TP1
+    tp2_close_pct: float = 0.0  # Close 0% at TP2
+    max_position_size_pct: float = 10.0  # Max margin % per trade
+    min_sl_distance_pct: float = 0.003  # Min SL distance
+    use_risk_based_sizing: bool = True  # Size based on SL distance
+    use_initial_capital_for_risk: bool = True  # Risk off initial capital
+
     @model_validator(mode="after")
     def _validate_mode_fields(self) -> BacktestRequest:
         if self.mode in (BacktestMode.SINGLE, BacktestMode.TICK_REPLAY):

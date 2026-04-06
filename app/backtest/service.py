@@ -19,7 +19,6 @@ import structlog
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from app.api import executor as exc_mod
     from app.api.schemas import BacktestMode, BacktestRequest, RunDetail, TimeseriesResponse
 
 from app.repository.backtest.models import (
@@ -37,31 +36,18 @@ logger = structlog.get_logger()
 DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
 
 # Lazy-loaded to avoid backtest → api import boundary violation at module level.
-# Tests can still patch "app.backtest.service.exc_mod" because __getattr__ makes
-# it appear as a real module attribute on first access.
-def _load_exc_mod():
-    """Lazy import of app.api.executor — called on first access of exc_mod."""
-    import sys
-
-    from app.api import executor
-
-    # Store in module globals so subsequent lookups (and mock.patch) work.
-    current_module = sys.modules[__name__]
-    current_module.exc_mod = executor
-    return executor
+# Use _get_exc_mod() everywhere inside this module — module-level __getattr__
+# only fires on *external* attribute access, not on bare-name lookups here.
+_exc_mod_cache = None
 
 
 def _get_exc_mod():
-    """Get exc_mod, lazy-loading it on first call. Use this for intra-module access."""
-    if "exc_mod" not in globals():
-        return _load_exc_mod()
-    return exc_mod
-
-
-def __getattr__(name: str):
-    if name == "exc_mod":
-        return _load_exc_mod()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    """Return app.api.executor, importing it on first call."""
+    global _exc_mod_cache
+    if _exc_mod_cache is None:
+        from app.api import executor
+        _exc_mod_cache = executor
+    return _exc_mod_cache
 
 
 
@@ -138,7 +124,7 @@ class BacktestService:
         run_id = run.id
 
         # 4. Create SSE queue + submit to executor
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_event_loop()
         _get_exc_mod().create_progress_queue(run_id)
         progress_cb = _get_exc_mod().make_progress_callback(run_id, loop)
 
@@ -317,6 +303,7 @@ def _build_results_dict(result: RunResult | None) -> dict[str, Any] | None:
     if not result:
         return None
     return {
+        "final_balance": str(result.final_balance) if result.final_balance is not None else None,
         "net_profit": str(result.net_profit) if result.net_profit is not None else None,
         "net_profit_pct": result.net_profit_pct,
         "gross_profit": str(result.gross_profit) if result.gross_profit is not None else None,

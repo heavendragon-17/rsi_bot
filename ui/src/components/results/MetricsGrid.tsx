@@ -8,14 +8,14 @@ const MetricCell: React.FC<{
   subValue?: string;
   highlight?: "success" | "danger" | "neutral";
 }> = ({ label, value, subValue, highlight }) => (
-  <div className="flex flex-col gap-1 p-3 border-r last:border-r-0 border-border-main/50 relative">
-    <span className="text-xs text-text-muted uppercase tracking-wider">
+  <div className="flex flex-col gap-1.5 p-4 border-r last:border-r-0 border-border-main/40">
+    <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap">
       {label}
     </span>
-    <div className="flex items-baseline gap-1.5">
+    <div className="flex items-baseline gap-1">
       <span
         className={cn(
-          "text-sm font-semibold font-mono",
+          "text-base font-bold font-mono",
           highlight === "success" && "text-success",
           highlight === "danger" && "text-danger"
         )}
@@ -48,22 +48,22 @@ export const MetricsGrid: React.FC = () => {
   const totalTrades = winCount + lossCount;
 
   return (
-    <div className="border border-border-main rounded-xl bg-bg-surface overflow-hidden mb-6 shadow-sm">
-      {/* Row 1: Risk Stats */}
-      <div className="grid grid-cols-5 border-b border-border-main/50">
+    <div className="border border-border-main rounded-xl bg-bg-surface overflow-hidden shadow-sm">
+      {/* Row 1: Risk / ratio stats */}
+      <div className="grid grid-cols-5 border-b border-border-main/40">
         <MetricCell label="Sortino" value={sortinoRatio.toFixed(2)} />
         <MetricCell label="Calmar" value={calmarRatio.toFixed(2)} />
         <MetricCell label="Volatility" value={`${volatility.toFixed(2)}%`} />
         <MetricCell
           label="Expectancy"
           value={`$${expectancy.toFixed(2)}`}
-          subValue="/trade"
+          subValue="/ trade"
           highlight={expectancy > 0 ? "success" : "danger"}
         />
         <MetricCell label="Consec. Wins" value={maxConsecWins} />
       </div>
 
-      {/* Row 2: Trade Stats */}
+      {/* Row 2: Trade stats */}
       <div className="grid grid-cols-5">
         <MetricCell
           label="Avg Win"

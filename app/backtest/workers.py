@@ -33,6 +33,11 @@ def run_single_worker(
     csv_path: str,
 ):
     """Worker fn for single-symbol backtest. Called from ThreadPoolExecutor."""
+    import os
+    import tempfile
+
+    import pandas as pd
+
     from app.backtest.engine.backtest_engine import BacktestEngine
 
     try:
@@ -48,7 +53,39 @@ def run_single_worker(
             publish_event_fn=publish_event_fn,
         )
 
-        # Phase 2: Run backtest
+        # Phase 1b: Filter CSV to the requested date range so the engine runs
+        # exactly the same rows as the CLI when given the same dates.
+        effective_csv = csv_path
+        tmp_path = None
+        if req.start_date or req.end_date:
+            df = pd.read_csv(csv_path)
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            mask = pd.Series([True] * len(df))
+            if req.start_date:
+                mask &= df["timestamp"] >= req.start_date
+            if req.end_date:
+                mask &= df["timestamp"] <= req.end_date
+            filtered = df[mask].reset_index(drop=True)
+            if filtered.empty:
+                csv_min = df["timestamp"].min().date() if not df.empty else "?"
+                csv_max = df["timestamp"].max().date() if not df.empty else "?"
+                raise ValueError(
+                    f"No candles found between {req.start_date} and {req.end_date}. "
+                    f"Available data: {csv_min} → {csv_max}. "
+                    "Adjust the date range or download more data."
+                )
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".csv", delete=False, mode="w"
+            )
+            tmp_path = tmp.name
+            tmp.close()
+            filtered.to_csv(tmp_path, index=False)
+            effective_csv = tmp_path
+
+        # Phase 2: Run backtest — load_yaml=False so config.yaml never
+        # overrides what the UI sent; all params are explicit.
+        # Fees are NOT passed here so the engine uses DEFAULT_TAKER_FEE /
+        # DEFAULT_MAKER_FEE from constants — exactly what the CLI uses.
         engine_config = build_backtest_config(
             symbol=req.symbol,
             timeframe=req.timeframe,
@@ -57,23 +94,22 @@ def run_single_worker(
             leverage=req.leverage,
             risk_per_trade_pct=float(req.risk_per_trade_pct),
             params=req.params,
+            load_yaml=False,
+            tp1_close_pct=req.tp1_close_pct,
+            tp2_close_pct=req.tp2_close_pct,
+            max_position_size_pct=req.max_position_size_pct,
+            min_sl_distance_pct=req.min_sl_distance_pct,
+            use_risk_based_sizing=req.use_risk_based_sizing,
+            use_initial_capital_for_risk=req.use_initial_capital_for_risk,
+            # taker_fee / maker_fee intentionally omitted → engine falls back
+            # to DEFAULT_TAKER_FEE / DEFAULT_MAKER_FEE (matches CLI behaviour)
         )
-        logger.info(
-            "engine_config_debug",
-            run_id=run_id,
-            symbol=req.symbol,
-            timeframe=req.timeframe,
-            strategy=req.strategy,
-            leverage=engine_config.get("risk", {}).get("leverage"),
-            risk_pct=engine_config.get("risk", {}).get("risk_per_trade_pct"),
-            initial_balance=engine_config.get("backtest", {}).get("initial_balance"),
-            max_position_size_pct=engine_config.get("risk", {}).get("max_position_size_pct"),
-            use_risk_based_sizing=engine_config.get("risk", {}).get("use_risk_based_sizing"),
-            strategy_params=engine_config.get("strategy_params"),
-            ui_params=req.params,
-        )
-        engine = BacktestEngine(csv_path, strategy_class, engine_config)
-        results = engine.run(on_progress=progress_cb)
+        try:
+            engine = BacktestEngine(effective_csv, strategy_class, engine_config)
+            results = engine.run(on_progress=progress_cb)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
         # Phase 3: Persist + generate debug HTML report
         total_trades = results.get("metrics", {}).get("total_trades", 0) or len(results.get("round_trips", []))
@@ -85,17 +121,6 @@ def run_single_worker(
             net_profit_pct=results.get("net_profit_pct"),
         )
         persist_results(run_id, results)
-
-        # Generate and open HTML report for debugging
-        report_path = _generate_and_open_report(
-            results=results,
-            symbol=req.symbol,
-            timeframe=req.timeframe,
-            strategy_name=req.strategy,
-            leverage=req.leverage,
-            strategy_params=req.params,
-            run_id=run_id,
-        )
 
         publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
 
@@ -136,7 +161,8 @@ def run_batch_worker(
 
         publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
 
-        # Phase 2: Build config dict for BatchRunner
+        # Phase 2: Build config dict for BatchRunner — include ALL risk
+        # params so results match CLI (which reads them from config.yaml).
         config = {
             "strategy": req.strategy,
             "strategy_params": req.params,
@@ -144,6 +170,14 @@ def run_batch_worker(
             "risk": {
                 "leverage": req.leverage,
                 "risk_per_trade_pct": float(req.risk_per_trade_pct),
+                "tp1_close_pct": req.tp1_close_pct,
+                "tp2_close_pct": req.tp2_close_pct,
+                "max_position_size_pct": req.max_position_size_pct,
+                "min_sl_distance_pct": req.min_sl_distance_pct,
+                "use_risk_based_sizing": req.use_risk_based_sizing,
+                "use_initial_capital_for_risk": req.use_initial_capital_for_risk,
+                "taker_fee": float(req.fee_tier),
+                "maker_fee": float(req.fee_tier),
             },
         }
 
@@ -163,16 +197,6 @@ def run_batch_worker(
         # Phase 3: Aggregate and persist
         aggregated = _aggregate_batch_results(batch_results, float(req.initial_capital))
         persist_results(run_id, aggregated)
-
-        _generate_and_open_report(
-            results=aggregated,
-            symbol="BATCH",
-            timeframe=req.timeframe,
-            strategy_name=req.strategy,
-            leverage=req.leverage,
-            strategy_params=req.params,
-            run_id=run_id,
-        )
 
         publish_event_fn(run_id, loop, "complete", {
             "run_id": run_id,
@@ -343,42 +367,32 @@ def run_portfolio_worker(
                     loop=loop,
                     publish_event_fn=publish_event_fn,
                 )
-                pct = int((i + 1) / len(symbols_needing_download) * download_weight * 100)
-                progress_cb({"pct": pct})
-            publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
 
-        # Phase 2: Run portfolio engine with weighted progress
-        base_pct = int(download_weight * 100)
+        publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
+
+        # Phase 2: Run portfolio backtest
+        csv_paths = {s: _csv_path(s, req.timeframe) for s in req.symbols}
         results = _run_portfolio_backtest(
-            symbols=req.symbols,
+            csv_paths=csv_paths,
             strategy_name=req.strategy,
             timeframe=req.timeframe,
+            balance=float(req.initial_capital),
+            strategy_params=req.params,
+            leverage=req.leverage,
             start_date=req.start_date,
             end_date=req.end_date,
-            initial_capital=float(req.initial_capital),
-            leverage=req.leverage,
-            risk_per_trade_pct=float(req.risk_per_trade_pct),
-            fee_tier=req.fee_tier,
-            slippage_model=req.slippage_model,
-            slippage_pct=float(req.slippage_pct),
-            params=req.params,
-            progress_cb=lambda data: progress_cb({
-                "pct": base_pct + int(data.get("pct", 0) * backtest_weight),
-            }),
+            progress_cb=lambda pct: progress_cb(
+                download_weight + pct * backtest_weight
+            ),
         )
+
+        # Phase 3: Persist
         persist_results(run_id, results)
 
-        _generate_and_open_report(
-            results=results,
-            symbol="PORTFOLIO",
-            timeframe=req.timeframe,
-            strategy_name=req.strategy,
-            leverage=req.leverage,
-            strategy_params=req.params,
-            run_id=run_id,
-        )
-
-        publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
+        publish_event_fn(run_id, loop, "complete", {
+            "run_id": run_id,
+            "status": "completed",
+        })
 
     except Exception as err:
         logger.error("portfolio_worker_error", run_id=run_id, error=str(err))

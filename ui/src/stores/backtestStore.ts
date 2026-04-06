@@ -547,6 +547,20 @@ export const useBacktestStore = create<BacktestState>()(
         datePreset: state.datePreset,
         recentConfigs: state.recentConfigs,
       }),
+      // Re-sync relative dates after localStorage rehydration so dates
+      // are always current, never stale from a previous session.
+      onRehydrateStorage: () => (state) => {
+        if (state?.dateMode === "relative") {
+          state.syncRelativeDates();
+        }
+      },
     },
   ),
 );
+
+// Also sync on fresh install (no persisted state yet) so the default
+// relative lookback produces real dates immediately.
+setTimeout(() => {
+  const s = useBacktestStore.getState();
+  if (s.dateMode === "relative") s.syncRelativeDates();
+}, 0);

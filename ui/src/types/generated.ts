@@ -1,7 +1,7 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-03-30T16:50:14Z
+ * Generated: 2026-04-06T00:00:00Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
@@ -117,4 +117,16 @@ export interface BacktestRequest {
   params?: Record<string, unknown>;
   max_workers?: number | null;
   tick_data_path?: string | null;
+  /** Fraction to close at TP1 (default 1.0 = 100%). Matches config.yaml. */
+  tp1_close_pct?: number;
+  /** Fraction to close at TP2 (default 0.0). Matches config.yaml. */
+  tp2_close_pct?: number;
+  /** Max margin fraction per trade (default 10.0). Matches config.yaml. */
+  max_position_size_pct?: number;
+  /** Min SL distance; trades with tighter SL are skipped (default 0.003). */
+  min_sl_distance_pct?: number;
+  /** Size positions based on SL distance (default true). */
+  use_risk_based_sizing?: boolean;
+  /** Risk off initial capital not current balance (default true). */
+  use_initial_capital_for_risk?: boolean;
 }

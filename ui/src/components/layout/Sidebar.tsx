@@ -150,6 +150,14 @@ export const Sidebar: React.FC = () => {
     loadStrategies();
   }, [loadStrategies]);
 
+  // Sync relative dates on mount so stale persisted dates (e.g. "2024")
+  // are replaced with current dates before the user clicks Run.
+  const syncRelativeDates = useBacktestStore((s) => s.syncRelativeDates);
+  const dateMode = useBacktestStore((s) => s.dateMode);
+  useEffect(() => {
+    if (dateMode === "relative") syncRelativeDates();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sidebarClasses = cn(
     "fixed left-4 top-20 bottom-4 z-40 hidden lg:flex flex-col transition-all duration-300 ease-in-out border border-bg-elevated/50 shadow-xl rounded-xl",
     isSidebarOpen ? "w-[320px] overflow-hidden" : "w-[60px] overflow-visible",
@@ -245,8 +253,19 @@ export const Sidebar: React.FC = () => {
                           value={symbol}
                           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                           placeholder="e.g. BTC/USDT"
-                          className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 focus:outline-none h-auto shadow-none transition-colors border-none sm:border-solid"
+                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted"
                         />
+                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                          {["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"].map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => setSymbol(s)}
+                              className="px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-secondary hover:text-text-primary hover:bg-bg-secondary transition-colors"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="col-span-2">

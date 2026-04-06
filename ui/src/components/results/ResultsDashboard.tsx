@@ -9,35 +9,34 @@ import { TradesTable } from "./TradesTable";
 export const ResultsDashboard: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-bg-surface overflow-y-auto overflow-x-hidden custom-scrollbar">
-        {/* Sticky Header */}
-        <HeaderBar />
+      {/* Sticky Header */}
+      <HeaderBar />
 
-        <div className="p-6 max-w-[1600px] w-full mx-auto space-y-6 pb-20">
-            {/* Top Section: Hero Stats */}
-            <HeroStats />
+      <div className="p-4 lg:p-6 max-w-[1800px] w-full mx-auto space-y-5 pb-20">
 
-            {/* Mid Section: Charts & Metrics Grid */}
-            <div className="grid grid-cols-12 gap-6">
-                {/* Left Col: Metrics + Exit Reasons */}
-                <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
-                     <MetricsGrid />
-                     <div className="flex-1 min-h-[250px] border border-border-main rounded-xl bg-bg-surface p-4 shadow-sm">
-                         <ExitReasonsChart />
-                     </div>
-                </div>
+        {/* Row 1: Hero Stats — 4 full-width cards */}
+        <HeroStats />
 
-                {/* Right Col: Main Equity Chart */}
-                <div className="col-span-12 lg:col-span-8">
-                     <EquityUnderwaterChart />
-                </div>
-            </div>
+        {/* Row 2: Equity + Underwater charts, full width */}
+        <EquityUnderwaterChart />
 
-            {/* Bottom Section: Trades Table */}
-            <div className="h-[500px]">
-                <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Trade Journal</h3>
-                <TradesTable />
-            </div>
+        {/* Row 3: Metrics Grid, full width */}
+        <MetricsGrid />
+
+        {/* Row 4: Exit Reasons (left) + Trades Table (right) */}
+        <div className="grid grid-cols-12 gap-5">
+          <div className="col-span-12 lg:col-span-4 min-h-[300px] border border-border-main rounded-xl bg-bg-surface p-4 shadow-sm">
+            <ExitReasonsChart />
+          </div>
+          <div className="col-span-12 lg:col-span-8">
+            <h3 className="text-xs font-semibold text-text-secondary mb-3 uppercase tracking-wider">
+              Trade Journal
+            </h3>
+            <TradesTable />
+          </div>
         </div>
+
+      </div>
     </div>
   );
 };
