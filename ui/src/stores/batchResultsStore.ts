@@ -16,6 +16,24 @@ export interface BatchSymbolResult {
   // Full data needed for drill-down
   trades: Trade[];
   equityCurve: { time: string; value: number }[];
+
+  // Extended fields for drill-down hydration
+  profitFactor: number;
+  sortinoRatio: number;
+  calmarRatio: number;
+  volatility: number;
+  expectancy: number;
+  maxConsecWins: number;
+  avgWin: number;
+  avgLoss: number;
+  bestTrade: number;
+  worstTrade: number;
+  grossWin: number;
+  grossLoss: number;
+  underwaterCurve: { time: string; value: number }[];
+  exitReasons: Record<string, number>;
+  benchmarkProfitPct: number;
+  maxDrawdownValue: number;
 }
 
 export interface CorrelationCell {
