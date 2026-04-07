@@ -1,6 +1,8 @@
 import React from "react";
+import * as LightweightCharts from "lightweight-charts";
 import { BatchHeaderBar } from "./BatchHeaderBar";
 import { PortfolioHeroStats } from "./PortfolioHeroStats";
+import { PortfolioEquityChart } from "./PortfolioEquityChart";
 import { SymbolPerformanceTable } from "./SymbolPerformanceTable";
 import { useBatchResultsStore } from "../../../stores/batchResultsStore";
 import { ResultsDashboard } from "../ResultsDashboard";
@@ -48,6 +50,21 @@ export const BatchResultsDashboard: React.FC = () => {
       <div className="p-6 max-w-[1800px] w-full mx-auto space-y-6 pb-20">
         <PortfolioHeroStats />
 
+        {/* Portfolio Equity + Benchmark */}
+        <div className="w-full">
+          <PortfolioEquityChart />
+        </div>
+
+        {/* Portfolio Drawdown */}
+        <div className="border border-border-main rounded-xl bg-bg-surface p-4 flex flex-col">
+          <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Portfolio Drawdown
+          </h3>
+          <div className="h-[200px] relative">
+            <BatchUnderwaterChartStub />
+          </div>
+        </div>
+
         <div className="min-h-[500px]">
           <SymbolPerformanceTable />
         </div>
@@ -94,4 +111,62 @@ const SingleResultHydrator: React.FC<{ data: any }> = ({ data }) => {
   }, [data, setResults]);
 
   return null;
+};
+
+/** Simplified drawdown chart derived from portfolio equity curve. */
+const BatchUnderwaterChartStub: React.FC = () => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const { portfolioEquityCurve } = useBatchResultsStore();
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const { createChart, ColorType, AreaSeries } = LightweightCharts;
+    const chart = createChart(containerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: "transparent" },
+        textColor: "#71717a",
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { color: "rgba(255,255,255,0.05)" },
+      },
+      width: containerRef.current.clientWidth,
+      height: containerRef.current.clientHeight,
+      timeScale: { visible: true, borderVisible: false },
+      rightPriceScale: { borderVisible: false },
+    });
+
+    const series = chart.addSeries(AreaSeries, {
+      lineColor: "#ef4444",
+      topColor: "#ef444411",
+      bottomColor: "#ef444466",
+      lineWidth: 1,
+      priceFormat: { type: "percent" },
+    });
+
+    let peak = -Infinity;
+    const drawdownData = portfolioEquityCurve.map((p) => {
+      if (p.value > peak) peak = p.value;
+      const dd = ((p.value - peak) / peak) * 100;
+      return { time: p.time, value: dd };
+    });
+
+    series.setData(drawdownData);
+    chart.timeScale().fitContent();
+
+    const handleResize = () => {
+      if (containerRef.current)
+        chart.applyOptions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      chart.remove();
+    };
+  }, [portfolioEquityCurve]);
+
+  return <div ref={containerRef} className="w-full h-full" />;
 };
