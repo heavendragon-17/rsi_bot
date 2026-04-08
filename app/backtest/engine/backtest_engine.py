@@ -82,12 +82,14 @@ class BacktestEngine(Engine):
 
         taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
         maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
+        slippage_pct = float(config.get("slippage_pct", 0.0))
 
         exchange = MockExchange(
             initial_balance=initial_balance,
             leverage=leverage,
             taker_fee=taker_fee,
             maker_fee=maker_fee,
+            slippage_pct=slippage_pct,
         )
         strategy = strategy_class(config)
         portfolio = PortfolioManager(exchange, config)

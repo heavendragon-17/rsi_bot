@@ -54,6 +54,16 @@ export const Sidebar: React.FC = () => {
     setLeverage,
     riskPercent,
     setRiskPercent,
+    tp1ClosePct, setTp1ClosePct,
+    tp2ClosePct, setTp2ClosePct,
+    maxPositionSizePct, setMaxPositionSizePct,
+    minSlDistancePct, setMinSlDistancePct,
+    useRiskBasedSizing, setUseRiskBasedSizing,
+    useInitialCapitalForRisk, setUseInitialCapitalForRisk,
+    enableFees, setEnableFees,
+    feeTier, setFeeTier,
+    slippageModel, setSlippageModel,
+    slippagePct, setSlippagePct,
     isRunning,
     runBacktest,
     setSidebarOpen,
@@ -384,6 +394,153 @@ export const Sidebar: React.FC = () => {
                         suffix="%"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ValidatedInput
+                        label="TP1 Close"
+                        paramKey="tp1_close_pct"
+                        value={tp1ClosePct}
+                        onChangeValue={setTp1ClosePct}
+                        suffix="%"
+                      />
+                      <ValidatedInput
+                        label="TP2 Close"
+                        paramKey="tp2_close_pct"
+                        value={tp2ClosePct}
+                        onChangeValue={setTp2ClosePct}
+                        suffix="%"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ValidatedInput
+                        label="Max Position"
+                        paramKey="max_position_size_pct"
+                        value={maxPositionSizePct}
+                        onChangeValue={setMaxPositionSizePct}
+                        suffix="%"
+                      />
+                      <ValidatedInput
+                        label="Min SL Dist"
+                        paramKey="min_sl_distance_pct"
+                        value={minSlDistancePct}
+                        onChangeValue={setMinSlDistancePct}
+                        suffix="%"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-xs text-text-secondary">Risk-Based Sizing</span>
+                        <button
+                          onClick={() => setUseRiskBasedSizing(!useRiskBasedSizing)}
+                          className={cn(
+                            "relative w-9 h-5 rounded-full transition-colors",
+                            useRiskBasedSizing ? "bg-accent-main" : "bg-bg-elevated"
+                          )}
+                        >
+                          <span className={cn(
+                            "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                            useRiskBasedSizing && "translate-x-4"
+                          )} />
+                        </button>
+                      </label>
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-xs text-text-secondary">Risk Off Initial Capital</span>
+                        <button
+                          onClick={() => setUseInitialCapitalForRisk(!useInitialCapitalForRisk)}
+                          className={cn(
+                            "relative w-9 h-5 rounded-full transition-colors",
+                            useInitialCapitalForRisk ? "bg-accent-main" : "bg-bg-elevated"
+                          )}
+                        >
+                          <span className={cn(
+                            "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                            useInitialCapitalForRisk && "translate-x-4"
+                          )} />
+                        </button>
+                      </label>
+                    </div>
+                  </div>
+                </CollapsibleSection>
+
+                {/* Fees & Slippage */}
+                <CollapsibleSection title="Fees & Slippage">
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs text-text-secondary">Enable Fees</span>
+                      <button
+                        onClick={() => setEnableFees(!enableFees)}
+                        className={cn(
+                          "relative w-9 h-5 rounded-full transition-colors",
+                          enableFees ? "bg-accent-main" : "bg-bg-elevated"
+                        )}
+                      >
+                        <span className={cn(
+                          "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                          enableFees && "translate-x-4"
+                        )} />
+                      </button>
+                    </label>
+                    {enableFees && (
+                      <div>
+                        <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+                          Fee Tier (taker = maker)
+                        </label>
+                        <div className="flex gap-1.5 mb-2">
+                          {["0.0002", "0.0004", "0.001", "0.002"].map((f) => (
+                            <button
+                              key={f}
+                              onClick={() => setFeeTier(f)}
+                              className={cn(
+                                "flex-1 py-1 text-[10px] font-medium rounded-md border transition-all",
+                                feeTier === f
+                                  ? "bg-accent-main/10 border-accent-main text-accent-main"
+                                  : "border-border-main text-text-secondary hover:border-text-muted"
+                              )}
+                            >
+                              {(parseFloat(f) * 100).toFixed(2)}%
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="0"
+                          value={feeTier}
+                          onChange={(e) => setFeeTier(e.target.value)}
+                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50"
+                          placeholder="0.001"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+                        Slippage Model
+                      </label>
+                      <div className="flex gap-1.5">
+                        {(["none", "fixed"] as const).map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => setSlippageModel(m)}
+                            className={cn(
+                              "flex-1 py-1.5 text-[10px] font-medium rounded-md border transition-all capitalize",
+                              slippageModel === m
+                                ? "bg-accent-main/10 border-accent-main text-accent-main"
+                                : "border-border-main text-text-secondary hover:border-text-muted"
+                            )}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {slippageModel === "fixed" && (
+                      <ValidatedInput
+                        label="Slippage %"
+                        paramKey="slippage_pct"
+                        value={slippagePct}
+                        onChangeValue={setSlippagePct}
+                        suffix="%"
+                      />
+                    )}
                   </div>
                 </CollapsibleSection>
 

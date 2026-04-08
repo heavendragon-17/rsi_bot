@@ -36,6 +36,8 @@ def build_backtest_config(
     # --- Fee params that BacktestEngine reads ---
     taker_fee: float | None = None,
     maker_fee: float | None = None,
+    # --- Slippage params ---
+    slippage_pct: float = 0.0,
 ) -> dict:
     """
     Build the config dict that BacktestEngine.__init__() expects.
@@ -124,6 +126,9 @@ def build_backtest_config(
         config["risk"]["taker_fee"] = taker_fee
     if maker_fee is not None:
         config["risk"]["maker_fee"] = maker_fee
+
+    # Slippage — always written so BacktestEngine can read it
+    config["slippage_pct"] = slippage_pct
 
     # Optional strategy param overrides
     if params:
