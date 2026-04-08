@@ -25,6 +25,7 @@ import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
 import { DynamicParamForm } from "../sidebar/DynamicParamForm";
 import { PresetManager } from "../sidebar/PresetManager";
+import { Switch } from "../ui/switch";
 import {
   Select,
   SelectContent,
@@ -429,33 +430,11 @@ export const Sidebar: React.FC = () => {
                     <div className="space-y-2">
                       <label className="flex items-center justify-between cursor-pointer">
                         <span className="text-xs text-text-secondary">Risk-Based Sizing</span>
-                        <button
-                          onClick={() => setUseRiskBasedSizing(!useRiskBasedSizing)}
-                          className={cn(
-                            "relative w-9 h-5 rounded-full transition-colors",
-                            useRiskBasedSizing ? "bg-accent-main" : "bg-bg-elevated"
-                          )}
-                        >
-                          <span className={cn(
-                            "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                            useRiskBasedSizing && "translate-x-4"
-                          )} />
-                        </button>
+                        <Switch checked={useRiskBasedSizing} onCheckedChange={setUseRiskBasedSizing} />
                       </label>
                       <label className="flex items-center justify-between cursor-pointer">
                         <span className="text-xs text-text-secondary">Risk Off Initial Capital</span>
-                        <button
-                          onClick={() => setUseInitialCapitalForRisk(!useInitialCapitalForRisk)}
-                          className={cn(
-                            "relative w-9 h-5 rounded-full transition-colors",
-                            useInitialCapitalForRisk ? "bg-accent-main" : "bg-bg-elevated"
-                          )}
-                        >
-                          <span className={cn(
-                            "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                            useInitialCapitalForRisk && "translate-x-4"
-                          )} />
-                        </button>
+                        <Switch checked={useInitialCapitalForRisk} onCheckedChange={setUseInitialCapitalForRisk} />
                       </label>
                     </div>
                   </div>
@@ -466,18 +445,7 @@ export const Sidebar: React.FC = () => {
                   <div className="space-y-3">
                     <label className="flex items-center justify-between cursor-pointer">
                       <span className="text-xs text-text-secondary">Enable Fees</span>
-                      <button
-                        onClick={() => setEnableFees(!enableFees)}
-                        className={cn(
-                          "relative w-9 h-5 rounded-full transition-colors",
-                          enableFees ? "bg-accent-main" : "bg-bg-elevated"
-                        )}
-                      >
-                        <span className={cn(
-                          "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                          enableFees && "translate-x-4"
-                        )} />
-                      </button>
+                      <Switch checked={enableFees} onCheckedChange={setEnableFees} />
                     </label>
                     {enableFees && (
                       <div>
