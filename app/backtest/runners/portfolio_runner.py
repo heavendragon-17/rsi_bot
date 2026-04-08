@@ -96,11 +96,13 @@ class PortfolioRunner:
         taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
         maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
 
+        slippage_pct = float(self.config.get("slippage_pct", 0.0))
         exchange = MockExchange(
             initial_balance=balance,
             leverage=leverage,
             taker_fee=taker_fee,
             maker_fee=maker_fee,
+            slippage_pct=slippage_pct,
         )
         event_source = BatchPortfolioEventSource(dfs, start_idx=WARMUP)
         engine = PortfolioEngine(
@@ -186,6 +188,7 @@ def _run_portfolio_backtest(
     use_initial_capital_for_risk: bool = True,
     taker_fee: float | None = None,
     maker_fee: float | None = None,
+    slippage_pct: float = 0.0,
 ) -> dict:
     """Thin wrapper that ``BacktestService._portfolio_worker()`` imports."""
     config = {
@@ -209,6 +212,7 @@ def _run_portfolio_backtest(
             "use_initial_capital_for_risk": use_initial_capital_for_risk,
         },
         "strategy_params": params or {},
+        "slippage_pct": slippage_pct,
     }
     runner = PortfolioRunner(
         symbols=symbols,

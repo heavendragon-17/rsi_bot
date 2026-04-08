@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Settings,
   Play,
   Layers,
@@ -25,6 +27,7 @@ import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
 import { DynamicParamForm } from "../sidebar/DynamicParamForm";
 import { PresetManager } from "../sidebar/PresetManager";
+import { Switch } from "../ui/switch";
 import {
   Select,
   SelectContent,
@@ -54,6 +57,17 @@ export const Sidebar: React.FC = () => {
     setLeverage,
     riskPercent,
     setRiskPercent,
+    tp1ClosePct, setTp1ClosePct,
+    tp2ClosePct, setTp2ClosePct,
+    maxPositionSizePct, setMaxPositionSizePct,
+    minSlDistancePct, setMinSlDistancePct,
+    useRiskBasedSizing, setUseRiskBasedSizing,
+    useInitialCapitalForRisk, setUseInitialCapitalForRisk,
+    enableFees, setEnableFees,
+    takerFeePct, setTakerFeePct,
+    makerFeePct, setMakerFeePct,
+    slippageModel, setSlippageModel,
+    slippagePct, setSlippagePct,
     isRunning,
     runBacktest,
     setSidebarOpen,
@@ -384,6 +398,148 @@ export const Sidebar: React.FC = () => {
                         suffix="%"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ValidatedInput
+                        label="TP1 Close"
+                        paramKey="tp1_close_pct"
+                        value={tp1ClosePct}
+                        onChangeValue={setTp1ClosePct}
+                        suffix="%"
+                      />
+                      <ValidatedInput
+                        label="TP2 Close"
+                        paramKey="tp2_close_pct"
+                        value={tp2ClosePct}
+                        onChangeValue={setTp2ClosePct}
+                        suffix="%"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ValidatedInput
+                        label="Max Position"
+                        paramKey="max_position_size_pct"
+                        value={maxPositionSizePct}
+                        onChangeValue={setMaxPositionSizePct}
+                        suffix="%"
+                      />
+                      <ValidatedInput
+                        label="Min SL Dist"
+                        paramKey="min_sl_distance_pct"
+                        value={minSlDistancePct}
+                        onChangeValue={setMinSlDistancePct}
+                        suffix="%"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-xs text-text-secondary">Risk-Based Sizing</span>
+                        <Switch checked={useRiskBasedSizing} onCheckedChange={setUseRiskBasedSizing} />
+                      </label>
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-xs text-text-secondary">Risk Off Initial Capital</span>
+                        <Switch checked={useInitialCapitalForRisk} onCheckedChange={setUseInitialCapitalForRisk} />
+                      </label>
+                    </div>
+                  </div>
+                </CollapsibleSection>
+
+                {/* Fees & Slippage */}
+                <CollapsibleSection title="Fees & Slippage">
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs text-text-secondary">Enable Fees</span>
+                      <Switch checked={enableFees} onCheckedChange={setEnableFees} />
+                    </label>
+                    {enableFees && (
+                      <div className="space-y-2">
+                        <style>{`
+                          .fee-input::-webkit-outer-spin-button,
+                          .fee-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+                          .fee-input { -moz-appearance: textfield; }
+                        `}</style>
+                        {[
+                          { label: "Taker Fee", value: takerFeePct, onChange: setTakerFeePct, presets: ["0.05", "0.06", "0.10", "0.20"] },
+                          { label: "Maker Fee", value: makerFeePct, onChange: setMakerFeePct, presets: ["0.02", "0.04", "0.06", "0.10"] },
+                        ].map(({ label, value, onChange, presets }) => (
+                          <div key={label}>
+                            <label className="text-xs font-medium text-text-secondary mb-1.5 block">{label}</label>
+                            <div className="flex gap-1 mb-1.5">
+                              {presets.map((p) => (
+                                <button
+                                  key={p}
+                                  onClick={() => onChange(p)}
+                                  className={cn(
+                                    "flex-1 py-1 text-[10px] font-medium rounded-md border transition-all",
+                                    value === p
+                                      ? "bg-accent-main/10 border-accent-main text-accent-main"
+                                      : "border-border-main text-text-secondary hover:border-text-muted"
+                                  )}
+                                >
+                                  {p}%
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex items-center h-9 bg-input/50 border border-border-main rounded-md px-3 focus-within:ring-1 focus-within:ring-accent-main/50 transition-colors">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={value}
+                                onChange={(e) => onChange(e.target.value)}
+                                className="flex-1 min-w-0 bg-transparent border-none text-sm text-text-primary focus:outline-none p-0 fee-input"
+                              />
+                              <span className="text-xs text-text-muted mr-2">%</span>
+                              <div className="flex flex-col items-center justify-center shrink-0 border-l border-border-main/50 pl-1.5 ml-1">
+                                <button
+                                  onClick={() => onChange((Math.round((parseFloat(value || "0") + 0.01) * 100) / 100).toFixed(2))}
+                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-end justify-center"
+                                  tabIndex={-1}
+                                >
+                                  <ChevronUp size={12} strokeWidth={3} />
+                                </button>
+                                <button
+                                  onClick={() => onChange((Math.round((Math.max(0, parseFloat(value || "0") - 0.01)) * 100) / 100).toFixed(2))}
+                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-start justify-center mt-0.5"
+                                  tabIndex={-1}
+                                >
+                                  <ChevronDown size={12} strokeWidth={3} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+                        Slippage Model
+                      </label>
+                      <div className="flex gap-1.5">
+                        {(["none", "fixed"] as const).map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => setSlippageModel(m)}
+                            className={cn(
+                              "flex-1 py-1.5 text-[10px] font-medium rounded-md border transition-all capitalize",
+                              slippageModel === m
+                                ? "bg-accent-main/10 border-accent-main text-accent-main"
+                                : "border-border-main text-text-secondary hover:border-text-muted"
+                            )}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {slippageModel === "fixed" && (
+                      <ValidatedInput
+                        label="Slippage %"
+                        paramKey="slippage_pct"
+                        value={slippagePct}
+                        onChangeValue={setSlippagePct}
+                        suffix="%"
+                      />
+                    )}
                   </div>
                 </CollapsibleSection>
 

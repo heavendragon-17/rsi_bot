@@ -42,6 +42,21 @@ export interface BacktestState {
   capital: string;
   leverage: string;
   riskPercent: string;
+  tp1ClosePct: string;
+  tp2ClosePct: string;
+  maxPositionSizePct: string;
+  minSlDistancePct: string;
+  useRiskBasedSizing: boolean;
+  useInitialCapitalForRisk: boolean;
+
+  // Execution / Fees
+  enableFees: boolean;
+  takerFeePct: string;
+  makerFeePct: string;
+
+  // Slippage
+  slippageModel: "none" | "fixed";
+  slippagePct: string;
 
   // Execution State
   isRunning: boolean;
@@ -62,6 +77,17 @@ export interface BacktestState {
   setCapital: (val: string) => void;
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
+  setTp1ClosePct: (val: string) => void;
+  setTp2ClosePct: (val: string) => void;
+  setMaxPositionSizePct: (val: string) => void;
+  setMinSlDistancePct: (val: string) => void;
+  setUseRiskBasedSizing: (val: boolean) => void;
+  setUseInitialCapitalForRisk: (val: boolean) => void;
+  setEnableFees: (val: boolean) => void;
+  setTakerFeePct: (val: string) => void;
+  setMakerFeePct: (val: string) => void;
+  setSlippageModel: (val: "none" | "fixed") => void;
+  setSlippagePct: (val: string) => void;
   setDateRange: (start: string, end: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
@@ -109,6 +135,17 @@ export const useBacktestStore = create<BacktestState>()(
       capital: "10000",
       leverage: "1",
       riskPercent: "1",
+      tp1ClosePct: "1.0",
+      tp2ClosePct: "0.0",
+      maxPositionSizePct: "10.0",
+      minSlDistancePct: "0.3",
+      useRiskBasedSizing: true,
+      useInitialCapitalForRisk: true,
+      enableFees: true,
+      takerFeePct: "0.10",
+      makerFeePct: "0.06",
+      slippageModel: "none" as const,
+      slippagePct: "0.0",
 
       isRunning: false,
       runProgress: 0,
@@ -138,6 +175,17 @@ export const useBacktestStore = create<BacktestState>()(
       setCapital: (capital) => set({ capital }),
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
+      setTp1ClosePct: (tp1ClosePct) => set({ tp1ClosePct }),
+      setTp2ClosePct: (tp2ClosePct) => set({ tp2ClosePct }),
+      setMaxPositionSizePct: (maxPositionSizePct) => set({ maxPositionSizePct }),
+      setMinSlDistancePct: (minSlDistancePct) => set({ minSlDistancePct }),
+      setUseRiskBasedSizing: (useRiskBasedSizing) => set({ useRiskBasedSizing }),
+      setUseInitialCapitalForRisk: (useInitialCapitalForRisk) => set({ useInitialCapitalForRisk }),
+      setEnableFees: (enableFees) => set({ enableFees }),
+      setTakerFeePct: (takerFeePct) => set({ takerFeePct }),
+      setMakerFeePct: (makerFeePct) => set({ makerFeePct }),
+      setSlippageModel: (slippageModel) => set({ slippageModel }),
+      setSlippagePct: (slippagePct) => set({ slippagePct }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
       setStartDate: (startDate) => {
         set({ startDate, dateMode: "absolute", datePreset: null });
@@ -251,6 +299,16 @@ export const useBacktestStore = create<BacktestState>()(
               leverage: parseInt(state.leverage) || 1,
               risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
               params: state.params,
+              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
+              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+              max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
+              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+              use_risk_based_sizing: state.useRiskBasedSizing,
+              use_initial_capital_for_risk: state.useInitialCapitalForRisk,
+              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
+              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
+              slippage_model: state.slippageModel,
+              slippage_pct: state.slippagePct,
             });
 
             set({ currentRunId: run_id });
@@ -307,6 +365,16 @@ export const useBacktestStore = create<BacktestState>()(
               leverage: parseInt(state.leverage) || 1,
               risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
               params: state.params,
+              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
+              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+              max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
+              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+              use_risk_based_sizing: state.useRiskBasedSizing,
+              use_initial_capital_for_risk: state.useInitialCapitalForRisk,
+              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
+              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
+              slippage_model: state.slippageModel,
+              slippage_pct: state.slippagePct,
             });
 
             set({ currentRunId: run_id });
@@ -360,6 +428,15 @@ export const useBacktestStore = create<BacktestState>()(
             leverage: parseInt(state.leverage) || 1,
             risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
             params: state.params,
+            tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
+            tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+            max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
+            min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+            use_risk_based_sizing: state.useRiskBasedSizing,
+            use_initial_capital_for_risk: state.useInitialCapitalForRisk,
+            fee_tier: state.enableFees ? state.feeTier : "0",
+            slippage_model: state.slippageModel,
+            slippage_pct: state.slippagePct,
           });
 
           set({ currentRunId: run_id });
@@ -501,6 +578,17 @@ export const useBacktestStore = create<BacktestState>()(
           capital: "10000",
           leverage: "1",
           riskPercent: "1",
+          tp1ClosePct: "1.0",
+          tp2ClosePct: "0.0",
+          maxPositionSizePct: "10.0",
+          minSlDistancePct: "0.3",
+          useRiskBasedSizing: true,
+          useInitialCapitalForRisk: true,
+          enableFees: true,
+          takerFeePct: "0.10",
+          makerFeePct: "0.06",
+          slippageModel: "none",
+          slippagePct: "0.0",
         });
       },
 
@@ -538,6 +626,17 @@ export const useBacktestStore = create<BacktestState>()(
         capital: state.capital,
         leverage: state.leverage,
         riskPercent: state.riskPercent,
+        tp1ClosePct: state.tp1ClosePct,
+        tp2ClosePct: state.tp2ClosePct,
+        maxPositionSizePct: state.maxPositionSizePct,
+        minSlDistancePct: state.minSlDistancePct,
+        useRiskBasedSizing: state.useRiskBasedSizing,
+        useInitialCapitalForRisk: state.useInitialCapitalForRisk,
+        enableFees: state.enableFees,
+        takerFeePct: state.takerFeePct,
+        makerFeePct: state.makerFeePct,
+        slippageModel: state.slippageModel,
+        slippagePct: state.slippagePct,
         startDate: state.startDate,
         endDate: state.endDate,
         dateMode: state.dateMode,

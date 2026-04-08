@@ -86,6 +86,8 @@ def run_single_worker(
         # overrides what the UI sent; all params are explicit.
         # Fees are NOT passed here so the engine uses DEFAULT_TAKER_FEE /
         # DEFAULT_MAKER_FEE from constants — exactly what the CLI uses.
+        taker_fee = float(req.taker_fee_pct) / 100
+        maker_fee = float(req.maker_fee_pct) / 100
         engine_config = build_backtest_config(
             symbol=req.symbol,
             timeframe=req.timeframe,
@@ -101,8 +103,9 @@ def run_single_worker(
             min_sl_distance_pct=req.min_sl_distance_pct,
             use_risk_based_sizing=req.use_risk_based_sizing,
             use_initial_capital_for_risk=req.use_initial_capital_for_risk,
-            # taker_fee / maker_fee intentionally omitted → engine falls back
-            # to DEFAULT_TAKER_FEE / DEFAULT_MAKER_FEE (matches CLI behaviour)
+            taker_fee=taker_fee,
+            maker_fee=maker_fee,
+            slippage_pct=float(req.slippage_pct),
         )
         try:
             engine = BacktestEngine(effective_csv, strategy_class, engine_config)
@@ -176,8 +179,8 @@ def run_batch_worker(
                 "min_sl_distance_pct": req.min_sl_distance_pct,
                 "use_risk_based_sizing": req.use_risk_based_sizing,
                 "use_initial_capital_for_risk": req.use_initial_capital_for_risk,
-                "taker_fee": float(req.fee_tier),
-                "maker_fee": float(req.fee_tier),
+                "taker_fee": float(req.taker_fee_pct) / 100,
+                "maker_fee": float(req.maker_fee_pct) / 100,
             },
         }
 
@@ -371,16 +374,25 @@ def run_portfolio_worker(
         publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
 
         # Phase 2: Run portfolio backtest
-        csv_paths = {s: _csv_path(s, req.timeframe) for s in req.symbols}
         results = _run_portfolio_backtest(
-            csv_paths=csv_paths,
+            symbols=req.symbols,
             strategy_name=req.strategy,
             timeframe=req.timeframe,
-            balance=float(req.initial_capital),
-            strategy_params=req.params,
+            initial_capital=float(req.initial_capital),
             leverage=req.leverage,
+            risk_per_trade_pct=float(req.risk_per_trade_pct),
+            params=req.params,
             start_date=req.start_date,
             end_date=req.end_date,
+            tp1_close_pct=req.tp1_close_pct,
+            tp2_close_pct=req.tp2_close_pct,
+            max_position_size_pct=req.max_position_size_pct,
+            min_sl_distance_pct=req.min_sl_distance_pct,
+            use_risk_based_sizing=req.use_risk_based_sizing,
+            use_initial_capital_for_risk=req.use_initial_capital_for_risk,
+            taker_fee=float(req.taker_fee_pct) / 100,
+            maker_fee=float(req.maker_fee_pct) / 100,
+            slippage_pct=float(req.slippage_pct),
             progress_cb=lambda pct: progress_cb(
                 download_weight + pct * backtest_weight
             ),
