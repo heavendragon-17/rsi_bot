@@ -36,7 +36,7 @@ export const BatchResultsDashboard: React.FC = () => {
     return (
       <div className="flex flex-col h-full bg-bg-surface overflow-hidden">
         {/* Breadcrumb Header */}
-        <div className="flex items-center gap-2 p-4 border-b border-border-main bg-bg-surface sticky top-0 z-30">
+        <div className="flex items-center gap-2 px-6 py-3 border-b border-border-main bg-bg-surface sticky top-0 z-30">
           <button
             onClick={() => selectSymbol(null)}
             className="flex items-center gap-1 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
@@ -60,10 +60,11 @@ export const BatchResultsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-bg-surface overflow-y-auto overflow-x-hidden custom-scrollbar">
+    <div className="flex flex-col h-full bg-bg-surface">
       <BatchHeaderBar />
 
-      <div className="p-6 max-w-[1600px] w-full mx-auto space-y-6 pb-20">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="p-4 lg:p-5 max-w-[1600px] w-full mx-auto space-y-6 pb-20">
         {/* 1. Hero Stats */}
         <PortfolioHeroStats />
 
@@ -85,6 +86,7 @@ export const BatchResultsDashboard: React.FC = () => {
         {/* 4. Symbol Table */}
         <div className="min-h-[500px]">
           <SymbolPerformanceTable />
+        </div>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ export const BatchHeaderBar: React.FC = () => {
   if (!hasBatchResults) return null;
 
   return (
-    <div className="flex items-center justify-between p-4 border-b border-border-main bg-bg-surface/50 backdrop-blur-md sticky top-0 z-20">
+    <div className="flex items-center justify-between px-6 py-3 border-b border-border-main bg-bg-surface/50 backdrop-blur-md sticky top-0 z-20">
       <div className="flex items-center gap-4">
           <div>
               <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
