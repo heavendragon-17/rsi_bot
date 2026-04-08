@@ -253,16 +253,21 @@ export const Sidebar: React.FC = () => {
                           value={symbol}
                           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                           placeholder="e.g. BTC/USDT"
-                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted"
+                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted"
                         />
-                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                          {["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"].map((s) => (
+                        <div className="grid grid-cols-3 gap-1.5 mt-2">
+                          {["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "DOGE/USDT"].map((s) => (
                             <button
                               key={s}
                               onClick={() => setSymbol(s)}
-                              className="px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-secondary hover:text-text-primary hover:bg-bg-secondary transition-colors"
+                              className={cn(
+                                "px-1.5 py-1.5 text-[10px] font-medium rounded-md border transition-all text-center leading-none",
+                                symbol === s
+                                  ? "bg-accent-main/15 border-accent-main text-accent-main"
+                                  : "bg-bg-elevated border-border-main text-text-secondary hover:border-text-muted hover:text-text-primary"
+                              )}
                             >
-                              {s}
+                              {s.split("/")[0]}
                             </button>
                           ))}
                         </div>

@@ -169,25 +169,25 @@ export const EquityUnderwaterChart: React.FC = () => {
     <div className="space-y-6">
       {/* Equity Curve */}
       <div>
-        <h2 className="text-sm font-semibold text-text-primary mb-3 uppercase tracking-wider">
+        <h2 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wider">
           Equity Curve
         </h2>
         <div
           id="equity-chart"
           ref={chartContainerRef}
-          className="w-full rounded-lg border border-border-main bg-bg-elevated/50"
+          className="w-full rounded-lg border border-border-main bg-bg-elevated/50 overflow-hidden"
         />
       </div>
 
       {/* Drawdown (Underwater) */}
       <div>
-        <h2 className="text-sm font-semibold text-text-primary mb-3 uppercase tracking-wider">
+        <h2 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wider">
           Underwater Curve (Drawdown)
         </h2>
         <div
           id="drawdown-chart"
           ref={underwaterContainerRef}
-          className="w-full rounded-lg border border-border-main bg-bg-elevated/50"
+          className="w-full rounded-lg border border-border-main bg-bg-elevated/50 overflow-hidden"
         />
       </div>
     </div>

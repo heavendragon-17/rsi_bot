@@ -9,7 +9,7 @@ export const HeaderBar: React.FC = () => {
   const { feesEnabled } = useResultsStore();
 
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-border-main bg-bg-surface/50 backdrop-blur-md sticky top-0 z-20 min-h-[56px]">
+    <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border-main bg-bg-surface/50 backdrop-blur-md sticky top-0 z-20 min-h-[56px]">
       {/* Left: strategy + symbol + timeframe — allow wrap on small screens */}
       <div className="flex items-center gap-2 flex-wrap min-w-0">
         <h1 className="text-base font-bold text-text-primary whitespace-nowrap">
