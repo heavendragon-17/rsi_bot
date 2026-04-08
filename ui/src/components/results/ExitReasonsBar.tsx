@@ -156,10 +156,13 @@ export const ExitReasonsBar: React.FC = () => {
           )}
         </div>
         {tooltip ? (
-          <span className="text-[10px] font-medium" style={{ color: getColor(tooltip.name) }}>
-            {tooltip.name}
-            <span className="text-text-secondary font-normal ml-1">
-              {tooltip.value} ({tooltip.pct}%)
+          <span className="flex items-center gap-2">
+            <span className="text-xs font-semibold" style={{ color: getColor(tooltip.name) }}>
+              {tooltip.name}
+            </span>
+            <span className="text-xs text-text-secondary font-normal">
+              {tooltip.value}
+              <span className="text-text-muted ml-1">({tooltip.pct}%)</span>
             </span>
           </span>
         ) : (
