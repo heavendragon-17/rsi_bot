@@ -12,7 +12,7 @@ export const ResultsDashboard: React.FC = () => {
       {/* Sticky Header */}
       <HeaderBar />
 
-      <div className="p-4 lg:p-6 max-w-[1800px] w-full mx-auto space-y-4 pb-20">
+      <div className="p-4 lg:p-5 max-w-[1800px] w-full mx-auto space-y-4 pb-20">
 
         {/* 1. Net Profit Hero */}
         <NetProfitHero />

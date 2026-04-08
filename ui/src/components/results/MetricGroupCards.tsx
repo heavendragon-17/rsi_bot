@@ -6,27 +6,33 @@ import { cn } from "../../lib/utils";
 const MetricRow: React.FC<{
   label: string;
   value: string;
+  subValue?: string;
   color?: "success" | "danger" | "neutral";
-}> = ({ label, value, color }) => (
-  <div className="flex items-center justify-between px-3 py-[7px] text-[11px]">
+}> = ({ label, value, subValue, color }) => (
+  <div className="flex items-center justify-between px-3 py-[7px] text-[11px] border-b border-border-main/20 last:border-b-0">
     <span className="text-text-secondary font-normal">{label}</span>
-    <span
-      className={cn(
-        "font-bold font-mono",
-        color === "success" && "text-success",
-        color === "danger" && "text-danger",
-        color === "neutral" && "text-text-primary"
+    <div className="flex flex-col items-end gap-0.5">
+      <span
+        className={cn(
+          "font-bold font-mono",
+          color === "success" && "text-success",
+          color === "danger" && "text-danger",
+          color === "neutral" && "text-text-primary"
+        )}
+      >
+        {value}
+      </span>
+      {subValue && (
+        <span className="text-[9px] text-text-muted font-normal leading-none">{subValue}</span>
       )}
-    >
-      {value}
-    </span>
+    </div>
   </div>
 );
 
 interface CardGroup {
   icon: string;
   title: string;
-  metrics: { label: string; value: string; color?: "success" | "danger" | "neutral" }[];
+  metrics: { label: string; value: string; subValue?: string; color?: "success" | "danger" | "neutral" }[];
 }
 
 export const MetricGroupCards: React.FC = () => {
@@ -51,6 +57,7 @@ export const MetricGroupCards: React.FC = () => {
   } = useResultsStore();
 
   const totalTrades = winCount + lossCount;
+  const wlLabel = `${winCount}W / ${lossCount}L`;
 
   const groups: CardGroup[] = [
     {
@@ -58,7 +65,7 @@ export const MetricGroupCards: React.FC = () => {
       title: "PERFORMANCE",
       metrics: [
         { label: "Profit Factor", value: profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "success" : profitFactor >= 1.0 ? "neutral" : "danger" },
-        { label: "Win Rate", value: `${winRate.toFixed(1)}%`, color: winRate > 50 ? "success" : "neutral" },
+        { label: "Win Rate", value: `${winRate.toFixed(1)}%`, subValue: wlLabel, color: winRate > 50 ? "success" : "neutral" },
         { label: "Expectancy", value: `$${expectancy.toFixed(2)}`, color: expectancy > 0 ? "success" : "danger" },
         { label: "Avg Win", value: `$${avgWin.toFixed(2)}`, color: "success" },
         { label: "Avg Loss", value: `-$${Math.abs(avgLoss).toFixed(2)}`, color: "danger" },
@@ -82,7 +89,7 @@ export const MetricGroupCards: React.FC = () => {
       icon: "\u{26A1}",
       title: "ACTIVITY",
       metrics: [
-        { label: "Total Trades", value: `${totalTrades}`, color: "neutral" },
+        { label: "Total Trades", value: `${totalTrades}`, subValue: wlLabel, color: "neutral" },
         { label: "Gross Win", value: `$${grossWin.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, color: "success" },
         { label: "Gross Loss", value: `$${grossLoss.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, color: "danger" },
       ],
@@ -100,7 +107,7 @@ export const MetricGroupCards: React.FC = () => {
           className="bg-bg-elevated/40 border border-border-main rounded-xl overflow-hidden shadow-sm"
         >
           {/* Card header */}
-          <div className="bg-bg-elevated/20 px-3 py-2 flex items-center gap-1.5 text-text-muted">
+          <div className="bg-bg-elevated/20 px-3 py-2 flex items-center gap-1.5 text-text-muted border-b border-border-main/30">
             <span className="text-[11px]">{group.icon}</span>
             <span className="text-[9px] font-semibold uppercase tracking-[0.9px]">
               {group.title}
@@ -113,6 +120,7 @@ export const MetricGroupCards: React.FC = () => {
               key={m.label}
               label={m.label}
               value={m.value}
+              subValue={m.subValue}
               color={m.color}
             />
           ))}

@@ -6,11 +6,12 @@ import { useResultsStore } from "../../stores/resultsStore";
 import { cn } from "../../lib/utils";
 
 export const NetProfitHero: React.FC = () => {
-  const { netProfit, netProfitPct, benchmarkProfitPct } = useResultsStore();
+  const { netProfit, netProfitPct, benchmarkProfitPct, winCount, lossCount } = useResultsStore();
 
   const isPositive = netProfit >= 0;
   const beatBenchmark = netProfitPct > benchmarkProfitPct;
   const colorClass = isPositive ? "text-success" : "text-danger";
+  const totalTrades = winCount + lossCount;
 
   return (
     <motion.div
@@ -40,11 +41,18 @@ export const NetProfitHero: React.FC = () => {
         </span>
       </div>
 
-      {/* Benchmark */}
-      <p className={cn("text-[11px] font-medium mt-1.5", beatBenchmark ? "text-success" : "text-danger")}>
-        vs B&amp;H: {benchmarkProfitPct > 0 ? "+" : ""}
-        {benchmarkProfitPct.toFixed(1)}%
-      </p>
+      {/* Benchmark + trade count */}
+      <div className="flex items-center gap-3 mt-1.5">
+        <p className={cn("text-[11px] font-medium", beatBenchmark ? "text-success" : "text-danger")}>
+          vs B&amp;H: {benchmarkProfitPct > 0 ? "+" : ""}
+          {benchmarkProfitPct.toFixed(1)}%
+        </p>
+        {totalTrades > 0 && (
+          <p className="text-[10px] text-text-muted">
+            {totalTrades} trades · {winCount}W / {lossCount}L
+          </p>
+        )}
+      </div>
 
       {/* Background glow */}
       <div
