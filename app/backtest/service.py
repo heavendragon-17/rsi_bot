@@ -113,7 +113,7 @@ class BacktestService:
             initial_capital=req.initial_capital,
             leverage=req.leverage,
             risk_per_trade_pct=req.risk_per_trade_pct,
-            fee_tier=req.fee_tier,
+            fee_tier=req.taker_fee_pct,
             slippage_model=req.slippage_model,
             slippage_pct=req.slippage_pct,
             params=req.params,
