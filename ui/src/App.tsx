@@ -32,7 +32,7 @@ function App() {
   }, [fetchThemes, loadStrategies, recoverActiveRun]);
 
   const showSingle = mode === "single" && hasResults;
-  const showBatch = mode === "batch" && hasBatchResults;
+  const showBatch = (mode === "batch" || mode === "portfolio") && hasBatchResults;
   const showHistory = mode === "history";
   const showGridSearch = mode === "grid-search";
   const showWalkForward = mode === "walk-forward";
