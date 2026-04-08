@@ -5,13 +5,39 @@ import { cn } from "../../lib/utils";
 import { X } from "lucide-react";
 
 const COLORS: Record<string, string> = {
+  // Full wins — greens
   TP1: "#22c55e",
   TP2: "#16a34a",
   TP3: "#15803d",
   LOCK_PROFIT: "#06b6d4",
+  // Partial wins (TP hit, then SL) — ambers
+  "TP1+SL": "#f59e0b",
+  "TP2+SL": "#eab308",
+  "TP3+SL": "#84cc16",
+  // Losses — reds / orange
   SL: "#ef4444",
-  DISASTER_SL: "#7f1d1d",
+  CLOSE_BY_CANDLE_SL: "#f97316",
+  DISASTER_SL: "#991b1b",
+  // Neutral / other
+  EOD: "#64748b",
+  BREAKEVEN: "#94a3b8",
+  TRAILING_STOP: "#a855f7",
   MANUAL: "#a1a1aa",
+};
+
+/** Fallback: cycle through a distinct palette for unknown reasons */
+const FALLBACK_PALETTE = [
+  "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#f43f5e", "#0ea5e9",
+];
+let _fallbackIdx = 0;
+const _dynamicColors: Record<string, string> = {};
+const getColor = (name: string): string => {
+  if (COLORS[name]) return COLORS[name];
+  if (!_dynamicColors[name]) {
+    _dynamicColors[name] = FALLBACK_PALETTE[_fallbackIdx % FALLBACK_PALETTE.length];
+    _fallbackIdx++;
+  }
+  return _dynamicColors[name];
 };
 
 export const ExitReasonsBar: React.FC = () => {
@@ -65,11 +91,12 @@ export const ExitReasonsBar: React.FC = () => {
         <span className="text-[9px] text-text-muted">{total} trades</span>
       </div>
 
-      {/* Stacked Bar */}
-      <div className="flex h-5 rounded-[10px] overflow-hidden w-full">
-        {data.map((d) => {
-          const pct = (d.value / total) * 100;
-          if (pct === 0) return null;
+      {/* Stacked Bar — flex: d.value avoids sub-pixel float gaps */}
+      <div className="flex h-5 w-full rounded-full overflow-hidden">
+        {data.map((d, i) => {
+          if (d.value === 0) return null;
+          const isFirst = i === data.findIndex((x) => x.value > 0);
+          const isLast = i === data.length - 1 - [...data].reverse().findIndex((x) => x.value > 0);
           return (
             <button
               key={d.name}
@@ -78,37 +105,44 @@ export const ExitReasonsBar: React.FC = () => {
               className={cn(
                 "h-full transition-opacity duration-200 cursor-pointer",
                 activeFilter && activeFilter !== d.name
-                  ? "opacity-30"
+                  ? "opacity-25"
                   : "opacity-100 hover:opacity-80"
               )}
               style={{
-                width: `${pct}%`,
-                backgroundColor: COLORS[d.name] || "#888",
+                flex: d.value,
+                backgroundColor: getColor(d.name),
+                borderRadius: isFirst && isLast
+                  ? "9999px"
+                  : isFirst
+                  ? "9999px 0 0 9999px"
+                  : isLast
+                  ? "0 9999px 9999px 0"
+                  : undefined,
               }}
             />
           );
         })}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 items-center mt-2">
+      {/* Legend — larger color swatch so no hovering needed */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5 items-center mt-2.5">
         {data.map((d) => (
           <button
             key={d.name}
             onClick={() => handleClick(d.name)}
             className={cn(
-              "flex items-center gap-1 cursor-pointer transition-opacity duration-200",
-              activeFilter && activeFilter !== d.name ? "opacity-30" : "opacity-100"
+              "flex items-center gap-1.5 cursor-pointer transition-opacity duration-200",
+              activeFilter && activeFilter !== d.name ? "opacity-25" : "opacity-100"
             )}
           >
             <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: COLORS[d.name] || "#888" }}
+              className="w-2.5 h-2.5 rounded-sm shrink-0"
+              style={{ backgroundColor: getColor(d.name) }}
             />
-            <span className="text-[9px] font-medium text-text-secondary">
+            <span className="text-[10px] font-medium text-text-secondary">
               {d.name}
             </span>
-            <span className="text-[9px] font-bold text-text-muted">
+            <span className="text-[10px] font-bold text-text-primary">
               {d.value}
             </span>
           </button>
