@@ -17,7 +17,7 @@ export const NetProfitHero: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden bg-bg-elevated/40 border border-border-main rounded-xl px-5 py-4 shadow-sm group hover:border-accent-main/30 transition-colors"
+      className="relative overflow-hidden bg-bg-elevated/40 border border-border-main rounded-xl px-6 py-5 shadow-sm group hover:border-accent-main/30 transition-colors"
     >
       {/* Title */}
       <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">

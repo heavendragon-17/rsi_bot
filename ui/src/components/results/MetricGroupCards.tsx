@@ -65,7 +65,7 @@ export const MetricGroupCards: React.FC = () => {
       title: "PERFORMANCE",
       metrics: [
         { label: "Profit Factor", value: profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "success" : profitFactor >= 1.0 ? "neutral" : "danger" },
-        { label: "Win Rate", value: `${winRate.toFixed(1)}%`, subValue: wlLabel, color: winRate > 50 ? "success" : "neutral" },
+        { label: "Win Rate", value: `${winRate.toFixed(1)}%`, color: winRate > 50 ? "success" : "neutral" },
         { label: "Expectancy", value: `$${expectancy.toFixed(2)}`, color: expectancy > 0 ? "success" : "danger" },
         { label: "Avg Win", value: `$${avgWin.toFixed(2)}`, color: "success" },
         { label: "Avg Loss", value: `-$${Math.abs(avgLoss).toFixed(2)}`, color: "danger" },
@@ -89,7 +89,7 @@ export const MetricGroupCards: React.FC = () => {
       icon: "\u{26A1}",
       title: "ACTIVITY",
       metrics: [
-        { label: "Total Trades", value: `${totalTrades}`, subValue: wlLabel, color: "neutral" },
+        { label: "Total Trades", value: `${totalTrades}`, color: "neutral" },
         { label: "Gross Win", value: `$${grossWin.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, color: "success" },
         { label: "Gross Loss", value: `$${grossLoss.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, color: "danger" },
       ],
