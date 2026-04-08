@@ -9,8 +9,8 @@ const MetricRow: React.FC<{
   subValue?: string;
   color?: "success" | "danger" | "neutral";
 }> = ({ label, value, subValue, color }) => (
-  <div className="flex items-center justify-between px-3 py-[7px] text-[11px] border-b border-border-main/20 last:border-b-0">
-    <span className="text-text-secondary font-normal">{label}</span>
+  <div className="flex items-center justify-between px-3.5 py-2 text-[13px] border-b border-border-main/30 last:border-b-0">
+    <span className="text-text-secondary font-medium">{label}</span>
     <div className="flex flex-col items-end gap-0.5">
       <span
         className={cn(
@@ -23,7 +23,7 @@ const MetricRow: React.FC<{
         {value}
       </span>
       {subValue && (
-        <span className="text-[9px] text-text-muted font-normal leading-none">{subValue}</span>
+        <span className="text-[10px] text-text-muted font-normal leading-none">{subValue}</span>
       )}
     </div>
   </div>
@@ -97,7 +97,7 @@ export const MetricGroupCards: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {groups.map((group, i) => (
         <motion.div
           key={group.title}
@@ -107,9 +107,9 @@ export const MetricGroupCards: React.FC = () => {
           className="bg-bg-elevated/40 border border-border-main rounded-xl overflow-hidden shadow-sm"
         >
           {/* Card header */}
-          <div className="bg-bg-elevated/20 px-3 py-2 flex items-center gap-1.5 text-text-muted border-b border-border-main/30">
-            <span className="text-[11px]">{group.icon}</span>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.9px]">
+          <div className="bg-bg-elevated/40 px-3.5 py-2.5 flex items-center gap-2 text-text-secondary border-b border-border-main/50">
+            <span className="text-sm">{group.icon}</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">
               {group.title}
             </span>
           </div>
