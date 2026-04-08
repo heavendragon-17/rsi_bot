@@ -140,7 +140,7 @@ export const ExitReasonsBar: React.FC = () => {
       transition={{ delay: 0.15 }}
       className="bg-bg-secondary border border-border-main rounded-xl px-3 py-2.5 shadow-sm"
     >
-      {/* Header */}
+      {/* Header — right side shows hover info inline, no floating tooltip */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-semibold uppercase tracking-wider text-text-secondary">
@@ -155,36 +155,29 @@ export const ExitReasonsBar: React.FC = () => {
             </button>
           )}
         </div>
-        <span className="text-[9px] text-text-muted">{total} trades</span>
+        {tooltip ? (
+          <span className="text-[10px] font-medium" style={{ color: getColor(tooltip.name) }}>
+            {tooltip.name}
+            <span className="text-text-secondary font-normal ml-1">
+              {tooltip.value} ({tooltip.pct}%)
+            </span>
+          </span>
+        ) : (
+          <span className="text-[9px] text-text-muted">{total} trades</span>
+        )}
       </div>
 
-      {/* Bar wrapper — relative so tooltip can be positioned above the bar */}
-      <div className="relative">
-        {/* Tooltip above bar, follows cursor X */}
-        {tooltip && (
-          <div
-            className="absolute bottom-full mb-1.5 pointer-events-none z-20 bg-bg-primary border border-border-main/60 rounded-md px-2.5 py-1 text-[11px] font-medium text-text-primary whitespace-nowrap shadow-xl -translate-x-1/2"
-            style={{ left: `${tooltip.xPct}%` }}
-          >
-            <span style={{ color: getColor(tooltip.name) }} className="font-semibold">{tooltip.name}</span>
-            <span className="text-text-secondary mx-1">·</span>
-            {tooltip.value} trades
-            <span className="text-text-muted ml-1">({tooltip.pct}%)</span>
-          </div>
+      {/* Bar — two CSS gradient divs, zero overlay elements */}
+      <div
+        className="relative h-5 w-full rounded-full overflow-hidden cursor-pointer"
+        onClick={handleBarClick}
+        onMouseMove={handleBarMove}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        <div className="absolute inset-0 rounded-full" style={{ background: gradient }} />
+        {dimmingGradient && (
+          <div className="absolute inset-0 rounded-full transition-all" style={{ background: dimmingGradient }} />
         )}
-
-        {/* Bar — two CSS gradient divs only, zero overlay elements */}
-        <div
-          className="relative h-5 w-full rounded-full overflow-hidden cursor-pointer"
-          onClick={handleBarClick}
-          onMouseMove={handleBarMove}
-          onMouseLeave={() => setTooltip(null)}
-        >
-          <div className="absolute inset-0 rounded-full" style={{ background: gradient }} />
-          {dimmingGradient && (
-            <div className="absolute inset-0 rounded-full transition-all" style={{ background: dimmingGradient }} />
-          )}
-        </div>
       </div>
 
       {/* Grouped legend — each group in its own card */}
