@@ -42,7 +42,8 @@ class BacktestRequest(BaseModel):
     initial_capital: str = "10000.00"  # TEXT / Decimal string
     leverage: int = 10
     risk_per_trade_pct: str = "0.02"
-    fee_tier: str = "0.001"
+    taker_fee_pct: str = "0.10"  # Percentage, e.g. "0.10" = 0.10% = 0.001 decimal
+    maker_fee_pct: str = "0.10"  # Percentage, e.g. "0.06" = 0.06%
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}

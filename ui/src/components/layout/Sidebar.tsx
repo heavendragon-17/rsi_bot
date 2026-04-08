@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Settings,
   Play,
   Layers,
@@ -62,7 +64,8 @@ export const Sidebar: React.FC = () => {
     useRiskBasedSizing, setUseRiskBasedSizing,
     useInitialCapitalForRisk, setUseInitialCapitalForRisk,
     enableFees, setEnableFees,
-    feeTier, setFeeTier,
+    takerFeePct, setTakerFeePct,
+    makerFeePct, setMakerFeePct,
     slippageModel, setSlippageModel,
     slippagePct, setSlippagePct,
     isRunning,
@@ -448,35 +451,63 @@ export const Sidebar: React.FC = () => {
                       <Switch checked={enableFees} onCheckedChange={setEnableFees} />
                     </label>
                     {enableFees && (
-                      <div>
-                        <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-                          Fee Tier (taker = maker)
-                        </label>
-                        <div className="flex gap-1.5 mb-2">
-                          {["0.0002", "0.0004", "0.001", "0.002"].map((f) => (
-                            <button
-                              key={f}
-                              onClick={() => setFeeTier(f)}
-                              className={cn(
-                                "flex-1 py-1 text-[10px] font-medium rounded-md border transition-all",
-                                feeTier === f
-                                  ? "bg-accent-main/10 border-accent-main text-accent-main"
-                                  : "border-border-main text-text-secondary hover:border-text-muted"
-                              )}
-                            >
-                              {(parseFloat(f) * 100).toFixed(2)}%
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          type="number"
-                          step="0.0001"
-                          min="0"
-                          value={feeTier}
-                          onChange={(e) => setFeeTier(e.target.value)}
-                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50"
-                          placeholder="0.001"
-                        />
+                      <div className="space-y-2">
+                        <style>{`
+                          .fee-input::-webkit-outer-spin-button,
+                          .fee-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+                          .fee-input { -moz-appearance: textfield; }
+                        `}</style>
+                        {[
+                          { label: "Taker Fee", value: takerFeePct, onChange: setTakerFeePct, presets: ["0.05", "0.06", "0.10", "0.20"] },
+                          { label: "Maker Fee", value: makerFeePct, onChange: setMakerFeePct, presets: ["0.02", "0.04", "0.06", "0.10"] },
+                        ].map(({ label, value, onChange, presets }) => (
+                          <div key={label}>
+                            <label className="text-xs font-medium text-text-secondary mb-1.5 block">{label}</label>
+                            <div className="flex gap-1 mb-1.5">
+                              {presets.map((p) => (
+                                <button
+                                  key={p}
+                                  onClick={() => onChange(p)}
+                                  className={cn(
+                                    "flex-1 py-1 text-[10px] font-medium rounded-md border transition-all",
+                                    value === p
+                                      ? "bg-accent-main/10 border-accent-main text-accent-main"
+                                      : "border-border-main text-text-secondary hover:border-text-muted"
+                                  )}
+                                >
+                                  {p}%
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex items-center h-9 bg-input/50 border border-border-main rounded-md px-3 focus-within:ring-1 focus-within:ring-accent-main/50 transition-colors">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={value}
+                                onChange={(e) => onChange(e.target.value)}
+                                className="flex-1 min-w-0 bg-transparent border-none text-sm text-text-primary focus:outline-none p-0 fee-input"
+                              />
+                              <span className="text-xs text-text-muted mr-2">%</span>
+                              <div className="flex flex-col items-center justify-center shrink-0 border-l border-border-main/50 pl-1.5 ml-1">
+                                <button
+                                  onClick={() => onChange((Math.round((parseFloat(value || "0") + 0.01) * 100) / 100).toFixed(2))}
+                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-end justify-center"
+                                  tabIndex={-1}
+                                >
+                                  <ChevronUp size={12} strokeWidth={3} />
+                                </button>
+                                <button
+                                  onClick={() => onChange((Math.round((Math.max(0, parseFloat(value || "0") - 0.01)) * 100) / 100).toFixed(2))}
+                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-start justify-center mt-0.5"
+                                  tabIndex={-1}
+                                >
+                                  <ChevronDown size={12} strokeWidth={3} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div>

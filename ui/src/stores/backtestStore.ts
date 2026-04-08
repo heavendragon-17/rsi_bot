@@ -51,7 +51,8 @@ export interface BacktestState {
 
   // Execution / Fees
   enableFees: boolean;
-  feeTier: string;
+  takerFeePct: string;
+  makerFeePct: string;
 
   // Slippage
   slippageModel: "none" | "fixed";
@@ -83,7 +84,8 @@ export interface BacktestState {
   setUseRiskBasedSizing: (val: boolean) => void;
   setUseInitialCapitalForRisk: (val: boolean) => void;
   setEnableFees: (val: boolean) => void;
-  setFeeTier: (val: string) => void;
+  setTakerFeePct: (val: string) => void;
+  setMakerFeePct: (val: string) => void;
   setSlippageModel: (val: "none" | "fixed") => void;
   setSlippagePct: (val: string) => void;
   setDateRange: (start: string, end: string) => void;
@@ -140,7 +142,8 @@ export const useBacktestStore = create<BacktestState>()(
       useRiskBasedSizing: true,
       useInitialCapitalForRisk: true,
       enableFees: true,
-      feeTier: "0.001",
+      takerFeePct: "0.10",
+      makerFeePct: "0.06",
       slippageModel: "none" as const,
       slippagePct: "0.0",
 
@@ -179,7 +182,8 @@ export const useBacktestStore = create<BacktestState>()(
       setUseRiskBasedSizing: (useRiskBasedSizing) => set({ useRiskBasedSizing }),
       setUseInitialCapitalForRisk: (useInitialCapitalForRisk) => set({ useInitialCapitalForRisk }),
       setEnableFees: (enableFees) => set({ enableFees }),
-      setFeeTier: (feeTier) => set({ feeTier }),
+      setTakerFeePct: (takerFeePct) => set({ takerFeePct }),
+      setMakerFeePct: (makerFeePct) => set({ makerFeePct }),
       setSlippageModel: (slippageModel) => set({ slippageModel }),
       setSlippagePct: (slippagePct) => set({ slippagePct }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
@@ -301,7 +305,8 @@ export const useBacktestStore = create<BacktestState>()(
               min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
               use_risk_based_sizing: state.useRiskBasedSizing,
               use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-              fee_tier: state.enableFees ? state.feeTier : "0",
+              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
+              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
               slippage_pct: state.slippagePct,
             });
@@ -366,7 +371,8 @@ export const useBacktestStore = create<BacktestState>()(
               min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
               use_risk_based_sizing: state.useRiskBasedSizing,
               use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-              fee_tier: state.enableFees ? state.feeTier : "0",
+              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
+              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
               slippage_pct: state.slippagePct,
             });
@@ -579,7 +585,8 @@ export const useBacktestStore = create<BacktestState>()(
           useRiskBasedSizing: true,
           useInitialCapitalForRisk: true,
           enableFees: true,
-          feeTier: "0.001",
+          takerFeePct: "0.10",
+          makerFeePct: "0.06",
           slippageModel: "none",
           slippagePct: "0.0",
         });
@@ -626,7 +633,8 @@ export const useBacktestStore = create<BacktestState>()(
         useRiskBasedSizing: state.useRiskBasedSizing,
         useInitialCapitalForRisk: state.useInitialCapitalForRisk,
         enableFees: state.enableFees,
-        feeTier: state.feeTier,
+        takerFeePct: state.takerFeePct,
+        makerFeePct: state.makerFeePct,
         slippageModel: state.slippageModel,
         slippagePct: state.slippagePct,
         startDate: state.startDate,

@@ -86,7 +86,8 @@ def run_single_worker(
         # overrides what the UI sent; all params are explicit.
         # Fees are NOT passed here so the engine uses DEFAULT_TAKER_FEE /
         # DEFAULT_MAKER_FEE from constants — exactly what the CLI uses.
-        fee = float(req.fee_tier)
+        taker_fee = float(req.taker_fee_pct) / 100
+        maker_fee = float(req.maker_fee_pct) / 100
         engine_config = build_backtest_config(
             symbol=req.symbol,
             timeframe=req.timeframe,
@@ -102,8 +103,8 @@ def run_single_worker(
             min_sl_distance_pct=req.min_sl_distance_pct,
             use_risk_based_sizing=req.use_risk_based_sizing,
             use_initial_capital_for_risk=req.use_initial_capital_for_risk,
-            taker_fee=fee,
-            maker_fee=fee,
+            taker_fee=taker_fee,
+            maker_fee=maker_fee,
             slippage_pct=float(req.slippage_pct),
         )
         try:
@@ -178,8 +179,8 @@ def run_batch_worker(
                 "min_sl_distance_pct": req.min_sl_distance_pct,
                 "use_risk_based_sizing": req.use_risk_based_sizing,
                 "use_initial_capital_for_risk": req.use_initial_capital_for_risk,
-                "taker_fee": float(req.fee_tier),
-                "maker_fee": float(req.fee_tier),
+                "taker_fee": float(req.taker_fee_pct) / 100,
+                "maker_fee": float(req.maker_fee_pct) / 100,
             },
         }
 
@@ -373,7 +374,6 @@ def run_portfolio_worker(
         publish_event_fn(run_id, loop, "download_complete", {"symbol": "all"})
 
         # Phase 2: Run portfolio backtest
-        fee = float(req.fee_tier)
         results = _run_portfolio_backtest(
             symbols=req.symbols,
             strategy_name=req.strategy,
@@ -390,8 +390,8 @@ def run_portfolio_worker(
             min_sl_distance_pct=req.min_sl_distance_pct,
             use_risk_based_sizing=req.use_risk_based_sizing,
             use_initial_capital_for_risk=req.use_initial_capital_for_risk,
-            taker_fee=fee,
-            maker_fee=fee,
+            taker_fee=float(req.taker_fee_pct) / 100,
+            maker_fee=float(req.maker_fee_pct) / 100,
             slippage_pct=float(req.slippage_pct),
             progress_cb=lambda pct: progress_cb(
                 download_weight + pct * backtest_weight
