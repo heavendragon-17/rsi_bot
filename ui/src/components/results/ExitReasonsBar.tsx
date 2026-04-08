@@ -73,7 +73,7 @@ const segmentAtRatio = (
 // ── Component ──────────────────────────────────────────────────────────────
 export const ExitReasonsBar: React.FC = () => {
   const { exitReasons, setFilter, activeFilter } = useResultsStore();
-  const [tooltip, setTooltip] = useState<{ name: string; value: number; pct: string } | null>(null);
+  const [tooltip, setTooltip] = useState<{ name: string; value: number; pct: string; xPct: number } | null>(null);
 
   const data = useMemo(() =>
     Object.entries(exitReasons)
@@ -109,10 +109,13 @@ export const ExitReasonsBar: React.FC = () => {
   };
 
   const handleBarMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const name = segmentAtRatio(getRatio(e), data, total);
+    const ratio = getRatio(e);
+    const name = segmentAtRatio(ratio, data, total);
     if (!name) { setTooltip(null); return; }
     const seg = data.find((d) => d.name === name);
-    if (seg) setTooltip({ name, value: seg.value, pct: ((seg.value / total) * 100).toFixed(1) });
+    // Clamp xPct so tooltip never overflows the card edges
+    const xPct = Math.min(Math.max(ratio * 100, 5), 95);
+    if (seg) setTooltip({ name, value: seg.value, pct: ((seg.value / total) * 100).toFixed(1), xPct });
   };
 
   if (total === 0) {
@@ -155,23 +158,33 @@ export const ExitReasonsBar: React.FC = () => {
         <span className="text-[9px] text-text-muted">{total} trades</span>
       </div>
 
-      {/* Bar — two CSS gradient divs only, zero overlay elements */}
-      <div
-        className="relative h-5 w-full rounded-full overflow-hidden cursor-pointer"
-        onClick={handleBarClick}
-        onMouseMove={handleBarMove}
-        onMouseLeave={() => setTooltip(null)}
-      >
-        <div className="absolute inset-0 rounded-full" style={{ background: gradient }} />
-        {dimmingGradient && (
-          <div className="absolute inset-0 rounded-full transition-all" style={{ background: dimmingGradient }} />
-        )}
-        {/* Hover tooltip */}
+      {/* Bar wrapper — relative so tooltip can be positioned above the bar */}
+      <div className="relative">
+        {/* Tooltip above bar, follows cursor X */}
         {tooltip && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10 bg-bg-primary/90 border border-border-main rounded px-2 py-0.5 text-[10px] text-text-primary whitespace-nowrap shadow-lg">
-            {tooltip.name}: {tooltip.value} ({tooltip.pct}%)
+          <div
+            className="absolute bottom-full mb-1.5 pointer-events-none z-20 bg-bg-primary border border-border-main/60 rounded-md px-2.5 py-1 text-[11px] font-medium text-text-primary whitespace-nowrap shadow-xl -translate-x-1/2"
+            style={{ left: `${tooltip.xPct}%` }}
+          >
+            <span style={{ color: getColor(tooltip.name) }} className="font-semibold">{tooltip.name}</span>
+            <span className="text-text-secondary mx-1">·</span>
+            {tooltip.value} trades
+            <span className="text-text-muted ml-1">({tooltip.pct}%)</span>
           </div>
         )}
+
+        {/* Bar — two CSS gradient divs only, zero overlay elements */}
+        <div
+          className="relative h-5 w-full rounded-full overflow-hidden cursor-pointer"
+          onClick={handleBarClick}
+          onMouseMove={handleBarMove}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          <div className="absolute inset-0 rounded-full" style={{ background: gradient }} />
+          {dimmingGradient && (
+            <div className="absolute inset-0 rounded-full transition-all" style={{ background: dimmingGradient }} />
+          )}
+        </div>
       </div>
 
       {/* Grouped legend — each group in its own card */}
