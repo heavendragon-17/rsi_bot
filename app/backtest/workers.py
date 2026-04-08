@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import webbrowser
 
+import pandas as pd
 import structlog
 
 from app.backtest.config_builder import build_backtest_config
@@ -308,6 +309,22 @@ def _aggregate_batch_results(
     ]
     max_dd = max(max_dd_pcts) if max_dd_pcts else 0
 
+    # Collect all round_trips from per-symbol results so trades get persisted
+    all_round_trips: list[dict] = []
+    for r in batch_results:
+        rt = r.get("round_trips")
+        sym = r.get("symbol", "")
+        if isinstance(rt, pd.DataFrame) and not rt.empty:
+            rt_copy = rt.copy()
+            if "symbol" not in rt_copy.columns:
+                rt_copy["symbol"] = sym
+            all_round_trips.extend(rt_copy.to_dict("records"))
+        elif isinstance(rt, list):
+            for item in rt:
+                if isinstance(item, dict) and "symbol" not in item:
+                    item = {**item, "symbol": sym}
+                all_round_trips.append(item)
+
     return {
         "net_profit": total_profit,
         "net_profit_pct": (total_profit / initial_capital * 100) if initial_capital else 0,
@@ -330,7 +347,7 @@ def _aggregate_batch_results(
         "equity_curve": [],
         "drawdown_curve": [],
         "monthly_returns": {},
-        "round_trips": [],
+        "round_trips": all_round_trips,
     }
 
 

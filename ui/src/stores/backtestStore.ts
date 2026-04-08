@@ -9,6 +9,7 @@ import {
   getTimeseries,
 } from "../api/backtest";
 import { mapApiToResults, useResultsStore } from "./resultsStore";
+import { mapApiToBatchResults, useBatchResultsStore } from "./batchResultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
 import type { StrategyInfo, JSONSchema } from "../types/generated";
@@ -331,8 +332,8 @@ export const useBacktestStore = create<BacktestState>()(
                       getRunDetail(run_id),
                       getTimeseries(run_id),
                     ]);
-                    useResultsStore.getState().setResults(
-                      mapApiToResults(detail, timeseries)
+                    useBatchResultsStore.getState().setBatchResults(
+                      mapApiToBatchResults(detail, timeseries)
                     );
                     resolve();
                   } catch (fetchErr) {
@@ -397,8 +398,8 @@ export const useBacktestStore = create<BacktestState>()(
                       getRunDetail(run_id),
                       getTimeseries(run_id),
                     ]);
-                    useResultsStore.getState().setResults(
-                      mapApiToResults(detail, timeseries)
+                    useBatchResultsStore.getState().setBatchResults(
+                      mapApiToBatchResults(detail, timeseries)
                     );
                     resolve();
                   } catch (fetchErr) {
@@ -526,10 +527,15 @@ export const useBacktestStore = create<BacktestState>()(
         const runId = parseInt(activeRunId);
         try {
           const detail = await getRunDetail(runId);
+          const isBatchOrPortfolio = detail.symbol === "BATCH" || detail.symbol === "PORTFOLIO";
 
           if (detail.status === "completed") {
             const timeseries = await getTimeseries(runId);
-            useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
+            if (isBatchOrPortfolio) {
+              useBatchResultsStore.getState().setBatchResults(mapApiToBatchResults(detail, timeseries));
+            } else {
+              useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
+            }
             localStorage.removeItem("activeRunId");
             toast.success("Previous backtest completed!");
           } else if (detail.status === "running") {
@@ -547,11 +553,16 @@ export const useBacktestStore = create<BacktestState>()(
               async () => {
                 cleanup();
                 try {
-                  const [detail, timeseries] = await Promise.all([
+                  const [recoveredDetail, timeseries] = await Promise.all([
                     getRunDetail(runId),
                     getTimeseries(runId),
                   ]);
-                  useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
+                  const isBatch = recoveredDetail.symbol === "BATCH" || recoveredDetail.symbol === "PORTFOLIO";
+                  if (isBatch) {
+                    useBatchResultsStore.getState().setBatchResults(mapApiToBatchResults(recoveredDetail, timeseries));
+                  } else {
+                    useResultsStore.getState().setResults(mapApiToResults(recoveredDetail, timeseries));
+                  }
                   toast.success("Backtest completed!");
                 } catch { /* ignore */ }
                 set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
