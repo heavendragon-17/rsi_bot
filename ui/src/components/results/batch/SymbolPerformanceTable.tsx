@@ -78,7 +78,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                         const isPinned = pinnedSymbols.includes(res.symbol);
 
                         return (
-                            <tr key={res.symbol} className="group hover:bg-bg-elevated/30 transition-colors">
+                            <tr key={res.symbol} onClick={() => selectSymbol(res.symbol)} className="group hover:bg-bg-elevated/30 transition-colors cursor-pointer">
                                 <td className="py-2.5 pl-4 font-medium">{res.symbol}</td>
                                 <td className={cn("py-2.5 text-right font-medium", isWin ? "text-success" : "text-danger")}>
                                     {isWin ? "+" : ""}{Math.round(res.contribution).toLocaleString()}
@@ -107,7 +107,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                                 </td>
                                 <td className="py-2.5 text-center pr-4">
                                     <button
-                                        onClick={() => selectSymbol(res.symbol)}
+                                        onClick={(e) => { e.stopPropagation(); selectSymbol(res.symbol); }}
                                         className="px-2 py-1 rounded bg-bg-elevated hover:bg-bg-secondary text-text-secondary hover:text-text-primary text-xs font-medium transition-colors flex items-center gap-1 mx-auto border border-border-main"
                                     >
                                         View <Eye size={10} />

@@ -1,0 +1,58 @@
+// @ts-nocheck
+import React from "react";
+import CountUp from "react-countup";
+import { motion } from "motion/react";
+import { useResultsStore } from "../../stores/resultsStore";
+import { cn } from "../../lib/utils";
+
+export const NetProfitHero: React.FC = () => {
+  const { netProfit, netProfitPct, benchmarkProfitPct } = useResultsStore();
+
+  const isPositive = netProfit >= 0;
+  const beatBenchmark = netProfitPct > benchmarkProfitPct;
+  const colorClass = isPositive ? "text-success" : "text-danger";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden bg-bg-elevated/40 border border-border-main rounded-xl px-5 py-4 shadow-sm group hover:border-accent-main/30 transition-colors"
+    >
+      {/* Title */}
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+        Net Profit
+      </span>
+
+      {/* Value Row */}
+      <div className={cn("flex items-baseline gap-2.5 mt-1.5", colorClass)}>
+        <span className="text-4xl font-bold font-mono tracking-tight leading-none">
+          {isPositive ? "+" : "-"}$
+          <CountUp end={Math.abs(netProfit)} decimals={2} separator="," duration={1} />
+        </span>
+        <span className="text-lg font-normal opacity-75">
+          (<CountUp
+            end={netProfitPct}
+            decimals={1}
+            prefix={isPositive ? "+" : ""}
+            suffix="%"
+            duration={1}
+          />)
+        </span>
+      </div>
+
+      {/* Benchmark */}
+      <p className={cn("text-[11px] font-medium mt-1.5", beatBenchmark ? "text-success" : "text-danger")}>
+        vs B&amp;H: {benchmarkProfitPct > 0 ? "+" : ""}
+        {benchmarkProfitPct.toFixed(1)}%
+      </p>
+
+      {/* Background glow */}
+      <div
+        className={cn(
+          "absolute -right-8 -bottom-8 w-24 h-24 rounded-full blur-2xl opacity-10 pointer-events-none",
+          isPositive ? "bg-success" : "bg-danger"
+        )}
+      />
+    </motion.div>
+  );
+};

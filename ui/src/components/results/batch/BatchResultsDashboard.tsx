@@ -4,7 +4,6 @@ import * as LightweightCharts from "lightweight-charts";
 import { BatchHeaderBar } from "./BatchHeaderBar";
 import { PortfolioHeroStats } from "./PortfolioHeroStats";
 import { PortfolioEquityChart } from "./PortfolioEquityChart";
-import { CorrelationMatrix } from "./CorrelationMatrix";
 import { SymbolPerformanceTable } from "./SymbolPerformanceTable";
 import { useBatchResultsStore } from "../../../stores/batchResultsStore";
 import { ResultsDashboard } from "../ResultsDashboard"; // Reuse Single Dashboard
@@ -73,36 +72,13 @@ export const BatchResultsDashboard: React.FC = () => {
           <PortfolioEquityChart />
         </div>
 
-        {/* 3. Charts Row (Underwater + Correlation) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[400px]">
-          {/* Reusing Underwater Chart logic but we need a Batch specific one or adapt the generic one?
-                    The Generic one reads from resultsStore. We are in Batch mode.
-                    Actually, we can create a `BatchUnderwaterChart` or just let `PortfolioEquityChart` handle it?
-                    The layout asks for separate charts.
-                    Let's create a simplified wrapper or duplicate for isolation.
-                    Actually, we can just use the PortfolioEquityChart which renders 2 charts? No, that was Single mode.
-                    Task 5 Layout:
-                    Row 2: Portfolio Equity
-                    Row 3: Underwater (50%) + Correlation (50%)
-                */}
-
-          {/* Underwater Wrapper */}
-          <div className="h-full border border-border-main rounded-xl bg-bg-surface p-4 flex flex-col">
-            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              Portfolio Drawdown
-            </h3>
-            <div className="flex-1 bg-bg-elevated/10 rounded relative flex items-center justify-center text-text-muted text-sm">
-              {/*
-                            Ideally reusing logic from EquityUnderwaterChart but mapped to batch data.
-                            For MVP/Proto, I will put a placeholder or basic re-implementation.
-                        */}
-              <BatchUnderwaterChartStub />
-            </div>
-          </div>
-
-          {/* Correlation Matrix */}
-          <div className="h-full">
-            <CorrelationMatrix />
+        {/* 3. Portfolio Drawdown (full width) */}
+        <div className="h-[300px] border border-border-main rounded-xl bg-bg-surface p-4 flex flex-col">
+          <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Portfolio Drawdown
+          </h3>
+          <div className="flex-1 relative">
+            <BatchUnderwaterChartStub />
           </div>
         </div>
 
@@ -123,21 +99,32 @@ const SingleResultHydrator: React.FC<{ data: any }> = ({ data }) => {
       setResults({
         netProfit: data.netPnL,
         netProfitPct: data.netPnLPct,
-        profitFactor: 1.5, // Mock derived
+        benchmarkProfitPct: data.benchmarkProfitPct ?? 0,
+        profitFactor: data.profitFactor ?? 0,
+        grossWin: data.grossWin ?? 0,
+        grossLoss: data.grossLoss ?? 0,
         maxDrawdownPct: data.maxDrawdownPct,
-        maxDrawdownValue: 1000, // Mock
+        maxDrawdownValue: data.maxDrawdownValue ?? 0,
         sharpeRatio: data.sharpe,
-        equityCurve: data.equityCurve,
-        benchmarkCurve: data.equityCurve.map((x: any) => ({
-          ...x,
-          value: x.value * 0.9,
-        })), // Mock bench
-        underwaterCurve: data.equityCurve.map((x: any) => ({
-          ...x,
-          value: -Math.random() * 5,
-        })), // Mock underwater
-        trades: [], // would be populated
-        exitReasons: { TP1: 10, SL: 5 }, // Mock
+        sortinoRatio: data.sortinoRatio ?? 0,
+        calmarRatio: data.calmarRatio ?? 0,
+        volatility: data.volatility ?? 0,
+        expectancy: data.expectancy ?? 0,
+        maxConsecWins: data.maxConsecWins ?? 0,
+        winRate: data.winRate ?? 0,
+        winCount: data.winCount ?? 0,
+        lossCount: data.lossCount ?? 0,
+        avgWin: data.avgWin ?? 0,
+        avgLoss: data.avgLoss ?? 0,
+        bestTrade: data.bestTrade ?? 0,
+        worstTrade: data.worstTrade ?? 0,
+        equityCurve: data.equityCurve ?? [],
+        benchmarkCurve: [],
+        underwaterCurve: data.underwaterCurve ?? [],
+        trades: data.trades ?? [],
+        exitReasons: data.exitReasons ?? {},
+        filteredTrades: data.trades ?? [],
+        activeFilter: null,
       });
     }
   }, [data, setResults]);
