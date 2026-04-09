@@ -194,6 +194,7 @@ def run_batch_worker(
             "backtest": {
                 "start_date": req.start_date,
                 "end_date": req.end_date,
+                "initial_balance": float(req.initial_capital),
             },
             "risk": {
                 "leverage": req.leverage,
@@ -421,8 +422,8 @@ def _aggregate_batch_results(
     max_dd_value = dd_stats.get("max_drawdown_value", 0)
 
     return {
-        "net_profit": total_profit / n_symbols,
-        "net_profit_pct": (total_profit / n_symbols / initial_capital * 100) if initial_capital else 0,
+        "net_profit": total_profit,
+        "net_profit_pct": (total_profit / (n_symbols * initial_capital) * 100) if initial_capital else 0,
         "metrics": {
             "total_trades": total_trades,
             "win_count": win_counts,
