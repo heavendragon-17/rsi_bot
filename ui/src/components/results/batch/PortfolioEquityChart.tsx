@@ -29,152 +29,147 @@ export const PortfolioEquityChart: React.FC = () => {
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
-    if (chartContainerRef.current.clientWidth === 0) return;
 
-    const { createChart, ColorType, LineStyle, LineSeries, AreaSeries } =
-      LightweightCharts;
+    const container = chartContainerRef.current;
 
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: bgColor },
-        textColor,
-      },
-      grid: {
-        vertLines: { color: gridColor },
-        horzLines: { color: gridColor },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: 250,
-      timeScale: { visible: true, borderVisible: false },
-      rightPriceScale: { borderVisible: false },
-      crosshair: { vertLine: { labelVisible: false } },
-    });
+    const initChart = () => {
+      // Prevent double-init
+      if (chartRef.current) return;
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
-    // 1. Dispersion Range (Simulated via Max/Min lines for now as AreaSeries can't float)
-    // To truly do a shaded range, we would ideally use a custom series or two areas where one masks the other.
-    // Hack: Just draw the bounds as thin lines for now to meet the "Dispersion" requirement visually without complex custom series code.
-    // Or better: Use "Extra Series" logic.
-    const maxSeries = chart.addSeries(LineSeries, {
-      color: dispersionColor,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    // @ts-ignore
-    maxSeries.setData(
-      dispersionRange.map((d) => ({
+      const { createChart, ColorType, LineStyle, LineSeries, AreaSeries } =
+        LightweightCharts;
+
+      const chart = createChart(container, {
+        layout: {
+          background: { type: ColorType.Solid, color: bgColor },
+          textColor,
+        },
+        grid: {
+          vertLines: { color: gridColor },
+          horzLines: { color: gridColor },
+        },
+        width: container.clientWidth,
+        height: container.clientHeight,
+        timeScale: { visible: true, borderVisible: false },
+        rightPriceScale: { borderVisible: false },
+        crosshair: { vertLine: { labelVisible: false } },
+      });
+
+      // Normalize everything to % Return for the chart.
+      const startValue =
+        portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].value : 1;
+
+      const normPortfolio = portfolioEquityCurve.map((d) => ({
         time: d.time,
-        value:
-          (d.max / 100) * portfolioEquityCurve[0].value +
-          portfolioEquityCurve[0].value,
-      }))
-    ); // Scale % back to value roughly for viz?
-    // Wait, dispersion is % return. Equity is value.
-    // This is tricky. Let's just plot the Portfolio Equity Area and Benchmark.
-    // And simplify Dispersion to just be implied by the portfolio line for MVP unless we normalize everything to %.
+        value: ((d.value - startValue) / startValue) * 100,
+      }));
 
-    // DECISION: Normalize everything to % Return for the chart. This makes Dispersion easy.
-    // Let's re-map data to % change from start.
-    const startValue =
-      portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].value : 1;
+      const startBench =
+        benchmarkEquityCurve.length > 0 ? benchmarkEquityCurve[0].value : 1;
+      const normBenchmark = benchmarkEquityCurve.map((d) => ({
+        time: d.time,
+        value: ((d.value - startBench) / startBench) * 100,
+      }));
 
-    const normPortfolio = portfolioEquityCurve.map((d) => ({
-      time: d.time,
-      value: ((d.value - startValue) / startValue) * 100,
-    }));
+      // Dispersion is already in %.
+      const dispHigh = dispersionRange.map((d) => ({
+        time: d.time,
+        value: d.max,
+      }));
+      const dispLow = dispersionRange.map((d) => ({
+        time: d.time,
+        value: d.min,
+      }));
 
-    const startBench =
-      benchmarkEquityCurve.length > 0 ? benchmarkEquityCurve[0].value : 1;
-    const normBenchmark = benchmarkEquityCurve.map((d) => ({
-      time: d.time,
-      value: ((d.value - startBench) / startBench) * 100,
-    }));
-
-    // Now Dispersion is already in %.
-    const dispHigh = dispersionRange.map((d) => ({
-      time: d.time,
-      value: d.max,
-    }));
-    const dispLow = dispersionRange.map((d) => ({
-      time: d.time,
-      value: d.min,
-    }));
-
-    // Plot Dispersion Bounds (faint)
-    const highSeries = chart.addSeries(LineSeries, {
-      color: `${dispersionColor}44`,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-    highSeries.setData(dispHigh);
-    const lowSeries = chart.addSeries(LineSeries, {
-      color: `${dispersionColor}44`,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-    lowSeries.setData(dispLow);
-
-    // 2. Portfolio Line (Bold Area)
-    const portfolioSeries = chart.addSeries(AreaSeries, {
-      lineColor: portfolioColor,
-      topColor: `${portfolioColor}22`,
-      bottomColor: `${portfolioColor}00`,
-      lineWidth: 3,
-      priceFormat: { type: "percent" },
-    });
-    portfolioSeries.setData(normPortfolio);
-
-    // 3. Benchmark (Dashed)
-    const benchmarkSeries = chart.addSeries(LineSeries, {
-      color: benchmarkColor,
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      crosshairMarkerVisible: false,
-      priceFormat: { type: "percent" },
-    });
-    benchmarkSeries.setData(normBenchmark);
-
-    // 4. Pinned Symbols
-    pinnedSymbols.forEach((sym, idx) => {
-      const symData = symbolResults.find((r) => r.symbol === sym);
-      if (symData) {
-        const sStart = symData.equityCurve[0].value;
-        const sCurve = symData.equityCurve.map((d) => ({
-          time: d.time,
-          value: ((d.value - sStart) / sStart) * 100,
-        }));
-
-        const pinSeries = chart.addSeries(LineSeries, {
-          color: pinColors[idx % pinColors.length],
+      // Plot Dispersion Bounds (faint)
+      if (dispHigh.length > 0) {
+        const highSeries = chart.addSeries(LineSeries, {
+          color: `${dispersionColor}44`,
           lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          crosshairMarkerVisible: false,
+          lastValueVisible: false,
+          priceLineVisible: false,
+        });
+        highSeries.setData(dispHigh);
+        const lowSeries = chart.addSeries(LineSeries, {
+          color: `${dispersionColor}44`,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dotted,
+          crosshairMarkerVisible: false,
+          lastValueVisible: false,
+          priceLineVisible: false,
+        });
+        lowSeries.setData(dispLow);
+      }
+
+      // Portfolio Line (Bold Area)
+      const portfolioSeries = chart.addSeries(AreaSeries, {
+        lineColor: portfolioColor,
+        topColor: `${portfolioColor}22`,
+        bottomColor: `${portfolioColor}00`,
+        lineWidth: 3,
+        priceFormat: { type: "percent" },
+      });
+      portfolioSeries.setData(normPortfolio);
+
+      // Benchmark (Dashed)
+      if (normBenchmark.length > 0) {
+        const benchmarkSeries = chart.addSeries(LineSeries, {
+          color: benchmarkColor,
+          lineWidth: 2,
+          lineStyle: LineStyle.Dashed,
+          crosshairMarkerVisible: false,
           priceFormat: { type: "percent" },
         });
-        pinSeries.setData(sCurve);
+        benchmarkSeries.setData(normBenchmark);
+      }
+
+      // Pinned Symbols
+      pinnedSymbols.forEach((sym, idx) => {
+        const symData = symbolResults.find((r) => r.symbol === sym);
+        if (symData && symData.equityCurve.length > 0) {
+          const sStart = symData.equityCurve[0].value;
+          const sCurve = symData.equityCurve.map((d) => ({
+            time: d.time,
+            value: ((d.value - sStart) / sStart) * 100,
+          }));
+
+          const pinSeries = chart.addSeries(LineSeries, {
+            color: pinColors[idx % pinColors.length],
+            lineWidth: 1,
+            priceFormat: { type: "percent" },
+          });
+          pinSeries.setData(sCurve);
+        }
+      });
+
+      chart.timeScale().fitContent();
+      chartRef.current = chart;
+    };
+
+    // Use ResizeObserver to wait for non-zero dimensions, then init
+    initChart();
+
+    const ro = new ResizeObserver(() => {
+      if (!chartRef.current) {
+        initChart();
+      } else if (container.clientWidth > 0) {
+        chartRef.current.applyOptions({
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
       }
     });
-
-    chart.timeScale().fitContent();
-    chartRef.current = chart;
-
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
-    window.addEventListener("resize", handleResize);
+    ro.observe(container);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      chart.remove();
-      chartRef.current = null;
+      ro.disconnect();
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
     };
   }, [
     portfolioEquityCurve,
@@ -216,7 +211,7 @@ export const PortfolioEquityChart: React.FC = () => {
           ))}
         </div>
       </div>
-      <div className="relative h-[250px] w-full" ref={chartContainerRef} />
+      <div className="relative h-[280px] w-full" ref={chartContainerRef} />
     </div>
   );
 };

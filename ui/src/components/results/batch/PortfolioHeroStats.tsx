@@ -12,15 +12,15 @@ const HeroCard: React.FC<{
     colorClass?: string;
     icon?: React.ReactNode;
 }> = ({ title, value, subtitle, colorClass, icon }) => (
-    <div className="flex flex-col p-5 bg-bg-elevated/40 border border-border-main rounded-xl shadow-sm relative overflow-hidden group hover:border-accent-main/30 transition-colors">
-        <div className="flex justify-between items-start mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">{title}</span>
-            {icon && <div className="text-text-muted/50 group-hover:text-text-secondary transition-colors">{icon}</div>}
+    <div className="flex flex-col px-4 py-3.5 sm:px-5 sm:py-4 bg-bg-elevated/40 border border-border-main rounded-xl shadow-sm relative overflow-hidden group hover:border-accent-main/30 transition-colors min-w-0">
+        <div className="flex justify-between items-start mb-1.5">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-text-muted truncate mr-1">{title}</span>
+            {icon && <div className="text-text-muted/50 group-hover:text-text-secondary transition-colors shrink-0">{icon}</div>}
         </div>
-        <div className={cn("text-2xl font-bold font-mono tracking-tight", colorClass)}>
+        <div className={cn("text-xl sm:text-2xl font-bold font-mono tracking-tight truncate", colorClass)}>
             {value}
         </div>
-        <div className="mt-1 text-xs text-text-secondary flex items-center gap-1.5">
+        <div className="mt-1 text-[10px] sm:text-xs text-text-secondary flex items-center gap-1.5 truncate">
             {subtitle}
         </div>
 
@@ -60,7 +60,7 @@ export const PortfolioHeroStats: React.FC = () => {
   else if (avgCorrelation < 0.3) { corrColor = "text-success"; corrLabel = "Diversified"; }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6 min-w-0">
         {/* Total PnL */}
         <HeroCard
             title="Total PnL"

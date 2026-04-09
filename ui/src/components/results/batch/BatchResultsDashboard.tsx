@@ -136,56 +136,74 @@ const SingleResultHydrator: React.FC<{ data: any }> = ({ data }) => {
 // Simple Chart Stub for Batch Underwater to save complexity in this turn
 const BatchUnderwaterChartStub = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const chartRef = React.useRef<LightweightCharts.IChartApi | null>(null);
   const { portfolioEquityCurve } = useBatchResultsStore();
 
   React.useEffect(() => {
     if (!containerRef.current) return;
-    const { createChart, ColorType, AreaSeries } = LightweightCharts;
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#71717a",
-      },
-      grid: {
-        vertLines: { visible: false },
-        horzLines: { color: "rgba(255,255,255,0.05)" },
-      },
-      width: containerRef.current.clientWidth,
-      height: containerRef.current.clientHeight,
-      timeScale: { visible: true, borderVisible: false },
-      rightPriceScale: { borderVisible: false },
-    });
+    const container = containerRef.current;
 
-    const series = chart.addSeries(AreaSeries, {
-      lineColor: "#ef4444",
-      topColor: "#ef444411",
-      bottomColor: "#ef444466",
-      lineWidth: 1,
-      priceFormat: { type: "percent" },
-    });
+    const initChart = () => {
+      if (chartRef.current) return;
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
-    // Mock drawdown from equity curve
-    let peak = -Infinity;
-    const drawdownData = portfolioEquityCurve.map((p) => {
-      if (p.value > peak) peak = p.value;
-      const dd = ((p.value - peak) / peak) * 100;
-      return { time: p.time, value: dd };
-    });
+      const { createChart, ColorType, AreaSeries } = LightweightCharts;
+      const chart = createChart(container, {
+        layout: {
+          background: { type: ColorType.Solid, color: "transparent" },
+          textColor: "#71717a",
+        },
+        grid: {
+          vertLines: { visible: false },
+          horzLines: { color: "rgba(255,255,255,0.05)" },
+        },
+        width: container.clientWidth,
+        height: container.clientHeight,
+        timeScale: { visible: true, borderVisible: false },
+        rightPriceScale: { borderVisible: false },
+      });
 
-    series.setData(drawdownData);
-    chart.timeScale().fitContent();
+      const series = chart.addSeries(AreaSeries, {
+        lineColor: "#ef4444",
+        topColor: "#ef444411",
+        bottomColor: "#ef444466",
+        lineWidth: 1,
+        priceFormat: { type: "percent" },
+      });
 
-    const handleResize = () => {
-      if (containerRef.current)
-        chart.applyOptions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
+      // Compute drawdown from equity curve
+      let peak = -Infinity;
+      const drawdownData = portfolioEquityCurve.map((p) => {
+        if (p.value > peak) peak = p.value;
+        const dd = ((p.value - peak) / peak) * 100;
+        return { time: p.time, value: dd };
+      });
+
+      series.setData(drawdownData);
+      chart.timeScale().fitContent();
+      chartRef.current = chart;
     };
-    window.addEventListener("resize", handleResize);
+
+    initChart();
+
+    const ro = new ResizeObserver(() => {
+      if (!chartRef.current) {
+        initChart();
+      } else if (container.clientWidth > 0) {
+        chartRef.current.applyOptions({
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
+      }
+    });
+    ro.observe(container);
+
     return () => {
-      window.removeEventListener("resize", handleResize);
-      chart.remove();
+      ro.disconnect();
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
     };
   }, [portfolioEquityCurve]);
 
