@@ -35,7 +35,7 @@ export const PortfolioEquityChart: React.FC = () => {
     const initChart = () => {
       // Prevent double-init
       if (chartRef.current) return;
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
+      if (container.clientWidth === 0) return;
 
       const { createChart, ColorType, LineStyle, LineSeries, AreaSeries } =
         LightweightCharts;
@@ -50,7 +50,7 @@ export const PortfolioEquityChart: React.FC = () => {
           horzLines: { color: gridColor },
         },
         width: container.clientWidth,
-        height: container.clientHeight,
+        height: container.clientHeight || 280,
         timeScale: { visible: true, borderVisible: false },
         rightPriceScale: { borderVisible: false },
         crosshair: { vertLine: { labelVisible: false } },
@@ -211,7 +211,7 @@ export const PortfolioEquityChart: React.FC = () => {
           ))}
         </div>
       </div>
-      <div className="relative h-[280px] w-full" ref={chartContainerRef} />
+      <div className="relative h-[280px] w-full shrink-0" ref={chartContainerRef} />
     </div>
   );
 };

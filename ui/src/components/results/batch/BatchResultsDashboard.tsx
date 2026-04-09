@@ -145,7 +145,7 @@ const BatchUnderwaterChartStub = () => {
 
     const initChart = () => {
       if (chartRef.current) return;
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
+      if (container.clientWidth === 0) return;
 
       const { createChart, ColorType, AreaSeries } = LightweightCharts;
       const chart = createChart(container, {
@@ -157,8 +157,8 @@ const BatchUnderwaterChartStub = () => {
           vertLines: { visible: false },
           horzLines: { color: "rgba(255,255,255,0.05)" },
         },
-        width: container.clientWidth,
-        height: container.clientHeight,
+        width: container.clientWidth || 600,
+        height: container.clientHeight || 220,
         timeScale: { visible: true, borderVisible: false },
         rightPriceScale: { borderVisible: false },
       });
@@ -207,5 +207,5 @@ const BatchUnderwaterChartStub = () => {
     };
   }, [portfolioEquityCurve]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return <div ref={containerRef} className="absolute inset-0" />;
 };
