@@ -12,7 +12,7 @@ const HeroCard: React.FC<{
     colorClass?: string;
     icon?: React.ReactNode;
 }> = ({ title, value, subtitle, colorClass, icon }) => (
-    <div className="flex flex-col px-5 py-4 sm:px-6 sm:py-5 bg-bg-elevated/40 border border-border-main rounded-xl shadow-sm relative overflow-hidden group hover:border-accent-main/30 transition-colors min-w-0">
+    <div className="flex flex-col px-6 py-4 sm:px-7 sm:py-5 bg-bg-elevated/40 border border-border-main rounded-xl shadow-sm relative overflow-hidden group hover:border-accent-main/30 transition-colors min-w-0">
         <div className="flex justify-between items-start mb-1.5">
             <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-text-muted truncate mr-1">{title}</span>
             {icon && <div className="text-text-muted/50 group-hover:text-text-secondary transition-colors shrink-0">{icon}</div>}
