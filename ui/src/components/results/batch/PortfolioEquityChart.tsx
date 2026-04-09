@@ -101,7 +101,7 @@ export const PortfolioEquityChart: React.FC = () => {
       crosshair: { vertLine: { labelVisible: false } },
     });
 
-    const startValue = portfolioEquityCurve[0].value;
+    const startValue = parseFloat(capital) || portfolioEquityCurve[0].value;
 
     const normPortfolio = portfolioEquityCurve.map((d) => ({
       time: d.time,

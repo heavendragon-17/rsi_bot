@@ -374,6 +374,7 @@ def _aggregate_batch_results(
             "round_trips": [],
         }
 
+    n_symbols = max(len(batch_results), 1)
     total_profit = sum(r.get("profit", 0) for r in batch_results)
     total_trades = sum(r.get("trades", 0) for r in batch_results)
 
@@ -420,8 +421,8 @@ def _aggregate_batch_results(
     max_dd_value = dd_stats.get("max_drawdown_value", 0)
 
     return {
-        "net_profit": total_profit,
-        "net_profit_pct": (total_profit / initial_capital * 100) if initial_capital else 0,
+        "net_profit": total_profit / n_symbols,
+        "net_profit_pct": (total_profit / n_symbols / initial_capital * 100) if initial_capital else 0,
         "metrics": {
             "total_trades": total_trades,
             "win_count": win_counts,
