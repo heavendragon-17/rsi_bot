@@ -377,11 +377,11 @@ def _aggregate_batch_results(
     win_rate = (win_counts / total_trades * 100) if total_trades > 0 else 0
     profit_factor = (gross_profits / abs(gross_losses)) if gross_losses != 0 else 0
 
-    # Aggregate Sharpe (average across symbols)
+    # Aggregate Sharpe (average across symbols) — sharpe lives in risk_metrics
     sharpe_values = [
-        r.get("metrics", {}).get("sharpe_ratio")
+        r.get("risk_metrics", {}).get("sharpe_ratio")
         for r in batch_results
-        if r.get("metrics", {}).get("sharpe_ratio") is not None
+        if r.get("risk_metrics", {}).get("sharpe_ratio") is not None
     ]
     avg_sharpe = sum(sharpe_values) / len(sharpe_values) if sharpe_values else None
 

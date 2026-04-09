@@ -168,6 +168,54 @@ export function mapApiToBatchResults(
       exitReasons[reason] = (exitReasons[reason] ?? 0) + 1;
     }
 
+    // Compute per-symbol equity curve from cumulative PnL
+    const equityCurve: { time: string; value: number }[] = [];
+    let cumBal = initialCapital;
+    for (const t of symTrades) {
+      cumBal += _str(t["pnl"]);
+      const exitTime = String(t["exit_time"] ?? "").slice(0, 10);
+      if (exitTime) equityCurve.push({ time: exitTime, value: cumBal });
+    }
+
+    // Compute per-symbol max drawdown from equity curve
+    let peak = initialCapital;
+    let maxDDPct = 0;
+    let maxDDValue = 0;
+    const underwaterCurve: { time: string; value: number }[] = [];
+    for (const pt of equityCurve) {
+      if (pt.value > peak) peak = pt.value;
+      const ddPct = peak > 0 ? ((peak - pt.value) / peak) * 100 : 0;
+      const ddVal = peak - pt.value;
+      if (ddPct > maxDDPct) {
+        maxDDPct = ddPct;
+        maxDDValue = ddVal;
+      }
+      underwaterCurve.push({ time: pt.time, value: -ddPct });
+    }
+
+    // Compute per-symbol Sharpe, Sortino, volatility from trade returns
+    const pnlPcts = symTrades.map((t) => _num(t["pnl_pct"]) / 100);
+    let sharpe = 0;
+    let sortinoRatio = 0;
+    let volatility = 0;
+    if (pnlPcts.length >= 2) {
+      const mean = pnlPcts.reduce((a, b) => a + b, 0) / pnlPcts.length;
+      const variance = pnlPcts.reduce((a, x) => a + (x - mean) ** 2, 0) / (pnlPcts.length - 1);
+      const std = Math.sqrt(variance);
+      volatility = std * 100;
+      sharpe = std > 0 ? mean / std : 0;
+      const negReturns = pnlPcts.filter((r) => r < 0);
+      if (negReturns.length > 1) {
+        const negMean = negReturns.reduce((a, b) => a + b, 0) / negReturns.length;
+        const dsVar = negReturns.reduce((a, x) => a + (x - negMean) ** 2, 0) / (negReturns.length - 1);
+        const dsStd = Math.sqrt(dsVar);
+        sortinoRatio = dsStd > 0 ? mean / dsStd : 0;
+      }
+    }
+
+    // Calmar ratio: total return % / max drawdown %
+    const calmarRatio = maxDDPct > 0 ? netPnLPct / maxDDPct : 0;
+
     return {
       symbol: sym,
       contribution: totalPnL !== 0 ? (netPnL / Math.abs(totalPnL)) * 100 : 0,
@@ -175,18 +223,18 @@ export function mapApiToBatchResults(
       netPnLPct,
       winRate,
       tradeCount: symTrades.length,
-      sharpe: 0,
-      maxDrawdownPct: 0,
+      sharpe,
+      maxDrawdownPct: maxDDPct,
       isPinned: false,
       trades: mapped,
-      equityCurve: [],
+      equityCurve: dedupeByDate(equityCurve),
       profitFactor,
       grossWin,
       grossLoss,
-      maxDrawdownValue: 0,
-      sortinoRatio: 0,
-      calmarRatio: 0,
-      volatility: 0,
+      maxDrawdownValue: maxDDValue,
+      sortinoRatio,
+      calmarRatio,
+      volatility,
       expectancy: symTrades.length > 0 ? netPnL / symTrades.length : 0,
       maxConsecWins: maxConsecutiveWins(symTrades),
       winCount: wins.length,
@@ -197,7 +245,7 @@ export function mapApiToBatchResults(
       worstTrade,
       benchmarkProfitPct: 0,
       exitReasons,
-      underwaterCurve: [],
+      underwaterCurve: dedupeByDate(underwaterCurve),
     };
   });
 
@@ -275,6 +323,7 @@ export function mapApiToBatchResults(
     portfolioEquityCurve,
     portfolioDrawdownCurve,
     benchmarkEquityCurve,
+    benchmarkDrawdownCurve,
     dispersionRange,
     pinnedSymbols: [],
     selectedSymbol: null,
