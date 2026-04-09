@@ -3,13 +3,15 @@ Benchmark buy-and-hold curve computation.
 
 Reads local OHLCV CSV data and normalises it to the backtest's initial
 capital so the resulting curve can be overlaid directly on the equity chart.
-Auto-downloads missing or stale data before computing.
+
+Gap-filling strategy: compute exactly what range [start_date, end_date] is
+needed, check what the local CSV already covers, and download ONLY the missing
+portions (left gap, right gap, or full range if no local data exists).
 """
 
 from __future__ import annotations
 
 import os
-from datetime import datetime
 
 import pandas as pd
 import structlog
@@ -28,93 +30,180 @@ BENCHMARK_SYMBOLS = [
 DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
 
 
-def _ensure_benchmark_data(
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _fetch_ohlcv_range(
+    benchmark: str,
+    timeframe: str,
+    since_ms: int,
+    until_ms: int,
+) -> pd.DataFrame | None:
+    """Fetch OHLCV candles for [since_ms, until_ms] (UTC milliseconds).
+
+    Returns a DataFrame with UTC+7 timestamps (same convention as
+    download.py) or None if no candles were returned by the exchange.
+    """
+    import time as _time
+
+    import ccxt
+
+    exchange = ccxt.binanceusdm()
+    exchange.load_markets()
+
+    # binanceusdm requires perpetual-futures format: "BTC/USDT:USDT"
+    fetch_symbol = benchmark
+    if ":" not in benchmark and "/USDT" in benchmark:
+        fetch_symbol = benchmark + ":USDT"
+
+    candles: list = []
+    cursor = since_ms
+
+    while cursor <= until_ms:
+        _time.sleep(0.35)
+        batch = exchange.fetch_ohlcv(fetch_symbol, timeframe, since=cursor, limit=1000)
+        if not batch:
+            break
+        in_range = [c for c in batch if c[0] <= until_ms]
+        candles.extend(in_range)
+        if not in_range or batch[-1][0] >= until_ms:
+            break
+        cursor = batch[-1][0] + 1
+
+    if not candles:
+        return None
+
+    df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    # Match download.py convention: store as UTC+7
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms") + pd.Timedelta(hours=7)
+    return df
+
+
+def _ensure_benchmark_range(
     benchmark: str,
     timeframe: str,
     start_date: str | None,
     end_date: str | None,
     data_dir: str,
 ) -> None:
-    """Ensure the local CSV covers [start_date, end_date].
+    """Ensure the local CSV contains data for [start_date, end_date].
 
-    Three cases trigger a download:
-    1. CSV is missing entirely → full backward fetch.
-    2. CSV start is later than needed start_date (coverage gap) → delete + full backward fetch.
-    3. CSV end is more than 2 days behind needed end_date (stale) → incremental forward fetch.
+    Computes coverage gaps against what the CSV already holds and fetches
+    only the missing left / right portions — never re-downloads data we have.
     """
-    from app.backtest.data.download import calculate_candle_limit, download_data
-
     safe = benchmark.replace("/", "")
     csv_path = os.path.join(data_dir, f"{safe}_{timeframe}.csv")
+    os.makedirs(data_dir, exist_ok=True)
 
-    now = datetime.now()
-    start_dt = datetime.fromisoformat(str(start_date)) if start_date else None
-    end_dt = datetime.fromisoformat(str(end_date)) if end_date else now
+    need_start = pd.Timestamp(start_date) if start_date else pd.Timestamp.now() - pd.Timedelta(days=365)
+    need_end = pd.Timestamp(end_date) if end_date else pd.Timestamp.now()
 
-    # Limit covers from earliest needed date to today + 30-day buffer for safety
-    earliest = start_dt or end_dt
-    span_days = max((now - earliest).days + 30, 60)
-    limit = calculate_candle_limit(timeframe, days=span_days)
-
-    needs_full = False
-    needs_update = False
-
-    if not os.path.exists(csv_path):
-        logger.info("benchmark_csv_missing_will_download", symbol=benchmark, path=csv_path)
-        needs_full = True
-    else:
+    # ── Load existing data ──────────────────────────────────────────────────
+    existing: pd.DataFrame | None = None
+    if os.path.exists(csv_path):
         try:
-            df_meta = pd.read_csv(csv_path, usecols=["timestamp"])
-            df_meta["timestamp"] = pd.to_datetime(df_meta["timestamp"])
-
-            if df_meta.empty:
-                needs_full = True
-            else:
-                csv_start = df_meta["timestamp"].min().date()
-                csv_end = df_meta["timestamp"].max().date()
-                need_start = start_dt.date() if start_dt else None
-                need_end = end_dt.date()
-
-                # Coverage gap: CSV doesn't reach back to start_date
-                if need_start and csv_start > need_start:
-                    logger.info(
-                        "benchmark_coverage_gap",
-                        symbol=benchmark,
-                        csv_start=str(csv_start),
-                        needed_start=str(need_start),
-                    )
-                    # Delete so download_data does a full backward fetch
-                    os.remove(csv_path)
-                    needs_full = True
-
-                # Staleness: CSV tail is more than 2 days behind end_date
-                elif (need_end - csv_end).days > 2:
-                    logger.info(
-                        "benchmark_data_stale",
-                        symbol=benchmark,
-                        csv_end=str(csv_end),
-                        needed_end=str(need_end),
-                        lag_days=(need_end - csv_end).days,
-                    )
-                    needs_update = True
-
+            existing = pd.read_csv(csv_path)
+            existing["timestamp"] = pd.to_datetime(existing["timestamp"])
+            existing = (
+                existing.sort_values("timestamp")
+                .drop_duplicates("timestamp")
+                .reset_index(drop=True)
+            )
         except Exception as exc:
-            logger.warning("benchmark_check_error", symbol=benchmark, error=str(exc))
-            needs_full = True
+            logger.warning("benchmark_load_error", symbol=benchmark, error=str(exc))
+            existing = None
 
-    if needs_full or needs_update:
+    # ── Identify gaps ───────────────────────────────────────────────────────
+    # Gaps are expressed as (since_ms_utc, until_ms_utc) pairs for the API.
+    gaps: list[tuple[int, int]] = []
+
+    if existing is None or existing.empty:
+        gaps.append((
+            int(need_start.timestamp() * 1000),
+            int(need_end.timestamp() * 1000),
+        ))
+        logger.info(
+            "benchmark_no_local_data",
+            symbol=benchmark,
+            range_start=str(need_start.date()),
+            range_end=str(need_end.date()),
+        )
+    else:
+        csv_start = existing["timestamp"].min()
+        csv_end = existing["timestamp"].max()
+
+        # Left gap: need data before what we have
+        if need_start.date() < csv_start.date():
+            # until_ms: convert UTC+7 csv_start back to UTC ms, step back 1 ms
+            gap_until_ms = int((csv_start - pd.Timedelta(hours=7)).timestamp() * 1000) - 1
+            gaps.append((int(need_start.timestamp() * 1000), gap_until_ms))
+            logger.info(
+                "benchmark_left_gap",
+                symbol=benchmark,
+                need=str(need_start.date()),
+                have_from=str(csv_start.date()),
+            )
+
+        # Right gap: need data after what we have
+        if need_end.date() > csv_end.date():
+            # since_ms: convert UTC+7 csv_end back to UTC ms, step forward 1 ms
+            gap_since_ms = int((csv_end - pd.Timedelta(hours=7)).timestamp() * 1000) + 1
+            gaps.append((gap_since_ms, int(need_end.timestamp() * 1000)))
+            logger.info(
+                "benchmark_right_gap",
+                symbol=benchmark,
+                have_until=str(csv_end.date()),
+                need=str(need_end.date()),
+            )
+
+    if not gaps:
+        return  # CSV already covers the full range — nothing to do
+
+    # ── Fetch missing chunks ────────────────────────────────────────────────
+    frames: list[pd.DataFrame] = []
+    if existing is not None and not existing.empty:
+        frames.append(existing)
+
+    for since_ms, until_ms in gaps:
         try:
             logger.info(
-                "benchmark_downloading",
+                "benchmark_fetching_gap",
                 symbol=benchmark,
-                timeframe=timeframe,
-                limit=limit,
-                mode="full" if needs_full else "incremental",
+                since_ms=since_ms,
+                until_ms=until_ms,
             )
-            download_data(benchmark, timeframe, limit, data_dir)
+            chunk = _fetch_ohlcv_range(benchmark, timeframe, since_ms, until_ms)
+            if chunk is not None and not chunk.empty:
+                frames.append(chunk)
+                logger.info("benchmark_gap_fetched", symbol=benchmark, rows=len(chunk))
+            else:
+                logger.warning("benchmark_gap_empty", symbol=benchmark,
+                               since_ms=since_ms, until_ms=until_ms)
         except Exception as exc:
-            logger.error("benchmark_download_failed", symbol=benchmark, error=str(exc))
+            logger.error("benchmark_fetch_gap_failed", symbol=benchmark, error=str(exc))
 
+    # ── Merge and save ──────────────────────────────────────────────────────
+    if frames:
+        merged = (
+            pd.concat(frames, ignore_index=True)
+            .sort_values("timestamp")
+            .drop_duplicates("timestamp", keep="last")
+            .reset_index(drop=True)
+        )
+        merged.to_csv(csv_path, index=False)
+        logger.info(
+            "benchmark_csv_updated",
+            symbol=benchmark,
+            total_rows=len(merged),
+            start=str(merged["timestamp"].min()),
+            end=str(merged["timestamp"].max()),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def compute_benchmark_curve(
     benchmark: str,
@@ -124,20 +213,20 @@ def compute_benchmark_curve(
     initial_capital: float,
     data_dir: str = DATA_DIR,
 ) -> list[dict]:
-    """Compute buy-and-hold curve from a local OHLCV CSV file.
+    """Compute a buy-and-hold curve normalised to ``initial_capital``.
 
-    Auto-downloads the CSV if it is missing, does not cover ``start_date``,
-    or is stale relative to ``end_date``.
+    Automatically fills any coverage gaps in the local CSV before computing,
+    so the returned curve always covers [start_date, end_date] when the
+    exchange has data for that range.
 
-    Returns ``[{"date": "YYYY-MM-DD", "balance": float}]`` normalised so the
-    first close price equals ``initial_capital``.  Returns ``[]`` when data
-    cannot be fetched or the date range yields no rows.
+    Returns ``[{"date": "YYYY-MM-DD", "balance": float}]``.
+    Returns ``[]`` on error or when the date range yields no rows.
     """
     safe = benchmark.replace("/", "")
     csv_path = os.path.join(data_dir, f"{safe}_{timeframe}.csv")
 
-    # Download / refresh if needed (blocking; runs inside a worker thread)
-    _ensure_benchmark_data(benchmark, timeframe, start_date, end_date, data_dir)
+    # Fill any gaps (blocking; runs in a worker thread, not the API event loop)
+    _ensure_benchmark_range(benchmark, timeframe, start_date, end_date, data_dir)
 
     if not os.path.exists(csv_path):
         logger.error("benchmark_csv_unavailable_after_download", symbol=benchmark)
