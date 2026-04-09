@@ -74,13 +74,11 @@ export const BatchResultsDashboard: React.FC = () => {
         </div>
 
         {/* 3. Portfolio Drawdown (full width) */}
-        <div className="h-[300px] border border-border-main rounded-xl bg-bg-surface p-4 flex flex-col">
+        <div className="border border-border-main rounded-xl bg-bg-surface p-4">
           <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
             Portfolio Drawdown
           </h3>
-          <div className="flex-1 relative">
-            <BatchUnderwaterChartStub />
-          </div>
+          <BatchUnderwaterChartStub />
         </div>
 
         {/* 4. Symbol Table */}
@@ -133,14 +131,27 @@ const SingleResultHydrator: React.FC<{ data: any }> = ({ data }) => {
   return null;
 };
 
-// Simple Chart Stub for Batch Underwater to save complexity in this turn
+const DRAWDOWN_CHART_HEIGHT = 230;
+
 const BatchUnderwaterChartStub = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const { portfolioEquityCurve } = useBatchResultsStore();
+  const { portfolioDrawdownCurve, portfolioEquityCurve } = useBatchResultsStore();
+
+  // Use actual drawdown curve if available, otherwise compute from equity
+  const drawdownData = React.useMemo(() => {
+    if (portfolioDrawdownCurve.length > 0) return portfolioDrawdownCurve;
+    if (portfolioEquityCurve.length === 0) return [];
+    let peak = -Infinity;
+    return portfolioEquityCurve.map((p) => {
+      if (p.value > peak) peak = p.value;
+      return { time: p.time, value: peak > 0 ? ((p.value - peak) / peak) * 100 : 0 };
+    });
+  }, [portfolioDrawdownCurve, portfolioEquityCurve]);
 
   React.useEffect(() => {
     if (!containerRef.current) return;
-    if (portfolioEquityCurve.length === 0) return;
+    if (drawdownData.length === 0) return;
+
     const { createChart, ColorType, AreaSeries } = LightweightCharts;
     const chart = createChart(containerRef.current, {
       layout: {
@@ -152,25 +163,20 @@ const BatchUnderwaterChartStub = () => {
         horzLines: { color: "rgba(255,255,255,0.05)" },
       },
       width: containerRef.current.clientWidth,
-      height: containerRef.current.clientHeight,
+      height: DRAWDOWN_CHART_HEIGHT,
       timeScale: { visible: true, borderVisible: false },
       rightPriceScale: { borderVisible: false },
     });
 
     const series = chart.addSeries(AreaSeries, {
       lineColor: "#ef4444",
-      topColor: "#ef444411",
-      bottomColor: "#ef444466",
+      topColor: "rgba(239,68,68,0.05)",
+      bottomColor: "rgba(239,68,68,0.4)",
       lineWidth: 1,
-      priceFormat: { type: "percent" },
-    });
-
-    // Mock drawdown from equity curve
-    let peak = -Infinity;
-    const drawdownData = portfolioEquityCurve.map((p) => {
-      if (p.value > peak) peak = p.value;
-      const dd = ((p.value - peak) / peak) * 100;
-      return { time: p.time, value: dd };
+      priceFormat: {
+        type: "custom",
+        formatter: (p: number) => `${p.toFixed(2)}%`,
+      },
     });
 
     series.setData(drawdownData);
@@ -178,23 +184,20 @@ const BatchUnderwaterChartStub = () => {
 
     const handleResize = () => {
       if (containerRef.current)
-        chart.applyOptions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
+        chart.applyOptions({ width: containerRef.current.clientWidth });
     };
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [portfolioEquityCurve]);
+  }, [drawdownData]);
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
-      {portfolioEquityCurve.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
-          No equity data — run a backtest to see the drawdown curve.
+    <div ref={containerRef} className="w-full" style={{ height: DRAWDOWN_CHART_HEIGHT }}>
+      {drawdownData.length === 0 && (
+        <div className="w-full h-full flex items-center justify-center text-xs text-text-muted">
+          No drawdown data — run a backtest to see the drawdown curve.
         </div>
       )}
     </div>

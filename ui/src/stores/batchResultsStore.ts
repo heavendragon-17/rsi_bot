@@ -70,6 +70,7 @@ export interface BatchResultsState {
 
   // Charts
   portfolioEquityCurve: { time: string; value: number }[];
+  portfolioDrawdownCurve: { time: string; value: number }[];
   benchmarkEquityCurve: { time: string; value: number }[];
   dispersionRange: { time: string; min: number; max: number }[];
 
@@ -216,6 +217,14 @@ export function mapApiToBatchResults(
     })),
   );
 
+  // Portfolio drawdown curve — values stored as positive %, chart shows as negative
+  const portfolioDrawdownCurve = dedupeByDate(
+    (timeseries.drawdown_curve ?? []).map((p) => ({
+      time: String(p["date"] ?? "").slice(0, 10),
+      value: -Math.abs(_num(p["drawdown"])),
+    })),
+  );
+
   // Dispersion range from timeseries (batch mode only — min/max % return across symbols)
   const rawDispersion = (timeseries.dispersion_range ?? []).map((p) => ({
     time: String(p["date"] ?? "").slice(0, 10),
@@ -245,6 +254,7 @@ export function mapApiToBatchResults(
     symbolResults,
     correlationMatrix: [],
     portfolioEquityCurve,
+    portfolioDrawdownCurve,
     benchmarkEquityCurve: [],
     dispersionRange,
     pinnedSymbols: [],
@@ -274,6 +284,7 @@ export const useBatchResultsStore = create<BatchResultsState>()(
       correlationMatrix: [],
 
       portfolioEquityCurve: [],
+      portfolioDrawdownCurve: [],
       benchmarkEquityCurve: [],
       dispersionRange: [],
 
