@@ -33,13 +33,14 @@ export const EquityUnderwaterChart: React.FC = () => {
     }
     setBenchmarkLoading(true);
     try {
-      // Convert dates from dd-MM-yyyy (store format) to yyyy-MM-dd (API format)
-      const parsedEnd = parse(endDate, "dd-MM-yyyy", new Date());
-      const apiEnd = format(parsedEnd, "yyyy-MM-dd");
-      // Start benchmark from the first equity curve point to skip warmup period
-      const apiStart = equityCurve.length > 0
-        ? equityCurve[0].time
-        : format(parse(startDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      // Clamp benchmark to the actual equity curve range (first → last trade),
+      // not the full backtest date range which includes warmup/indicator period.
+      const fallbackStart = format(parse(startDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const fallbackEnd = format(parse(endDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const apiStart = equityCurve.length > 0 ? equityCurve[0].time : fallbackStart;
+      const apiEnd = equityCurve.length > 0
+        ? equityCurve[equityCurve.length - 1].time
+        : fallbackEnd;
       const result = await getBenchmark(sym, timeframe, apiStart, apiEnd, parseFloat(capital) || 10000);
       // Deduplicate to one point per calendar day (backend may return one row per candle)
       const seen = new Map<string, { time: string; value: number }>();
