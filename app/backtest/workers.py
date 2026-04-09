@@ -479,9 +479,10 @@ def run_portfolio_worker(
             taker_fee=float(req.taker_fee_pct) / 100,
             maker_fee=float(req.maker_fee_pct) / 100,
             slippage_pct=float(req.slippage_pct),
-            progress_cb=lambda pct: progress_cb(
-                download_weight + pct * backtest_weight
-            ),
+            progress_cb=lambda data: progress_cb({
+                **data,
+                "pct": int(download_weight * 100 + data.get("pct", 0) * backtest_weight),
+            }),
         )
 
         # Phase 3: Persist
