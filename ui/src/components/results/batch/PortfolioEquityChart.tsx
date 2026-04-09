@@ -38,11 +38,14 @@ export const PortfolioEquityChart: React.FC = () => {
     }
     setBenchmarkLoading(true);
     try {
-      // Convert dates from dd-MM-yyyy (store format) to yyyy-MM-dd (API format)
-      const parsedStart = parse(startDate, "dd-MM-yyyy", new Date());
-      const parsedEnd = parse(endDate, "dd-MM-yyyy", new Date());
-      const apiStart = format(parsedStart, "yyyy-MM-dd");
-      const apiEnd = format(parsedEnd, "yyyy-MM-dd");
+      // Clamp benchmark to the actual equity curve range (first → last trade),
+      // not the full backtest date range which includes warmup/indicator period.
+      const fallbackStart = format(parse(startDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const fallbackEnd = format(parse(endDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const apiStart = portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].time : fallbackStart;
+      const apiEnd = portfolioEquityCurve.length > 0
+        ? portfolioEquityCurve[portfolioEquityCurve.length - 1].time
+        : fallbackEnd;
       const result = await getBenchmark(sym, timeframe, apiStart, apiEnd, parseFloat(capital) || 10000);
       // Deduplicate to one point per calendar day (backend may return one row per candle)
       const seen = new Map<string, { time: string; value: number }>();
@@ -101,7 +104,7 @@ export const PortfolioEquityChart: React.FC = () => {
       crosshair: { vertLine: { labelVisible: false } },
     });
 
-    const startValue = portfolioEquityCurve[0].value;
+    const startValue = parseFloat(capital) || portfolioEquityCurve[0].value;
 
     const normPortfolio = portfolioEquityCurve.map((d) => ({
       time: d.time,

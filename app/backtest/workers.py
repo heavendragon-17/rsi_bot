@@ -15,6 +15,7 @@ import structlog
 
 from app.backtest.config_builder import build_backtest_config
 from app.backtest.data.inline_download import download_if_missing
+from app.backtest.engine.curves import calculate_portfolio_drawdown
 from app.backtest.persistence import mark_failed, persist_results
 
 logger = structlog.get_logger()
@@ -193,6 +194,7 @@ def run_batch_worker(
             "backtest": {
                 "start_date": req.start_date,
                 "end_date": req.end_date,
+                "initial_balance": float(req.initial_capital),
             },
             "risk": {
                 "leverage": req.leverage,
@@ -289,14 +291,21 @@ def _csv_path(symbol: str, timeframe: str) -> str:
 
 def _build_batch_portfolio_curves(
     batch_results: list[dict], initial_capital: float
-) -> tuple[list[dict], list[dict], list[dict]]:
+) -> tuple[list[dict], list[dict], list[dict], dict]:
     """Build combined portfolio equity, drawdown, and dispersion curves from batch results.
 
-    Strategy: normalize each symbol's equity to % return, then average across symbols
-    at each shared date. Dispersion = {date, min%, max%} across all symbols.
+    Forward-fill rule per symbol:
+      - Dates before the symbol's first trade: symbol excluded (not yet active).
+      - Dates from first trade onward with exact data: use that balance.
+      - Dates after the symbol's last trade: forward-fill with its final balance.
+
+    This prevents the portfolio curve from being biased toward whichever symbol
+    happened to have the most recent trade exit, which was causing artificial
+    drawdown spikes and chart/stats mismatches.
 
     Returns:
-        (equity_curve, drawdown_curve, dispersion_range) — all empty lists if no data.
+        (equity_curve, drawdown_curve, dispersion_range, dd_stats) — all empty/{}
+        if no data. dd_stats contains max_drawdown_pct, max_drawdown_value, etc.
     """
     sym_curves: list[dict[str, float]] = []
     for r in batch_results:
@@ -313,37 +322,39 @@ def _build_batch_portfolio_curves(
             sym_curves.append(curve)
 
     if not sym_curves:
-        return [], [], []
+        return [], [], [], {}
 
     # Collect all unique dates in sorted order
     all_dates = sorted(set().union(*(c.keys() for c in sym_curves)))
+
+    # Precompute first/last date per symbol for the forward-fill logic
+    sym_meta = [
+        {"curve": c, "first": min(c.keys()), "last": max(c.keys())}
+        for c in sym_curves
+    ]
 
     equity_curve: list[dict] = []
     dispersion_range: list[dict] = []
 
     for date in all_dates:
-        pcts = [
-            (c[date] - initial_capital) / initial_capital * 100
-            for c in sym_curves
-            if date in c
-        ]
+        pcts: list[float] = []
+        for meta in sym_meta:
+            c, first, last = meta["curve"], meta["first"], meta["last"]
+            if date < first:
+                continue  # symbol not yet active — exclude from average
+            balance = c[date] if date in c else c[last]  # exact or forward-fill
+            pcts.append((balance - initial_capital) / initial_capital * 100)
+
         if not pcts:
             continue
+
         avg_pct = sum(pcts) / len(pcts)
         equity_curve.append({"date": date, "balance": round(initial_capital * (1 + avg_pct / 100), 2)})
         dispersion_range.append({"date": date, "min": round(min(pcts), 4), "max": round(max(pcts), 4)})
 
-    # Build drawdown from combined equity curve
-    peak = initial_capital
-    drawdown_curve: list[dict] = []
-    for point in equity_curve:
-        bal = point["balance"]
-        if bal > peak:
-            peak = bal
-        dd = (peak - bal) / peak * 100 if peak > 0 else 0.0
-        drawdown_curve.append({"date": point["date"], "drawdown": round(dd, 4)})
-
-    return equity_curve, drawdown_curve, dispersion_range
+    # Delegate drawdown to the shared utility (also computes max_drawdown_value)
+    dd_stats = calculate_portfolio_drawdown(equity_curve, initial_capital)
+    return equity_curve, dd_stats["drawdown_curve"], dispersion_range, dd_stats
 
 
 def _aggregate_batch_results(
@@ -364,6 +375,7 @@ def _aggregate_batch_results(
             "round_trips": [],
         }
 
+    n_symbols = max(len(batch_results), 1)
     total_profit = sum(r.get("profit", 0) for r in batch_results)
     total_trades = sum(r.get("trades", 0) for r in batch_results)
 
@@ -377,21 +389,13 @@ def _aggregate_batch_results(
     win_rate = (win_counts / total_trades * 100) if total_trades > 0 else 0
     profit_factor = (gross_profits / abs(gross_losses)) if gross_losses != 0 else 0
 
-    # Aggregate Sharpe (average across symbols)
+    # Aggregate Sharpe (average across symbols) — sharpe lives in risk_metrics
     sharpe_values = [
-        r.get("metrics", {}).get("sharpe_ratio")
+        r.get("risk_metrics", {}).get("sharpe_ratio")
         for r in batch_results
-        if r.get("metrics", {}).get("sharpe_ratio") is not None
+        if r.get("risk_metrics", {}).get("sharpe_ratio") is not None
     ]
     avg_sharpe = sum(sharpe_values) / len(sharpe_values) if sharpe_values else None
-
-    max_dd_pcts = [
-        r.get("drawdown", {}).get("max_drawdown_pct", 0)
-        if isinstance(r.get("drawdown"), dict)
-        else r.get("metrics", {}).get("max_drawdown_pct", 0)
-        for r in batch_results
-    ]
-    max_dd = max(max_dd_pcts) if max_dd_pcts else 0
 
     # Collect all round_trips from per-symbol results so trades get persisted
     all_round_trips: list[dict] = []
@@ -409,17 +413,17 @@ def _aggregate_batch_results(
                     item = {**item, "symbol": sym}
                 all_round_trips.append(item)
 
-    equity_curve, drawdown_curve, dispersion_range = _build_batch_portfolio_curves(
+    equity_curve, drawdown_curve, dispersion_range, dd_stats = _build_batch_portfolio_curves(
         batch_results, initial_capital
     )
 
-    # Compute max drawdown from combined equity curve
-    if drawdown_curve:
-        max_dd = max(p["drawdown"] for p in drawdown_curve)
+    # dd_stats comes from calculate_portfolio_drawdown — use portfolio-level values
+    max_dd = dd_stats.get("max_drawdown_pct", 0)
+    max_dd_value = dd_stats.get("max_drawdown_value", 0)
 
     return {
         "net_profit": total_profit,
-        "net_profit_pct": (total_profit / initial_capital * 100) if initial_capital else 0,
+        "net_profit_pct": (total_profit / (n_symbols * initial_capital) * 100) if initial_capital else 0,
         "metrics": {
             "total_trades": total_trades,
             "win_count": win_counts,
@@ -432,6 +436,7 @@ def _aggregate_batch_results(
         },
         "drawdown": {
             "max_drawdown_pct": max_dd,
+            "max_drawdown_value": max_dd_value,
         },
         "risk_metrics": {
             "sharpe_ratio": avg_sharpe,
