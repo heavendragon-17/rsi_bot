@@ -180,12 +180,18 @@ class BacktestService:
 
         equity_curve = json.loads(zlib.decompress(ts.equity_curve)) if ts.equity_curve else []
         drawdown_curve = json.loads(zlib.decompress(ts.drawdown_curve)) if ts.drawdown_curve else []
+        dispersion_range = (
+            json.loads(zlib.decompress(ts.dispersion_range))
+            if getattr(ts, "dispersion_range", None)
+            else []
+        )
 
         return TimeseriesResponse(
             run_id=run_id,
             equity_curve=equity_curve,
             drawdown_curve=drawdown_curve,
             monthly_returns=ts.monthly_returns or {},
+            dispersion_range=dispersion_range,
         )
 
     def cancel_run(self, run_id: int, db: Session) -> dict:

@@ -149,6 +149,7 @@ class RunTimeseries(Base):
     equity_curve = Column(LargeBinary)  # zlib(JSON[{date, balance}])
     drawdown_curve = Column(LargeBinary)  # zlib(JSON[{date, drawdown}])
     monthly_returns = Column(JSON)
+    dispersion_range = Column(LargeBinary, nullable=True)  # zlib(JSON[{date, min, max}]) — batch only
 
     run = relationship("Run", back_populates="timeseries")
 

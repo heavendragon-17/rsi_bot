@@ -211,6 +211,8 @@ def _run_single_symbol(
             "drawdown": results.get("drawdown", {}).get("avg_drawdown_pct", 0),
             "trades": metrics.get("total_trades", 0),
             "round_trips": pd.DataFrame(rt_list) if rt_list else pd.DataFrame(),
+            "equity_curve": results.get("equity_curve", []),
+            "drawdown_curve": results.get("drawdown_curve", []),
         }
     except Exception as exc:
         import traceback

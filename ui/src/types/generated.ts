@@ -42,6 +42,7 @@ export interface TimeseriesResponse {
   equity_curve: Record<string, unknown>[];
   drawdown_curve: Record<string, unknown>[];
   monthly_returns: Record<string, unknown>;
+  dispersion_range: Record<string, unknown>[];  // [{date, min, max}] — batch mode only
 }
 
 export interface StrategyInfo {

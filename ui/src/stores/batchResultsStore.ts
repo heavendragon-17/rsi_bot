@@ -208,13 +208,20 @@ export function mapApiToBatchResults(
     ? { symbol: sorted[sorted.length - 1].symbol, pnlPct: sorted[sorted.length - 1].netPnLPct }
     : { symbol: "", pnlPct: 0 };
 
-  // Portfolio equity curve from timeseries (populated for portfolio mode; empty for batch)
+  // Portfolio equity curve from timeseries (populated for both portfolio and batch modes)
   const portfolioEquityCurve = dedupeByDate(
     timeseries.equity_curve.map((p) => ({
       time: String(p["date"] ?? p["time"] ?? "").slice(0, 10),
       value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
     })),
   );
+
+  // Dispersion range from timeseries (batch mode only — min/max % return across symbols)
+  const dispersionRange = (timeseries.dispersion_range ?? []).map((p) => ({
+    time: String(p["date"] ?? "").slice(0, 10),
+    min: typeof p["min"] === "number" ? p["min"] : parseFloat(String(p["min"] ?? 0)),
+    max: typeof p["max"] === "number" ? p["max"] : parseFloat(String(p["max"] ?? 0)),
+  }));
 
   return {
     batchRunId: detail.id,
@@ -233,7 +240,7 @@ export function mapApiToBatchResults(
     correlationMatrix: [],
     portfolioEquityCurve,
     benchmarkEquityCurve: [],
-    dispersionRange: [],
+    dispersionRange,
     pinnedSymbols: [],
     selectedSymbol: null,
   };

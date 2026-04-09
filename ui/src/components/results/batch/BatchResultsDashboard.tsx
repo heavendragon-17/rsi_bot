@@ -140,6 +140,7 @@ const BatchUnderwaterChartStub = () => {
 
   React.useEffect(() => {
     if (!containerRef.current) return;
+    if (portfolioEquityCurve.length === 0) return;
     const { createChart, ColorType, AreaSeries } = LightweightCharts;
     const chart = createChart(containerRef.current, {
       layout: {
@@ -189,5 +190,13 @@ const BatchUnderwaterChartStub = () => {
     };
   }, [portfolioEquityCurve]);
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return (
+    <div ref={containerRef} className="w-full h-full relative">
+      {portfolioEquityCurve.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
+          No equity data — run a backtest to see the drawdown curve.
+        </div>
+      )}
+    </div>
+  );
 };

@@ -130,6 +130,7 @@ class TimeseriesResponse(BaseModel):
     equity_curve: list[dict[str, Any]]  # [{date, balance}]
     drawdown_curve: list[dict[str, Any]]  # [{date, drawdown}]
     monthly_returns: dict[str, Any]
+    dispersion_range: list[dict[str, Any]]  # [{date, min, max}] — batch mode only
 
 
 # ---------------------------------------------------------------------------

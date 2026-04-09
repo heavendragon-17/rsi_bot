@@ -263,6 +263,65 @@ def _csv_path(symbol: str, timeframe: str) -> str:
     return os.path.join(data_dir, f"{safe}_{timeframe}.csv")
 
 
+def _build_batch_portfolio_curves(
+    batch_results: list[dict], initial_capital: float
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Build combined portfolio equity, drawdown, and dispersion curves from batch results.
+
+    Strategy: normalize each symbol's equity to % return, then average across symbols
+    at each shared date. Dispersion = {date, min%, max%} across all symbols.
+
+    Returns:
+        (equity_curve, drawdown_curve, dispersion_range) — all empty lists if no data.
+    """
+    sym_curves: list[dict[str, float]] = []
+    for r in batch_results:
+        ec = r.get("equity_curve", [])
+        if not ec or initial_capital <= 0:
+            continue
+        # Map date→balance, using date[:10] to normalize to YYYY-MM-DD
+        curve = {
+            str(p.get("date", p.get("time", "")))[:10]: float(p["balance"])
+            for p in ec
+            if ("date" in p or "time" in p) and "balance" in p
+        }
+        if curve:
+            sym_curves.append(curve)
+
+    if not sym_curves:
+        return [], [], []
+
+    # Collect all unique dates in sorted order
+    all_dates = sorted(set().union(*(c.keys() for c in sym_curves)))
+
+    equity_curve: list[dict] = []
+    dispersion_range: list[dict] = []
+
+    for date in all_dates:
+        pcts = [
+            (c[date] - initial_capital) / initial_capital * 100
+            for c in sym_curves
+            if date in c
+        ]
+        if not pcts:
+            continue
+        avg_pct = sum(pcts) / len(pcts)
+        equity_curve.append({"date": date, "balance": round(initial_capital * (1 + avg_pct / 100), 2)})
+        dispersion_range.append({"date": date, "min": round(min(pcts), 4), "max": round(max(pcts), 4)})
+
+    # Build drawdown from combined equity curve
+    peak = initial_capital
+    drawdown_curve: list[dict] = []
+    for point in equity_curve:
+        bal = point["balance"]
+        if bal > peak:
+            peak = bal
+        dd = (peak - bal) / peak * 100 if peak > 0 else 0.0
+        drawdown_curve.append({"date": point["date"], "drawdown": round(dd, 4)})
+
+    return equity_curve, drawdown_curve, dispersion_range
+
+
 def _aggregate_batch_results(
     batch_results: list[dict], initial_capital: float
 ) -> dict:
@@ -276,6 +335,7 @@ def _aggregate_batch_results(
             "risk_metrics": {},
             "equity_curve": [],
             "drawdown_curve": [],
+            "dispersion_range": [],
             "monthly_returns": {},
             "round_trips": [],
         }
@@ -325,6 +385,14 @@ def _aggregate_batch_results(
                     item = {**item, "symbol": sym}
                 all_round_trips.append(item)
 
+    equity_curve, drawdown_curve, dispersion_range = _build_batch_portfolio_curves(
+        batch_results, initial_capital
+    )
+
+    # Compute max drawdown from combined equity curve
+    if drawdown_curve:
+        max_dd = max(p["drawdown"] for p in drawdown_curve)
+
     return {
         "net_profit": total_profit,
         "net_profit_pct": (total_profit / initial_capital * 100) if initial_capital else 0,
@@ -344,8 +412,9 @@ def _aggregate_batch_results(
         "risk_metrics": {
             "sharpe_ratio": avg_sharpe,
         },
-        "equity_curve": [],
-        "drawdown_curve": [],
+        "equity_curve": equity_curve,
+        "drawdown_curve": drawdown_curve,
+        "dispersion_range": dispersion_range,
         "monthly_returns": {},
         "round_trips": all_round_trips,
     }

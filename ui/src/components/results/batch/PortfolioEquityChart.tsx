@@ -30,6 +30,7 @@ export const PortfolioEquityChart: React.FC = () => {
   useEffect(() => {
     if (!chartContainerRef.current) return;
     if (chartContainerRef.current.clientWidth === 0) return;
+    if (portfolioEquityCurve.length === 0) return;
 
     const { createChart, ColorType, LineStyle, LineSeries, AreaSeries } =
       LightweightCharts;
@@ -50,35 +51,8 @@ export const PortfolioEquityChart: React.FC = () => {
       crosshair: { vertLine: { labelVisible: false } },
     });
 
-    // 1. Dispersion Range (Simulated via Max/Min lines for now as AreaSeries can't float)
-    // To truly do a shaded range, we would ideally use a custom series or two areas where one masks the other.
-    // Hack: Just draw the bounds as thin lines for now to meet the "Dispersion" requirement visually without complex custom series code.
-    // Or better: Use "Extra Series" logic.
-    const maxSeries = chart.addSeries(LineSeries, {
-      color: dispersionColor,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    // @ts-ignore
-    maxSeries.setData(
-      dispersionRange.map((d) => ({
-        time: d.time,
-        value:
-          (d.max / 100) * portfolioEquityCurve[0].value +
-          portfolioEquityCurve[0].value,
-      }))
-    ); // Scale % back to value roughly for viz?
-    // Wait, dispersion is % return. Equity is value.
-    // This is tricky. Let's just plot the Portfolio Equity Area and Benchmark.
-    // And simplify Dispersion to just be implied by the portfolio line for MVP unless we normalize everything to %.
-
-    // DECISION: Normalize everything to % Return for the chart. This makes Dispersion easy.
-    // Let's re-map data to % change from start.
-    const startValue =
-      portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].value : 1;
+    // Normalize everything to % return from start for a common scale
+    const startValue = portfolioEquityCurve[0].value;
 
     const normPortfolio = portfolioEquityCurve.map((d) => ({
       time: d.time,
@@ -216,7 +190,13 @@ export const PortfolioEquityChart: React.FC = () => {
           ))}
         </div>
       </div>
-      <div className="relative h-[250px] w-full" ref={chartContainerRef} />
+      <div className="relative h-[250px] w-full" ref={chartContainerRef}>
+        {portfolioEquityCurve.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
+            No equity data — run a backtest to see the portfolio curve.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
