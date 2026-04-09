@@ -235,7 +235,7 @@ const DEFAULT_THEMES: Theme[] = [
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      currentTheme: null,
+      currentTheme: DEFAULT_THEMES.find((t) => t.id === "deep-space") ?? DEFAULT_THEMES[0],
       isLoading: false,
       themes: [],
       performanceMode: false,
