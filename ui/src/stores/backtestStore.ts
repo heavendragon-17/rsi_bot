@@ -326,21 +326,26 @@ export const useBacktestStore = create<BacktestState>()(
                   }
                 },
                 async () => {
+                  console.log("[batch] SSE complete event received, fetching results for run", run_id);
                   cleanup();
                   try {
                     const [detail, timeseries] = await Promise.all([
                       getRunDetail(run_id),
                       getTimeseries(run_id),
                     ]);
+                    console.log("[batch] API data fetched, hydrating batch store");
                     useBatchResultsStore.getState().setBatchResults(
                       mapApiToBatchResults(detail, timeseries)
                     );
+                    console.log("[batch] Batch store hydrated, resolving");
                     resolve();
                   } catch (fetchErr) {
+                    console.error("[batch] onComplete failed:", fetchErr);
                     reject(fetchErr);
                   }
                 },
                 (msg) => {
+                  console.error("[batch] SSE stream error:", msg);
                   cleanup();
                   reject(new Error(msg));
                 }
@@ -357,6 +362,7 @@ export const useBacktestStore = create<BacktestState>()(
             if (symbols.length === 0) throw new Error("No symbols provided for portfolio run.");
 
             const { run_id } = await startBacktest({
+              mode: "portfolio",
               symbols: symbols,
               timeframe: state.timeframe,
               strategy: state.strategy,
@@ -392,21 +398,26 @@ export const useBacktestStore = create<BacktestState>()(
                   }
                 },
                 async () => {
+                  console.log("[portfolio] SSE complete event received, fetching results for run", run_id);
                   cleanup();
                   try {
                     const [detail, timeseries] = await Promise.all([
                       getRunDetail(run_id),
                       getTimeseries(run_id),
                     ]);
+                    console.log("[portfolio] API data fetched, hydrating batch store");
                     useBatchResultsStore.getState().setBatchResults(
                       mapApiToBatchResults(detail, timeseries)
                     );
+                    console.log("[portfolio] Batch store hydrated, resolving");
                     resolve();
                   } catch (fetchErr) {
+                    console.error("[portfolio] onComplete failed:", fetchErr);
                     reject(fetchErr);
                   }
                 },
                 (msg) => {
+                  console.error("[portfolio] SSE stream error:", msg);
                   cleanup();
                   reject(new Error(msg));
                 }
