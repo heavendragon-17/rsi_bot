@@ -151,16 +151,25 @@ def _run_single_symbol(
             return {"symbol": symbol, "error": f"Unknown strategy: {strategy_name}"}
 
         dm = DataManager(data_dir=data_dir, timeframe=timeframe)
-        duration_cfg = config.get("backtest", {}).get("duration", {})
-        try:
-            limit = calculate_candle_limit(
-                timeframe,
-                days=duration_cfg.get("days", 0),
-                months=duration_cfg.get("months", 0),
-                years=duration_cfg.get("years", 0),
-            )
-        except ValueError:
-            limit = 8832
+
+        # Prefer date-range limit (API path) over duration config (CLI path)
+        start_date = config.get("backtest", {}).get("start_date")
+        end_date = config.get("backtest", {}).get("end_date")
+        if start_date and end_date:
+            from datetime import date as _date
+            span = max((_date.fromisoformat(end_date) - _date.fromisoformat(start_date)).days + 1, 1)
+            limit = calculate_candle_limit(timeframe, days=span)
+        else:
+            duration_cfg = config.get("backtest", {}).get("duration", {})
+            try:
+                limit = calculate_candle_limit(
+                    timeframe,
+                    days=duration_cfg.get("days", 0),
+                    months=duration_cfg.get("months", 0),
+                    years=duration_cfg.get("years", 0),
+                )
+            except ValueError:
+                limit = 8832
 
         data_file = dm.ensure_data(symbol, limit)
 

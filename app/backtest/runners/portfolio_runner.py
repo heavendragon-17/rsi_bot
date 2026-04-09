@@ -93,7 +93,9 @@ class PortfolioRunner:
         for symbol in self.symbols:
             data_file = dm.get_csv_path(symbol)
             df = pd.read_csv(data_file)
-            if limit > 0:
+            # Only tail-truncate when no date range is given (CLI path).
+            # When start_date/end_date are set, rely on explicit date filtering below.
+            if limit > 0 and not (start_date or end_date):
                 df = df.tail(limit).reset_index(drop=True)
             df["timestamp"] = pd.to_datetime(df["timestamp"])
 

@@ -75,6 +75,18 @@ class BacktestEngine(Engine):
 
         data["timestamp"] = pd.to_datetime(data["timestamp"])
 
+        # Date-range filtering — used by batch mode and any caller that puts
+        # start_date/end_date in config["backtest"] instead of pre-filtering.
+        start_date = config.get("backtest", {}).get("start_date")
+        end_date = config.get("backtest", {}).get("end_date")
+        if start_date or end_date:
+            mask = pd.Series([True] * len(data), index=data.index)
+            if start_date:
+                mask &= data["timestamp"] >= str(start_date)
+            if end_date:
+                mask &= data["timestamp"] <= str(end_date)
+            data = data[mask].reset_index(drop=True)
+
         symbol = config["symbols"][0]
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
         risk_cfg = config.get("risk", {})

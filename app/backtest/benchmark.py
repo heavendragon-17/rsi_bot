@@ -251,11 +251,18 @@ def compute_benchmark_curve(
             )
             return []
 
+        # Reduce to one point per calendar day (last close of each day).
+        # The CSV stores one row per candle (e.g. 96 rows/day for 15m), so
+        # without this step the chart receives duplicate "YYYY-MM-DD" timestamps
+        # and Lightweight Charts throws "data must be asc ordered by time".
+        df["date"] = df["timestamp"].dt.strftime("%Y-%m-%d")
+        df = df.groupby("date", sort=True).last().reset_index()
+
         first_close = float(df["close"].iloc[0])
         if first_close <= 0:
             return []
 
-        dates = df["timestamp"].dt.strftime("%Y-%m-%d").tolist()
+        dates = df["date"].tolist()
         balances = (df["close"] / first_close * initial_capital).round(2).tolist()
 
         logger.info(

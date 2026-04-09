@@ -37,10 +37,14 @@ export const PortfolioEquityChart: React.FC = () => {
     setBenchmarkLoading(true);
     try {
       const result = await getBenchmark(sym, timeframe, startDate, endDate, parseFloat(capital) || 10000);
-      const curve = (result.curve ?? []).map((p: Record<string, unknown>) => ({
-        time: String(p["date"] ?? "").slice(0, 10),
-        value: typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]),
-      }));
+      // Deduplicate to one point per calendar day (backend may return one row per candle)
+      const seen = new Map<string, { time: string; value: number }>();
+      for (const p of (result.curve ?? [])) {
+        const t = String(p["date"] ?? "").slice(0, 10);
+        const v = typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]);
+        seen.set(t, { time: t, value: v });
+      }
+      const curve = Array.from(seen.values()).sort((a, b) => (a.time < b.time ? -1 : 1));
       let peak = -Infinity;
       const bdd = curve.map((p) => {
         if (p.value > peak) peak = p.value;

@@ -190,6 +190,10 @@ def run_batch_worker(
             "strategy": req.strategy,
             "strategy_params": req.params,
             "bot": {"timeframe": req.timeframe},
+            "backtest": {
+                "start_date": req.start_date,
+                "end_date": req.end_date,
+            },
             "risk": {
                 "leverage": req.leverage,
                 "risk_per_trade_pct": float(req.risk_per_trade_pct),
