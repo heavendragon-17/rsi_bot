@@ -50,6 +50,7 @@ class PortfolioRunner:
         data_dir: str = DATA_DIR,
         report_dir: str = REPORT_DIR,
         skip_download: bool = False,
+        skip_report: bool = False,
     ):
         self.symbols = symbols
         self.config = config
@@ -58,6 +59,7 @@ class PortfolioRunner:
         self.data_dir = data_dir
         self.report_dir = report_dir
         self.skip_download = skip_download
+        self.skip_report = skip_report
 
     def run(self, progress_cb=None) -> dict:
         """Execute portfolio backtest and return results dict."""
@@ -162,29 +164,30 @@ class PortfolioRunner:
             engine.strategy.export_debug_csv(debug_path)
             results = enrich_round_trips(results, debug_rows)
 
-        # 6. Generate reports
-        os.makedirs(self.report_dir, exist_ok=True)
-        reporter = BacktestReporter(
-            results,
-            symbol="PORTFOLIO",
-            timeframe=self.timeframe,
-            strategy_name=self.strategy_name,
-            leverage=leverage,
-            strategy_params={
-                **strategy_class.DEFAULT_CONFIG,
-                **self.config.get("strategy_params", {}),
-            },
-        )
-        html = reporter._generate_html_report(return_only=True, output_dir=self.report_dir)
-        report_path = os.path.join(self.report_dir, "portfolio_backtest_report.html")
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        logger.info("report_saved", path=report_path)
+        # 6. Generate reports (skip in API mode — results are served from DB)
+        if not self.skip_report:
+            os.makedirs(self.report_dir, exist_ok=True)
+            reporter = BacktestReporter(
+                results,
+                symbol="PORTFOLIO",
+                timeframe=self.timeframe,
+                strategy_name=self.strategy_name,
+                leverage=leverage,
+                strategy_params={
+                    **strategy_class.DEFAULT_CONFIG,
+                    **self.config.get("strategy_params", {}),
+                },
+            )
+            html = reporter._generate_html_report(return_only=True, output_dir=self.report_dir)
+            report_path = os.path.join(self.report_dir, "portfolio_backtest_report.html")
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(html)
+            logger.info("report_saved", path=report_path)
 
-        reporter._export_csv(output_dir=self.report_dir)
+            reporter._export_csv(output_dir=self.report_dir)
 
-        json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
-        export_json_report(results, json_path)
+            json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
+            export_json_report(results, json_path)
 
         return results
 
@@ -246,6 +249,7 @@ def _run_portfolio_backtest(
         strategy_name=strategy_name,
         timeframe=timeframe,
         skip_download=True,  # API worker already handled data download
+        skip_report=True,    # API mode: results served from DB, no need for HTML/CSV/JSON files
     )
     return runner.run(progress_cb=progress_cb)
 

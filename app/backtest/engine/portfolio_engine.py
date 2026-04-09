@@ -64,6 +64,7 @@ class PortfolioEngine(Engine):
         self.config = config
         self._initial_balance = float(exchange.balance)
         self._on_progress = None
+        self._last_progress_pct = -1
 
         # Pass the progress callback down to the event source
         if hasattr(self.event_source, "_on_progress"):
@@ -93,12 +94,15 @@ class PortfolioEngine(Engine):
         self._batch_mode = isinstance(event_source, BatchPortfolioEventSource)
 
     def _report_progress(self, pct: float) -> None:
-        """Called by event source with percentage 0.0 to 1.0"""
-        if self._on_progress:
-            self._on_progress({"pct": int(pct * 100), "total": getattr(self.event_source, "total_events", 0)})
+        """Called by event source with percentage 0.0 to 1.0. Throttled to 2% increments."""
+        pct_int = min(int(pct * 100), 99)
+        if self._on_progress and pct_int != self._last_progress_pct and pct_int % 2 == 0:
+            self._last_progress_pct = pct_int
+            self._on_progress({"pct": pct_int, "total": getattr(self.event_source, "total_events", 0)})
 
     def run(self, on_progress=None) -> dict:
         self._on_progress = on_progress
+        self._last_progress_pct = -1
 
         logger.info(
             "portfolio_backtest_start",
