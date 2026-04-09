@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useRef, useState } from "react";
 import * as LightweightCharts from "lightweight-charts";
+import { parse, format } from "date-fns";
 import { useBatchResultsStore } from "../../../stores/batchResultsStore";
 import { useBacktestStore } from "../../../stores/backtestStore";
 import { getBenchmark } from "../../../api/backtest";
@@ -8,8 +9,9 @@ import { getBenchmark } from "../../../api/backtest";
 export const PortfolioEquityChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<LightweightCharts.IChartApi | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const [showDispersion, setShowDispersion] = useState(true);
+  const [showDispersion, setShowDispersion] = useState(false);
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>(null);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
@@ -36,7 +38,12 @@ export const PortfolioEquityChart: React.FC = () => {
     }
     setBenchmarkLoading(true);
     try {
-      const result = await getBenchmark(sym, timeframe, startDate, endDate, parseFloat(capital) || 10000);
+      // Convert dates from dd-MM-yyyy (store format) to yyyy-MM-dd (API format)
+      const parsedStart = parse(startDate, "dd-MM-yyyy", new Date());
+      const parsedEnd = parse(endDate, "dd-MM-yyyy", new Date());
+      const apiStart = format(parsedStart, "yyyy-MM-dd");
+      const apiEnd = format(parsedEnd, "yyyy-MM-dd");
+      const result = await getBenchmark(sym, timeframe, apiStart, apiEnd, parseFloat(capital) || 10000);
       // Deduplicate to one point per calendar day (backend may return one row per candle)
       const seen = new Map<string, { time: string; value: number }>();
       for (const p of (result.curve ?? [])) {
@@ -182,6 +189,22 @@ export const PortfolioEquityChart: React.FC = () => {
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
+    // Crosshair tooltip: show date on hover
+    chart.subscribeCrosshairMove((param) => {
+      if (!tooltipRef.current) return;
+      if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+        tooltipRef.current.style.display = "none";
+        return;
+      }
+      tooltipRef.current.textContent = String(param.time);
+      tooltipRef.current.style.display = "block";
+      const containerWidth = chartContainerRef.current?.clientWidth ?? 0;
+      const tipWidth = tooltipRef.current.offsetWidth;
+      const left = Math.min(param.point.x + 8, containerWidth - tipWidth - 4);
+      tooltipRef.current.style.left = `${left}px`;
+      tooltipRef.current.style.top = "6px";
+    });
+
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -287,6 +310,10 @@ export const PortfolioEquityChart: React.FC = () => {
             No equity data — run a backtest to see the portfolio curve.
           </div>
         )}
+        <div
+          ref={tooltipRef}
+          className="absolute z-10 pointer-events-none hidden px-1.5 py-0.5 rounded text-[10px] font-mono text-text-secondary bg-bg-elevated/90 border border-border-main"
+        />
       </div>
     </div>
   );
