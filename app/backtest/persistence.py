@@ -75,6 +75,7 @@ def persist_results(run_id: int, results: dict[str, Any]) -> None:
         drawdown_curve = results.get("drawdown_curve", [])
         monthly_returns = results.get("monthly_returns", {})
         dispersion_range = results.get("dispersion_range", [])
+        benchmark_curve = results.get("benchmark_curve", [])
 
         ts_row = RunTimeseries(
             run_id=run_id,
@@ -82,6 +83,7 @@ def persist_results(run_id: int, results: dict[str, Any]) -> None:
             drawdown_curve=zlib.compress(json.dumps(drawdown_curve).encode()),
             monthly_returns=monthly_returns,
             dispersion_range=zlib.compress(json.dumps(dispersion_range).encode()) if dispersion_range else None,
+            benchmark_curve=zlib.compress(json.dumps(benchmark_curve).encode()) if benchmark_curve else None,
         )
         db.add(ts_row)
 

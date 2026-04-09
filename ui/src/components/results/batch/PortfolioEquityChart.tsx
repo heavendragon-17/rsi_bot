@@ -2,12 +2,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as LightweightCharts from "lightweight-charts";
 import { useBatchResultsStore } from "../../../stores/batchResultsStore";
+import { useBacktestStore } from "../../../stores/backtestStore";
+import { getBenchmark } from "../../../api/backtest";
 
 export const PortfolioEquityChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<LightweightCharts.IChartApi | null>(null);
 
   const [showDispersion, setShowDispersion] = useState(true);
+  const [activeBenchmark, setActiveBenchmark] = useState<string | null>(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const {
     portfolioEquityCurve,
@@ -16,7 +20,39 @@ export const PortfolioEquityChart: React.FC = () => {
     totalPnL,
     pinnedSymbols,
     symbolResults,
+    setBatchResults,
   } = useBatchResultsStore();
+
+  const { timeframe, startDate, endDate, capital } = useBacktestStore();
+
+  const BENCHMARK_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"];
+
+  const handleBenchmarkSwitch = async (sym: string | null) => {
+    if (sym === activeBenchmark) return;
+    setActiveBenchmark(sym);
+    if (!sym) {
+      setBatchResults({ benchmarkEquityCurve: [], benchmarkDrawdownCurve: [] });
+      return;
+    }
+    setBenchmarkLoading(true);
+    try {
+      const result = await getBenchmark(sym, timeframe, startDate, endDate, parseFloat(capital) || 10000);
+      const curve = (result.curve ?? []).map((p: Record<string, unknown>) => ({
+        time: String(p["date"] ?? "").slice(0, 10),
+        value: typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]),
+      }));
+      let peak = -Infinity;
+      const bdd = curve.map((p) => {
+        if (p.value > peak) peak = p.value;
+        return { time: p.time, value: peak > 0 ? ((p.value - peak) / peak) * 100 : 0 };
+      });
+      setBatchResults({ benchmarkEquityCurve: curve, benchmarkDrawdownCurve: bdd });
+    } catch (_) {
+      // silently ignore if CSV not available
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
 
   const isProfit = totalPnL >= 0;
   const portfolioColor = "#ffffff";
@@ -178,10 +214,33 @@ export const PortfolioEquityChart: React.FC = () => {
             Portfolio
           </div>
 
-          {/* Benchmark — greyed out until implemented */}
-          <div className="flex items-center gap-1.5 text-[10px] text-text-muted opacity-40 cursor-not-allowed" title="Benchmark — coming soon">
-            <div className="w-3 h-0.5 border-t border-dashed border-zinc-500" />
-            Benchmark
+          {/* Benchmark legend */}
+          {benchmarkEquityCurve.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+              <div className="w-3 h-0.5 border-t border-dashed border-zinc-500" />
+              {activeBenchmark ? activeBenchmark.split("/")[0] : "Benchmark"}
+            </div>
+          )}
+
+          {/* In-chart benchmark switcher */}
+          <div className="flex items-center gap-0.5 ml-1">
+            <button
+              onClick={() => handleBenchmarkSwitch(null)}
+              className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === null ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              Off
+            </button>
+            {BENCHMARK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                onClick={() => handleBenchmarkSwitch(s)}
+                disabled={benchmarkLoading}
+                className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === s ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+              >
+                {s.split("/")[0]}
+              </button>
+            ))}
+            {benchmarkLoading && <span className="text-[9px] text-text-muted ml-1">…</span>}
           </div>
 
           {/* Dispersion toggle */}

@@ -77,6 +77,8 @@ export const Sidebar: React.FC = () => {
     setPortfolioInput,
     availableStrategies,
     loadStrategies,
+    benchmark,
+    setBenchmark,
   } = useBacktestStore();
 
   const {
@@ -440,6 +442,29 @@ export const Sidebar: React.FC = () => {
                         <Switch checked={useInitialCapitalForRisk} onCheckedChange={setUseInitialCapitalForRisk} />
                       </label>
                     </div>
+                  </div>
+                </CollapsibleSection>
+
+                {/* Benchmark */}
+                <CollapsibleSection title="Benchmark">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-text-secondary block">
+                      Buy-and-hold comparison
+                    </label>
+                    <Select
+                      value={benchmark ?? "none"}
+                      onValueChange={(val) => setBenchmark(val === "none" ? null : val)}
+                    >
+                      <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto shadow-none transition-colors">
+                        <SelectValue placeholder="None (disabled)" />
+                      </SelectTrigger>
+                      <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
+                        <SelectItem value="none">None (disabled)</SelectItem>
+                        {["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"].map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CollapsibleSection>
 

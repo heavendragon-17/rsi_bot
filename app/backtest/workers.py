@@ -20,6 +20,24 @@ from app.backtest.persistence import mark_failed, persist_results
 logger = structlog.get_logger()
 
 REPORT_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "report", "ui"))
+_BENCHMARK_DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
+
+
+def _inject_benchmark(results: dict, req) -> None:
+    """Compute and inject benchmark_curve into results dict (in-place)."""
+    benchmark = getattr(req, "benchmark", None)
+    if not benchmark:
+        return
+    from app.backtest.benchmark import compute_benchmark_curve
+
+    results["benchmark_curve"] = compute_benchmark_curve(
+        benchmark=benchmark,
+        timeframe=req.timeframe,
+        start_date=req.start_date,
+        end_date=req.end_date,
+        initial_capital=float(req.initial_capital),
+        data_dir=_BENCHMARK_DATA_DIR,
+    )
 
 
 def run_single_worker(
@@ -116,6 +134,7 @@ def run_single_worker(
                 os.unlink(tmp_path)
 
         # Phase 3: Persist + generate debug HTML report
+        _inject_benchmark(results, req)
         total_trades = results.get("metrics", {}).get("total_trades", 0) or len(results.get("round_trips", []))
         logger.info(
             "backtest_result_summary",
@@ -200,6 +219,7 @@ def run_batch_worker(
 
         # Phase 3: Aggregate and persist
         aggregated = _aggregate_batch_results(batch_results, float(req.initial_capital))
+        _inject_benchmark(aggregated, req)
         persist_results(run_id, aggregated)
 
         publish_event_fn(run_id, loop, "complete", {
@@ -487,6 +507,7 @@ def run_portfolio_worker(
         )
 
         # Phase 3: Persist
+        _inject_benchmark(results, req)
         persist_results(run_id, results)
 
         publish_event_fn(run_id, loop, "complete", {

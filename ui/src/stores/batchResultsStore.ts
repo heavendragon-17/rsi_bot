@@ -72,6 +72,7 @@ export interface BatchResultsState {
   portfolioEquityCurve: { time: string; value: number }[];
   portfolioDrawdownCurve: { time: string; value: number }[];
   benchmarkEquityCurve: { time: string; value: number }[];
+  benchmarkDrawdownCurve: { time: string; value: number }[];
   dispersionRange: { time: string; min: number; max: number }[];
 
   // UI State
@@ -225,6 +226,24 @@ export function mapApiToBatchResults(
     })),
   );
 
+  // Benchmark buy-and-hold curve
+  const benchmarkEquityCurve = dedupeByDate(
+    (timeseries.benchmark_curve ?? []).map((p) => ({
+      time: String(p["date"] ?? "").slice(0, 10),
+      value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
+    }))
+  );
+
+  // Benchmark drawdown (computed from benchmark equity curve)
+  const benchmarkDrawdownCurve = (() => {
+    if (benchmarkEquityCurve.length === 0) return [];
+    let peak = -Infinity;
+    return benchmarkEquityCurve.map((p) => {
+      if (p.value > peak) peak = p.value;
+      return { time: p.time, value: peak > 0 ? ((p.value - peak) / peak) * 100 : 0 };
+    });
+  })();
+
   // Dispersion range from timeseries (batch mode only — min/max % return across symbols)
   const rawDispersion = (timeseries.dispersion_range ?? []).map((p) => ({
     time: String(p["date"] ?? "").slice(0, 10),
@@ -255,7 +274,7 @@ export function mapApiToBatchResults(
     correlationMatrix: [],
     portfolioEquityCurve,
     portfolioDrawdownCurve,
-    benchmarkEquityCurve: [],
+    benchmarkEquityCurve,
     dispersionRange,
     pinnedSymbols: [],
     selectedSymbol: null,
@@ -286,6 +305,7 @@ export const useBatchResultsStore = create<BatchResultsState>()(
       portfolioEquityCurve: [],
       portfolioDrawdownCurve: [],
       benchmarkEquityCurve: [],
+      benchmarkDrawdownCurve: [],
       dispersionRange: [],
 
       pinnedSymbols: [],

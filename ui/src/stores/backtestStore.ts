@@ -59,6 +59,9 @@ export interface BacktestState {
   slippageModel: "none" | "fixed";
   slippagePct: string;
 
+  // Benchmark
+  benchmark: string | null;
+
   // Execution State
   isRunning: boolean;
   runProgress: number;        // 0-100
@@ -89,6 +92,7 @@ export interface BacktestState {
   setMakerFeePct: (val: string) => void;
   setSlippageModel: (val: "none" | "fixed") => void;
   setSlippagePct: (val: string) => void;
+  setBenchmark: (val: string | null) => void;
   setDateRange: (start: string, end: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
@@ -147,6 +151,7 @@ export const useBacktestStore = create<BacktestState>()(
       makerFeePct: "0.06",
       slippageModel: "none" as const,
       slippagePct: "0.0",
+      benchmark: null,
 
       isRunning: false,
       runProgress: 0,
@@ -187,6 +192,7 @@ export const useBacktestStore = create<BacktestState>()(
       setMakerFeePct: (makerFeePct) => set({ makerFeePct }),
       setSlippageModel: (slippageModel) => set({ slippageModel }),
       setSlippagePct: (slippagePct) => set({ slippagePct }),
+      setBenchmark: (benchmark) => set({ benchmark }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
       setStartDate: (startDate) => {
         set({ startDate, dateMode: "absolute", datePreset: null });
@@ -310,6 +316,7 @@ export const useBacktestStore = create<BacktestState>()(
               maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
               slippage_pct: state.slippagePct,
+              benchmark: state.benchmark,
             });
 
             set({ currentRunId: run_id });
@@ -382,6 +389,7 @@ export const useBacktestStore = create<BacktestState>()(
               maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
               slippage_pct: state.slippagePct,
+              benchmark: state.benchmark,
             });
 
             set({ currentRunId: run_id });
@@ -449,6 +457,7 @@ export const useBacktestStore = create<BacktestState>()(
             fee_tier: state.enableFees ? state.feeTier : "0",
             slippage_model: state.slippageModel,
             slippage_pct: state.slippagePct,
+            benchmark: state.benchmark,
           });
 
           set({ currentRunId: run_id });

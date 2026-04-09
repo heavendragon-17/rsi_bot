@@ -42,7 +42,8 @@ export interface TimeseriesResponse {
   equity_curve: Record<string, unknown>[];
   drawdown_curve: Record<string, unknown>[];
   monthly_returns: Record<string, unknown>;
-  dispersion_range: Record<string, unknown>[];  // [{date, min, max}] — batch mode only
+  dispersion_range: Record<string, unknown>[];  // [{date, min, max}] — batch/portfolio only
+  benchmark_curve: Record<string, unknown>[];   // [{date, balance}] — optional buy-and-hold
 }
 
 export interface StrategyInfo {
@@ -130,4 +131,6 @@ export interface BacktestRequest {
   use_risk_based_sizing?: boolean;
   /** Risk off initial capital not current balance (default true). */
   use_initial_capital_for_risk?: boolean;
+  /** Buy-and-hold benchmark symbol, e.g. "BTC/USDT". Null = no benchmark. */
+  benchmark?: string | null;
 }

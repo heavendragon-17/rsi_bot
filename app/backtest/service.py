@@ -185,6 +185,11 @@ class BacktestService:
             if getattr(ts, "dispersion_range", None)
             else []
         )
+        benchmark_curve = (
+            json.loads(zlib.decompress(ts.benchmark_curve))
+            if getattr(ts, "benchmark_curve", None)
+            else []
+        )
 
         return TimeseriesResponse(
             run_id=run_id,
@@ -192,6 +197,7 @@ class BacktestService:
             drawdown_curve=drawdown_curve,
             monthly_returns=ts.monthly_returns or {},
             dispersion_range=dispersion_range,
+            benchmark_curve=benchmark_curve,
         )
 
     def cancel_run(self, run_id: int, db: Session) -> dict:

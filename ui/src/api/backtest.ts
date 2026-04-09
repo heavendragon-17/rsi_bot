@@ -96,3 +96,24 @@ export async function getRunDetail(runId: number): Promise<RunDetail> {
 export async function getTimeseries(runId: number): Promise<TimeseriesResponse> {
   return apiFetch<TimeseriesResponse>(`/api/backtest/${runId}/timeseries`);
 }
+
+// ---------------------------------------------------------------------------
+// getBenchmark
+// ---------------------------------------------------------------------------
+
+/** GET /api/data/benchmark/{symbol} — on-demand buy-and-hold curve from local CSV */
+export async function getBenchmark(
+  symbol: string,
+  timeframe: string,
+  startDate: string,
+  endDate: string,
+  initialCapital: number,
+): Promise<{ symbol: string; curve: Record<string, unknown>[] }> {
+  const params = new URLSearchParams({
+    timeframe,
+    start_date: startDate,
+    end_date: endDate,
+    initial_capital: String(initialCapital),
+  });
+  return apiFetch(`/api/data/benchmark/${encodeURIComponent(symbol)}?${params}`);
+}

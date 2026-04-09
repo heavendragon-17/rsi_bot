@@ -135,7 +135,7 @@ const DRAWDOWN_CHART_HEIGHT = 230;
 
 const BatchUnderwaterChartStub = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const { portfolioDrawdownCurve, portfolioEquityCurve } = useBatchResultsStore();
+  const { portfolioDrawdownCurve, portfolioEquityCurve, benchmarkDrawdownCurve } = useBatchResultsStore();
 
   // Use actual drawdown curve if available, otherwise compute from equity
   const drawdownData = React.useMemo(() => {
@@ -152,7 +152,7 @@ const BatchUnderwaterChartStub = () => {
     if (!containerRef.current) return;
     if (drawdownData.length === 0) return;
 
-    const { createChart, ColorType, AreaSeries } = LightweightCharts;
+    const { createChart, ColorType, AreaSeries, LineSeries, LineStyle } = LightweightCharts;
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
@@ -167,6 +167,20 @@ const BatchUnderwaterChartStub = () => {
       timeScale: { visible: true, borderVisible: false },
       rightPriceScale: { borderVisible: false },
     });
+
+    // Benchmark drawdown (dashed, behind main)
+    if (benchmarkDrawdownCurve.length > 0) {
+      const benchSeries = chart.addSeries(LineSeries, {
+        color: "#71717a",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
+      });
+      benchSeries.setData(benchmarkDrawdownCurve);
+    }
 
     const series = chart.addSeries(AreaSeries, {
       lineColor: "#ef4444",
@@ -191,7 +205,7 @@ const BatchUnderwaterChartStub = () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [drawdownData]);
+  }, [drawdownData, benchmarkDrawdownCurve]);
 
   return (
     <div ref={containerRef} className="w-full" style={{ height: DRAWDOWN_CHART_HEIGHT }}>

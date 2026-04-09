@@ -47,6 +47,7 @@ class BacktestRequest(BaseModel):
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}
+    benchmark: str | None = None  # buy-and-hold symbol, e.g. "BTC/USDT"
     max_workers: int | None = None  # batch only
     tick_data_path: str | None = None  # tick_replay only
 
@@ -130,7 +131,8 @@ class TimeseriesResponse(BaseModel):
     equity_curve: list[dict[str, Any]]  # [{date, balance}]
     drawdown_curve: list[dict[str, Any]]  # [{date, drawdown}]
     monthly_returns: dict[str, Any]
-    dispersion_range: list[dict[str, Any]]  # [{date, min, max}] — batch mode only
+    dispersion_range: list[dict[str, Any]]  # [{date, min, max}] — batch/portfolio only
+    benchmark_curve: list[dict[str, Any]]  # [{date, balance}] — optional buy-and-hold
 
 
 # ---------------------------------------------------------------------------

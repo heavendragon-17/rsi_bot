@@ -144,7 +144,12 @@ export function mapApiToResults(
       }))
     ),
 
-    benchmarkCurve: [],
+    benchmarkCurve: dedupeByDate(
+      (timeseries.benchmark_curve ?? []).map((p) => ({
+        time: String(p["date"] ?? "").slice(0, 10),
+        value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
+      }))
+    ),
 
     trades: ((detail.trades ?? []) as Record<string, unknown>[]).map((t, i) => ({
       id: _num(t["id"]) || i + 1,
