@@ -217,11 +217,17 @@ export function mapApiToBatchResults(
   );
 
   // Dispersion range from timeseries (batch mode only — min/max % return across symbols)
-  const dispersionRange = (timeseries.dispersion_range ?? []).map((p) => ({
+  const rawDispersion = (timeseries.dispersion_range ?? []).map((p) => ({
     time: String(p["date"] ?? "").slice(0, 10),
     min: typeof p["min"] === "number" ? p["min"] : parseFloat(String(p["min"] ?? 0)),
     max: typeof p["max"] === "number" ? p["max"] : parseFloat(String(p["max"] ?? 0)),
   }));
+  // Deduplicate by date (last-wins, keep sorted) to satisfy lightweight-charts requirement
+  const dispSeenMap = new Map<string, { time: string; min: number; max: number }>();
+  for (const p of rawDispersion) dispSeenMap.set(p.time, p);
+  const dispersionRange = Array.from(dispSeenMap.values()).sort((a, b) =>
+    a.time < b.time ? -1 : a.time > b.time ? 1 : 0
+  );
 
   return {
     batchRunId: detail.id,
