@@ -215,7 +215,6 @@ def _run_portfolio_backtest(
     use_initial_capital_for_risk: bool = True,
     taker_fee: float | None = None,
     maker_fee: float | None = None,
-    slippage_pct: float = 0.0,
 ) -> dict:
     """Thin wrapper that ``BacktestService._portfolio_worker()`` imports."""
     config = {

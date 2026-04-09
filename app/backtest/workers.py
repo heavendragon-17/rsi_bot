@@ -430,9 +430,10 @@ def run_portfolio_worker(
     cleanup_fn,
 ):
     """Worker fn for portfolio backtest. Called from ThreadPoolExecutor."""
-    from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
-
     try:
+        from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
+
+        logger.info("portfolio_worker_started", run_id=run_id, symbols=req.symbols)
         # Dynamic progress split: only allocate download weight if files missing
         symbols_needing_download = [
             s for s in req.symbols
