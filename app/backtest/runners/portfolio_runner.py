@@ -49,6 +49,7 @@ class PortfolioRunner:
         timeframe: str,
         data_dir: str = DATA_DIR,
         report_dir: str = REPORT_DIR,
+        skip_download: bool = False,
     ):
         self.symbols = symbols
         self.config = config
@@ -56,6 +57,7 @@ class PortfolioRunner:
         self.timeframe = timeframe
         self.data_dir = data_dir
         self.report_dir = report_dir
+        self.skip_download = skip_download
 
     def run(self, progress_cb=None) -> dict:
         """Execute portfolio backtest and return results dict."""
@@ -63,7 +65,7 @@ class PortfolioRunner:
         if not strategy_class:
             raise ValueError(f"Unknown strategy: {self.strategy_name}")
 
-        # 1. Ensure data
+        # 1. Ensure data (skip when called from API worker — it already downloaded)
         dm = DataManager(data_dir=self.data_dir, timeframe=self.timeframe)
         duration_cfg = self.config.get("backtest", {}).get("duration", {})
         try:
@@ -76,10 +78,15 @@ class PortfolioRunner:
         except ValueError:
             limit = 8832
 
-        dm.ensure_bulk_data(self.symbols, limit)
+        if not self.skip_download:
+            dm.ensure_bulk_data(self.symbols, limit)
 
         # 2. Load and prepare data
         strategy_instance = strategy_class(self.config)
+        backtest_cfg = self.config.get("backtest", {})
+        start_date = backtest_cfg.get("start_date")
+        end_date = backtest_cfg.get("end_date")
+
         dfs: dict[str, pd.DataFrame] = {}
         for symbol in self.symbols:
             data_file = dm.get_csv_path(symbol)
@@ -87,7 +94,27 @@ class PortfolioRunner:
             if limit > 0:
                 df = df.tail(limit).reset_index(drop=True)
             df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+            # Apply date range filtering when provided (matches single-mode behavior)
+            if start_date or end_date:
+                mask = pd.Series([True] * len(df))
+                if start_date:
+                    mask &= df["timestamp"] >= str(start_date)
+                if end_date:
+                    mask &= df["timestamp"] <= str(end_date)
+                df = df[mask].reset_index(drop=True)
+
+            if df.empty:
+                logger.warning("no_data_for_symbol", symbol=symbol, start=start_date, end=end_date)
+                continue
+
             dfs[symbol] = BacktestEngine._prepare_dataframe(df, strategy_instance, symbol)
+
+        if not dfs:
+            raise ValueError(
+                f"No candle data found for any symbol between {start_date} and {end_date}. "
+                "Check the date range or download more data."
+            )
 
         # 3. Setup execution
         balance = self.config.get("backtest", {}).get("initial_balance", 10000)
@@ -219,6 +246,7 @@ def _run_portfolio_backtest(
         config=config,
         strategy_name=strategy_name,
         timeframe=timeframe,
+        skip_download=True,  # API worker already handled data download
     )
     return runner.run(progress_cb=progress_cb)
 
