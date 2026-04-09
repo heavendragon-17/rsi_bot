@@ -20,6 +20,24 @@ from app.backtest.persistence import mark_failed, persist_results
 logger = structlog.get_logger()
 
 REPORT_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "report", "ui"))
+_BENCHMARK_DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
+
+
+def _inject_benchmark(results: dict, req) -> None:
+    """Compute and inject benchmark_curve into results dict (in-place)."""
+    benchmark = getattr(req, "benchmark", None)
+    if not benchmark:
+        return
+    from app.backtest.benchmark import compute_benchmark_curve
+
+    results["benchmark_curve"] = compute_benchmark_curve(
+        benchmark=benchmark,
+        timeframe=req.timeframe,
+        start_date=req.start_date,
+        end_date=req.end_date,
+        initial_capital=float(req.initial_capital),
+        data_dir=_BENCHMARK_DATA_DIR,
+    )
 
 
 def run_single_worker(
@@ -116,6 +134,7 @@ def run_single_worker(
                 os.unlink(tmp_path)
 
         # Phase 3: Persist + generate debug HTML report
+        _inject_benchmark(results, req)
         total_trades = results.get("metrics", {}).get("total_trades", 0) or len(results.get("round_trips", []))
         logger.info(
             "backtest_result_summary",
@@ -171,6 +190,10 @@ def run_batch_worker(
             "strategy": req.strategy,
             "strategy_params": req.params,
             "bot": {"timeframe": req.timeframe},
+            "backtest": {
+                "start_date": req.start_date,
+                "end_date": req.end_date,
+            },
             "risk": {
                 "leverage": req.leverage,
                 "risk_per_trade_pct": float(req.risk_per_trade_pct),
@@ -200,6 +223,7 @@ def run_batch_worker(
 
         # Phase 3: Aggregate and persist
         aggregated = _aggregate_batch_results(batch_results, float(req.initial_capital))
+        _inject_benchmark(aggregated, req)
         persist_results(run_id, aggregated)
 
         publish_event_fn(run_id, loop, "complete", {
@@ -263,6 +287,65 @@ def _csv_path(symbol: str, timeframe: str) -> str:
     return os.path.join(data_dir, f"{safe}_{timeframe}.csv")
 
 
+def _build_batch_portfolio_curves(
+    batch_results: list[dict], initial_capital: float
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Build combined portfolio equity, drawdown, and dispersion curves from batch results.
+
+    Strategy: normalize each symbol's equity to % return, then average across symbols
+    at each shared date. Dispersion = {date, min%, max%} across all symbols.
+
+    Returns:
+        (equity_curve, drawdown_curve, dispersion_range) — all empty lists if no data.
+    """
+    sym_curves: list[dict[str, float]] = []
+    for r in batch_results:
+        ec = r.get("equity_curve", [])
+        if not ec or initial_capital <= 0:
+            continue
+        # Map date→balance, using date[:10] to normalize to YYYY-MM-DD
+        curve = {
+            str(p.get("date", p.get("time", "")))[:10]: float(p["balance"])
+            for p in ec
+            if ("date" in p or "time" in p) and "balance" in p
+        }
+        if curve:
+            sym_curves.append(curve)
+
+    if not sym_curves:
+        return [], [], []
+
+    # Collect all unique dates in sorted order
+    all_dates = sorted(set().union(*(c.keys() for c in sym_curves)))
+
+    equity_curve: list[dict] = []
+    dispersion_range: list[dict] = []
+
+    for date in all_dates:
+        pcts = [
+            (c[date] - initial_capital) / initial_capital * 100
+            for c in sym_curves
+            if date in c
+        ]
+        if not pcts:
+            continue
+        avg_pct = sum(pcts) / len(pcts)
+        equity_curve.append({"date": date, "balance": round(initial_capital * (1 + avg_pct / 100), 2)})
+        dispersion_range.append({"date": date, "min": round(min(pcts), 4), "max": round(max(pcts), 4)})
+
+    # Build drawdown from combined equity curve
+    peak = initial_capital
+    drawdown_curve: list[dict] = []
+    for point in equity_curve:
+        bal = point["balance"]
+        if bal > peak:
+            peak = bal
+        dd = (peak - bal) / peak * 100 if peak > 0 else 0.0
+        drawdown_curve.append({"date": point["date"], "drawdown": round(dd, 4)})
+
+    return equity_curve, drawdown_curve, dispersion_range
+
+
 def _aggregate_batch_results(
     batch_results: list[dict], initial_capital: float
 ) -> dict:
@@ -276,6 +359,7 @@ def _aggregate_batch_results(
             "risk_metrics": {},
             "equity_curve": [],
             "drawdown_curve": [],
+            "dispersion_range": [],
             "monthly_returns": {},
             "round_trips": [],
         }
@@ -325,6 +409,14 @@ def _aggregate_batch_results(
                     item = {**item, "symbol": sym}
                 all_round_trips.append(item)
 
+    equity_curve, drawdown_curve, dispersion_range = _build_batch_portfolio_curves(
+        batch_results, initial_capital
+    )
+
+    # Compute max drawdown from combined equity curve
+    if drawdown_curve:
+        max_dd = max(p["drawdown"] for p in drawdown_curve)
+
     return {
         "net_profit": total_profit,
         "net_profit_pct": (total_profit / initial_capital * 100) if initial_capital else 0,
@@ -344,8 +436,9 @@ def _aggregate_batch_results(
         "risk_metrics": {
             "sharpe_ratio": avg_sharpe,
         },
-        "equity_curve": [],
-        "drawdown_curve": [],
+        "equity_curve": equity_curve,
+        "drawdown_curve": drawdown_curve,
+        "dispersion_range": dispersion_range,
         "monthly_returns": {},
         "round_trips": all_round_trips,
     }
@@ -361,9 +454,10 @@ def run_portfolio_worker(
     cleanup_fn,
 ):
     """Worker fn for portfolio backtest. Called from ThreadPoolExecutor."""
-    from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
-
     try:
+        from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
+
+        logger.info("portfolio_worker_started", run_id=run_id, symbols=req.symbols)
         # Dynamic progress split: only allocate download weight if files missing
         symbols_needing_download = [
             s for s in req.symbols
@@ -410,12 +504,14 @@ def run_portfolio_worker(
             taker_fee=float(req.taker_fee_pct) / 100,
             maker_fee=float(req.maker_fee_pct) / 100,
             slippage_pct=float(req.slippage_pct),
-            progress_cb=lambda pct: progress_cb(
-                download_weight + pct * backtest_weight
-            ),
+            progress_cb=lambda data: progress_cb({
+                **data,
+                "pct": int(download_weight * 100 + data.get("pct", 0) * backtest_weight),
+            }),
         )
 
         # Phase 3: Persist
+        _inject_benchmark(results, req)
         persist_results(run_id, results)
 
         publish_event_fn(run_id, loop, "complete", {

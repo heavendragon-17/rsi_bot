@@ -49,6 +49,8 @@ class PortfolioRunner:
         timeframe: str,
         data_dir: str = DATA_DIR,
         report_dir: str = REPORT_DIR,
+        skip_download: bool = False,
+        skip_report: bool = False,
     ):
         self.symbols = symbols
         self.config = config
@@ -56,6 +58,8 @@ class PortfolioRunner:
         self.timeframe = timeframe
         self.data_dir = data_dir
         self.report_dir = report_dir
+        self.skip_download = skip_download
+        self.skip_report = skip_report
 
     def run(self, progress_cb=None) -> dict:
         """Execute portfolio backtest and return results dict."""
@@ -63,7 +67,7 @@ class PortfolioRunner:
         if not strategy_class:
             raise ValueError(f"Unknown strategy: {self.strategy_name}")
 
-        # 1. Ensure data
+        # 1. Ensure data (skip when called from API worker — it already downloaded)
         dm = DataManager(data_dir=self.data_dir, timeframe=self.timeframe)
         duration_cfg = self.config.get("backtest", {}).get("duration", {})
         try:
@@ -76,18 +80,45 @@ class PortfolioRunner:
         except ValueError:
             limit = 8832
 
-        dm.ensure_bulk_data(self.symbols, limit)
+        if not self.skip_download:
+            dm.ensure_bulk_data(self.symbols, limit)
 
         # 2. Load and prepare data
         strategy_instance = strategy_class(self.config)
+        backtest_cfg = self.config.get("backtest", {})
+        start_date = backtest_cfg.get("start_date")
+        end_date = backtest_cfg.get("end_date")
+
         dfs: dict[str, pd.DataFrame] = {}
         for symbol in self.symbols:
             data_file = dm.get_csv_path(symbol)
             df = pd.read_csv(data_file)
-            if limit > 0:
+            # Only tail-truncate when no date range is given (CLI path).
+            # When start_date/end_date are set, rely on explicit date filtering below.
+            if limit > 0 and not (start_date or end_date):
                 df = df.tail(limit).reset_index(drop=True)
             df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+            # Apply date range filtering when provided (matches single-mode behavior)
+            if start_date or end_date:
+                mask = pd.Series([True] * len(df))
+                if start_date:
+                    mask &= df["timestamp"] >= str(start_date)
+                if end_date:
+                    mask &= df["timestamp"] <= str(end_date)
+                df = df[mask].reset_index(drop=True)
+
+            if df.empty:
+                logger.warning("no_data_for_symbol", symbol=symbol, start=start_date, end=end_date)
+                continue
+
             dfs[symbol] = BacktestEngine._prepare_dataframe(df, strategy_instance, symbol)
+
+        if not dfs:
+            raise ValueError(
+                f"No candle data found for any symbol between {start_date} and {end_date}. "
+                "Check the date range or download more data."
+            )
 
         # 3. Setup execution
         balance = self.config.get("backtest", {}).get("initial_balance", 10000)
@@ -135,29 +166,30 @@ class PortfolioRunner:
             engine.strategy.export_debug_csv(debug_path)
             results = enrich_round_trips(results, debug_rows)
 
-        # 6. Generate reports
-        os.makedirs(self.report_dir, exist_ok=True)
-        reporter = BacktestReporter(
-            results,
-            symbol="PORTFOLIO",
-            timeframe=self.timeframe,
-            strategy_name=self.strategy_name,
-            leverage=leverage,
-            strategy_params={
-                **strategy_class.DEFAULT_CONFIG,
-                **self.config.get("strategy_params", {}),
-            },
-        )
-        html = reporter._generate_html_report(return_only=True, output_dir=self.report_dir)
-        report_path = os.path.join(self.report_dir, "portfolio_backtest_report.html")
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        logger.info("report_saved", path=report_path)
+        # 6. Generate reports (skip in API mode — results are served from DB)
+        if not self.skip_report:
+            os.makedirs(self.report_dir, exist_ok=True)
+            reporter = BacktestReporter(
+                results,
+                symbol="PORTFOLIO",
+                timeframe=self.timeframe,
+                strategy_name=self.strategy_name,
+                leverage=leverage,
+                strategy_params={
+                    **strategy_class.DEFAULT_CONFIG,
+                    **self.config.get("strategy_params", {}),
+                },
+            )
+            html = reporter._generate_html_report(return_only=True, output_dir=self.report_dir)
+            report_path = os.path.join(self.report_dir, "portfolio_backtest_report.html")
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(html)
+            logger.info("report_saved", path=report_path)
 
-        reporter._export_csv(output_dir=self.report_dir)
+            reporter._export_csv(output_dir=self.report_dir)
 
-        json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
-        export_json_report(results, json_path)
+            json_path = os.path.join(self.report_dir, "portfolio_backtest_report.json")
+            export_json_report(results, json_path)
 
         return results
 
@@ -188,7 +220,6 @@ def _run_portfolio_backtest(
     use_initial_capital_for_risk: bool = True,
     taker_fee: float | None = None,
     maker_fee: float | None = None,
-    slippage_pct: float = 0.0,
 ) -> dict:
     """Thin wrapper that ``BacktestService._portfolio_worker()`` imports."""
     config = {
@@ -219,6 +250,8 @@ def _run_portfolio_backtest(
         config=config,
         strategy_name=strategy_name,
         timeframe=timeframe,
+        skip_download=True,  # API worker already handled data download
+        skip_report=True,    # API mode: results served from DB, no need for HTML/CSV/JSON files
     )
     return runner.run(progress_cb=progress_cb)
 

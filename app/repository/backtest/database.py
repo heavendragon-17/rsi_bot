@@ -58,6 +58,26 @@ def _migrate_add_final_balance(eng) -> None:
             conn.commit()
 
 
+def _migrate_add_dispersion_range(eng) -> None:
+    """Add dispersion_range column to run_timeseries table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_timeseries)"))
+        columns = {row[1] for row in result}
+        if "dispersion_range" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_timeseries ADD COLUMN dispersion_range BLOB"))
+            conn.commit()
+
+
+def _migrate_add_benchmark_curve(eng) -> None:
+    """Add benchmark_curve column to run_timeseries table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_timeseries)"))
+        columns = {row[1] for row in result}
+        if "benchmark_curve" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_timeseries ADD COLUMN benchmark_curve BLOB"))
+            conn.commit()
+
+
 def init_db() -> None:
     """
     Create all tables (idempotent) and seed initial strategy rows.
@@ -74,6 +94,8 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _migrate_add_batch_id(engine)
     _migrate_add_final_balance(engine)
+    _migrate_add_dispersion_range(engine)
+    _migrate_add_benchmark_curve(engine)
 
     session = SessionLocal()
     try:

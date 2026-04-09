@@ -1,7 +1,11 @@
 // @ts-nocheck
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as LightweightCharts from "lightweight-charts";
 import { useResultsStore } from "../../stores/resultsStore";
+import { useBacktestStore } from "../../stores/backtestStore";
+import { getBenchmark } from "../../api/backtest";
+
+const BENCHMARK_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"];
 
 export const EquityUnderwaterChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -10,8 +14,39 @@ export const EquityUnderwaterChart: React.FC = () => {
   const chartRef = useRef<LightweightCharts.IChartApi | null>(null);
   const underwaterChartRef = useRef<LightweightCharts.IChartApi | null>(null);
 
-  const { equityCurve, benchmarkCurve, underwaterCurve, netProfit } =
+  const [activeBenchmark, setActiveBenchmark] = useState<string | null>(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+
+  const { equityCurve, benchmarkCurve, underwaterCurve, netProfit, setResults } =
     useResultsStore();
+
+  const { timeframe, startDate, endDate, capital } = useBacktestStore();
+
+  const handleBenchmarkSwitch = async (sym: string | null) => {
+    if (sym === activeBenchmark) return;
+    setActiveBenchmark(sym);
+    if (!sym) {
+      setResults({ benchmarkCurve: [] });
+      return;
+    }
+    setBenchmarkLoading(true);
+    try {
+      const result = await getBenchmark(sym, timeframe, startDate, endDate, parseFloat(capital) || 10000);
+      // Deduplicate to one point per calendar day (backend may return one row per candle)
+      const seen = new Map<string, { time: string; value: number }>();
+      for (const p of (result.curve ?? [])) {
+        const t = String(p["date"] ?? "").slice(0, 10);
+        const v = typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]);
+        seen.set(t, { time: t, value: v });
+      }
+      const curve = Array.from(seen.values()).sort((a, b) => (a.time < b.time ? -1 : 1));
+      setResults({ benchmarkCurve: curve });
+    } catch (_) {
+      // silently ignore if CSV not available
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
 
   const isProfit = netProfit >= 0;
   const strategyColor = isProfit ? "#22c55e" : "#ef4444";
@@ -120,7 +155,8 @@ export const EquityUnderwaterChart: React.FC = () => {
         bottomColor: `${underwaterColor}66`,
         lineWidth: 1,
         priceFormat: {
-          type: "percent",
+          type: "custom",
+          formatter: (p: number) => `${p.toFixed(2)}%`,
         },
       });
       series.setData(underwaterCurve);
@@ -169,9 +205,36 @@ export const EquityUnderwaterChart: React.FC = () => {
     <div className="space-y-6">
       {/* Equity Curve */}
       <div>
-        <h2 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wider">
-          Equity Curve
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+            Equity Curve
+          </h2>
+          {/* In-chart benchmark switcher */}
+          <div className="flex items-center gap-0.5">
+            {benchmarkCurve.length > 0 && (
+              <span className="text-[9px] text-zinc-400 mr-1">
+                Benchmark: {activeBenchmark ? activeBenchmark.split("/")[0] : "—"}
+              </span>
+            )}
+            <button
+              onClick={() => handleBenchmarkSwitch(null)}
+              className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === null ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              Off
+            </button>
+            {BENCHMARK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                onClick={() => handleBenchmarkSwitch(s)}
+                disabled={benchmarkLoading}
+                className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === s ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+              >
+                {s.split("/")[0]}
+              </button>
+            ))}
+            {benchmarkLoading && <span className="text-[9px] text-text-muted ml-1">…</span>}
+          </div>
+        </div>
         <div
           id="equity-chart"
           ref={chartContainerRef}

@@ -70,7 +70,9 @@ export interface BatchResultsState {
 
   // Charts
   portfolioEquityCurve: { time: string; value: number }[];
+  portfolioDrawdownCurve: { time: string; value: number }[];
   benchmarkEquityCurve: { time: string; value: number }[];
+  benchmarkDrawdownCurve: { time: string; value: number }[];
   dispersionRange: { time: string; min: number; max: number }[];
 
   // UI State
@@ -208,12 +210,51 @@ export function mapApiToBatchResults(
     ? { symbol: sorted[sorted.length - 1].symbol, pnlPct: sorted[sorted.length - 1].netPnLPct }
     : { symbol: "", pnlPct: 0 };
 
-  // Portfolio equity curve from timeseries (populated for portfolio mode; empty for batch)
+  // Portfolio equity curve from timeseries (populated for both portfolio and batch modes)
   const portfolioEquityCurve = dedupeByDate(
     timeseries.equity_curve.map((p) => ({
       time: String(p["date"] ?? p["time"] ?? "").slice(0, 10),
       value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
     })),
+  );
+
+  // Portfolio drawdown curve — values stored as positive %, chart shows as negative
+  const portfolioDrawdownCurve = dedupeByDate(
+    (timeseries.drawdown_curve ?? []).map((p) => ({
+      time: String(p["date"] ?? "").slice(0, 10),
+      value: -Math.abs(_num(p["drawdown"])),
+    })),
+  );
+
+  // Benchmark buy-and-hold curve
+  const benchmarkEquityCurve = dedupeByDate(
+    (timeseries.benchmark_curve ?? []).map((p) => ({
+      time: String(p["date"] ?? "").slice(0, 10),
+      value: typeof p["balance"] === "string" ? parseFloat(p["balance"]) : _num(p["balance"]),
+    }))
+  );
+
+  // Benchmark drawdown (computed from benchmark equity curve)
+  const benchmarkDrawdownCurve = (() => {
+    if (benchmarkEquityCurve.length === 0) return [];
+    let peak = -Infinity;
+    return benchmarkEquityCurve.map((p) => {
+      if (p.value > peak) peak = p.value;
+      return { time: p.time, value: peak > 0 ? ((p.value - peak) / peak) * 100 : 0 };
+    });
+  })();
+
+  // Dispersion range from timeseries (batch mode only — min/max % return across symbols)
+  const rawDispersion = (timeseries.dispersion_range ?? []).map((p) => ({
+    time: String(p["date"] ?? "").slice(0, 10),
+    min: typeof p["min"] === "number" ? p["min"] : parseFloat(String(p["min"] ?? 0)),
+    max: typeof p["max"] === "number" ? p["max"] : parseFloat(String(p["max"] ?? 0)),
+  }));
+  // Deduplicate by date (last-wins, keep sorted) to satisfy lightweight-charts requirement
+  const dispSeenMap = new Map<string, { time: string; min: number; max: number }>();
+  for (const p of rawDispersion) dispSeenMap.set(p.time, p);
+  const dispersionRange = Array.from(dispSeenMap.values()).sort((a, b) =>
+    a.time < b.time ? -1 : a.time > b.time ? 1 : 0
   );
 
   return {
@@ -232,8 +273,9 @@ export function mapApiToBatchResults(
     symbolResults,
     correlationMatrix: [],
     portfolioEquityCurve,
-    benchmarkEquityCurve: [],
-    dispersionRange: [],
+    portfolioDrawdownCurve,
+    benchmarkEquityCurve,
+    dispersionRange,
     pinnedSymbols: [],
     selectedSymbol: null,
   };
@@ -261,7 +303,9 @@ export const useBatchResultsStore = create<BatchResultsState>()(
       correlationMatrix: [],
 
       portfolioEquityCurve: [],
+      portfolioDrawdownCurve: [],
       benchmarkEquityCurve: [],
+      benchmarkDrawdownCurve: [],
       dispersionRange: [],
 
       pinnedSymbols: [],
