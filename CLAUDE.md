@@ -40,8 +40,8 @@ python -m app.backtest.runners.tick_replay \
   --symbol BTC/USDT --timeframe 5m --balance 10000
 
 # Run backtest UI
-python -m uvicorn app.api.main:app --reload --port 8000  # backend
-cd ui && npm run dev                                       # frontend
+python -m uvicorn app.api.main:app --reload --port 8000
+cd ui && npm run dev 
 
 # Tests
 pytest tests/                                    # all tests
