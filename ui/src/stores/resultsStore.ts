@@ -102,6 +102,21 @@ export function mapApiToResults(
   const _str = (v: unknown): number => parseFloat(String(v ?? "0")) || 0;
   const _num = (v: unknown): number => (typeof v === "number" ? v : _str(v));
 
+  const trades: Trade[] = ((detail.trades ?? []) as Record<string, unknown>[]).map((t, i) => ({
+    id: _num(t["id"]) || i + 1,
+    entryTime: String(t["entry_time"] ?? ""),
+    exitTime: String(t["exit_time"] ?? ""),
+    symbol: String(t["symbol"] ?? ""),
+    side: (String(t["side"] ?? "LONG").toUpperCase() === "SHORT" ? "SHORT" : "LONG") as Trade["side"],
+    entryPrice: _str(t["entry_price"]),
+    exitPrice: _str(t["exit_price"]),
+    size: _str(t["size_usd"]),
+    pnl: _str(t["pnl"]),
+    pnlPct: _num(t["pnl_pct"]),
+    exitReason: (t["exit_reason"] as Trade["exitReason"]) ?? "MANUAL",
+    fees: 0,
+  }));
+
   return {
     hasResults: true,
     feesEnabled: true,
@@ -151,22 +166,9 @@ export function mapApiToResults(
       }))
     ),
 
-    trades: ((detail.trades ?? []) as Record<string, unknown>[]).map((t, i) => ({
-      id: _num(t["id"]) || i + 1,
-      entryTime: String(t["entry_time"] ?? ""),
-      exitTime: String(t["exit_time"] ?? ""),
-      symbol: String(t["symbol"] ?? ""),
-      side: (String(t["side"] ?? "LONG").toUpperCase() === "SHORT" ? "SHORT" : "LONG") as Trade["side"],
-      entryPrice: _str(t["entry_price"]),
-      exitPrice: _str(t["exit_price"]),
-      size: _str(t["size_usd"]),
-      pnl: _str(t["pnl"]),
-      pnlPct: _num(t["pnl_pct"]),
-      exitReason: (t["exit_reason"] as Trade["exitReason"]) ?? "MANUAL",
-      fees: 0,
-    })),
+    trades,
 
-    filteredTrades: [],
+    filteredTrades: trades,
     activeFilter: null,
   };
 }
