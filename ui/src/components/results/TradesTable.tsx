@@ -18,6 +18,7 @@ import {
 import { AddNoteModal, NotePopover, TagFilter, BulkActionsBar } from "../export";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
+import { TradeDeepDive } from "../TradeDeepDive";
 
 export const TradesTable: React.FC = () => {
   const { filteredTrades, activeFilter } = useResultsStore();
@@ -33,6 +34,7 @@ export const TradesTable: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const itemsPerPage = 25;
 
   // Tag icon mapping
@@ -192,8 +194,9 @@ export const TradesTable: React.FC = () => {
                 return (
                   <tr
                     key={trade.id}
+                    onClick={() => setSelectedTrade(trade)}
                     className={cn(
-                      "group hover:bg-bg-elevated/30 transition-colors",
+                      "group hover:bg-bg-elevated/30 transition-colors cursor-pointer",
                       isSelected && "bg-accent-main/10"
                     )}
                   >
@@ -263,7 +266,10 @@ export const TradesTable: React.FC = () => {
                           onEdit={() => setEditingTrade(trade)}
                           onClose={() => {}}
                         >
-                          <button className="text-accent-main hover:text-accent-main/80 transition-colors">
+                          <button
+                            className="text-accent-main hover:text-accent-main/80 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <StickyNote size={14} />
                           </button>
                         </NotePopover>
@@ -323,6 +329,24 @@ export const TradesTable: React.FC = () => {
         <AddNoteModal
           trade={editingTrade}
           onClose={() => setEditingTrade(null)}
+        />
+      )}
+
+      {/* Trade Deep Dive Modal */}
+      {selectedTrade && (
+        <TradeDeepDive
+          trade={{
+            id: selectedTrade.id,
+            entryTime: selectedTrade.entryTime,
+            symbol: selectedTrade.symbol,
+            side: selectedTrade.side,
+            entryPrice: selectedTrade.entryPrice,
+            exitPrice: selectedTrade.exitPrice,
+            pnl: selectedTrade.pnl,
+            pnlPercent: selectedTrade.pnlPct,
+            exitReason: selectedTrade.exitReason,
+          }}
+          onClose={() => setSelectedTrade(null)}
         />
       )}
     </>
