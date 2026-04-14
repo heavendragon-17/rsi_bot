@@ -76,7 +76,7 @@ def get_trade_chart(
         return []
 
     # Compute indicators on the full slice for accuracy
-    indicators = Indicators()
+    indicators = Indicators(include_price_emas=True)
     ind_df = indicators.compute(window)
 
     candles: list[dict[str, Any]] = []
@@ -97,11 +97,32 @@ def get_trade_chart(
         }
 
         # Add indicator columns (mapped to names frontend expects)
-        col_map = {"rsi_14": "rsi", "rsi_wma45": "wma45", "rsi_ema9": "ema9"}
+        col_map = {
+            "rsi_14": "rsi",
+            "rsi_wma45": "wma45",
+            "rsi_ema9": "ema9",
+            "ema21": "ema21",
+            "ema200": "ema200",
+        }
         for src, dst in col_map.items():
             if src in ind_df.columns:
                 val = row[src]
                 candle[dst] = None if pd.isna(val) else float(val)
+
+        # Derived fields
+        ema9_val = candle.get("ema9")
+        wma45_val = candle.get("wma45")
+        candle["spread"] = (
+            round(ema9_val - wma45_val, 4)
+            if ema9_val is not None and wma45_val is not None
+            else None
+        )
+        ema21_val = candle.get("ema21")
+        candle["above_ema21"] = (
+            bool(float(row["close"]) > ema21_val)
+            if ema21_val is not None
+            else None
+        )
 
         # Add SL tracking if available
         if trade.stop_loss_price is not None:

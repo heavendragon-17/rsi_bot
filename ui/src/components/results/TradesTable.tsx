@@ -18,7 +18,8 @@ import {
 import { AddNoteModal, NotePopover, TagFilter, BulkActionsBar } from "../export";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
-import { TradeDeepDive } from "../TradeDeepDive";
+import { TradeDeepDive } from "../trade-deep-dive";
+import type { DeepDiveTrade } from "../trade-deep-dive";
 
 export const TradesTable: React.FC = () => {
   const { filteredTrades, activeFilter } = useResultsStore();
@@ -338,14 +339,30 @@ export const TradesTable: React.FC = () => {
           trade={{
             id: selectedTrade.id,
             entryTime: selectedTrade.entryTime,
+            exitTime: selectedTrade.exitTime,
             symbol: selectedTrade.symbol,
             side: selectedTrade.side,
             entryPrice: selectedTrade.entryPrice,
             exitPrice: selectedTrade.exitPrice,
             pnl: selectedTrade.pnl,
-            pnlPercent: selectedTrade.pnlPct,
+            pnlPct: selectedTrade.pnlPct,
             exitReason: selectedTrade.exitReason,
           }}
+          trades={sortedTrades.map(
+            (t): DeepDiveTrade => ({
+              id: t.id,
+              entryTime: t.entryTime,
+              exitTime: t.exitTime,
+              symbol: t.symbol,
+              side: t.side,
+              entryPrice: t.entryPrice,
+              exitPrice: t.exitPrice,
+              pnl: t.pnl,
+              pnlPct: t.pnlPct,
+              exitReason: t.exitReason,
+            }),
+          )}
+          onNavigate={(t) => setSelectedTrade(sortedTrades.find((s) => s.id === t.id) ?? null)}
           onClose={() => setSelectedTrade(null)}
         />
       )}
