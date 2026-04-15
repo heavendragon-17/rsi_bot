@@ -10,10 +10,10 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   ReferenceArea,
+  Customized,
 } from "recharts";
 import type { ChartDataPoint } from "./chart-utils";
 import { dateBreakFormatter } from "./chart-utils";
-import { CandlestickShape } from "./CandlestickShape";
 import type { IndicatorConfig } from "./indicator-config";
 import { DEFAULT_INDICATOR_CONFIG } from "./indicator-config";
 
@@ -42,64 +42,167 @@ const TOOLTIP_ITEM_STYLE = {
 };
 
 // ---------------------------------------------------------------------------
-// Triangle marker label components
+// Recharts Customized component: candlestick bodies + entry/exit triangle flags
+// Using Customized gives us real xAxisMap/yAxisMap scale functions + offset.
+// Note: Recharts ReferenceLine does NOT support a `content` render prop in this
+// version, so all SVG annotations are rendered here instead.
 // ---------------------------------------------------------------------------
 
-interface ViewBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+interface CandlestickLayerProps {
+  xAxisMap?: Record<string, any>;
+  yAxisMap?: Record<string, any>;
+  offset?: { top: number; left: number; width: number; height: number };
+  chartData?: ChartDataPoint[];
 }
 
-function EntryMarkerLabel({ viewBox }: { viewBox?: ViewBox }) {
-  if (!viewBox) return null;
-  const cx = viewBox.x;
-  const top = viewBox.y;
-  const size = 7;
-  // Down-pointing triangle (▼) near the top of the chart, pointing into the entry candle
-  const tipY = top + size + 4;
-  const points = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
-  return (
-    <g>
-      <polygon points={points} fill="#22c55e" opacity={0.9} />
-      <text
-        x={cx}
-        y={top + 1}
-        textAnchor="middle"
-        dominantBaseline="auto"
-        fill="#22c55e"
-        fontSize={9}
-        fontFamily="monospace"
-      >
-        Entry
-      </text>
-    </g>
-  );
-}
+function CandlestickLayer({
+  xAxisMap,
+  yAxisMap,
+  offset,
+  chartData,
+}: CandlestickLayerProps) {
+  if (!xAxisMap || !yAxisMap || !chartData?.length) return null;
 
-function ExitMarkerLabel({ viewBox }: { viewBox?: ViewBox }) {
-  if (!viewBox) return null;
-  const cx = viewBox.x;
-  const bottom = viewBox.y + viewBox.height;
-  const size = 7;
-  // Up-pointing triangle (▲) near the bottom of the chart
-  const tipY = bottom - size - 4;
-  const points = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+  const xAxis = Object.values(xAxisMap)[0] as any;
+  const yAxis = Object.values(yAxisMap)[0] as any;
+  const xScale = xAxis?.scale;
+  const yScale = yAxis?.scale;
+  if (!xScale || !yScale) return null;
+
+  // Bar width from scale gap
+  const barGap =
+    chartData.length > 1 ? Math.abs(xScale(1) - xScale(0)) : 10;
+  const barWidth = Math.max(barGap * 0.8, 3);
+
+  // Chart plot area bounds (absolute SVG coordinates)
+  const chartTop = offset?.top ?? CHART_MARGIN.top;
+  const chartBottom =
+    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 356);
+
+  const entryIdx = chartData.findIndex((d) => d.isEntry);
+  const exitIdx = chartData.findLastIndex((d) => d.isExit);
+
   return (
     <g>
-      <polygon points={points} fill="#ef4444" opacity={0.9} />
-      <text
-        x={cx}
-        y={bottom}
-        textAnchor="middle"
-        dominantBaseline="auto"
-        fill="#ef4444"
-        fontSize={9}
-        fontFamily="monospace"
-      >
-        Exit
-      </text>
+      {/* Candlestick wicks + bodies + glow outlines */}
+      {chartData.map((d, i) => {
+        const cx = xScale(d.index ?? i);
+        const yHigh = yScale(d.high);
+        const yLow = yScale(d.low);
+        const yOpen = yScale(d.open);
+        const yClose = yScale(d.close);
+
+        const isUp = d.close >= d.open;
+        const color = isUp ? "#22c55e" : "#ef4444";
+
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyBottom = Math.max(yOpen, yClose);
+        const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
+        const bodyX = cx - barWidth / 2;
+
+        return (
+          <g key={i}>
+            {/* Wick */}
+            <line
+              x1={cx}
+              y1={yHigh}
+              x2={cx}
+              y2={yLow}
+              stroke={color}
+              strokeWidth={1}
+            />
+            {/* Body */}
+            <rect
+              x={bodyX}
+              y={bodyTop}
+              width={barWidth}
+              height={bodyHeight}
+              fill={color}
+              fillOpacity={isUp ? 0.8 : 1}
+              stroke={color}
+              strokeWidth={0.5}
+            />
+            {/* Entry candle glow */}
+            {d.isEntry && (
+              <rect
+                x={bodyX - 1}
+                y={bodyTop - 1}
+                width={barWidth + 2}
+                height={bodyHeight + 2}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth={2}
+                strokeOpacity={0.9}
+                rx={1}
+              />
+            )}
+            {/* Exit candle glow */}
+            {d.isExit && (
+              <rect
+                x={bodyX - 1}
+                y={bodyTop - 1}
+                width={barWidth + 2}
+                height={bodyHeight + 2}
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth={2}
+                strokeOpacity={0.9}
+                rx={1}
+              />
+            )}
+          </g>
+        );
+      })}
+
+      {/* Entry triangle flag at chart top */}
+      {entryIdx !== -1 && (() => {
+        const cx = xScale(entryIdx);
+        const top = chartTop;
+        const size = 7;
+        const tipY = top + size + 4;
+        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        return (
+          <g key="entry-flag">
+            <polygon points={pts} fill="#22c55e" opacity={0.9} />
+            <text
+              x={cx}
+              y={top + 1}
+              textAnchor="middle"
+              dominantBaseline="auto"
+              fill="#22c55e"
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              Entry
+            </text>
+          </g>
+        );
+      })()}
+
+      {/* Exit triangle flag at chart bottom */}
+      {exitIdx !== -1 && (() => {
+        const cx = xScale(exitIdx);
+        const bottom = chartBottom;
+        const size = 7;
+        const tipY = bottom - size - 4;
+        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        return (
+          <g key="exit-flag">
+            <polygon points={pts} fill="#ef4444" opacity={0.9} />
+            <text
+              x={cx}
+              y={bottom}
+              textAnchor="middle"
+              dominantBaseline="auto"
+              fill="#ef4444"
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              Exit
+            </text>
+          </g>
+        );
+      })()}
     </g>
   );
 }
@@ -124,9 +227,7 @@ export function PriceCandlestickChart({
   const domainMin = Math.min(...data.map((d) => d.low)) * 0.9995;
   const domainMax = Math.max(...data.map((d) => d.high)) * 1.0005;
 
-  const overlayLabels = config.priceOverlays
-    .map((o) => o.label)
-    .join(", ");
+  const overlayLabels = config.priceOverlays.map((o) => o.label).join(", ");
 
   return (
     <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
@@ -163,6 +264,9 @@ export function PriceCandlestickChart({
             ]}
           />
 
+          {/* Candlesticks + triangle flags rendered by Customized (gets real scales) */}
+          <Customized component={CandlestickLayer} chartData={data} />
+
           {/* Shaded trade region */}
           {entryIdx !== -1 && exitIdx !== -1 && (
             <ReferenceArea
@@ -173,7 +277,7 @@ export function PriceCandlestickChart({
             />
           )}
 
-          {/* Entry price horizontal line */}
+          {/* Entry price horizontal reference line */}
           <ReferenceLine
             y={entryPrice}
             stroke="#8B5CF6"
@@ -187,7 +291,7 @@ export function PriceCandlestickChart({
             }}
           />
 
-          {/* Exit price horizontal line */}
+          {/* Exit price horizontal reference line */}
           <ReferenceLine
             y={exitPrice}
             stroke="#06B6D4"
@@ -201,34 +305,16 @@ export function PriceCandlestickChart({
             }}
           />
 
-          {/* Entry triangle marker — invisible line, custom SVG label */}
-          {entryIdx !== -1 && (
-            <ReferenceLine
-              x={entryIdx}
-              stroke="none"
-              content={<EntryMarkerLabel />}
-            />
-          )}
-
-          {/* Exit triangle marker */}
-          {exitIdx !== -1 && (
-            <ReferenceLine
-              x={exitIdx}
-              stroke="none"
-              content={<ExitMarkerLabel />}
-            />
-          )}
-
-          {/* Candlestick bars */}
+          {/* Transparent bar — keeps Y-axis domain and tooltip data correct */}
           <Bar
             dataKey="close"
-            shape={<CandlestickShape />}
             fill="transparent"
+            stroke="transparent"
             name="Price"
             isAnimationActive={false}
           />
 
-          {/* Dynamic price overlays from indicator config */}
+          {/* EMA / price overlay lines from indicator config */}
           {config.priceOverlays.map((overlay) => (
             <Line
               key={overlay.dataKey}

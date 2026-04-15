@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Customized,
 } from "recharts";
 import type { ChartDataPoint } from "./chart-utils";
 import { dateBreakFormatter } from "./chart-utils";
@@ -37,62 +38,79 @@ const TOOLTIP_ITEM_STYLE = {
 };
 
 // ---------------------------------------------------------------------------
-// Triangle marker label components (same geometry as PriceCandlestickChart)
+// Triangle flags via Customized — Recharts does not support a `content` render
+// prop on ReferenceLine in this version, so we render annotations here.
 // ---------------------------------------------------------------------------
 
-interface ViewBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+interface TriangleLayerProps {
+  xAxisMap?: Record<string, any>;
+  offset?: { top: number; left: number; width: number; height: number };
+  chartData?: ChartDataPoint[];
 }
 
-function EntryMarkerLabel({ viewBox }: { viewBox?: ViewBox }) {
-  if (!viewBox) return null;
-  const cx = viewBox.x;
-  const top = viewBox.y;
-  const size = 7;
-  const tipY = top + size + 4;
-  const points = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
-  return (
-    <g>
-      <polygon points={points} fill="#22c55e" opacity={0.9} />
-      <text
-        x={cx}
-        y={top + 1}
-        textAnchor="middle"
-        dominantBaseline="auto"
-        fill="#22c55e"
-        fontSize={9}
-        fontFamily="monospace"
-      >
-        Entry
-      </text>
-    </g>
-  );
-}
+function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
+  if (!xAxisMap || !chartData?.length) return null;
 
-function ExitMarkerLabel({ viewBox }: { viewBox?: ViewBox }) {
-  if (!viewBox) return null;
-  const cx = viewBox.x;
-  const bottom = viewBox.y + viewBox.height;
-  const size = 7;
-  const tipY = bottom - size - 4;
-  const points = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+  const xAxis = Object.values(xAxisMap)[0] as any;
+  const xScale = xAxis?.scale;
+  if (!xScale) return null;
+
+  const chartTop = offset?.top ?? CHART_MARGIN.top;
+  const chartBottom =
+    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 206);
+
+  const entryIdx = chartData.findIndex((d) => d.isEntry);
+  const exitIdx = chartData.findLastIndex((d) => d.isExit);
+
   return (
     <g>
-      <polygon points={points} fill="#ef4444" opacity={0.9} />
-      <text
-        x={cx}
-        y={bottom}
-        textAnchor="middle"
-        dominantBaseline="auto"
-        fill="#ef4444"
-        fontSize={9}
-        fontFamily="monospace"
-      >
-        Exit
-      </text>
+      {entryIdx !== -1 && (() => {
+        const cx = xScale(entryIdx);
+        const top = chartTop;
+        const size = 7;
+        const tipY = top + size + 4;
+        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        return (
+          <g key="entry-flag">
+            <polygon points={pts} fill="#22c55e" opacity={0.9} />
+            <text
+              x={cx}
+              y={top + 1}
+              textAnchor="middle"
+              dominantBaseline="auto"
+              fill="#22c55e"
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              Entry
+            </text>
+          </g>
+        );
+      })()}
+
+      {exitIdx !== -1 && (() => {
+        const cx = xScale(exitIdx);
+        const bottom = chartBottom;
+        const size = 7;
+        const tipY = bottom - size - 4;
+        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        return (
+          <g key="exit-flag">
+            <polygon points={pts} fill="#ef4444" opacity={0.9} />
+            <text
+              x={cx}
+              y={bottom}
+              textAnchor="middle"
+              dominantBaseline="auto"
+              fill="#ef4444"
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              Exit
+            </text>
+          </g>
+        );
+      })()}
     </g>
   );
 }
@@ -158,9 +176,6 @@ function CustomTooltip({
 export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
   const config = (indicatorConfig ?? DEFAULT_INDICATOR_CONFIG).oscillator;
 
-  const entryIdx = data.findIndex((d) => d.isEntry);
-  const exitIdx = data.findLastIndex((d) => d.isExit);
-
   return (
     <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
       <div className="mb-4">
@@ -206,23 +221,8 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
             strokeOpacity={0.5}
           />
 
-          {/* Entry triangle marker */}
-          {entryIdx !== -1 && (
-            <ReferenceLine
-              x={entryIdx}
-              stroke="none"
-              content={<EntryMarkerLabel />}
-            />
-          )}
-
-          {/* Exit triangle marker */}
-          {exitIdx !== -1 && (
-            <ReferenceLine
-              x={exitIdx}
-              stroke="none"
-              content={<ExitMarkerLabel />}
-            />
-          )}
+          {/* Entry/exit triangle flags via Customized */}
+          <Customized component={TriangleLayer} chartData={data} />
 
           {/* RSI area */}
           <Area

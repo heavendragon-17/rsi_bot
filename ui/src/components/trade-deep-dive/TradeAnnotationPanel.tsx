@@ -6,6 +6,7 @@ import {
   Lightbulb,
   Clover,
   Skull,
+  type LucideIcon,
 } from "lucide-react";
 import { useExportStore } from "../../stores/exportStore";
 import type { TradeTag } from "../../stores/exportStore";
@@ -24,7 +25,7 @@ const ALL_TAGS: TradeTag[] = [
   "unlucky",
 ];
 
-const TAG_ICONS: Record<TradeTag, React.ComponentType<{ size?: number; className?: string }>> = {
+const TAG_ICONS: Record<TradeTag, LucideIcon> = {
   star: Star,
   review: AlertTriangle,
   learning: BookOpen,
