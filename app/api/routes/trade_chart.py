@@ -76,7 +76,7 @@ def get_trade_chart(
         return []
 
     # Compute indicators on the full slice for accuracy
-    indicators = Indicators(include_price_emas=True)
+    indicators = Indicators(rsi_period=21, include_price_emas=True)
     ind_df = indicators.compute(window)
 
     candles: list[dict[str, Any]] = []

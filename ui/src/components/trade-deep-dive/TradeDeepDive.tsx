@@ -6,8 +6,9 @@ import { transformChartData, computeMaeMfe } from "./chart-utils";
 import type { ChartDataPoint, MaeMfe } from "./chart-utils";
 import { TradeDeepDiveHeader } from "./TradeDeepDiveHeader";
 import { PriceCandlestickChart } from "./PriceCandlestickChart";
-import { RsiVolumeChart } from "./RsiVolumeChart";
+import { RsiChart } from "./RsiChart";
 import { TradeAnnotationPanel } from "./TradeAnnotationPanel";
+import { DEFAULT_INDICATOR_CONFIG } from "./indicator-config";
 
 export interface DeepDiveTrade {
   id: number;
@@ -136,8 +137,9 @@ export function TradeDeepDive({
                 entryPrice={trade.entryPrice}
                 exitPrice={trade.exitPrice}
                 isWin={trade.pnl > 0}
+                indicatorConfig={DEFAULT_INDICATOR_CONFIG}
               />
-              <RsiVolumeChart data={chartData} />
+              <RsiChart data={chartData} indicatorConfig={DEFAULT_INDICATOR_CONFIG} />
             </>
           )}
 

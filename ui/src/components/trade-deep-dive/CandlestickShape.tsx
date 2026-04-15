@@ -10,6 +10,8 @@ interface CandlestickShapeProps {
     high: number;
     low: number;
     close: number;
+    isEntry?: boolean;
+    isExit?: boolean;
   };
   yAxis?: {
     scale?: (value: number) => number;
@@ -18,12 +20,12 @@ interface CandlestickShapeProps {
 
 const BULL_COLOR = "#22c55e";
 const BEAR_COLOR = "#ef4444";
+const ENTRY_GLOW = "#22c55e";
+const EXIT_GLOW = "#ef4444";
 
 /**
  * Custom Recharts Bar shape that renders a proper OHLC candlestick.
- * The Bar's dataKey is "close" (used only to feed Recharts' axis domain).
- * We ignore x/y/height from Recharts and compute our own pixel positions
- * using the yAxis scale function.
+ * Entry and exit candles get a colored glow outline around the body.
  */
 export function CandlestickShape(props: CandlestickShapeProps) {
   const { x, width, payload, yAxis } = props;
@@ -32,7 +34,7 @@ export function CandlestickShape(props: CandlestickShapeProps) {
     return null;
   }
 
-  const { open, high, low, close } = payload;
+  const { open, high, low, close, isEntry, isExit } = payload;
   const scale = yAxis.scale;
 
   const isUp = close >= open;
@@ -48,6 +50,8 @@ export function CandlestickShape(props: CandlestickShapeProps) {
   const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
 
   const wickX = x + width / 2;
+  const bodyX = x + 1;
+  const bodyW = Math.max(width - 2, 1);
 
   return (
     <g>
@@ -62,15 +66,43 @@ export function CandlestickShape(props: CandlestickShapeProps) {
       />
       {/* Body */}
       <rect
-        x={x + 1}
+        x={bodyX}
         y={bodyTop}
-        width={Math.max(width - 2, 1)}
+        width={bodyW}
         height={bodyHeight}
         fill={color}
         fillOpacity={isUp ? 0.8 : 1}
         stroke={color}
         strokeWidth={0.5}
       />
+      {/* Entry glow outline */}
+      {isEntry && (
+        <rect
+          x={x}
+          y={bodyTop - 1}
+          width={Math.max(width, 1)}
+          height={bodyHeight + 2}
+          fill="none"
+          stroke={ENTRY_GLOW}
+          strokeWidth={2}
+          strokeOpacity={0.85}
+          rx={1}
+        />
+      )}
+      {/* Exit glow outline */}
+      {isExit && (
+        <rect
+          x={x}
+          y={bodyTop - 1}
+          width={Math.max(width, 1)}
+          height={bodyHeight + 2}
+          fill="none"
+          stroke={EXIT_GLOW}
+          strokeWidth={2}
+          strokeOpacity={0.85}
+          rx={1}
+        />
+      )}
     </g>
   );
 }
