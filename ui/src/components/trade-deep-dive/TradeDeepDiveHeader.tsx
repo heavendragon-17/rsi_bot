@@ -2,8 +2,11 @@ import React from "react";
 import {
   X,
   TrendingUp,
+  TrendingDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 import type { DeepDiveTrade } from "./TradeDeepDive";
 import type { MaeMfe } from "./chart-utils";
@@ -34,7 +37,7 @@ function ExitReasonBadge({ reason }: { reason: string }) {
     reason === "LOCK_PROFIT";
   return (
     <span
-      className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+      className={`px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${
         isProfit
           ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
           : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
@@ -45,19 +48,29 @@ function ExitReasonBadge({ reason }: { reason: string }) {
   );
 }
 
-/** A single `Label · Value` chip in the info strip */
-function Chip({ label, value }: { label: string; value: React.ReactNode }) {
+/** A labelled stat pill */
+function StatPill({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="flex items-center gap-1 text-xs">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-200 font-mono">{value}</span>
-    </span>
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-slate-500 leading-none">
+        {label}
+      </span>
+      <span className="text-xs text-slate-200 font-mono leading-none whitespace-nowrap">
+        {children}
+      </span>
+    </div>
   );
 }
 
-/** Vertical divider between chips */
-function Sep() {
-  return <span className="text-slate-700 select-none">|</span>;
+/** Thin vertical rule between stat groups */
+function Rule() {
+  return <div className="w-px h-7 bg-white/10 shrink-0" />;
 }
 
 export function TradeDeepDiveHeader({
@@ -72,117 +85,143 @@ export function TradeDeepDiveHeader({
   const hasPrev = currentIdx > 0;
   const hasNext = trades !== undefined && currentIdx < trades.length - 1;
   const duration = formatDuration(trade.entryTime, trade.exitTime);
+  const Icon = isWin ? TrendingUp : TrendingDown;
 
   return (
-    <div className="border-b border-white/10 bg-slate-900/50 px-5 py-3 flex items-center gap-4 flex-wrap">
-      {/* Identity icon */}
-      <div
-        className={`shrink-0 p-2 rounded-lg ${
-          isWin ? "bg-emerald-500/20" : "bg-rose-500/20"
-        }`}
-      >
-        <TrendingUp
-          className={`w-4 h-4 ${isWin ? "text-emerald-400" : "text-rose-400"}`}
-        />
-      </div>
-
-      {/* Title block */}
-      <div className="flex items-baseline gap-2 shrink-0">
-        <span className="text-lg font-bold text-white">
-          Trade #{trade.id}
-        </span>
-        <span
-          className={`px-2 py-0.5 rounded text-xs font-medium ${
-            trade.side === "LONG"
-              ? "bg-emerald-500/20 text-emerald-400"
-              : "bg-rose-500/20 text-rose-400"
+    <div className="border-b border-white/10 bg-slate-900/60">
+      {/* ── Row 1: identity + P&L + nav + close ── */}
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+        {/* Icon */}
+        <div
+          className={`shrink-0 p-2 rounded-lg ${
+            isWin ? "bg-emerald-500/15" : "bg-rose-500/15"
           }`}
         >
-          {trade.side}
-        </span>
-        <span className="text-sm font-semibold text-slate-300">
-          {trade.symbol}
-        </span>
-        <span
-          className={`text-base font-mono font-bold ${
+          <Icon
+            className={`w-4 h-4 ${isWin ? "text-emerald-400" : "text-rose-400"}`}
+          />
+        </div>
+
+        {/* Title */}
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h2 className="text-base font-bold text-white tracking-tight">
+            Trade #{trade.id}
+          </h2>
+          <span
+            className={`shrink-0 px-2 py-0.5 rounded text-xs font-semibold ${
+              trade.side === "LONG"
+                ? "bg-emerald-500/15 text-emerald-400"
+                : "bg-rose-500/15 text-rose-400"
+            }`}
+          >
+            {trade.side}
+          </span>
+          <span className="text-sm font-medium text-slate-400">
+            {trade.symbol}
+          </span>
+        </div>
+
+        {/* P&L */}
+        <div
+          className={`ml-1 font-mono text-base font-bold ${
             isWin ? "text-emerald-400" : "text-rose-400"
           }`}
         >
-          {isWin ? "+" : ""}${trade.pnl.toFixed(2)}{" "}
-          <span className="text-sm font-normal opacity-80">
+          {isWin ? "+" : ""}${trade.pnl.toFixed(2)}
+          <span className="ml-1.5 text-xs font-normal opacity-70">
             ({isWin ? "+" : ""}{trade.pnlPct.toFixed(2)}%)
           </span>
-        </span>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Prev / Next */}
+        {trades && trades.length > 1 && onNavigate && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => hasPrev && onNavigate(trades[currentIdx - 1])}
+              disabled={!hasPrev}
+              className="p-1.5 rounded-md bg-slate-700/50 hover:bg-slate-700 text-slate-300 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+              title="Previous trade (←)"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[11px] text-slate-500 font-mono px-1.5 tabular-nums">
+              {currentIdx + 1}&thinsp;/&thinsp;{trades.length}
+            </span>
+            <button
+              onClick={() => hasNext && onNavigate(trades[currentIdx + 1])}
+              disabled={!hasNext}
+              className="p-1.5 rounded-md bg-slate-700/50 hover:bg-slate-700 text-slate-300 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+              title="Next trade (→)"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="p-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white rounded-md transition-colors"
+          title="Close (Esc)"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Compact info strip */}
-      <div className="flex items-center gap-2 flex-wrap text-xs min-w-0">
-        <Sep />
-        <Chip label="Entry" value={formatTime(trade.entryTime)} />
-        <Sep />
-        <Chip
-          label="Exit"
-          value={trade.exitTime ? formatTime(trade.exitTime) : "—"}
-        />
-        <Sep />
-        <Chip label="Duration" value={duration} />
-        <Sep />
-        <Chip label="Entry $" value={`$${trade.entryPrice.toFixed(2)}`} />
-        <Chip label="→" value={`$${trade.exitPrice.toFixed(2)}`} />
-        <Sep />
-        <span className="flex items-center gap-1 text-xs">
-          <span className="text-slate-500">Reason</span>
+      {/* ── Row 2: stat strip ── */}
+      <div className="flex items-center gap-3 px-5 pb-3 overflow-x-auto scrollbar-none">
+        {/* Time group */}
+        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+          <StatPill label="Entry">{formatTime(trade.entryTime)}</StatPill>
+          <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+          <StatPill label="Exit">
+            {trade.exitTime ? formatTime(trade.exitTime) : "—"}
+          </StatPill>
+          <Rule />
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-slate-500 shrink-0" />
+            <span className="text-xs font-mono text-slate-300">{duration}</span>
+          </div>
+        </div>
+
+        {/* Price group */}
+        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+          <StatPill label="Entry price">
+            ${trade.entryPrice.toFixed(2)}
+          </StatPill>
+          <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+          <StatPill label="Exit price">
+            ${trade.exitPrice.toFixed(2)}
+          </StatPill>
+        </div>
+
+        {/* Exit reason */}
+        <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+          <span className="text-[10px] uppercase tracking-wider text-slate-500">
+            Reason
+          </span>
           <ExitReasonBadge reason={trade.exitReason} />
-        </span>
+        </div>
+
+        {/* MAE / MFE */}
         {maeMfe && (
-          <>
-            <Sep />
-            <span className="font-mono text-rose-400 text-xs">
-              MAE {(maeMfe.mae * 100).toFixed(2)}%
-            </span>
-            <span className="font-mono text-emerald-400 text-xs">
-              MFE +{(maeMfe.mfe * 100).toFixed(2)}%
-            </span>
-          </>
+          <div className="flex items-center gap-2.5 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+            <StatPill label="MAE">
+              <span className="text-rose-400">
+                {(maeMfe.mae * 100).toFixed(2)}%
+              </span>
+            </StatPill>
+            <Rule />
+            <StatPill label="MFE">
+              <span className="text-emerald-400">
+                +{(maeMfe.mfe * 100).toFixed(2)}%
+              </span>
+            </StatPill>
+          </div>
         )}
       </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Prev/Next navigation */}
-      {trades && trades.length > 1 && onNavigate && (
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => hasPrev && onNavigate(trades[currentIdx - 1])}
-            disabled={!hasPrev}
-            className="p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            title="Previous trade (←)"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-xs text-slate-400 px-1.5 font-mono">
-            {currentIdx + 1} / {trades.length}
-          </span>
-          <button
-            onClick={() => hasNext && onNavigate(trades[currentIdx + 1])}
-            disabled={!hasNext}
-            className="p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            title="Next trade (→)"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="shrink-0 p-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-all"
-        title="Close (Esc)"
-      >
-        <X className="w-4 h-4" />
-      </button>
     </div>
   );
 }
