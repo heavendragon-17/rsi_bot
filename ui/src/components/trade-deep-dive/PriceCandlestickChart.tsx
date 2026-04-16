@@ -51,14 +51,12 @@ const TOOLTIP_ITEM_STYLE = {
 interface CandlestickLayerProps {
   xAxisMap?: Record<string, any>;
   yAxisMap?: Record<string, any>;
-  offset?: { top: number; left: number; width: number; height: number };
   chartData?: ChartDataPoint[];
 }
 
 function CandlestickLayer({
   xAxisMap,
   yAxisMap,
-  offset,
   chartData,
 }: CandlestickLayerProps) {
   if (!xAxisMap || !yAxisMap || !chartData?.length) return null;
@@ -73,11 +71,6 @@ function CandlestickLayer({
   const barGap =
     chartData.length > 1 ? Math.abs(xScale(1) - xScale(0)) : 10;
   const barWidth = Math.max(barGap * 0.8, 3);
-
-  // Chart plot area bounds (absolute SVG coordinates)
-  const chartTop = offset?.top ?? CHART_MARGIN.top;
-  const chartBottom =
-    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 356);
 
   const entryIdx = chartData.findIndex((d) => d.isEntry);
   const exitIdx = chartData.findLastIndex((d) => d.isExit);
@@ -154,19 +147,22 @@ function CandlestickLayer({
         );
       })}
 
-      {/* Entry triangle flag at chart top */}
+      {/* Entry triangle: just above the entry candle's high */}
       {entryIdx !== -1 && (() => {
+        const d = chartData[entryIdx];
         const cx = xScale(entryIdx);
-        const top = chartTop;
+        const GAP = 6;
         const size = 7;
-        const tipY = top + size + 4;
-        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        // tip points down toward the candle; base floats above
+        const tipY = yScale(d.high) - GAP;
+        const baseY = tipY - size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="entry-flag">
             <polygon points={pts} fill="#22c55e" opacity={0.9} />
             <text
               x={cx}
-              y={top + 1}
+              y={baseY - 2}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#22c55e"
@@ -179,19 +175,22 @@ function CandlestickLayer({
         );
       })()}
 
-      {/* Exit triangle flag at chart bottom */}
+      {/* Exit triangle: just below the exit candle's low */}
       {exitIdx !== -1 && (() => {
+        const d = chartData[exitIdx];
         const cx = xScale(exitIdx);
-        const bottom = chartBottom;
+        const GAP = 6;
         const size = 7;
-        const tipY = bottom - size - 4;
-        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        // tip points up toward the candle; base sits below
+        const tipY = yScale(d.low) + GAP;
+        const baseY = tipY + size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="exit-flag">
             <polygon points={pts} fill="#ef4444" opacity={0.9} />
             <text
               x={cx}
-              y={bottom}
+              y={baseY + 10}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#ef4444"
