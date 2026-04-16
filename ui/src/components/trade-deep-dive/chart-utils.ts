@@ -40,12 +40,16 @@ export function transformChartData(
   const data: ChartDataPoint[] = candles.map((c, i) => {
     const dateObj = new Date(c.time);
     const dateLabel = dateObj.toLocaleString("en-US", {
+      timeZone: "Asia/Bangkok", // UTC+7
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-    const calendarDate = c.time.slice(0, 10); // "YYYY-MM-DD"
+    // calendarDate used for day-break detection — keep in UTC+7 too
+    const calendarDate = dateObj.toLocaleDateString("en-CA", {
+      timeZone: "Asia/Bangkok",
+    }); // "YYYY-MM-DD"
     const isEntry = c.is_entry ?? Math.abs(dateObj.getTime() - entryMs) < 1000;
 
     return {

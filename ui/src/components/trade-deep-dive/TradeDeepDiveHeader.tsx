@@ -22,6 +22,7 @@ interface TradeDeepDiveHeaderProps {
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok", // UTC+7
     month: "short",
     day: "numeric",
     hour: "2-digit",
