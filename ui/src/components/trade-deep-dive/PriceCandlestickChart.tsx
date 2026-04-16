@@ -13,7 +13,7 @@ import {
   Customized,
 } from "recharts";
 import type { ChartDataPoint } from "./chart-utils";
-import { dateBreakFormatter } from "./chart-utils";
+import { dateBreakFormatter, formatPrice } from "./chart-utils";
 import type { IndicatorConfig } from "./indicator-config";
 import { DEFAULT_INDICATOR_CONFIG } from "./indicator-config";
 
@@ -226,6 +226,9 @@ export function PriceCandlestickChart({
   const domainMin = Math.min(...data.map((d) => d.low)) * 0.9995;
   const domainMax = Math.max(...data.map((d) => d.high)) * 1.0005;
 
+  // Dynamic Y-axis width: enough room for the longest formatted price label
+  const yAxisWidth = Math.max(70, formatPrice(domainMax).length * 7 + 8);
+
   const overlayLabels = config.priceOverlays.map((o) => o.label).join(", ");
 
   return (
@@ -249,8 +252,8 @@ export function PriceCandlestickChart({
             stroke="#64748b"
             tick={{ fill: "#94a3b8", fontSize: 11 }}
             domain={[domainMin, domainMax]}
-            tickFormatter={(v: number) => `$${v.toFixed(0)}`}
-            width={70}
+            tickFormatter={(v: number) => formatPrice(v)}
+            width={yAxisWidth}
           />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
@@ -258,7 +261,7 @@ export function PriceCandlestickChart({
             itemStyle={TOOLTIP_ITEM_STYLE}
             labelFormatter={(label: number) => data[label]?.dateLabel ?? ""}
             formatter={(value: number, name: string) => [
-              `$${value?.toFixed(2)}`,
+              formatPrice(value),
               name,
             ]}
           />
@@ -283,7 +286,7 @@ export function PriceCandlestickChart({
             strokeDasharray="5 5"
             strokeWidth={1.5}
             label={{
-              value: `$${entryPrice.toFixed(2)}`,
+              value: formatPrice(entryPrice),
               fill: "#8B5CF6",
               fontSize: 10,
               position: "insideBottomRight",
@@ -297,7 +300,7 @@ export function PriceCandlestickChart({
             strokeDasharray="5 5"
             strokeWidth={1.5}
             label={{
-              value: `$${exitPrice.toFixed(2)}`,
+              value: formatPrice(exitPrice),
               fill: "#06B6D4",
               fontSize: 10,
               position: "insideTopRight",

@@ -133,6 +133,32 @@ export function formatDuration(entryTime: string, exitTime?: string): string {
 }
 
 /**
+ * Format a price with adaptive precision so small token prices (e.g. 0.0000123)
+ * are displayed accurately rather than rounded to $0.00.
+ *
+ * Strategy: always show 4 significant digits after the first non-zero digit.
+ *   ≥ 1000  → 2 decimals  ($52 341.25)
+ *   ≥ 1     → 4 decimals  ($1.2345)
+ *   < 1     → enough decimals to show 4 sig-figs past the leading zeros
+ *             ($0.0000001234)
+ */
+export function formatPrice(price: number, withDollar = true): string {
+  if (!Number.isFinite(price) || price === 0) return withDollar ? "$0" : "0";
+  const abs = Math.abs(price);
+  let str: string;
+  if (abs >= 1000) {
+    str = price.toFixed(2);
+  } else if (abs >= 1) {
+    str = price.toFixed(4);
+  } else {
+    // position of first significant digit + 4 more sig-figs
+    const decimals = Math.min(Math.ceil(-Math.log10(abs)) + 4, 12);
+    str = price.toFixed(decimals);
+  }
+  return withDollar ? `$${str}` : str;
+}
+
+/**
  * X-axis tick formatter: shows date label only when calendar date changes.
  */
 export function dateBreakFormatter(

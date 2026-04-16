@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { DeepDiveTrade } from "./TradeDeepDive";
 import type { MaeMfe } from "./chart-utils";
-import { formatDuration } from "./chart-utils";
+import { formatDuration, formatPrice } from "./chart-utils";
 
 interface TradeDeepDiveHeaderProps {
   trade: DeepDiveTrade;
@@ -190,11 +190,11 @@ export function TradeDeepDiveHeader({
         {/* Row 1, col 2 — Prices */}
         <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2">
           <StatPill label="Entry price">
-            ${trade.entryPrice.toFixed(2)}
+            {formatPrice(trade.entryPrice)}
           </StatPill>
           <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
           <StatPill label="Exit price">
-            ${trade.exitPrice.toFixed(2)}
+            {formatPrice(trade.exitPrice)}
           </StatPill>
         </div>
 
@@ -208,7 +208,7 @@ export function TradeDeepDiveHeader({
 
         {/* Row 2, col 2 — MAE / MFE */}
         {maeMfe ? (
-          <div className="flex items-center gap-2.5 bg-white/[0.04] rounded-lg px-3 py-2">
+          <div className="flex items-center gap-4 bg-white/[0.04] rounded-lg px-3 py-2">
             <StatPill label="MAE">
               <span className="text-rose-400">
                 {(maeMfe.mae * 100).toFixed(2)}%
