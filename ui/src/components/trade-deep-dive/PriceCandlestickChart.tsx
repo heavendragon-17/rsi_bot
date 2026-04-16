@@ -74,11 +74,6 @@ function CandlestickLayer({
     chartData.length > 1 ? Math.abs(xScale(1) - xScale(0)) : 10;
   const barWidth = Math.max(barGap * 0.8, 3);
 
-  // Chart plot area bounds (absolute SVG coordinates)
-  const chartTop = offset?.top ?? CHART_MARGIN.top;
-  const chartBottom =
-    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 356);
-
   const entryIdx = chartData.findIndex((d) => d.isEntry);
   const exitIdx = chartData.findLastIndex((d) => d.isExit);
 
@@ -154,19 +149,21 @@ function CandlestickLayer({
         );
       })}
 
-      {/* Entry triangle flag at chart top */}
+      {/* Entry triangle above the entry candle high */}
       {entryIdx !== -1 && (() => {
         const cx = xScale(entryIdx);
-        const top = chartTop;
+        const yHigh = yScale(chartData[entryIdx].high);
         const size = 7;
-        const tipY = top + size + 4;
-        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        const spacing = 5; // px gap between triangle tip and candle high
+        const tipY = yHigh - spacing;
+        const baseY = tipY - size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="entry-flag">
             <polygon points={pts} fill="#22c55e" opacity={0.9} />
             <text
               x={cx}
-              y={top + 1}
+              y={baseY - 2}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#22c55e"
@@ -179,19 +176,21 @@ function CandlestickLayer({
         );
       })()}
 
-      {/* Exit triangle flag at chart bottom */}
+      {/* Exit triangle below the exit candle low */}
       {exitIdx !== -1 && (() => {
         const cx = xScale(exitIdx);
-        const bottom = chartBottom;
+        const yLow = yScale(chartData[exitIdx].low);
         const size = 7;
-        const tipY = bottom - size - 4;
-        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        const spacing = 5; // px gap between triangle tip and candle low
+        const tipY = yLow + spacing;
+        const baseY = tipY + size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="exit-flag">
             <polygon points={pts} fill="#ef4444" opacity={0.9} />
             <text
               x={cx}
-              y={bottom}
+              y={baseY + 9}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#ef4444"
