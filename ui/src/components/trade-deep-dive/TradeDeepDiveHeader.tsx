@@ -170,10 +170,10 @@ export function TradeDeepDiveHeader({
         </button>
       </div>
 
-      {/* ── Row 2: stat strip ── */}
-      <div className="flex items-center gap-3 px-5 pb-3 overflow-x-auto scrollbar-none">
-        {/* Time group */}
-        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+      {/* ── Rows 2-3: stat grid (2 rows × 2 groups) ── */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-5 pb-3">
+        {/* Row 1, col 1 — Time */}
+        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2">
           <StatPill label="Entry">{formatTime(trade.entryTime)}</StatPill>
           <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
           <StatPill label="Exit">
@@ -186,8 +186,8 @@ export function TradeDeepDiveHeader({
           </div>
         </div>
 
-        {/* Price group */}
-        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+        {/* Row 1, col 2 — Prices */}
+        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2">
           <StatPill label="Entry price">
             ${trade.entryPrice.toFixed(2)}
           </StatPill>
@@ -197,17 +197,17 @@ export function TradeDeepDiveHeader({
           </StatPill>
         </div>
 
-        {/* Exit reason */}
-        <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+        {/* Row 2, col 1 — Exit reason */}
+        <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-2">
           <span className="text-[10px] uppercase tracking-wider text-slate-500">
             Reason
           </span>
           <ExitReasonBadge reason={trade.exitReason} />
         </div>
 
-        {/* MAE / MFE */}
-        {maeMfe && (
-          <div className="flex items-center gap-2.5 bg-white/[0.04] rounded-lg px-3 py-2 shrink-0">
+        {/* Row 2, col 2 — MAE / MFE */}
+        {maeMfe ? (
+          <div className="flex items-center gap-2.5 bg-white/[0.04] rounded-lg px-3 py-2">
             <StatPill label="MAE">
               <span className="text-rose-400">
                 {(maeMfe.mae * 100).toFixed(2)}%
@@ -220,6 +220,8 @@ export function TradeDeepDiveHeader({
               </span>
             </StatPill>
           </div>
+        ) : (
+          <div />
         )}
       </div>
     </div>
