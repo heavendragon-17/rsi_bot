@@ -23,7 +23,10 @@ DATA_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "backtest", "data"),
 )
 
-CONTEXT_CANDLES = 50  # candles before entry / after exit
+CONTEXT_CANDLES = 50   # candles before entry / after exit shown on chart
+INDICATOR_WARMUP = 220  # extra candles loaded before the display window so that
+                        # long-period indicators (EMA200, WMA45) are fully warmed
+                        # up by the time the visible window begins
 
 
 def _get_db():
@@ -68,16 +71,24 @@ def get_trade_chart(
     entry_idx = df["timestamp"].searchsorted(entry_time, side="left")
     exit_idx = df["timestamp"].searchsorted(exit_time, side="right")
 
-    start = max(0, int(entry_idx) - CONTEXT_CANDLES)
-    end = min(len(df), int(exit_idx) + CONTEXT_CANDLES)
-    window = df.iloc[start:end].copy()
+    display_start = max(0, int(entry_idx) - CONTEXT_CANDLES)
+    display_end = min(len(df), int(exit_idx) + CONTEXT_CANDLES)
 
-    if window.empty:
+    # Load extra history before the display window so indicator EMAs are
+    # fully warmed up (EMA200 needs ≥200 candles, WMA45 needs ≥45, etc.)
+    compute_start = max(0, display_start - INDICATOR_WARMUP)
+    compute_slice = df.iloc[compute_start:display_end].copy()
+
+    if compute_slice.empty:
         return []
 
-    # Compute indicators on the full slice for accuracy
+    # Compute indicators on the full warmup buffer
     indicators = Indicators(rsi_period=21, include_price_emas=True)
-    ind_df = indicators.compute(window)
+    ind_df = indicators.compute(compute_slice)
+
+    # Drop the warmup rows — only keep the display window
+    warmup_rows = display_start - compute_start
+    ind_df = ind_df.iloc[warmup_rows:].reset_index(drop=True)
 
     candles: list[dict[str, Any]] = []
     for _, row in ind_df.iterrows():
