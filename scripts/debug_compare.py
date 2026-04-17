@@ -22,7 +22,6 @@ Re-run loop:
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
 import time
@@ -84,7 +83,7 @@ def _ensure_data(symbol: str, timeframe: str, start: str, end: str) -> Path:
     return csv
 
 
-def _start_backend() -> "subprocess.Popen | None":
+def _start_backend() -> subprocess.Popen | None:
     """Start uvicorn and wait until /health responds."""
     import urllib.request
 
@@ -130,7 +129,10 @@ def _backend_running() -> bool:
 def run_cli(symbol: str, timeframe: str, strategy: str,
             balance: float, start: str, end: str) -> dict:
     """Run backtest through BacktestEngine directly and return results dict."""
-    import tempfile, os, pandas as pd
+    import os
+    import tempfile
+
+    import pandas as pd
 
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -186,7 +188,8 @@ def run_api(symbol: str, timeframe: str, strategy: str,
             balance: float, start: str, end: str,
             leverage: int, risk_pct: float) -> dict:
     """POST to the API, wait for completion, return the results dict."""
-    import urllib.request, json as _json
+    import json as _json
+    import urllib.request
 
     payload = {
         "symbol":           symbol,

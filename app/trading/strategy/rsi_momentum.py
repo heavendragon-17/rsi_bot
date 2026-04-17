@@ -41,8 +41,8 @@ from app.trading.strategy.rsi_momentum_entry import check_entry
 from app.trading.strategy.rsi_momentum_exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
 from app.trading.strategy.utils.param_metadata import (
-    RSI_MOMENTUM_METADATA,
     RSI_MOMENTUM_GROUPS,
+    RSI_MOMENTUM_METADATA,
 )
 from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 

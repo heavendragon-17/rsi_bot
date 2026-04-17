@@ -36,8 +36,8 @@ from app.trading.strategy.rsi_no_retest_entry import check_entry
 from app.trading.strategy.rsi_no_retest_exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
 from app.trading.strategy.utils.param_metadata import (
-    RSI_NO_RETEST_METADATA,
     RSI_NO_RETEST_GROUPS,
+    RSI_NO_RETEST_METADATA,
 )
 from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 

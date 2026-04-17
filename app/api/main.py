@@ -19,7 +19,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import backtest_results, backtest_run, backtest_stream, data, history, presets, settings, strategies, trade_chart
+from app.api.routes import (
+    backtest_results,
+    backtest_run,
+    backtest_stream,
+    data,
+    history,
+    presets,
+    settings,
+    strategies,
+    trade_chart,
+)
 from app.repository.backtest.database import SessionLocal, init_db
 from app.repository.backtest.seed import seed_strategies
 

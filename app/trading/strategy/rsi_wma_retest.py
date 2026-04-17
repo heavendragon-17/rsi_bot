@@ -1,15 +1,4 @@
-"""
-Layer 2: Core Logic - RSI WMA Retest Strategy (NO COOLDOWN / NO WAITING / NO SL LOCK)
-===================================================================================
-LONG ONLY strategy using TWO CHARTS:
-- Price Chart: EMA21, EMA200, R40/R60/R70/R80 price levels
-- RSI Chart: RSI, EMA9, WMA45
-
-EXIT CHANGE (NO meta field needed):
-- TP1: RSI >= 60  -> emit SELL with reason starting "TP1"
-- TP2: RSI >= 70  -> emit SELL with reason starting "TP2"
-- TP3: RSI >= 80  -> emit SELL with reason starting "TP3" (close all remaining)
-"""
+"""RSI WMA Retest strategy: LONG-only, two-chart (price + RSI), TP1/TP2/TP3 ladder."""
 
 from __future__ import annotations
 
@@ -24,8 +13,8 @@ from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.trading.strategy.base import BaseStrategy
 from app.trading.strategy.utils.param_metadata import (
-    RSI_WMA_RETEST_METADATA,
     RSI_WMA_RETEST_GROUPS,
+    RSI_WMA_RETEST_METADATA,
 )
 from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 
@@ -175,10 +164,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
         if self.use_active_trades and self.context.has_active_trade(symbol):
             meta = self._get_trade_meta(symbol)
 
-            # -------------------------------------------------
-            # Close by Candle SL: Check FIRST, before TP ladder
-            # This allows graceful exit when candle close breaches Soft SL
-            # -------------------------------------------------
+            # Close by Candle SL: check FIRST, before TP ladder.
             soft_sl = meta.get("soft_sl_price")
             if soft_sl is not None and close is not None:
                 if close_dec <= soft_sl:
@@ -328,11 +314,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
                 tp3_price = self.indicators.calculate_price_at_rsi(df_ind, self.tp3_rsi)
                 sl_price_raw = self.indicators.calculate_price_at_rsi(df_ind, 40)
 
-                # -------------------------------------------------
-                # Dual SL System:
-                # 1. Soft SL: R40 - buffer (for candle-close exit logic)
-                # 2. Disaster SL: 3x distance from entry (hard limit order)
-                # -------------------------------------------------
+                # Dual SL: soft SL (R40 - buffer, candle-close exit) + disaster SL (3x, hard limit).
                 soft_sl_price = None
                 disaster_sl_price = None
 

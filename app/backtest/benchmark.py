@@ -272,7 +272,7 @@ def compute_benchmark_curve(
             first_date=dates[0] if dates else None,
             last_date=dates[-1] if dates else None,
         )
-        return [{"date": d, "balance": b} for d, b in zip(dates, balances)]
+        return [{"date": d, "balance": b} for d, b in zip(dates, balances, strict=False)]
 
     except Exception as exc:
         logger.error("benchmark_compute_error", symbol=benchmark, error=str(exc))

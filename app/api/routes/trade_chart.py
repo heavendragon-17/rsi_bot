@@ -13,6 +13,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.constants import WARMUP
 from app.data.indicators import Indicators
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import RunConfig, Trade
@@ -24,9 +25,8 @@ DATA_DIR = os.path.normpath(
 )
 
 CONTEXT_CANDLES = 50   # candles before entry / after exit shown on chart
-INDICATOR_WARMUP = 220  # extra candles loaded before the display window so that
-                        # long-period indicators (EMA200, WMA45) are fully warmed
-                        # up by the time the visible window begins
+INDICATOR_WARMUP = WARMUP  # extra candles loaded before the display window so
+                           # long-period indicators (EMA200, WMA45) fully warm up
 
 
 def _get_db():

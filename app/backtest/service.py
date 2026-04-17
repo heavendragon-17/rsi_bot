@@ -50,6 +50,11 @@ def _get_exc_mod():
     return _exc_mod_cache
 
 
+def __getattr__(name: str):
+    """Expose `exc_mod` externally (for tests) while keeping the lazy import."""
+    if name == "exc_mod":
+        return _get_exc_mod()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 

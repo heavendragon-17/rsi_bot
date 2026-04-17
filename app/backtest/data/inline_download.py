@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
-from typing import Callable
+from collections.abc import Callable
 
 import structlog
 
@@ -28,7 +28,7 @@ _IS_WIN = sys.platform == "win32"
 def _lock_file(f) -> None:
     if _IS_WIN:
         import msvcrt
-        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # type: ignore[attr-defined]
     else:
         import fcntl
         fcntl.flock(f, fcntl.LOCK_EX)
@@ -37,7 +37,7 @@ def _lock_file(f) -> None:
 def _unlock_file(f) -> None:
     if _IS_WIN:
         import msvcrt
-        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
     else:
         import fcntl
         fcntl.flock(f, fcntl.LOCK_UN)
