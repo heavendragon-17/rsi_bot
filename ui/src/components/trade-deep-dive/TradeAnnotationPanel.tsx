@@ -77,7 +77,7 @@ export function TradeAnnotationPanel({ tradeId }: TradeAnnotationPanelProps) {
   }
 
   return (
-    <div className="bg-slate-900/50 rounded-xl p-5 border border-white/10">
+    <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
       <h3 className="text-white font-bold text-sm mb-4">Annotation</h3>
 
       {/* Tag toggles */}
@@ -106,9 +106,9 @@ export function TradeAnnotationPanel({ tradeId }: TradeAnnotationPanelProps) {
         onChange={(e) => setNote(e.target.value)}
         placeholder="Add a note about this trade..."
         rows={3}
-        className="w-full bg-slate-800/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-violet-500/50 transition-colors"
+        className="w-full bg-slate-800/60 border border-white/10 rounded-lg px-4 py-3 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-violet-500/50 transition-colors"
       />
-      <p className="text-xs text-slate-500 mt-1">Auto-saves as you type</p>
+      <p className="text-xs text-slate-500 mt-2">Auto-saves as you type</p>
     </div>
   );
 }

@@ -91,10 +91,10 @@ export function TradeDeepDiveHeader({
   return (
     <div className="border-b border-white/10 bg-slate-900/60">
       {/* ── Row 1: identity + P&L + nav + close ── */}
-      <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+      <div className="flex items-center gap-3 px-4 py-2">
         {/* Icon */}
         <div
-          className={`shrink-0 p-2 rounded-lg ${
+          className={`shrink-0 p-1.5 rounded-lg ${
             isWin ? "bg-emerald-500/15" : "bg-rose-500/15"
           }`}
         >
@@ -171,58 +171,49 @@ export function TradeDeepDiveHeader({
         </button>
       </div>
 
-      {/* ── Rows 2-3: stat grid (2 rows × 2 groups) ── */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-5 pb-3">
-        {/* Row 1, col 1 — Time */}
-        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2">
+      {/* ── Row 2: single compact stat strip ── */}
+      <div className="flex flex-wrap items-center gap-3 px-4 pb-2">
+        <div className="flex items-center gap-2">
           <StatPill label="Entry">{formatTime(trade.entryTime)}</StatPill>
           <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
           <StatPill label="Exit">
             {trade.exitTime ? formatTime(trade.exitTime) : "—"}
           </StatPill>
-          <Rule />
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="text-xs font-mono text-slate-300">{duration}</span>
-          </div>
         </div>
-
-        {/* Row 1, col 2 — Prices */}
-        <div className="flex items-center gap-3 bg-white/[0.04] rounded-lg px-3 py-2">
-          <StatPill label="Entry price">
-            {formatPrice(trade.entryPrice)}
-          </StatPill>
+        <Rule />
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-slate-500 shrink-0" />
+          <span className="text-xs font-mono text-slate-300">{duration}</span>
+        </div>
+        <Rule />
+        <div className="flex items-center gap-2">
+          <StatPill label="Entry px">{formatPrice(trade.entryPrice)}</StatPill>
           <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
-          <StatPill label="Exit price">
-            {formatPrice(trade.exitPrice)}
-          </StatPill>
+          <StatPill label="Exit px">{formatPrice(trade.exitPrice)}</StatPill>
         </div>
-
-        {/* Row 2, col 1 — Exit reason */}
-        <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-2">
+        <Rule />
+        <div className="flex items-center gap-2">
           <span className="text-[10px] uppercase tracking-wider text-slate-500">
             Reason
           </span>
           <ExitReasonBadge reason={trade.exitReason} />
         </div>
-
-        {/* Row 2, col 2 — MAE / MFE */}
-        {maeMfe ? (
-          <div className="flex items-center gap-4 bg-white/[0.04] rounded-lg px-3 py-2">
-            <StatPill label="MAE">
-              <span className="text-rose-400">
-                {(maeMfe.mae * 100).toFixed(2)}%
-              </span>
-            </StatPill>
+        {maeMfe && (
+          <>
             <Rule />
-            <StatPill label="MFE">
-              <span className="text-emerald-400">
-                +{(maeMfe.mfe * 100).toFixed(2)}%
-              </span>
-            </StatPill>
-          </div>
-        ) : (
-          <div />
+            <div className="flex items-center gap-3">
+              <StatPill label="MAE">
+                <span className="text-rose-400">
+                  {(maeMfe.mae * 100).toFixed(2)}%
+                </span>
+              </StatPill>
+              <StatPill label="MFE">
+                <span className="text-emerald-400">
+                  +{(maeMfe.mfe * 100).toFixed(2)}%
+                </span>
+              </StatPill>
+            </div>
+          </>
         )}
       </div>
     </div>

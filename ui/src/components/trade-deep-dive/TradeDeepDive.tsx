@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { getTradeChart } from "../../api/quant";
@@ -104,10 +105,9 @@ export function TradeDeepDive({
       .map((d, i) => ({ ...d, index: i }));
   }, [chartData, zoom]);
 
-  // Mouse-wheel zoom — must be non-passive so we can preventDefault and stop
-  // the modal from scrolling while the user is zooming the chart.
+  // Wheel over the chart area zooms. When already at full view and the user
+  // wheels further out, we let the event propagate so the modal can scroll.
   const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
     const total = chartData.length;
     if (!total) return;
 
@@ -118,7 +118,12 @@ export function TradeDeepDive({
     // Wheel up → zoom in (smaller window); wheel down → zoom out
     const factor = e.deltaY > 0 ? 1.2 : 1 / 1.2;
     const newWindowSize = Math.round(windowSize * factor);
+
+    // Let scroll propagate to the modal when zoom is saturated in either
+    // direction — otherwise users can't scroll down to the annotation.
     if (newWindowSize < 10) return;
+    if (!zoom && e.deltaY > 0) return;
+    e.preventDefault();
     if (newWindowSize >= total) { setZoom(null); return; }
 
     // Zoom anchored to cursor position within the chart container
@@ -171,7 +176,7 @@ export function TradeDeepDive({
     setIsDragging(false);
   }, []);
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -184,7 +189,7 @@ export function TradeDeepDive({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[1600px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-violet-500/30 shadow-[0_0_60px_rgba(139,92,246,0.3)] overflow-hidden flex flex-col"
+        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border-2 border-accent-main shadow-2xl overflow-hidden flex flex-col"
       >
         <TradeDeepDiveHeader
           trade={trade}
@@ -195,7 +200,7 @@ export function TradeDeepDive({
         />
 
         {/* Charts + annotation */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-6 relative">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm rounded-xl">
               <div className="flex flex-col items-center gap-3">
@@ -236,26 +241,31 @@ export function TradeDeepDive({
                 <RsiChart data={visibleData} indicatorConfig={DEFAULT_INDICATOR_CONFIG} />
               </div>
 
-              {/* Reset zoom hint */}
-              {zoom && (
-                <div className="flex items-center justify-center gap-3 text-xs text-slate-500">
-                  <span>
-                    Showing {visibleData.length} of {chartData.length} candles
-                  </span>
-                  <button
-                    onClick={() => setZoom(null)}
-                    className="px-2 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white hover:border-white/30 transition-colors"
-                  >
-                    Reset zoom
-                  </button>
-                </div>
-              )}
+              {/* Zoom / pan hint */}
+              <div className="flex items-center justify-center gap-3 text-xs text-slate-500">
+                {zoom ? (
+                  <>
+                    <span>
+                      Showing {visibleData.length} of {chartData.length} candles
+                    </span>
+                    <button
+                      onClick={() => setZoom(null)}
+                      className="px-2 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white hover:border-white/30 transition-colors"
+                    >
+                      Reset zoom
+                    </button>
+                  </>
+                ) : (
+                  <span>Scroll to zoom · drag to pan</span>
+                )}
+              </div>
             </>
           )}
 
           <TradeAnnotationPanel tradeId={trade.id} />
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
