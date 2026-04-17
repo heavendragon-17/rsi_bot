@@ -12,9 +12,17 @@ export interface ChartCandle {
   low: number;
   close: number;
   volume?: number;
+  rsi?: number | null;
+  ema9?: number | null;
+  wma45?: number | null;
+  ema21?: number | null;
+  ema200?: number | null;
+  spread?: number | null;
+  above_ema21?: boolean | null;
   active_sl?: number;
   lock_profit_active?: boolean;
-  [key: string]: string | number | boolean | undefined;
+  is_entry?: boolean;
+  is_exit?: boolean;
 }
 
 export async function startGridSearch(params: Record<string, any>): Promise<QuantStartResponse> {

@@ -1,9 +1,4 @@
-"""
-Portfolio Engine — multiplexed multi-symbol backtest with batch processing.
-
-Phase 2.1: BatchCandleCloseEvents process all symbols per timestamp as a batch.
-Phase 2.2: Adaptive equity curve sampling reduces recording overhead.
-"""
+"""Portfolio Engine — multi-symbol batch backtest with adaptive equity sampling."""
 
 from __future__ import annotations
 
@@ -21,6 +16,7 @@ from app.backtest.engine.metrics import (
     calculate_monthly_returns,
     calculate_risk_metrics,
 )
+from app.backtest.engine.portfolio_dispersion import build_symbol_dispersion
 from app.backtest.exchange.mock_exchange import MockExchange
 from app.core.constants import (
     EQUITY_DRAWDOWN_THRESHOLD,
@@ -37,13 +33,7 @@ logger = structlog.get_logger()
 
 
 class PortfolioEngine(Engine):
-    """
-    Unified Portfolio Engine.
-
-    Consumes chronologically ordered events from multiple symbols.
-    Supports both legacy PortfolioEventSource (one event at a time)
-    and Phase 2.1 BatchPortfolioEventSource (batched by timestamp).
-    """
+    """Unified portfolio engine: consumes chronologically ordered multi-symbol events."""
 
     def __init__(self, event_source, strategy_class, exchange: MockExchange, config: dict, symbols: list[str]) -> None:
         # Create a single portfolio manager tracking the global exchange
@@ -64,6 +54,7 @@ class PortfolioEngine(Engine):
         self.config = config
         self._initial_balance = float(exchange.balance)
         self._on_progress = None
+        self._last_progress_pct = -1
 
         # Pass the progress callback down to the event source
         if hasattr(self.event_source, "_on_progress"):
@@ -93,12 +84,15 @@ class PortfolioEngine(Engine):
         self._batch_mode = isinstance(event_source, BatchPortfolioEventSource)
 
     def _report_progress(self, pct: float) -> None:
-        """Called by event source with percentage 0.0 to 1.0"""
-        if self._on_progress:
-            self._on_progress({"pct": int(pct * 100), "total": getattr(self.event_source, "total_events", 0)})
+        """Called by event source with percentage 0.0 to 1.0. Throttled to 2% increments."""
+        pct_int = min(int(pct * 100), 99)
+        if self._on_progress and pct_int != self._last_progress_pct and pct_int % 2 == 0:
+            self._last_progress_pct = pct_int
+            self._on_progress({"pct": pct_int, "total": getattr(self.event_source, "total_events", 0)})
 
     def run(self, on_progress=None) -> dict:
         self._on_progress = on_progress
+        self._last_progress_pct = -1
 
         logger.info(
             "portfolio_backtest_start",
@@ -359,6 +353,7 @@ class PortfolioEngine(Engine):
         final_balance = float(self.exchange.balance)
         realized_pnl = float(round_trips["pnl"].sum()) if not round_trips.empty else 0.0
         net_profit_pct = (realized_pnl / initial * 100) if initial > 0 else 0.0
+        dispersion_range = build_symbol_dispersion(round_trips_list, self.portfolio_equity_curve, initial)
 
         return {
             "metrics": metrics, "risk_metrics": risk_metrics,
@@ -371,6 +366,7 @@ class PortfolioEngine(Engine):
             "monthly_returns": monthly_returns,
             "equity_curve": self.portfolio_equity_curve,
             "drawdown_curve": drawdown_full.get("drawdown_curve", []),
+            "dispersion_range": dispersion_range,
             "round_trips": round_trips_list,
             "initial_balance": initial, "final_balance": final_balance,
             "net_profit": realized_pnl, "net_profit_pct": net_profit_pct,
@@ -391,6 +387,7 @@ class PortfolioEngine(Engine):
             "monthly_returns": {},
             "equity_curve": [],
             "drawdown_curve": [],
+            "dispersion_range": [],
             "round_trips": [],
             "initial_balance": initial,
             "final_balance": initial,
