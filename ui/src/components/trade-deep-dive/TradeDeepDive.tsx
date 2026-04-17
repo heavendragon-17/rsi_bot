@@ -188,7 +188,7 @@ export function TradeDeepDive({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border-2 border-accent-main/40 shadow-xl overflow-hidden flex flex-col"
+        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border-2 border-accent-main shadow-2xl overflow-hidden flex flex-col"
       >
         <TradeDeepDiveHeader
           trade={trade}
