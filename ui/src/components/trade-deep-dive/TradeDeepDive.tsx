@@ -104,13 +104,11 @@ export function TradeDeepDive({
       .map((d, i) => ({ ...d, index: i }));
   }, [chartData, zoom]);
 
-  // Shift+wheel zooms the chart; plain wheel falls through so the modal
-  // can scroll normally even when the cursor is over the chart area.
+  // Wheel over the chart area zooms. When already at full view and the user
+  // wheels further out, we let the event propagate so the modal can scroll.
   const handleWheel = useCallback((e: WheelEvent) => {
-    if (!e.shiftKey) return;
     const total = chartData.length;
     if (!total) return;
-    e.preventDefault();
 
     const start = zoom?.start ?? 0;
     const end = zoom?.end ?? total - 1;
@@ -119,7 +117,12 @@ export function TradeDeepDive({
     // Wheel up → zoom in (smaller window); wheel down → zoom out
     const factor = e.deltaY > 0 ? 1.2 : 1 / 1.2;
     const newWindowSize = Math.round(windowSize * factor);
+
+    // Let scroll propagate to the modal when zoom is saturated in either
+    // direction — otherwise users can't scroll down to the annotation.
     if (newWindowSize < 10) return;
+    if (!zoom && e.deltaY > 0) return;
+    e.preventDefault();
     if (newWindowSize >= total) { setZoom(null); return; }
 
     // Zoom anchored to cursor position within the chart container
@@ -185,7 +188,7 @@ export function TradeDeepDive({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-violet-500/30 shadow-[0_0_60px_rgba(139,92,246,0.3)] overflow-hidden flex flex-col"
+        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border-2 border-accent-main/40 shadow-xl overflow-hidden flex flex-col"
       >
         <TradeDeepDiveHeader
           trade={trade}
@@ -252,10 +255,7 @@ export function TradeDeepDive({
                     </button>
                   </>
                 ) : (
-                  <span>
-                    <kbd className="px-1.5 py-0.5 rounded border border-white/10 text-slate-400 font-mono text-xs">Shift</kbd>
-                    {" + scroll to zoom · drag to pan"}
-                  </span>
+                  <span>Scroll to zoom · drag to pan</span>
                 )}
               </div>
             </>
