@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
   ReferenceArea,
   Customized,
 } from "recharts";
@@ -53,6 +52,8 @@ interface CandlestickLayerProps {
   yAxisMap?: Record<string, any>;
   offset?: { top: number; left: number; width: number; height: number };
   chartData?: ChartDataPoint[];
+  entryPrice?: number;
+  exitPrice?: number;
 }
 
 function CandlestickLayer({
@@ -60,6 +61,8 @@ function CandlestickLayer({
   yAxisMap,
   offset,
   chartData,
+  entryPrice,
+  exitPrice,
 }: CandlestickLayerProps) {
   if (!xAxisMap || !yAxisMap || !chartData?.length) return null;
 
@@ -148,6 +151,68 @@ function CandlestickLayer({
           </g>
         );
       })}
+
+      {/* Short price reference segments — only span the trade window so the
+          horizontal lines no longer stretch across the full chart. */}
+      {entryIdx !== -1 && exitIdx !== -1 && entryPrice !== undefined && (() => {
+        const x1 = xScale(entryIdx);
+        const x2 = xScale(exitIdx);
+        const yEntry = yScale(entryPrice);
+        return (
+          <g key="entry-price-segment">
+            <line
+              x1={x1}
+              x2={x2}
+              y1={yEntry}
+              y2={yEntry}
+              stroke="#8B5CF6"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.55}
+            />
+            <text
+              x={x2 + 4}
+              y={yEntry + 3}
+              fill="#8B5CF6"
+              fontSize={9}
+              fontFamily="monospace"
+              opacity={0.85}
+            >
+              {formatPrice(entryPrice)}
+            </text>
+          </g>
+        );
+      })()}
+
+      {entryIdx !== -1 && exitIdx !== -1 && exitPrice !== undefined && (() => {
+        const x1 = xScale(entryIdx);
+        const x2 = xScale(exitIdx);
+        const yExit = yScale(exitPrice);
+        return (
+          <g key="exit-price-segment">
+            <line
+              x1={x1}
+              x2={x2}
+              y1={yExit}
+              y2={yExit}
+              stroke="#06B6D4"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.55}
+            />
+            <text
+              x={x2 + 4}
+              y={yExit + 3}
+              fill="#06B6D4"
+              fontSize={9}
+              fontFamily="monospace"
+              opacity={0.85}
+            >
+              {formatPrice(exitPrice)}
+            </text>
+          </g>
+        );
+      })()}
 
       {/* Entry triangle above the entry candle high */}
       {entryIdx !== -1 && (() => {
@@ -266,8 +331,15 @@ export function PriceCandlestickChart({
             ]}
           />
 
-          {/* Candlesticks + triangle flags rendered by Customized (gets real scales) */}
-          <Customized component={CandlestickLayer} chartData={data} />
+          {/* Candlesticks, triangle flags, and short entry/exit price
+              segments — all rendered inside Customized so they share the
+              real xAxis/yAxis scales. */}
+          <Customized
+            component={CandlestickLayer}
+            chartData={data}
+            entryPrice={entryPrice}
+            exitPrice={exitPrice}
+          />
 
           {/* Shaded trade region */}
           {entryIdx !== -1 && exitIdx !== -1 && (
@@ -278,34 +350,6 @@ export function PriceCandlestickChart({
               fillOpacity={0.06}
             />
           )}
-
-          {/* Entry price horizontal reference line */}
-          <ReferenceLine
-            y={entryPrice}
-            stroke="#8B5CF6"
-            strokeDasharray="5 5"
-            strokeWidth={1.5}
-            label={{
-              value: formatPrice(entryPrice),
-              fill: "#8B5CF6",
-              fontSize: 10,
-              position: "insideBottomRight",
-            }}
-          />
-
-          {/* Exit price horizontal reference line */}
-          <ReferenceLine
-            y={exitPrice}
-            stroke="#06B6D4"
-            strokeDasharray="5 5"
-            strokeWidth={1.5}
-            label={{
-              value: formatPrice(exitPrice),
-              fill: "#06B6D4",
-              fontSize: 10,
-              position: "insideTopRight",
-            }}
-          />
 
           {/* Transparent bar — keeps Y-axis domain and tooltip data correct */}
           <Bar
