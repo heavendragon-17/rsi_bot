@@ -199,7 +199,7 @@ export function TradeDeepDive({
         />
 
         {/* Charts + annotation */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 relative">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-6 relative">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm rounded-xl">
               <div className="flex flex-col items-center gap-3">
