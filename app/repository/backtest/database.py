@@ -36,6 +36,48 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+def _migrate_add_batch_id(eng) -> None:
+    """Add batch_id column to runs table if missing. One-time migration."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(runs)"))
+        columns = {row[1] for row in result}
+        if "batch_id" not in columns:
+            conn.execute(
+                sa.text("ALTER TABLE runs ADD COLUMN batch_id INTEGER REFERENCES batches(id)")
+            )
+            conn.commit()
+
+
+def _migrate_add_final_balance(eng) -> None:
+    """Add final_balance column to run_results table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_results)"))
+        columns = {row[1] for row in result}
+        if "final_balance" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_results ADD COLUMN final_balance TEXT"))
+            conn.commit()
+
+
+def _migrate_add_dispersion_range(eng) -> None:
+    """Add dispersion_range column to run_timeseries table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_timeseries)"))
+        columns = {row[1] for row in result}
+        if "dispersion_range" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_timeseries ADD COLUMN dispersion_range BLOB"))
+            conn.commit()
+
+
+def _migrate_add_benchmark_curve(eng) -> None:
+    """Add benchmark_curve column to run_timeseries table if missing."""
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(run_timeseries)"))
+        columns = {row[1] for row in result}
+        if "benchmark_curve" not in columns:
+            conn.execute(sa.text("ALTER TABLE run_timeseries ADD COLUMN benchmark_curve BLOB"))
+            conn.commit()
+
+
 def init_db() -> None:
     """
     Create all tables (idempotent) and seed initial strategy rows.
@@ -50,6 +92,10 @@ def init_db() -> None:
     import app.repository.backtest.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_batch_id(engine)
+    _migrate_add_final_balance(engine)
+    _migrate_add_dispersion_range(engine)
+    _migrate_add_benchmark_curve(engine)
 
     session = SessionLocal()
     try:

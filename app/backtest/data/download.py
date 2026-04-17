@@ -50,7 +50,7 @@ def calculate_candle_limit(
     return total_minutes // tf_minutes
 
 
-def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exchange=None) -> None:
+def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exchange=None, on_progress=None) -> None:
     """
     Download historical OHLCV data from Binance incrementally.
 
@@ -121,6 +121,8 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exch
                 all_new_candles.extend(new_candles)
                 current_since = new_candles[-1][0]
                 logger.info("downloaded_candles", count=len(new_candles))
+                if on_progress:
+                    on_progress(len(all_new_candles), limit)
 
                 # If we received less than MAX_PER_REQUEST, we're likely up to date
                 if ohlcv and len(ohlcv) < MAX_PER_REQUEST:
@@ -159,6 +161,8 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exch
                     all_new_candles = new_candles + all_new_candles
                     remaining -= len(new_candles)
                     logger.info("downloaded_candles", count=len(new_candles), total=len(all_new_candles))
+                    if on_progress:
+                        on_progress(len(all_new_candles), limit)
         except Exception as e:
             logger.error("error_fetching_historical_data", error=str(e))
 

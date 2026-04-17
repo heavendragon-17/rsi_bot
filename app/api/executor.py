@@ -13,9 +13,33 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
-_executor = ThreadPoolExecutor(max_workers=2)
+from app.core.constants import DEFAULT_MAX_WORKERS, MAX_WORKERS_UPPER_BOUND
+
+_executor = ThreadPoolExecutor(max_workers=DEFAULT_MAX_WORKERS)
+_max_workers: int = DEFAULT_MAX_WORKERS
 _jobs: dict[int, Future] = {}
 _progress_queues: dict[int, asyncio.Queue] = {}
+
+
+def get_max_workers() -> int:
+    return _max_workers
+
+
+def has_running_jobs() -> bool:
+    return any(not f.done() for f in _jobs.values())
+
+
+def set_max_workers(n: int) -> None:
+    """Rebuild the thread pool with a new worker count.
+
+    Must NOT be called while jobs are running — caller is responsible
+    for checking ``has_running_jobs()`` first.
+    """
+    global _executor, _max_workers
+    clamped = max(1, min(n, MAX_WORKERS_UPPER_BOUND))
+    _executor.shutdown(wait=False)
+    _executor = ThreadPoolExecutor(max_workers=clamped)
+    _max_workers = clamped
 
 
 def submit_backtest(run_id: int, fn: Callable, *args, **kwargs) -> Future:

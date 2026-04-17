@@ -9,6 +9,7 @@ import { RunHistory } from './components/history/RunHistory';
 import { GridSearch } from './components/GridSearch';
 import { WalkForward } from './components/WalkForward';
 import { SensitivityAnalysis } from './components/Sensitivity';
+import { FloatingProgressPill } from './components/layout/FloatingProgressPill';
 import { useResultsStore } from './stores/resultsStore';
 import { useBatchResultsStore } from './stores/batchResultsStore';
 import { useBacktestStore } from './stores/backtestStore';
@@ -20,15 +21,18 @@ function App() {
   const { hasBatchResults } = useBatchResultsStore();
   const { mode } = useBacktestStore();
   const { fetchThemes } = useThemeStore();
+  const loadStrategies = useBacktestStore(s => s.loadStrategies);
+  const recoverActiveRun = useBacktestStore(s => s.recoverActiveRun);
 
-  // Initialize themes on mount
+  // Initialize on mount
   useEffect(() => {
-    // Fetch available themes
     fetchThemes();
-  }, [fetchThemes]);
+    loadStrategies();
+    recoverActiveRun();
+  }, [fetchThemes, loadStrategies, recoverActiveRun]);
 
   const showSingle = mode === "single" && hasResults;
-  const showBatch = mode === "batch" && hasBatchResults;
+  const showBatch = (mode === "batch" || mode === "portfolio") && hasBatchResults;
   const showHistory = mode === "history";
   const showGridSearch = mode === "grid-search";
   const showWalkForward = mode === "walk-forward";
@@ -46,6 +50,7 @@ function App() {
       {!showSingle && !showBatch && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
 
       <DataPrepModal />
+      <FloatingProgressPill />
       <Toaster richColors position="bottom-right" />
     </Layout>
   );

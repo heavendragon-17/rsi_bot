@@ -58,17 +58,34 @@ class BacktestEngine(Engine):
         days = duration_cfg.get("days", 0)
         months = duration_cfg.get("months", 0)
         years = duration_cfg.get("years", 0)
+        total_duration = days + months + years
         timeframe = config.get("timeframe", "15m")
-        try:
-            from app.backtest.data.download import calculate_candle_limit
+        if total_duration > 0:
+            # Only truncate when an explicit duration is set (CLI path).
+            # API/UI path pre-filters the CSV to the requested date range
+            # before passing it here, so no truncation is needed.
+            try:
+                from app.backtest.data.download import calculate_candle_limit
 
-            limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
-            if limit > 0:
-                data = data.tail(limit).reset_index(drop=True)
-        except Exception as e:
-            logger.warning(f"Could not calculate or apply candle limit: {e}")
+                limit = calculate_candle_limit(timeframe, days=days, months=months, years=years)
+                if limit > 0:
+                    data = data.tail(limit).reset_index(drop=True)
+            except Exception as e:
+                logger.warning(f"Could not calculate or apply candle limit: {e}")
 
         data["timestamp"] = pd.to_datetime(data["timestamp"])
+
+        # Date-range filtering — used by batch mode and any caller that puts
+        # start_date/end_date in config["backtest"] instead of pre-filtering.
+        start_date = config.get("backtest", {}).get("start_date")
+        end_date = config.get("backtest", {}).get("end_date")
+        if start_date or end_date:
+            mask = pd.Series([True] * len(data), index=data.index)
+            if start_date:
+                mask &= data["timestamp"] >= str(start_date)
+            if end_date:
+                mask &= data["timestamp"] <= str(end_date)
+            data = data[mask].reset_index(drop=True)
 
         symbol = config["symbols"][0]
         initial_balance = config.get("backtest", {}).get("initial_balance", 1000.0)
@@ -77,12 +94,14 @@ class BacktestEngine(Engine):
 
         taker_fee = float(risk_cfg.get("taker_fee", DEFAULT_TAKER_FEE))
         maker_fee = float(risk_cfg.get("maker_fee", DEFAULT_MAKER_FEE))
+        slippage_pct = float(config.get("slippage_pct", 0.0))
 
         exchange = MockExchange(
             initial_balance=initial_balance,
             leverage=leverage,
             taker_fee=taker_fee,
             maker_fee=maker_fee,
+            slippage_pct=slippage_pct,
         )
         strategy = strategy_class(config)
         portfolio = PortfolioManager(exchange, config)

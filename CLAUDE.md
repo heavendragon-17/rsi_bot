@@ -40,8 +40,11 @@ python -m app.backtest.runners.tick_replay \
   --symbol BTC/USDT --timeframe 5m --balance 10000
 
 # Run backtest UI
-python -m uvicorn app.api.main:app --reload --port 8000  # backend
-cd ui && npm run dev                                       # frontend
+# Backend defaults to port 8100 — override with API_PORT env var
+python -m app.api.main
+# Frontend defaults to port 3100 — override with VITE_PORT env var
+# The UI reads the backend URL from VITE_API_URL (default http://localhost:8100)
+cd ui && npm run dev 
 
 # Tests
 pytest tests/                                    # all tests

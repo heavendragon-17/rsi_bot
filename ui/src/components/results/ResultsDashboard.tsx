@@ -1,43 +1,42 @@
 import React from "react";
 import { HeaderBar } from "./HeaderBar";
-import { HeroStats } from "./HeroStats";
-import { MetricsGrid } from "./MetricsGrid";
+import { NetProfitHero } from "./NetProfitHero";
+import { MetricGroupCards } from "./MetricGroupCards";
 import { EquityUnderwaterChart } from "./EquityUnderwaterChart";
-import { ExitReasonsChart } from "./ExitReasonsChart";
+import { ExitReasonsBar } from "./ExitReasonsBar";
 import { TradesTable } from "./TradesTable";
 
 export const ResultsDashboard: React.FC = () => {
   return (
-    <div className="flex flex-col h-full bg-bg-surface overflow-y-auto overflow-x-hidden custom-scrollbar">
-        {/* Sticky Header */}
-        <HeaderBar />
+    <div className="flex flex-col h-full bg-bg-surface">
+      {/* Header — outside scroll context so scrollbar doesn't overlap */}
+      <HeaderBar />
 
-        <div className="p-6 max-w-[1600px] w-full mx-auto space-y-6 pb-20">
-            {/* Top Section: Hero Stats */}
-            <HeroStats />
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="p-4 lg:p-5 max-w-[1800px] w-full mx-auto space-y-4 pb-20">
 
-            {/* Mid Section: Charts & Metrics Grid */}
-            <div className="grid grid-cols-12 gap-6">
-                {/* Left Col: Metrics + Exit Reasons */}
-                <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
-                     <MetricsGrid />
-                     <div className="flex-1 min-h-[250px] border border-border-main rounded-xl bg-bg-surface p-4 shadow-sm">
-                         <ExitReasonsChart />
-                     </div>
-                </div>
+          {/* 1. Net Profit Hero */}
+          <NetProfitHero />
 
-                {/* Right Col: Main Equity Chart */}
-                <div className="col-span-12 lg:col-span-8">
-                     <EquityUnderwaterChart />
-                </div>
-            </div>
+          {/* 2. Three Metric Group Cards */}
+          <MetricGroupCards />
 
-            {/* Bottom Section: Trades Table */}
-            <div className="h-[500px]">
-                <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Trade Journal</h3>
-                <TradesTable />
-            </div>
+          {/* 3. Equity + Underwater charts */}
+          <EquityUnderwaterChart />
+
+          {/* 4. Exit Reasons Bar */}
+          <ExitReasonsBar />
+
+          {/* 5. Trade Journal */}
+          <div>
+            <h3 className="text-xs font-semibold text-text-secondary mb-3 uppercase tracking-wider">
+              Trade Journal
+            </h3>
+            <TradesTable />
+          </div>
+
         </div>
+      </div>
     </div>
   );
 };

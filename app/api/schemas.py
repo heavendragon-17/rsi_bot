@@ -42,12 +42,22 @@ class BacktestRequest(BaseModel):
     initial_capital: str = "10000.00"  # TEXT / Decimal string
     leverage: int = 10
     risk_per_trade_pct: str = "0.02"
-    fee_tier: str = "0.001"
+    taker_fee_pct: str = "0.10"  # Percentage, e.g. "0.10" = 0.10% = 0.001 decimal
+    maker_fee_pct: str = "0.10"  # Percentage, e.g. "0.06" = 0.06%
     slippage_model: str = "none"
     slippage_pct: str = "0.0"
     params: dict[str, Any] = {}
+    benchmark: str | None = None  # buy-and-hold symbol, e.g. "BTC/USDT"
     max_workers: int | None = None  # batch only
     tick_data_path: str | None = None  # tick_replay only
+
+    # --- Risk / portfolio params (defaults match config.yaml) ---
+    tp1_close_pct: float = 1.0  # Close 100% at TP1
+    tp2_close_pct: float = 0.0  # Close 0% at TP2
+    max_position_size_pct: float = 10.0  # Max margin % per trade
+    min_sl_distance_pct: float = 0.003  # Min SL distance
+    use_risk_based_sizing: bool = True  # Size based on SL distance
+    use_initial_capital_for_risk: bool = True  # Risk off initial capital
 
     @model_validator(mode="after")
     def _validate_mode_fields(self) -> BacktestRequest:
@@ -121,6 +131,8 @@ class TimeseriesResponse(BaseModel):
     equity_curve: list[dict[str, Any]]  # [{date, balance}]
     drawdown_curve: list[dict[str, Any]]  # [{date, drawdown}]
     monthly_returns: dict[str, Any]
+    dispersion_range: list[dict[str, Any]]  # [{date, min, max}] — batch/portfolio only
+    benchmark_curve: list[dict[str, Any]]  # [{date, balance}] — optional buy-and-hold
 
 
 # ---------------------------------------------------------------------------
@@ -164,3 +176,31 @@ class StrategyInfo(BaseModel):
     name: str
     description: str | None
     default_config: dict[str, Any]
+    param_schema: dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# Presets
+# ---------------------------------------------------------------------------
+
+
+class PresetCreate(BaseModel):
+    name: str
+    strategy: str
+    config: dict[str, Any]
+
+
+class PresetUpdate(BaseModel):
+    name: str | None = None
+    config: dict[str, Any] | None = None
+
+
+class PresetResponse(BaseModel):
+    id: int
+    name: str
+    strategy: str
+    config: dict[str, Any]
+    created_at: str
+    updated_at: str
+
+    model_config = {"from_attributes": True}

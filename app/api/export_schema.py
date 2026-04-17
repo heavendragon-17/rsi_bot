@@ -35,6 +35,9 @@ _INCLUDE = {
     "DataStatusResponse",
     "DownloadStartResponse",
     "StrategyInfo",
+    "PresetCreate",
+    "PresetUpdate",
+    "PresetResponse",
 }
 
 
