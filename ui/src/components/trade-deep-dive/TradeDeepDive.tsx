@@ -177,7 +177,7 @@ export function TradeDeepDive({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-8 bg-slate-950/90 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -185,7 +185,7 @@ export function TradeDeepDive({
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[1400px] max-h-[92vh] bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-violet-500/30 shadow-[0_0_60px_rgba(139,92,246,0.3)] overflow-hidden flex flex-col"
+        className="w-full max-w-[1400px] max-h-[90vh] bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-violet-500/30 shadow-[0_0_60px_rgba(139,92,246,0.3)] overflow-hidden flex flex-col"
       >
         <TradeDeepDiveHeader
           trade={trade}
@@ -196,7 +196,7 @@ export function TradeDeepDive({
         />
 
         {/* Charts + annotation */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 sm:px-8 sm:py-7 space-y-5 relative">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 relative">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm rounded-xl">
               <div className="flex flex-col items-center gap-3">
@@ -253,7 +253,7 @@ export function TradeDeepDive({
                   </>
                 ) : (
                   <span>
-                    <kbd className="px-1.5 py-0.5 rounded border border-white/10 text-slate-400 font-mono text-[10px]">Shift</kbd>
+                    <kbd className="px-1.5 py-0.5 rounded border border-white/10 text-slate-400 font-mono text-xs">Shift</kbd>
                     {" + scroll to zoom · drag to pan"}
                   </span>
                 )}

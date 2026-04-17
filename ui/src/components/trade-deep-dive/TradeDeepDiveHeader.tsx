@@ -91,7 +91,7 @@ export function TradeDeepDiveHeader({
   return (
     <div className="border-b border-white/10 bg-slate-900/60">
       {/* ── Row 1: identity + P&L + nav + close ── */}
-      <div className="flex items-center gap-3 px-6 sm:px-8 pt-5 pb-4">
+      <div className="flex items-center gap-3 px-6 pt-4 pb-4">
         {/* Icon */}
         <div
           className={`shrink-0 p-2 rounded-lg ${
@@ -172,7 +172,7 @@ export function TradeDeepDiveHeader({
       </div>
 
       {/* ── Rows 2-3: stat grid (2 rows × 2 groups) ── */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-6 sm:px-8 pb-5">
+      <div className="grid grid-cols-2 gap-4 px-6 pb-4">
         {/* Row 1, col 1 — Time */}
         <div className="flex items-center gap-4 bg-white/[0.04] rounded-lg px-4 py-2.5">
           <StatPill label="Entry">{formatTime(trade.entryTime)}</StatPill>

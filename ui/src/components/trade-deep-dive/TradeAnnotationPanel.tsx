@@ -78,10 +78,10 @@ export function TradeAnnotationPanel({ tradeId }: TradeAnnotationPanelProps) {
 
   return (
     <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
-      <h3 className="text-white font-bold text-sm mb-5">Annotation</h3>
+      <h3 className="text-white font-bold text-sm mb-4">Annotation</h3>
 
       {/* Tag toggles */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-4">
         {ALL_TAGS.map((tag) => {
           const Icon = TAG_ICONS[tag];
           const isActive = tags.includes(tag);
