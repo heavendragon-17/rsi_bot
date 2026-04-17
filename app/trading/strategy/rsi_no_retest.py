@@ -35,21 +35,13 @@ from app.trading.strategy.base import BaseStrategy
 from app.trading.strategy.rsi_no_retest_entry import check_entry
 from app.trading.strategy.rsi_no_retest_exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
-from app.trading.strategy.utils.param_metadata import (
-    RSI_NO_RETEST_METADATA,
-    RSI_NO_RETEST_GROUPS,
-)
-from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 
 logger = structlog.get_logger()
 
 
 @dataclass(frozen=True)
-class RsiNoRetestConfig(SchemaConfigMixin):
+class RsiNoRetestConfig:
     """Typed config for RsiNoRetestStrategy. Constructed from strategy_params dict."""
-
-    METADATA = RSI_NO_RETEST_METADATA
-    UI_GROUPS = RSI_NO_RETEST_GROUPS
 
     rsi_period: int = 21
     rsi_ema_length: int = 9
@@ -79,8 +71,6 @@ class RsiNoRetestStrategy(BaseStrategy):
     """
     RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest.
     """
-
-    CONFIG_CLASS = RsiNoRetestConfig
 
     # Default configuration for this strategy
     DEFAULT_CONFIG = {

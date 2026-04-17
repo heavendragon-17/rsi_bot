@@ -111,32 +111,6 @@ async def start_download(body: dict[str, Any]):
     return DownloadStartResponse(job_id=job_id, status="downloading")
 
 
-@router.get("/benchmark/{symbol:path}")
-def get_benchmark_curve(
-    symbol: str,
-    timeframe: str,
-    start_date: str | None = None,
-    end_date: str | None = None,
-    initial_capital: float = 10000.0,
-):
-    """Compute and return a buy-and-hold benchmark curve for a symbol.
-
-    Uses the locally downloaded OHLCV CSV — no network call required.
-    Returns 200 with an empty curve if the CSV is missing.
-    """
-    from app.backtest.benchmark import compute_benchmark_curve
-
-    curve = compute_benchmark_curve(
-        benchmark=symbol,
-        timeframe=timeframe,
-        start_date=start_date,
-        end_date=end_date,
-        initial_capital=initial_capital,
-        data_dir=DATA_DIR,
-    )
-    return {"symbol": symbol, "curve": curve}
-
-
 @router.get("/download/{job_id}/progress")
 async def download_progress(job_id: str):
     """SSE stream for a download job."""

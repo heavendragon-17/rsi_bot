@@ -106,8 +106,8 @@ def test_run_backtest_with_explicit_mode(mock_submit, mock_exists):
     assert data["status"] == "running"
 
 
-def test_run_backtest_missing_data_file_starts_inline_download():
-    """Test that missing CSV no longer returns 400 — worker downloads inline."""
+def test_run_backtest_missing_data_file():
+    """Test 400 when CSV data file doesn't exist."""
     payload = {
         "symbol": "NONEXIST/USDT",
         "timeframe": "1h",
@@ -117,11 +117,8 @@ def test_run_backtest_missing_data_file_starts_inline_download():
     }
 
     response = client.post("/api/backtest/run", json=payload)
-    # Now returns 201 and the worker will attempt inline download
-    assert response.status_code == 201
-    data = response.json()
-    assert "run_id" in data
-    assert data["status"] == "running"
+    assert response.status_code == 400
+    assert "Data file not found" in response.json()["detail"]
 
 
 def test_run_backtest_unknown_strategy():

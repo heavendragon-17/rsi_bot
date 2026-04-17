@@ -44,21 +44,16 @@ export async function startBacktest(
  */
 export function streamProgress(
   runId: number,
-  onProgress: (pct: number, phase?: "download" | "backtest") => void,
+  onProgress: (pct: number) => void,
   onComplete: (data: { run_id: number; status: string }) => void,
   onError: (message: string) => void,
 ): () => void {
   return apiSSE(
     `/api/backtest/${runId}/progress`,
     (eventName, data) => {
-      if (eventName === "download_progress") {
+      if (eventName === "progress") {
         const d = data as { pct?: number };
-        onProgress(d.pct ?? 0, "download");
-      } else if (eventName === "download_complete") {
-        onProgress(100, "download");
-      } else if (eventName === "progress") {
-        const d = data as { pct?: number };
-        onProgress(d.pct ?? 0, "backtest");
+        onProgress(d.pct ?? 0);
       } else if (eventName === "complete") {
         onComplete(data as { run_id: number; status: string });
       } else if (eventName === "error") {
@@ -95,25 +90,4 @@ export async function getRunDetail(runId: number): Promise<RunDetail> {
 /** GET /api/backtest/{run_id}/timeseries — lazy-load equity + drawdown curves */
 export async function getTimeseries(runId: number): Promise<TimeseriesResponse> {
   return apiFetch<TimeseriesResponse>(`/api/backtest/${runId}/timeseries`);
-}
-
-// ---------------------------------------------------------------------------
-// getBenchmark
-// ---------------------------------------------------------------------------
-
-/** GET /api/data/benchmark/{symbol} — on-demand buy-and-hold curve from local CSV */
-export async function getBenchmark(
-  symbol: string,
-  timeframe: string,
-  startDate: string,
-  endDate: string,
-  initialCapital: number,
-): Promise<{ symbol: string; curve: Record<string, unknown>[] }> {
-  const params = new URLSearchParams({
-    timeframe,
-    start_date: startDate,
-    end_date: endDate,
-    initial_capital: String(initialCapital),
-  });
-  return apiFetch(`/api/data/benchmark/${encodeURIComponent(symbol)}?${params}`);
 }

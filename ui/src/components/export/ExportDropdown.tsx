@@ -56,7 +56,7 @@ export const ExportDropdown: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2 px-3.5 text-xs font-medium"
+            className="flex items-center gap-2 text-xs font-medium"
           >
             <Download size={14} />
             Export

@@ -39,7 +39,3 @@ EQUITY_SAMPLE_INTERVAL = 3  # candles between samples (normal mode)
 EQUITY_SAMPLE_HIGH_RES = 1  # every candle when drawdown is steep
 EQUITY_SAMPLE_LOW_RES = 6  # relaxed interval when flat/steady
 EQUITY_DRAWDOWN_THRESHOLD = 2.0  # % drawdown to trigger high-res mode
-
-# ── Concurrency ──────────────────────────────────────────────────────
-DEFAULT_MAX_WORKERS = 2  # concurrent backtest jobs
-MAX_WORKERS_UPPER_BOUND = 8  # hard cap on concurrent workers

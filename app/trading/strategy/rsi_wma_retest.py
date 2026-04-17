@@ -13,8 +13,6 @@ EXIT CHANGE (NO meta field needed):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from dataclasses import fields as dc_fields
 from decimal import Decimal
 
 from app.core.constants import WARMUP
@@ -23,44 +21,6 @@ from app.core.events import SignalEvent
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.utils.param_metadata import (
-    RSI_WMA_RETEST_METADATA,
-    RSI_WMA_RETEST_GROUPS,
-)
-from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
-
-
-@dataclass(frozen=True)
-class RsiWmaRetestConfig(SchemaConfigMixin):
-    """Typed config for RsiWmaRetestStrategy."""
-
-    METADATA = RSI_WMA_RETEST_METADATA
-    UI_GROUPS = RSI_WMA_RETEST_GROUPS
-
-    # Indicator parameters
-    rsi_period: int = 14
-    rsi_ema_length: int = 9
-    rsi_wma_length: int = 45
-    price_ema_fast: int = 21
-    price_ema_slow: int = 200
-    # Entry conditions
-    wma_retest_distance: float = 0.3
-    rsi_floor: int = 40
-    wma45_min: int = 30
-    wma45_max: int = 50
-    # H1 Filter
-    check_h1_wma45: bool = True
-    h1_wma45_min: float = 45.0
-    # TP levels (RSI values)
-    tp1_rsi: int = 60
-    tp2_rsi: int = 70
-    tp3_rsi: int = 80
-    # SL settings
-    sl_buffer_pct: float = 0.003
-    disaster_sl_multiplier: float = 3.0
-    candle_close_slippage_pct: float = 0.001
-    # Trade management
-    use_active_trades: bool = True
 
 
 class RsiWmaRetestStrategy(BaseStrategy):
@@ -68,11 +28,32 @@ class RsiWmaRetestStrategy(BaseStrategy):
     RSI WMA Retest Strategy - requires RSI to retest WMA45 before entry.
     """
 
-    CONFIG_CLASS = RsiWmaRetestConfig
-
     # Default configuration for this strategy
     DEFAULT_CONFIG = {
-        f.name: f.default for f in dc_fields(RsiWmaRetestConfig)
+        # Indicator parameters
+        "rsi_period": 14,
+        "rsi_ema_length": 9,
+        "rsi_wma_length": 45,
+        "price_ema_fast": 21,
+        "price_ema_slow": 200,
+        # Entry conditions
+        "wma_retest_distance": 0.3,  # Max distance for valid retest
+        "rsi_floor": 40,  # No close below R40 during retest
+        "wma45_min": 30,  # Class 1 signal minimum
+        "wma45_max": 50,  # Class 1 signal maximum
+        # H1 Filter
+        "check_h1_wma45": True,
+        "h1_wma45_min": 45.0,
+        # TP levels (RSI values)
+        "tp1_rsi": 60,
+        "tp2_rsi": 70,
+        "tp3_rsi": 80,
+        # SL settings
+        "sl_buffer_pct": 0.003,  # 0.3% buffer below R40
+        "disaster_sl_multiplier": 3.0,  # Disaster SL = 3x the distance of Soft SL
+        "candle_close_slippage_pct": 0.001,  # 0.1% slippage for candle-close exits
+        # Trade management
+        "use_active_trades": True,
     }
 
     def __init__(self, config: dict):
@@ -343,10 +324,6 @@ class RsiWmaRetestStrategy(BaseStrategy):
                     entry_price = Decimal(str(close))
                     soft_sl_distance = entry_price - soft_sl_price
                     disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
-                    # Floor at 1% of entry — a stop loss price must never be zero or negative
-                    min_sl = entry_price * Decimal("0.01")
-                    if disaster_sl_price < min_sl:
-                        disaster_sl_price = min_sl
 
                 # Register trade
                 if self.use_active_trades:

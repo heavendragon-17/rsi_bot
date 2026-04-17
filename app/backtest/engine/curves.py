@@ -57,7 +57,6 @@ def calculate_portfolio_drawdown(
     peak = initial_balance
     max_dd = 0.0
     max_dd_value = 0.0
-    dd = 0.0
     current_dd_duration = 0
     max_dd_duration = 0
     all_drawdowns: list[float] = []

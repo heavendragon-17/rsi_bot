@@ -47,7 +47,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                     <tr>
                         {[
                             { key: "symbol", label: "Symbol", w: "w-24 pl-4" },
-                            { key: "netPnL", label: "Contrib ($)", w: "w-24 text-right" },
+                            { key: "contribution", label: "Contrib ($)", w: "w-24 text-right" },
                             { key: "netPnLPct", label: "Net PnL %", w: "w-24 text-right" },
                             { key: "winRate", label: "Win %", w: "w-20 text-right" },
                             { key: "tradeCount", label: "# Trades", w: "w-20 text-right" },
@@ -78,10 +78,10 @@ export const SymbolPerformanceTable: React.FC = () => {
                         const isPinned = pinnedSymbols.includes(res.symbol);
 
                         return (
-                            <tr key={res.symbol} onClick={() => selectSymbol(res.symbol)} className="group hover:bg-bg-elevated/30 transition-colors cursor-pointer">
+                            <tr key={res.symbol} className="group hover:bg-bg-elevated/30 transition-colors">
                                 <td className="py-2.5 pl-4 font-medium">{res.symbol}</td>
                                 <td className={cn("py-2.5 text-right font-medium", isWin ? "text-success" : "text-danger")}>
-                                    {isWin ? "+$" : "-$"}{Math.abs(Math.round(res.netPnL)).toLocaleString()}
+                                    {isWin ? "+" : ""}{Math.round(res.contribution).toLocaleString()}
                                 </td>
                                 <td className={cn("py-2.5 text-right font-bold", isWin ? "text-success" : "text-danger")}>
                                     {isWin ? "+" : ""}{res.netPnLPct.toFixed(1)}%
@@ -107,7 +107,7 @@ export const SymbolPerformanceTable: React.FC = () => {
                                 </td>
                                 <td className="py-2.5 text-center pr-4">
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); selectSymbol(res.symbol); }}
+                                        onClick={() => selectSymbol(res.symbol)}
                                         className="px-2 py-1 rounded bg-bg-elevated hover:bg-bg-secondary text-text-secondary hover:text-text-primary text-xs font-medium transition-colors flex items-center gap-1 mx-auto border border-border-main"
                                     >
                                         View <Eye size={10} />

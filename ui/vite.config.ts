@@ -54,7 +54,7 @@
       outDir: 'build',
     },
     server: {
-      port: Number(process.env.VITE_PORT ?? 3100),
+      port: 3000,
       open: true,
     },
   });

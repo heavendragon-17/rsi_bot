@@ -4,17 +4,6 @@ import type { Trade } from "../stores/resultsStore";
 
 import type { BatchResultsState } from "../stores/batchResultsStore";
 
-function buildUnderwaterCurve(
-  equityCurve: { time: string; value: number }[]
-): { time: string; value: number }[] {
-  let peak = -Infinity;
-  return equityCurve.map((p) => {
-    if (p.value > peak) peak = p.value;
-    const dd = peak > 0 ? ((p.value - peak) / peak) * 100 : 0;
-    return { time: p.time, value: dd };
-  });
-}
-
 export function aggregateBatchResults(
   runs: { symbol: string; detail: RunDetail; timeseries: TimeseriesResponse; initialCapital: number }[]
 ): Partial<BatchResultsState> {
@@ -76,39 +65,18 @@ export function aggregateBatchResults(
       mapByTime.set(ts, existing + (pt.value - initialCapital));
     }
 
-    const winC = Math.round(tradesCount * (winRate / 100));
-
     symbolResults.push({
       symbol,
       contribution: pnl,
       netPnL: pnl,
       netPnLPct: pnlPct,
-      winRate,
+      winRate: winRate,
       tradeCount: tradesCount,
-      sharpe,
+      sharpe: sharpe,
       maxDrawdownPct: mdPct,
       isPinned: false,
-      trades,
+      trades: trades,
       equityCurve: eqCurve,
-      // Extended fields for drill-down
-      profitFactor: parseFloat(res.profit_factor || "0") || 0,
-      grossWin: parseFloat(res.gross_profit || "0") || 0,
-      grossLoss: parseFloat(res.gross_loss || "0") || 0,
-      maxDrawdownValue: parseFloat(res.max_drawdown_value || "0") || 0,
-      sortinoRatio: res.sortino_ratio || 0,
-      calmarRatio: res.calmar_ratio || 0,
-      volatility: res.volatility || 0,
-      expectancy: parseFloat(res.expectancy || "0") || 0,
-      maxConsecWins: res.max_consecutive_wins || 0,
-      winCount: winC,
-      lossCount: tradesCount - winC,
-      avgWin: parseFloat(res.avg_win || "0") || 0,
-      avgLoss: parseFloat(res.avg_loss || "0") || 0,
-      bestTrade: parseFloat(res.largest_win || "0") || 0,
-      worstTrade: parseFloat(res.largest_loss || "0") || 0,
-      benchmarkProfitPct: 0,
-      exitReasons: (res.exit_reasons as Record<string, number>) ?? {},
-      underwaterCurve: buildUnderwaterCurve(eqCurve),
     });
   }
 

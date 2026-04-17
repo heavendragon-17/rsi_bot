@@ -35,15 +35,7 @@ class BatchHtmlGenerator:
         total_initial = sum(r["initial_balance"] for r in self.results)
         total_final = sum(r["final_balance"] for r in self.results)
         portfolio_return = ((total_final - total_initial) / total_initial) * 100 if total_initial > 0 else 0
-        avg_drawdown = (
-            sum(
-                r["drawdown"].get("avg_drawdown_pct", 0) if isinstance(r["drawdown"], dict) else r["drawdown"]
-                for r in self.results
-            )
-            / len(self.results)
-            if self.results
-            else 0
-        )
+        avg_drawdown = sum(r["drawdown"] for r in self.results) / len(self.results) if self.results else 0
         total_trades = sum(r["trades"] for r in self.results)
 
         equity_values, equity_labels = self._build_equity_data(total_initial)
@@ -132,7 +124,7 @@ class BatchHtmlGenerator:
                 f'<td><strong>{res["symbol"]}</strong></td>'
                 f'<td class="{c}">${res["profit"]:.2f}</td>'
                 f'<td class="{c}">{res["profit_pct"]:+.2f}%</td>'
-                f'<td>{res["drawdown"].get("avg_drawdown_pct", 0) if isinstance(res["drawdown"], dict) else res["drawdown"]:.2f}%</td>'
+                f'<td>{res["drawdown"]:.2f}%</td>'
                 f'<td>{res["trades"]}</td>'
                 f'<td>{res["metrics"].get("win_rate", 0.0):.1f}%</td>'
                 f"</tr>"

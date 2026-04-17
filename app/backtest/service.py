@@ -19,8 +19,11 @@ import structlog
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
+    from app.api import executor as exc_mod
     from app.api.schemas import BacktestMode, BacktestRequest, RunDetail, TimeseriesResponse
 
+from app.backtest.config_builder import build_backtest_config
+from app.backtest.persistence import mark_failed, persist_results
 from app.repository.backtest.models import (
     Run,
     RunConfig,
@@ -36,18 +39,24 @@ logger = structlog.get_logger()
 DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "data"))
 
 # Lazy-loaded to avoid backtest → api import boundary violation at module level.
-# Use _get_exc_mod() everywhere inside this module — module-level __getattr__
-# only fires on *external* attribute access, not on bare-name lookups here.
-_exc_mod_cache = None
+# Tests can still patch "app.backtest.service.exc_mod" because __getattr__ makes
+# it appear as a real module attribute on first access.
+def _load_exc_mod():
+    """Lazy import of app.api.executor — called on first access of exc_mod."""
+    import sys
+
+    from app.api import executor
+
+    # Store in module globals so subsequent lookups (and mock.patch) work.
+    current_module = sys.modules[__name__]
+    current_module.exc_mod = executor
+    return executor
 
 
-def _get_exc_mod():
-    """Return app.api.executor, importing it on first call."""
-    global _exc_mod_cache
-    if _exc_mod_cache is None:
-        from app.api import executor
-        _exc_mod_cache = executor
-    return _exc_mod_cache
+def __getattr__(name: str):
+    if name == "exc_mod":
+        return _load_exc_mod()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 
@@ -81,12 +90,13 @@ class BacktestService:
         if strat_row is None:
             raise ValueError(f"Strategy '{req.strategy}' not seeded in DB")
 
-        is_batch = mode == BacktestMode.BATCH
-
-        # 2. Resolve CSV path (single mode; download happens inline in worker)
+        # 2. Validate data file (single mode only; portfolio downloads dynamically)
         csv_path = None
-        if not is_portfolio and not is_batch:
+        if not is_portfolio:
             csv_path = _csv_path(req.symbol, req.timeframe)
+            if not os.path.exists(csv_path):
+                safe = req.symbol.replace("/", "")
+                raise FileNotFoundError(f"Data file not found: {safe}_{req.timeframe}.csv. Download data first.")
 
         # 3. Create Run + RunConfig rows
         run = Run(
@@ -97,23 +107,16 @@ class BacktestService:
         db.add(run)
         db.flush()
 
-        if is_batch or is_portfolio:
-            cfg_symbol = "BATCH" if is_batch else "PORTFOLIO"
-        else:
-            cfg_symbol = req.symbol
-
         cfg = RunConfig(
             run_id=run.id,
-            symbol=cfg_symbol,
-            symbols_list=req.symbols if (is_batch or is_portfolio) else None,
-            is_batch_mode=is_batch,
+            symbol="PORTFOLIO" if is_portfolio else req.symbol,
             timeframe=req.timeframe,
             start_date=date.fromisoformat(req.start_date),
             end_date=date.fromisoformat(req.end_date),
             initial_capital=req.initial_capital,
             leverage=req.leverage,
             risk_per_trade_pct=req.risk_per_trade_pct,
-            fee_tier=req.taker_fee_pct,
+            fee_tier=req.fee_tier,
             slippage_model=req.slippage_model,
             slippage_pct=req.slippage_pct,
             params=req.params,
@@ -125,8 +128,8 @@ class BacktestService:
 
         # 4. Create SSE queue + submit to executor
         loop = asyncio.get_event_loop()
-        _get_exc_mod().create_progress_queue(run_id)
-        progress_cb = _get_exc_mod().make_progress_callback(run_id, loop)
+        exc_mod.create_progress_queue(run_id)
+        progress_cb = exc_mod.make_progress_callback(run_id, loop)
 
         worker_fn = self._build_worker(
             mode=mode,
@@ -137,7 +140,7 @@ class BacktestService:
             strategy_class=strategy_class,
             csv_path=csv_path,
         )
-        _get_exc_mod().submit_backtest(run_id, worker_fn)
+        exc_mod.submit_backtest(run_id, worker_fn)
 
         return run_id
 
@@ -180,29 +183,17 @@ class BacktestService:
 
         equity_curve = json.loads(zlib.decompress(ts.equity_curve)) if ts.equity_curve else []
         drawdown_curve = json.loads(zlib.decompress(ts.drawdown_curve)) if ts.drawdown_curve else []
-        dispersion_range = (
-            json.loads(zlib.decompress(ts.dispersion_range))
-            if getattr(ts, "dispersion_range", None)
-            else []
-        )
-        benchmark_curve = (
-            json.loads(zlib.decompress(ts.benchmark_curve))
-            if getattr(ts, "benchmark_curve", None)
-            else []
-        )
 
         return TimeseriesResponse(
             run_id=run_id,
             equity_curve=equity_curve,
             drawdown_curve=drawdown_curve,
             monthly_returns=ts.monthly_returns or {},
-            dispersion_range=dispersion_range,
-            benchmark_curve=benchmark_curve,
         )
 
     def cancel_run(self, run_id: int, db: Session) -> dict:
         """Cancel a running backtest."""
-        cancelled = _get_exc_mod().cancel_job(run_id)
+        cancelled = exc_mod.cancel_job(run_id)
         run = db.query(Run).filter_by(id=run_id).first()
         if run:
             run.status = "cancelled"
@@ -211,9 +202,8 @@ class BacktestService:
 
     async def stream_progress(self, run_id: int) -> AsyncIterator[str]:
         """Yield SSE-formatted progress events."""
-        q = _get_exc_mod().get_progress_queue(run_id)
+        q = exc_mod.get_progress_queue(run_id)
         if q is None:
-            logger.info("sse_no_queue_immediate_complete", run_id=run_id)
             yield f"event: complete\ndata: {json.dumps({'run_id': run_id, 'status': 'completed'})}\n\n"
             return
 
@@ -221,16 +211,10 @@ class BacktestService:
             while True:
                 event = await asyncio.wait_for(q.get(), timeout=300.0)
                 evt_name = event.pop("event", "progress")
-                # Log terminal events and every 25% progress
-                if evt_name in ("complete", "error", "download_complete"):
-                    logger.info("sse_event", run_id=run_id, sse_type=evt_name, payload=event)
-                elif evt_name == "progress" and event.get("pct", 0) % 25 == 0:
-                    logger.info("sse_progress", run_id=run_id, pct=event.get("pct"))
                 yield f"event: {evt_name}\ndata: {json.dumps(event)}\n\n"
                 if evt_name in ("complete", "error"):
                     break
         except TimeoutError:
-            logger.warning("sse_timeout", run_id=run_id)
             yield f"event: error\ndata: {json.dumps({'message': 'timeout'})}\n\n"
 
     # ------------------------------------------------------------------
@@ -259,36 +243,72 @@ class BacktestService:
     ):
         """Return a callable to execute in the thread pool."""
         from app.api.schemas import BacktestMode
-        from app.backtest.workers import run_batch_worker, run_portfolio_worker, run_single_worker
 
         if mode == BacktestMode.PORTFOLIO:
-            return lambda: run_portfolio_worker(
-                req=req,
-                run_id=run_id,
-                loop=loop,
-                progress_cb=progress_cb,
-                publish_event_fn=_get_exc_mod().publish_event,
-                cleanup_fn=_get_exc_mod().cleanup_job,
-            )
-        if mode == BacktestMode.BATCH:
-            return lambda: run_batch_worker(
-                req=req,
-                run_id=run_id,
-                loop=loop,
-                progress_cb=progress_cb,
-                publish_event_fn=_get_exc_mod().publish_event,
-                cleanup_fn=_get_exc_mod().cleanup_job,
-            )
-        return lambda: run_single_worker(
-            req=req,
-            run_id=run_id,
-            loop=loop,
-            progress_cb=progress_cb,
-            publish_event_fn=_get_exc_mod().publish_event,
-            cleanup_fn=_get_exc_mod().cleanup_job,
-            strategy_class=strategy_class,
-            csv_path=csv_path,
+            return self._portfolio_worker(req, run_id, loop, progress_cb)
+        return self._single_worker(req, run_id, loop, progress_cb, strategy_class, csv_path)
+
+    def _single_worker(self, req, run_id, loop, progress_cb, strategy_class, csv_path):
+        """Create worker fn for single-symbol backtest."""
+        engine_config = build_backtest_config(
+            symbol=req.symbol,
+            timeframe=req.timeframe,
+            strategy_name=req.strategy,
+            initial_balance=float(req.initial_capital),
+            leverage=req.leverage,
+            risk_per_trade_pct=float(req.risk_per_trade_pct),
+            params=req.params,
         )
+
+        def _run():
+            from app.backtest.engine.backtest_engine import BacktestEngine
+
+            try:
+                engine = BacktestEngine(csv_path, strategy_class, engine_config)
+                results = engine.run(on_progress=progress_cb)
+                persist_results(run_id, results)
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
+            except Exception as err:
+                logger.error("backtest_worker_error", run_id=run_id, error=str(err))
+                mark_failed(run_id, str(err))
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
+            finally:
+                exc_mod.cleanup_job(run_id)
+
+        return _run
+
+    def _portfolio_worker(self, req, run_id, loop, progress_cb):
+        """Create worker fn for portfolio backtest."""
+
+        def _run():
+            from app.backtest.runners.portfolio_runner import _run_portfolio_backtest
+
+            try:
+                results = _run_portfolio_backtest(
+                    symbols=req.symbols,
+                    strategy_name=req.strategy,
+                    timeframe=req.timeframe,
+                    start_date=req.start_date,
+                    end_date=req.end_date,
+                    initial_capital=float(req.initial_capital),
+                    leverage=req.leverage,
+                    risk_per_trade_pct=float(req.risk_per_trade_pct),
+                    fee_tier=req.fee_tier,
+                    slippage_model=req.slippage_model,
+                    slippage_pct=float(req.slippage_pct),
+                    params=req.params,
+                    progress_cb=progress_cb,
+                )
+                persist_results(run_id, results)
+                exc_mod.publish_event(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
+            except Exception as err:
+                logger.error("portfolio_backtest_worker_error", run_id=run_id, error=str(err))
+                mark_failed(run_id, str(err))
+                exc_mod.publish_event(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
+            finally:
+                exc_mod.cleanup_job(run_id)
+
+        return _run
 
 
 # ------------------------------------------------------------------
@@ -315,7 +335,6 @@ def _build_results_dict(result: RunResult | None) -> dict[str, Any] | None:
     if not result:
         return None
     return {
-        "final_balance": str(result.final_balance) if result.final_balance is not None else None,
         "net_profit": str(result.net_profit) if result.net_profit is not None else None,
         "net_profit_pct": result.net_profit_pct,
         "gross_profit": str(result.gross_profit) if result.gross_profit is not None else None,

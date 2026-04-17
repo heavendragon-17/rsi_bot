@@ -9,10 +9,9 @@ import {
   getTimeseries,
 } from "../api/backtest";
 import { mapApiToResults, useResultsStore } from "./resultsStore";
-import { mapApiToBatchResults, useBatchResultsStore } from "./batchResultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
-import type { StrategyInfo, JSONSchema } from "../types/generated";
+import type { StrategyInfo } from "../types/generated";
 
 export interface BacktestState {
   // Navigation State
@@ -26,7 +25,6 @@ export interface BacktestState {
   portfolioInput: string;
   strategy: string;
   availableStrategies: StrategyInfo[];
-  currentParamSchema: JSONSchema | null;
   timeframe: string;
   startDate: string;
   endDate: string;
@@ -36,38 +34,27 @@ export interface BacktestState {
   lookbackUnit: "bars" | "hours" | "days" | "weeks" | "months" | "years";
   datePreset: string | null;
 
-  // Strategy Parameters (dynamic — populated from API default_config)
-  params: Record<string, unknown>;
+  // Strategy Parameters
+  params: {
+    rsi_period: number;
+    ema_fast: number;
+    ema_slow: number;
+    tp1_rr: number;
+    tp2_rr: number;
+    sl_buffer_pct: number;
+    overbought: number;
+    oversold: number;
+    [key: string]: number;
+  };
 
   // Risk Management
   capital: string;
   leverage: string;
   riskPercent: string;
-  tp1ClosePct: string;
-  tp2ClosePct: string;
-  maxPositionSizePct: string;
-  minSlDistancePct: string;
-  useRiskBasedSizing: boolean;
-  useInitialCapitalForRisk: boolean;
-
-  // Execution / Fees
-  enableFees: boolean;
-  takerFeePct: string;
-  makerFeePct: string;
-
-  // Slippage
-  slippageModel: "none" | "fixed";
-  slippagePct: string;
-
-  // Benchmark
-  benchmark: string | null;
 
   // Execution State
   isRunning: boolean;
   runProgress: number;        // 0-100
-  runPhase: "idle" | "download" | "backtest";
-  downloadProgress: number;
-  backtestProgress: number;
   currentRunId: number | null;
   recentConfigs: any[];
 
@@ -77,22 +64,10 @@ export interface BacktestState {
   setPortfolioInput: (input: string) => void;
   setStrategy: (strategy: string) => void;
   setTimeframe: (tf: string) => void;
-  setParam: (key: string, value: unknown) => void;
+  setParam: (key: string, value: number) => void;
   setCapital: (val: string) => void;
   setLeverage: (val: string) => void;
   setRiskPercent: (val: string) => void;
-  setTp1ClosePct: (val: string) => void;
-  setTp2ClosePct: (val: string) => void;
-  setMaxPositionSizePct: (val: string) => void;
-  setMinSlDistancePct: (val: string) => void;
-  setUseRiskBasedSizing: (val: boolean) => void;
-  setUseInitialCapitalForRisk: (val: boolean) => void;
-  setEnableFees: (val: boolean) => void;
-  setTakerFeePct: (val: string) => void;
-  setMakerFeePct: (val: string) => void;
-  setSlippageModel: (val: "none" | "fixed") => void;
-  setSlippagePct: (val: string) => void;
-  setBenchmark: (val: string | null) => void;
   setDateRange: (start: string, end: string) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
@@ -104,7 +79,6 @@ export interface BacktestState {
   syncRelativeDates: () => void;
   loadConfig: (config: any) => void;
   loadStrategies: () => Promise<void>;
-  recoverActiveRun: () => Promise<void>;
 
   runBacktest: () => Promise<void>;
   cancelBacktest: () => Promise<void>;
@@ -112,6 +86,17 @@ export interface BacktestState {
   getEstimatedBars: () => number;
   getDaysDuration: () => number;
 }
+
+const DEFAULT_PARAMS = {
+  rsi_period: 14,
+  ema_fast: 9,
+  ema_slow: 21,
+  tp1_rr: 1.5,
+  tp2_rr: 3.0,
+  sl_buffer_pct: 1.0,
+  overbought: 70,
+  oversold: 30,
+};
 
 export const useBacktestStore = create<BacktestState>()(
   persist(
@@ -125,7 +110,6 @@ export const useBacktestStore = create<BacktestState>()(
       portfolioInput: "BTC/USDT\nETH/USDT\nSOL/USDT\nBNB/USDT\nADA/USDT\nXRP/USDT\nDOGE/USDT\nDOT/USDT\nMATIC/USDT\nLTC/USDT\nUNI/USDT\nLINK/USDT",
       strategy: "rsi_no_retest",
       availableStrategies: [],
-      currentParamSchema: null,
       timeframe: "1h",
       startDate: "01-01-2024",
       endDate: "31-12-2024",
@@ -135,66 +119,33 @@ export const useBacktestStore = create<BacktestState>()(
       lookbackUnit: "bars",
       datePreset: null,
 
-      params: {},
+      params: { ...DEFAULT_PARAMS },
 
       capital: "10000",
       leverage: "1",
       riskPercent: "1",
-      tp1ClosePct: "1.0",
-      tp2ClosePct: "0.0",
-      maxPositionSizePct: "10.0",
-      minSlDistancePct: "0.3",
-      useRiskBasedSizing: true,
-      useInitialCapitalForRisk: true,
-      enableFees: true,
-      takerFeePct: "0.10",
-      makerFeePct: "0.06",
-      slippageModel: "none" as const,
-      slippagePct: "0.0",
-      benchmark: null,
 
       isRunning: false,
       runProgress: 0,
-      runPhase: "idle",
-      downloadProgress: 0,
-      backtestProgress: 0,
       currentRunId: null,
       recentConfigs: [],
 
       setMode: (mode) => set({ mode }),
       setSymbol: (symbol) => set({ symbol }),
       setPortfolioInput: (portfolioInput) => set({ portfolioInput }),
-      setStrategy: (strategy) => {
-        const strat = get().availableStrategies.find(s => s.name === strategy);
-        set({
-          strategy,
-          currentParamSchema: strat?.param_schema || null,
-          params: strat?.default_config ? { ...strat.default_config } : {},
-        });
-      },
+      setStrategy: (strategy) => set({ strategy }),
       setTimeframe: (timeframe) => {
         set({ timeframe });
         get().syncRelativeDates();
       },
       setParam: (key, value) =>
-        set((s) => ({ params: { ...s.params, [key]: value } })),
+        set((s) => ({ params: { ...s.params, [key]: Number(value) } })),
       setCapital: (capital) => set({ capital }),
       setLeverage: (leverage) => set({ leverage }),
       setRiskPercent: (riskPercent) => set({ riskPercent }),
-      setTp1ClosePct: (tp1ClosePct) => set({ tp1ClosePct }),
-      setTp2ClosePct: (tp2ClosePct) => set({ tp2ClosePct }),
-      setMaxPositionSizePct: (maxPositionSizePct) => set({ maxPositionSizePct }),
-      setMinSlDistancePct: (minSlDistancePct) => set({ minSlDistancePct }),
-      setUseRiskBasedSizing: (useRiskBasedSizing) => set({ useRiskBasedSizing }),
-      setUseInitialCapitalForRisk: (useInitialCapitalForRisk) => set({ useInitialCapitalForRisk }),
-      setEnableFees: (enableFees) => set({ enableFees }),
-      setTakerFeePct: (takerFeePct) => set({ takerFeePct }),
-      setMakerFeePct: (makerFeePct) => set({ makerFeePct }),
-      setSlippageModel: (slippageModel) => set({ slippageModel }),
-      setSlippagePct: (slippagePct) => set({ slippagePct }),
-      setBenchmark: (benchmark) => set({ benchmark }),
       setDateRange: (start, end) => set({ startDate: start, endDate: end, dateMode: "absolute", datePreset: null }),
       setStartDate: (startDate) => {
+        console.log("Store updating startDate to:", startDate);
         set({ startDate, dateMode: "absolute", datePreset: null });
       },
       setEndDate: (endDate) => set({ endDate, dateMode: "absolute", datePreset: null }),
@@ -284,7 +235,7 @@ export const useBacktestStore = create<BacktestState>()(
 
       runBacktest: async () => {
         const state = get();
-        set({ isRunning: true, runProgress: 0, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
+        set({ isRunning: true, runProgress: 0 });
 
         try {
           const startDate = parse(state.startDate, "dd-MM-yyyy", new Date());
@@ -294,73 +245,57 @@ export const useBacktestStore = create<BacktestState>()(
             const symbols = state.portfolioInput.split("\n").map(s => s.trim()).filter(s => s.length > 0);
             if (symbols.length === 0) throw new Error("No symbols provided for batch run.");
 
-            // Single API call with mode=batch — server handles parallel execution
-            const { run_id } = await startBacktest({
-              mode: "batch",
-              symbols,
-              timeframe: state.timeframe,
-              strategy: state.strategy,
-              start_date: format(startDate, "yyyy-MM-dd"),
-              end_date: format(endDate, "yyyy-MM-dd"),
-              initial_capital: state.capital,
-              leverage: parseInt(state.leverage) || 1,
-              risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
-              params: state.params,
-              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
-              max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
-              use_risk_based_sizing: state.useRiskBasedSizing,
-              use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
-              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
-              slippage_model: state.slippageModel,
-              slippage_pct: state.slippagePct,
-              benchmark: state.benchmark,
-            });
+            // Start all backtests
+            const runIds: { id: number, symbol: string }[] = [];
+            const perConfigCap = parseFloat(state.capital) / symbols.length;
 
-            set({ currentRunId: run_id });
-            localStorage.setItem("activeRunId", String(run_id));
+            for (const sym of symbols) {
+              const { run_id } = await startBacktest({
+                symbol: sym,
+                timeframe: state.timeframe,
+                strategy: state.strategy,
+                start_date: format(startDate, "yyyy-MM-dd"),
+                end_date: format(endDate, "yyyy-MM-dd"),
+                initial_capital: perConfigCap.toString(),
+                leverage: parseInt(state.leverage) || 1,
+                risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
+                params: state.params,
+              });
+              runIds.push({ id: run_id, symbol: sym });
+            }
 
-            await new Promise<void>((resolve, reject) => {
-              const cleanup = streamProgress(
-                run_id,
-                (pct, phase) => {
-                  if (phase === "download") {
-                    set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
-                  } else {
-                    set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
-                  }
+            set({ currentRunId: runIds[0].id });
+
+            const progressMap = new Map<number, number>();
+            const promises = runIds.map(({ id, symbol }) => new Promise<any>((resolve, reject) => {
+              const cleanup = streamProgress(id,
+                (pct) => {
+                  progressMap.set(id, pct);
+                  let total = 0;
+                  progressMap.forEach(v => total += v);
+                  set({ runProgress: total / symbols.length });
                 },
                 async () => {
-                  console.log("[batch] SSE complete event received, fetching results for run", run_id);
                   cleanup();
                   try {
-                    const [detail, timeseries] = await Promise.all([
-                      getRunDetail(run_id),
-                      getTimeseries(run_id),
-                    ]);
-                    console.log("[batch] API data fetched, hydrating batch store");
-                    useBatchResultsStore.getState().setBatchResults(
-                      mapApiToBatchResults(detail, timeseries)
-                    );
-                    console.log("[batch] Batch store hydrated, resolving");
-                    resolve();
-                  } catch (fetchErr) {
-                    console.error("[batch] onComplete failed:", fetchErr);
-                    reject(fetchErr);
-                  }
+                    const [detail, timeseries] = await Promise.all([getRunDetail(id), getTimeseries(id)]);
+                    resolve({ symbol, detail, timeseries, initialCapital: perConfigCap });
+                  } catch (e) { reject(e); }
                 },
-                (msg) => {
-                  console.error("[batch] SSE stream error:", msg);
-                  cleanup();
-                  reject(new Error(msg));
-                }
+                (err) => { cleanup(); reject(new Error(err)); }
               );
-            });
+            }));
 
-            set({ isRunning: false, runProgress: 100, currentRunId: null, runPhase: "idle" });
-            localStorage.removeItem("activeRunId");
+            const allResults = await Promise.all(promises);
+
+            // Import util
+            const { aggregateBatchResults } = await import("../lib/batch-utils");
+            const aggregated = aggregateBatchResults(allResults);
+
+            const { useBatchResultsStore } = await import("./batchResultsStore");
+            useBatchResultsStore.getState().setBatchResults(aggregated);
+
+            set({ isRunning: false, runProgress: 0, currentRunId: null });
             return;
           }
 
@@ -369,7 +304,6 @@ export const useBacktestStore = create<BacktestState>()(
             if (symbols.length === 0) throw new Error("No symbols provided for portfolio run.");
 
             const { run_id } = await startBacktest({
-              mode: "portfolio",
               symbols: symbols,
               timeframe: state.timeframe,
               strategy: state.strategy,
@@ -379,61 +313,37 @@ export const useBacktestStore = create<BacktestState>()(
               leverage: parseInt(state.leverage) || 1,
               risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
               params: state.params,
-              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
-              max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
-              use_risk_based_sizing: state.useRiskBasedSizing,
-              use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-              taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
-              maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
-              slippage_model: state.slippageModel,
-              slippage_pct: state.slippagePct,
-              benchmark: state.benchmark,
             });
 
             set({ currentRunId: run_id });
-            localStorage.setItem("activeRunId", String(run_id));
 
             await new Promise<void>((resolve, reject) => {
               const cleanup = streamProgress(
                 run_id,
-                (pct, phase) => {
-                  if (phase === "download") {
-                    set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
-                  } else {
-                    set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
-                  }
-                },
+                (pct) => set({ runProgress: pct }),
                 async () => {
-                  console.log("[portfolio] SSE complete event received, fetching results for run", run_id);
                   cleanup();
                   try {
                     const [detail, timeseries] = await Promise.all([
                       getRunDetail(run_id),
                       getTimeseries(run_id),
                     ]);
-                    console.log("[portfolio] API data fetched, hydrating batch store");
-                    useBatchResultsStore.getState().setBatchResults(
-                      mapApiToBatchResults(detail, timeseries)
+                    useResultsStore.getState().setResults(
+                      mapApiToResults(detail, timeseries)
                     );
-                    console.log("[portfolio] Batch store hydrated, resolving");
                     resolve();
                   } catch (fetchErr) {
-                    console.error("[portfolio] onComplete failed:", fetchErr);
                     reject(fetchErr);
                   }
                 },
                 (msg) => {
-                  console.error("[portfolio] SSE stream error:", msg);
                   cleanup();
                   reject(new Error(msg));
                 }
               );
             });
 
-            set({ isRunning: false, runProgress: 100, currentRunId: null, runPhase: "idle" });
-            localStorage.removeItem("activeRunId");
+            set({ isRunning: false, runProgress: 100, currentRunId: null });
             return;
           }
 
@@ -448,32 +358,15 @@ export const useBacktestStore = create<BacktestState>()(
             leverage: parseInt(state.leverage) || 1,
             risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
             params: state.params,
-            tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-            tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
-            max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-            min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
-            use_risk_based_sizing: state.useRiskBasedSizing,
-            use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-            fee_tier: state.enableFees ? state.feeTier : "0",
-            slippage_model: state.slippageModel,
-            slippage_pct: state.slippagePct,
-            benchmark: state.benchmark,
           });
 
           set({ currentRunId: run_id });
-          localStorage.setItem("activeRunId", String(run_id));
 
           // 3. SSE — store owns the EventSource connection
           await new Promise<void>((resolve, reject) => {
             const cleanup = streamProgress(
               run_id,
-              (pct, phase) => {
-                if (phase === "download") {
-                  set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
-                } else {
-                  set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
-                }
-              },
+              (pct) => set({ runProgress: pct }),
               async () => {
                 // Instantly clean up to prevent EventSource from firing onerror when server closes
                 cleanup();
@@ -501,8 +394,7 @@ export const useBacktestStore = create<BacktestState>()(
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Backtest failed");
         } finally {
-          set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
-          localStorage.removeItem("activeRunId");
+          set({ isRunning: false, runProgress: 0, currentRunId: null });
         }
       },
 
@@ -515,113 +407,25 @@ export const useBacktestStore = create<BacktestState>()(
             // Ignore — state reset is the priority
           }
         }
-        set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle", downloadProgress: 0, backtestProgress: 0 });
-        localStorage.removeItem("activeRunId");
+        set({ isRunning: false, runProgress: 0, currentRunId: null });
       },
 
       loadStrategies: async () => {
         try {
           const strategies = await fetchStrategies();
           set({ availableStrategies: strategies });
-
-          // Set schema + defaults for current strategy
-          const current = strategies.find(s => s.name === get().strategy);
-          if (current) {
-            const currentParams = get().params;
-            const hasParams = Object.keys(currentParams).length > 0;
-            set({
-              currentParamSchema: current.param_schema,
-              // Only set defaults if no params are loaded (e.g., fresh load)
-              ...(!hasParams ? { params: { ...current.default_config } } : {}),
-            });
-          }
         } catch (err) {
           console.error("Failed to load strategies:", err);
         }
       },
 
-      recoverActiveRun: async () => {
-        const activeRunId = localStorage.getItem("activeRunId");
-        if (!activeRunId) return;
-
-        const runId = parseInt(activeRunId);
-        try {
-          const detail = await getRunDetail(runId);
-          const isBatchOrPortfolio = detail.symbol === "BATCH" || detail.symbol === "PORTFOLIO";
-
-          if (detail.status === "completed") {
-            const timeseries = await getTimeseries(runId);
-            if (isBatchOrPortfolio) {
-              useBatchResultsStore.getState().setBatchResults(mapApiToBatchResults(detail, timeseries));
-            } else {
-              useResultsStore.getState().setResults(mapApiToResults(detail, timeseries));
-            }
-            localStorage.removeItem("activeRunId");
-            toast.success("Previous backtest completed!");
-          } else if (detail.status === "running") {
-            // Reconnect SSE for this run
-            set({ isRunning: true, currentRunId: runId, runPhase: "backtest" });
-            const cleanup = streamProgress(
-              runId,
-              (pct, phase) => {
-                if (phase === "download") {
-                  set({ runPhase: "download", downloadProgress: pct, runProgress: pct * 0.3 });
-                } else {
-                  set({ runPhase: "backtest", backtestProgress: pct, runProgress: 30 + pct * 0.7 });
-                }
-              },
-              async () => {
-                cleanup();
-                try {
-                  const [recoveredDetail, timeseries] = await Promise.all([
-                    getRunDetail(runId),
-                    getTimeseries(runId),
-                  ]);
-                  const isBatch = recoveredDetail.symbol === "BATCH" || recoveredDetail.symbol === "PORTFOLIO";
-                  if (isBatch) {
-                    useBatchResultsStore.getState().setBatchResults(mapApiToBatchResults(recoveredDetail, timeseries));
-                  } else {
-                    useResultsStore.getState().setResults(mapApiToResults(recoveredDetail, timeseries));
-                  }
-                  toast.success("Backtest completed!");
-                } catch { /* ignore */ }
-                set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
-                localStorage.removeItem("activeRunId");
-              },
-              () => {
-                cleanup();
-                set({ isRunning: false, runProgress: 0, currentRunId: null, runPhase: "idle" });
-                localStorage.removeItem("activeRunId");
-              },
-            );
-          } else {
-            localStorage.removeItem("activeRunId");
-          }
-        } catch {
-          localStorage.removeItem("activeRunId");
-        }
-      },
-
-      resetParams: () => {
-        const strat = get().availableStrategies.find(s => s.name === get().strategy);
+      resetParams: () =>
         set({
-          params: strat?.default_config ? { ...strat.default_config } : {},
+          params: { ...DEFAULT_PARAMS },
           capital: "10000",
           leverage: "1",
           riskPercent: "1",
-          tp1ClosePct: "1.0",
-          tp2ClosePct: "0.0",
-          maxPositionSizePct: "10.0",
-          minSlDistancePct: "0.3",
-          useRiskBasedSizing: true,
-          useInitialCapitalForRisk: true,
-          enableFees: true,
-          takerFeePct: "0.10",
-          makerFeePct: "0.06",
-          slippageModel: "none",
-          slippagePct: "0.0",
-        });
-      },
+        }),
 
       getDaysDuration: () => {
         const { startDate, endDate } = get();
@@ -657,17 +461,6 @@ export const useBacktestStore = create<BacktestState>()(
         capital: state.capital,
         leverage: state.leverage,
         riskPercent: state.riskPercent,
-        tp1ClosePct: state.tp1ClosePct,
-        tp2ClosePct: state.tp2ClosePct,
-        maxPositionSizePct: state.maxPositionSizePct,
-        minSlDistancePct: state.minSlDistancePct,
-        useRiskBasedSizing: state.useRiskBasedSizing,
-        useInitialCapitalForRisk: state.useInitialCapitalForRisk,
-        enableFees: state.enableFees,
-        takerFeePct: state.takerFeePct,
-        makerFeePct: state.makerFeePct,
-        slippageModel: state.slippageModel,
-        slippagePct: state.slippagePct,
         startDate: state.startDate,
         endDate: state.endDate,
         dateMode: state.dateMode,
@@ -677,20 +470,6 @@ export const useBacktestStore = create<BacktestState>()(
         datePreset: state.datePreset,
         recentConfigs: state.recentConfigs,
       }),
-      // Re-sync relative dates after localStorage rehydration so dates
-      // are always current, never stale from a previous session.
-      onRehydrateStorage: () => (state) => {
-        if (state?.dateMode === "relative") {
-          state.syncRelativeDates();
-        }
-      },
     },
   ),
 );
-
-// Also sync on fresh install (no persisted state yet) so the default
-// relative lookback produces real dates immediately.
-setTimeout(() => {
-  const s = useBacktestStore.getState();
-  if (s.dateMode === "relative") s.syncRelativeDates();
-}, 0);

@@ -1,12 +1,7 @@
 // @ts-nocheck
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as LightweightCharts from "lightweight-charts";
-import { parse, format } from "date-fns";
 import { useResultsStore } from "../../stores/resultsStore";
-import { useBacktestStore } from "../../stores/backtestStore";
-import { getBenchmark } from "../../api/backtest";
-
-const BENCHMARK_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"];
 
 export const EquityUnderwaterChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -14,49 +9,9 @@ export const EquityUnderwaterChart: React.FC = () => {
 
   const chartRef = useRef<LightweightCharts.IChartApi | null>(null);
   const underwaterChartRef = useRef<LightweightCharts.IChartApi | null>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const [activeBenchmark, setActiveBenchmark] = useState<string | null>(null);
-  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
-
-  const { equityCurve, benchmarkCurve, underwaterCurve, netProfit, setResults } =
+  const { equityCurve, benchmarkCurve, underwaterCurve, netProfit } =
     useResultsStore();
-
-  const { timeframe, startDate, endDate, capital } = useBacktestStore();
-
-  const handleBenchmarkSwitch = async (sym: string | null) => {
-    if (sym === activeBenchmark) return;
-    setActiveBenchmark(sym);
-    if (!sym) {
-      setResults({ benchmarkCurve: [] });
-      return;
-    }
-    setBenchmarkLoading(true);
-    try {
-      // Clamp benchmark to the actual equity curve range (first → last trade),
-      // not the full backtest date range which includes warmup/indicator period.
-      const fallbackStart = format(parse(startDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
-      const fallbackEnd = format(parse(endDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
-      const apiStart = equityCurve.length > 0 ? equityCurve[0].time : fallbackStart;
-      const apiEnd = equityCurve.length > 0
-        ? equityCurve[equityCurve.length - 1].time
-        : fallbackEnd;
-      const result = await getBenchmark(sym, timeframe, apiStart, apiEnd, parseFloat(capital) || 10000);
-      // Deduplicate to one point per calendar day (backend may return one row per candle)
-      const seen = new Map<string, { time: string; value: number }>();
-      for (const p of (result.curve ?? [])) {
-        const t = String(p["date"] ?? "").slice(0, 10);
-        const v = typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]);
-        seen.set(t, { time: t, value: v });
-      }
-      const curve = Array.from(seen.values()).sort((a, b) => (a.time < b.time ? -1 : 1));
-      setResults({ benchmarkCurve: curve });
-    } catch (_) {
-      // silently ignore if CSV not available
-    } finally {
-      setBenchmarkLoading(false);
-    }
-  };
 
   const isProfit = netProfit >= 0;
   const strategyColor = isProfit ? "#22c55e" : "#ef4444";
@@ -87,7 +42,7 @@ export const EquityUnderwaterChart: React.FC = () => {
         horzLines: { color: gridColor },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 300,
+      height: 200,
       timeScale: { visible: true, borderVisible: false },
       rightPriceScale: { borderVisible: false },
       crosshair: { vertLine: { labelVisible: false } },
@@ -121,22 +76,6 @@ export const EquityUnderwaterChart: React.FC = () => {
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
-    // Crosshair tooltip: show date on hover
-    chart.subscribeCrosshairMove((param) => {
-      if (!tooltipRef.current) return;
-      if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
-        tooltipRef.current.style.display = "none";
-        return;
-      }
-      tooltipRef.current.textContent = String(param.time);
-      tooltipRef.current.style.display = "block";
-      const containerWidth = chartContainerRef.current?.clientWidth ?? 0;
-      const tipWidth = tooltipRef.current.offsetWidth;
-      const left = Math.min(param.point.x + 8, containerWidth - tipWidth - 4);
-      tooltipRef.current.style.left = `${left}px`;
-      tooltipRef.current.style.top = "6px";
-    });
-
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -168,7 +107,7 @@ export const EquityUnderwaterChart: React.FC = () => {
         horzLines: { color: gridColor },
       },
       width: underwaterContainerRef.current.clientWidth,
-      height: 130,
+      height: 80,
       timeScale: { visible: false },
       rightPriceScale: { borderVisible: false },
       crosshair: { vertLine: { labelVisible: false } },
@@ -181,8 +120,7 @@ export const EquityUnderwaterChart: React.FC = () => {
         bottomColor: `${underwaterColor}66`,
         lineWidth: 1,
         priceFormat: {
-          type: "custom",
-          formatter: (p: number) => `${p.toFixed(2)}%`,
+          type: "percent",
         },
       });
       series.setData(underwaterCurve);
@@ -231,57 +169,25 @@ export const EquityUnderwaterChart: React.FC = () => {
     <div className="space-y-6">
       {/* Equity Curve */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
-            Equity Curve
-          </h2>
-          {/* In-chart benchmark switcher */}
-          <div className="flex items-center gap-0.5">
-            {benchmarkCurve.length > 0 && (
-              <span className="text-[9px] text-zinc-400 mr-1">
-                Benchmark: {activeBenchmark ? activeBenchmark.split("/")[0] : "—"}
-              </span>
-            )}
-            <button
-              onClick={() => handleBenchmarkSwitch(null)}
-              className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === null ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
-            >
-              Off
-            </button>
-            {BENCHMARK_SYMBOLS.map((s) => (
-              <button
-                key={s}
-                onClick={() => handleBenchmarkSwitch(s)}
-                disabled={benchmarkLoading}
-                className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === s ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
-              >
-                {s.split("/")[0]}
-              </button>
-            ))}
-            {benchmarkLoading && <span className="text-[9px] text-text-muted ml-1">…</span>}
-          </div>
-        </div>
+        <h2 className="text-sm font-semibold text-text-primary mb-3 uppercase tracking-wider">
+          Equity Curve
+        </h2>
         <div
           id="equity-chart"
           ref={chartContainerRef}
-          className="w-full rounded-lg border border-border-main bg-bg-elevated/50 overflow-hidden relative"
-        >
-          <div
-            ref={tooltipRef}
-            className="absolute z-10 pointer-events-none hidden px-1.5 py-0.5 rounded text-[10px] font-mono text-text-secondary bg-bg-elevated/90 border border-border-main"
-          />
-        </div>
+          className="w-full rounded-lg border border-border-main bg-bg-elevated/50"
+        />
       </div>
 
       {/* Drawdown (Underwater) */}
       <div>
-        <h2 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-text-primary mb-3 uppercase tracking-wider">
           Underwater Curve (Drawdown)
         </h2>
         <div
           id="drawdown-chart"
           ref={underwaterContainerRef}
-          className="w-full rounded-lg border border-border-main bg-bg-elevated/50 overflow-hidden"
+          className="w-full rounded-lg border border-border-main bg-bg-elevated/50"
         />
       </div>
     </div>

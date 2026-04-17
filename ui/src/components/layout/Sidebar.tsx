@@ -3,8 +3,6 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  ChevronDown,
   Settings,
   Play,
   Layers,
@@ -25,9 +23,6 @@ import { ValidatedInput } from "../ui/ValidatedInput";
 import { RunButton } from "./RunButton";
 import { validateParam } from "../../lib/validation";
 import { DateRangeSection } from "../date-controls/DateRangeSection";
-import { DynamicParamForm } from "../sidebar/DynamicParamForm";
-import { PresetManager } from "../sidebar/PresetManager";
-import { Switch } from "../ui/switch";
 import {
   Select,
   SelectContent,
@@ -57,17 +52,6 @@ export const Sidebar: React.FC = () => {
     setLeverage,
     riskPercent,
     setRiskPercent,
-    tp1ClosePct, setTp1ClosePct,
-    tp2ClosePct, setTp2ClosePct,
-    maxPositionSizePct, setMaxPositionSizePct,
-    minSlDistancePct, setMinSlDistancePct,
-    useRiskBasedSizing, setUseRiskBasedSizing,
-    useInitialCapitalForRisk, setUseInitialCapitalForRisk,
-    enableFees, setEnableFees,
-    takerFeePct, setTakerFeePct,
-    makerFeePct, setMakerFeePct,
-    slippageModel, setSlippageModel,
-    slippagePct, setSlippagePct,
     isRunning,
     runBacktest,
     setSidebarOpen,
@@ -77,8 +61,6 @@ export const Sidebar: React.FC = () => {
     setPortfolioInput,
     availableStrategies,
     loadStrategies,
-    benchmark,
-    setBenchmark,
   } = useBacktestStore();
 
   const {
@@ -124,8 +106,42 @@ export const Sidebar: React.FC = () => {
 
     if (!isValid) return;
 
-    // Data download is now inline (server-side) — go straight to run
-    executeRun();
+    // 2. Data Check Logic (Grace Period)
+    resetPrep();
+    const startTime = Date.now();
+
+    const symbolsToCheck =
+      mode === "batch" || mode === "portfolio"
+        ? portfolioInput
+            .split("\n")
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+        : [symbol];
+
+    try {
+      const { allFresh, symbolStatuses } = await checkDataStatus(
+        symbolsToCheck,
+        timeframe,
+        startDate,
+        endDate
+      );
+
+      const elapsedTime = Date.now() - startTime;
+      setSymbols(symbolStatuses);
+
+      if (allFresh && elapsedTime < 500) {
+        executeRun();
+      } else if (allFresh) {
+        setPrepState("ready");
+        openModal();
+      } else {
+        setPrepState("downloading");
+        openModal();
+      }
+    } catch (e) {
+      toast.error("Could not check data status. Is the backend running?");
+      return;
+    }
   };
 
   // Keyboard Shortcuts
@@ -165,14 +181,6 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     loadStrategies();
   }, [loadStrategies]);
-
-  // Sync relative dates on mount so stale persisted dates (e.g. "2024")
-  // are replaced with current dates before the user clicks Run.
-  const syncRelativeDates = useBacktestStore((s) => s.syncRelativeDates);
-  const dateMode = useBacktestStore((s) => s.dateMode);
-  useEffect(() => {
-    if (dateMode === "relative") syncRelativeDates();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sidebarClasses = cn(
     "fixed left-4 top-20 bottom-4 z-40 hidden lg:flex flex-col transition-all duration-300 ease-in-out border border-bg-elevated/50 shadow-xl rounded-xl",
@@ -264,29 +272,34 @@ export const Sidebar: React.FC = () => {
                         <label className="text-xs font-medium text-text-secondary mb-1.5 block">
                           Symbol
                         </label>
-                        <input
-                          type="text"
+                        <Select
                           value={symbol}
-                          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                          placeholder="e.g. BTC/USDT"
-                          className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted"
-                        />
-                        <div className="grid grid-cols-3 gap-1.5 mt-2">
-                          {["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "DOGE/USDT"].map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => setSymbol(s)}
-                              className={cn(
-                                "px-1.5 py-1.5 text-[10px] font-medium rounded-md border transition-all text-center leading-none",
-                                symbol === s
-                                  ? "bg-accent-main/15 border-accent-main text-accent-main"
-                                  : "bg-bg-elevated border-border-main text-text-secondary hover:border-text-muted hover:text-text-primary"
-                              )}
+                          onValueChange={(val) => setSymbol(val)}
+                        >
+                          <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto data-[state=open]:bg-bg-elevated shadow-none transition-colors border-none sm:border-solid">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
+                            <SelectItem
+                              value="BTC/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
                             >
-                              {s.split("/")[0]}
-                            </button>
-                          ))}
-                        </div>
+                              BTC/USDT
+                            </SelectItem>
+                            <SelectItem
+                              value="ETH/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
+                            >
+                              ETH/USDT
+                            </SelectItem>
+                            <SelectItem
+                              value="SOL/USDT"
+                              className="cursor-pointer hover:bg-bg-elevated"
+                            >
+                              SOL/USDT
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ) : (
                       <div className="col-span-2">
@@ -368,11 +381,57 @@ export const Sidebar: React.FC = () => {
                   </Select>
                 </CollapsibleSection>
 
-                {/* Dynamic Strategy Parameters */}
-                <DynamicParamForm />
-
-                {/* Presets */}
-                <PresetManager />
+                {/* Parameters */}
+                <CollapsibleSection
+                  title="Parameters"
+                  headerAction={
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resetParams();
+                      }}
+                      className="p-1 hover:bg-bg-elevated rounded text-text-muted hover:text-text-primary transition-colors"
+                      title="Reset to Defaults"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  }
+                >
+                  <div className="space-y-3">
+                    <ValidatedInput
+                      label="RSI Period"
+                      paramKey="rsi_period"
+                      value={params.rsi_period}
+                      onChangeValue={(v) => setParam("rsi_period", v)}
+                    />
+                    <ValidatedInput
+                      label="EMA Fast"
+                      paramKey="ema_fast"
+                      value={params.ema_fast}
+                      onChangeValue={(v) => setParam("ema_fast", v)}
+                    />
+                    <ValidatedInput
+                      label="EMA Slow"
+                      paramKey="ema_slow"
+                      value={params.ema_slow}
+                      onChangeValue={(v) => setParam("ema_slow", v)}
+                    />
+                    <ValidatedInput
+                      label="TP1 Risk Ratio"
+                      paramKey="tp1_rr"
+                      value={params.tp1_rr}
+                      onChangeValue={(v) => setParam("tp1_rr", v)}
+                      suffix="R"
+                    />
+                    <ValidatedInput
+                      label="SL Buffer"
+                      paramKey="sl_buffer_pct"
+                      value={params.sl_buffer_pct}
+                      onChangeValue={(v) => setParam("sl_buffer_pct", v)}
+                      suffix="%"
+                    />
+                  </div>
+                </CollapsibleSection>
 
                 {/* Risk Settings */}
                 <CollapsibleSection title="Risk Management">
@@ -400,171 +459,6 @@ export const Sidebar: React.FC = () => {
                         suffix="%"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <ValidatedInput
-                        label="TP1 Close"
-                        paramKey="tp1_close_pct"
-                        value={tp1ClosePct}
-                        onChangeValue={setTp1ClosePct}
-                        suffix="%"
-                      />
-                      <ValidatedInput
-                        label="TP2 Close"
-                        paramKey="tp2_close_pct"
-                        value={tp2ClosePct}
-                        onChangeValue={setTp2ClosePct}
-                        suffix="%"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <ValidatedInput
-                        label="Max Position"
-                        paramKey="max_position_size_pct"
-                        value={maxPositionSizePct}
-                        onChangeValue={setMaxPositionSizePct}
-                        suffix="%"
-                      />
-                      <ValidatedInput
-                        label="Min SL Dist"
-                        paramKey="min_sl_distance_pct"
-                        value={minSlDistancePct}
-                        onChangeValue={setMinSlDistancePct}
-                        suffix="%"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-xs text-text-secondary">Risk-Based Sizing</span>
-                        <Switch checked={useRiskBasedSizing} onCheckedChange={setUseRiskBasedSizing} />
-                      </label>
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-xs text-text-secondary">Risk Off Initial Capital</span>
-                        <Switch checked={useInitialCapitalForRisk} onCheckedChange={setUseInitialCapitalForRisk} />
-                      </label>
-                    </div>
-                  </div>
-                </CollapsibleSection>
-
-                {/* Benchmark */}
-                <CollapsibleSection title="Benchmark">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-text-secondary block">
-                      Buy-and-hold comparison
-                    </label>
-                    <Select
-                      value={benchmark ?? "none"}
-                      onValueChange={(val) => setBenchmark(val === "none" ? null : val)}
-                    >
-                      <SelectTrigger className="w-full bg-input/50 border-border-main rounded-md px-3 py-2.5 text-sm text-text-primary focus:ring-1 focus:ring-accent-main/50 h-auto shadow-none transition-colors">
-                        <SelectValue placeholder="None (disabled)" />
-                      </SelectTrigger>
-                      <SelectContent className="border-border-main bg-bg-surface backdrop-blur-xl shadow-xl">
-                        <SelectItem value="none">None (disabled)</SelectItem>
-                        {["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"].map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CollapsibleSection>
-
-                {/* Fees & Slippage */}
-                <CollapsibleSection title="Fees & Slippage">
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span className="text-xs text-text-secondary">Enable Fees</span>
-                      <Switch checked={enableFees} onCheckedChange={setEnableFees} />
-                    </label>
-                    {enableFees && (
-                      <div className="space-y-2">
-                        <style>{`
-                          .fee-input::-webkit-outer-spin-button,
-                          .fee-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-                          .fee-input { -moz-appearance: textfield; }
-                        `}</style>
-                        {[
-                          { label: "Taker Fee", value: takerFeePct, onChange: setTakerFeePct, presets: ["0.05", "0.06", "0.10", "0.20"] },
-                          { label: "Maker Fee", value: makerFeePct, onChange: setMakerFeePct, presets: ["0.02", "0.04", "0.06", "0.10"] },
-                        ].map(({ label, value, onChange, presets }) => (
-                          <div key={label}>
-                            <label className="text-xs font-medium text-text-secondary mb-1.5 block">{label}</label>
-                            <div className="flex gap-1 mb-1.5">
-                              {presets.map((p) => (
-                                <button
-                                  key={p}
-                                  onClick={() => onChange(p)}
-                                  className={cn(
-                                    "flex-1 py-1 text-[10px] font-medium rounded-md border transition-all",
-                                    value === p
-                                      ? "bg-accent-main/10 border-accent-main text-accent-main"
-                                      : "border-border-main text-text-secondary hover:border-text-muted"
-                                  )}
-                                >
-                                  {p}%
-                                </button>
-                              ))}
-                            </div>
-                            <div className="flex items-center h-9 bg-input/50 border border-border-main rounded-md px-3 focus-within:ring-1 focus-within:ring-accent-main/50 transition-colors">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={value}
-                                onChange={(e) => onChange(e.target.value)}
-                                className="flex-1 min-w-0 bg-transparent border-none text-sm text-text-primary focus:outline-none p-0 fee-input"
-                              />
-                              <span className="text-xs text-text-muted mr-2">%</span>
-                              <div className="flex flex-col items-center justify-center shrink-0 border-l border-border-main/50 pl-1.5 ml-1">
-                                <button
-                                  onClick={() => onChange((Math.round((parseFloat(value || "0") + 0.01) * 100) / 100).toFixed(2))}
-                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-end justify-center"
-                                  tabIndex={-1}
-                                >
-                                  <ChevronUp size={12} strokeWidth={3} />
-                                </button>
-                                <button
-                                  onClick={() => onChange((Math.round((Math.max(0, parseFloat(value || "0") - 0.01)) * 100) / 100).toFixed(2))}
-                                  className="text-text-muted hover:text-text-primary transition-colors focus:outline-none h-[12px] flex items-start justify-center mt-0.5"
-                                  tabIndex={-1}
-                                >
-                                  <ChevronDown size={12} strokeWidth={3} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div>
-                      <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-                        Slippage Model
-                      </label>
-                      <div className="flex gap-1.5">
-                        {(["none", "fixed"] as const).map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => setSlippageModel(m)}
-                            className={cn(
-                              "flex-1 py-1.5 text-[10px] font-medium rounded-md border transition-all capitalize",
-                              slippageModel === m
-                                ? "bg-accent-main/10 border-accent-main text-accent-main"
-                                : "border-border-main text-text-secondary hover:border-text-muted"
-                            )}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {slippageModel === "fixed" && (
-                      <ValidatedInput
-                        label="Slippage %"
-                        paramKey="slippage_pct"
-                        value={slippagePct}
-                        onChangeValue={setSlippagePct}
-                        suffix="%"
-                      />
-                    )}
                   </div>
                 </CollapsibleSection>
 

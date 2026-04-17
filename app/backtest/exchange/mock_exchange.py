@@ -43,7 +43,6 @@ class MockExchange(IExchange):
         leverage: int = 1,
         maker_fee: float = 0.0,
         taker_fee: float = 0.0,
-        slippage_pct: float = 0.0,
     ) -> None:
         self._lock = threading.RLock()
 
@@ -51,7 +50,6 @@ class MockExchange(IExchange):
         self.leverage: Decimal = Decimal(str(leverage))
         self.maker_fee: Decimal = Decimal(str(maker_fee))
         self.taker_fee: Decimal = Decimal(str(taker_fee))
-        self.slippage_pct: Decimal = Decimal(str(slippage_pct))
 
         self.positions: dict[str, Decimal] = {}
         self.margin_used: dict[str, Decimal] = {}
@@ -393,14 +391,6 @@ class MockExchange(IExchange):
         exit_reason: str | None = None,
         fee_override: Decimal | None = None,
     ) -> dict | None:
-        # Apply fixed-percentage slippage to market executions only.
-        # Slippage always works against the trader: BUY fills higher, SELL fills lower.
-        if self.slippage_pct > Decimal("0") and order_type.upper() == "MARKET":
-            if side.upper() == "BUY":
-                exec_price = exec_price * (Decimal("1") + self.slippage_pct)
-            else:
-                exec_price = exec_price * (Decimal("1") - self.slippage_pct)
-
         return execute_order(
             self, symbol, side, amount, exec_price,
             timestamp, order_type, exit_reason, fee_override,

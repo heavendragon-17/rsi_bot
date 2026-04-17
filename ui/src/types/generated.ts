@@ -1,7 +1,7 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-04-06T00:00:00Z
+ * Generated: 2026-03-20T18:03:16Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
@@ -27,63 +27,6 @@ export interface RunSummary {
   tags: string[];
 }
 
-export interface DownloadStartResponse {
-  job_id: string;
-  status: string;
-}
-
-export interface PresetUpdate {
-  name?: string | null;
-  config?: Record<string, unknown> | null;
-}
-
-export interface TimeseriesResponse {
-  run_id: number;
-  equity_curve: Record<string, unknown>[];
-  drawdown_curve: Record<string, unknown>[];
-  monthly_returns: Record<string, unknown>;
-  dispersion_range: Record<string, unknown>[];  // [{date, min, max}] — batch/portfolio only
-  benchmark_curve: Record<string, unknown>[];   // [{date, balance}] — optional buy-and-hold
-}
-
-export interface StrategyInfo {
-  id: number;
-  name: string;
-  description: string | null;
-  default_config: Record<string, unknown>;
-  param_schema?: Record<string, unknown>;
-}
-
-export interface HistoryResponse {
-  runs: RunSummary[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-export interface BacktestStartResponse {
-  run_id: number;
-  status: string;
-}
-
-export interface PresetCreate {
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-}
-
-export interface RunDetail {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  config: Record<string, unknown>;
-  results: Record<string, unknown> | null;
-  trades: Record<string, unknown>[] | null;
-}
-
 export interface DataStatusResponse {
   symbol: string;
   timeframe: string;
@@ -93,13 +36,16 @@ export interface DataStatusResponse {
   date_range: Record<string, string> | null;
 }
 
-export interface PresetResponse {
-  id: number;
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+export interface TimeseriesResponse {
+  run_id: number;
+  equity_curve: Record<string, unknown>[];
+  drawdown_curve: Record<string, unknown>[];
+  monthly_returns: Record<string, unknown>;
+}
+
+export interface DownloadStartResponse {
+  job_id: string;
+  status: string;
 }
 
 export interface BacktestRequest {
@@ -119,18 +65,35 @@ export interface BacktestRequest {
   params?: Record<string, unknown>;
   max_workers?: number | null;
   tick_data_path?: string | null;
-  /** Fraction to close at TP1 (default 1.0 = 100%). Matches config.yaml. */
-  tp1_close_pct?: number;
-  /** Fraction to close at TP2 (default 0.0). Matches config.yaml. */
-  tp2_close_pct?: number;
-  /** Max margin fraction per trade (default 10.0). Matches config.yaml. */
-  max_position_size_pct?: number;
-  /** Min SL distance; trades with tighter SL are skipped (default 0.003). */
-  min_sl_distance_pct?: number;
-  /** Size positions based on SL distance (default true). */
-  use_risk_based_sizing?: boolean;
-  /** Risk off initial capital not current balance (default true). */
-  use_initial_capital_for_risk?: boolean;
-  /** Buy-and-hold benchmark symbol, e.g. "BTC/USDT". Null = no benchmark. */
-  benchmark?: string | null;
+}
+
+export interface StrategyInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  default_config: Record<string, unknown>;
+}
+
+export interface RunDetail {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  config: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  trades: Record<string, unknown>[] | null;
+}
+
+export interface HistoryResponse {
+  runs: RunSummary[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface BacktestStartResponse {
+  run_id: number;
+  status: string;
 }

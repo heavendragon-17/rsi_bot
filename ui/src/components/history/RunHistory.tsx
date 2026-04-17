@@ -1,11 +1,10 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { HistoryTable } from "./HistoryTable";
 import { HistoryFilters } from "./HistoryFilters";
 import { ComparePanel } from "./ComparePanel";
 import { CompareModal } from "./CompareModal";
 import { RestoreConfirmModal } from "./RestoreConfirmModal";
 import { useHistoryStore } from "../../stores/historyStore";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { Button } from "../ui/button";
 import { Trash2 } from "lucide-react";
 import {
@@ -21,22 +20,7 @@ import {
 } from "../ui/alert-dialog";
 
 export const RunHistory: React.FC = () => {
-  const { runs, deleteRuns, fetchRuns, filters, currentPage } =
-    useHistoryStore();
-
-  const debouncedSearch = useDebouncedValue(filters.searchQuery, 300);
-
-  // Auto-fetch on mount and refetch on filter/page change
-  useEffect(() => {
-    fetchRuns();
-  }, [
-    filters.strategy,
-    filters.symbol,
-    filters.dateRange,
-    filters.profitableOnly,
-    debouncedSearch,
-    currentPage,
-  ]);
+  const { runs, deleteRuns } = useHistoryStore();
 
   return (
     <div className="h-full flex flex-col">
