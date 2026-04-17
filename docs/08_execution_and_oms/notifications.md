@@ -113,6 +113,13 @@ TP2:           $110,000.00  (+10.00%)  Reward: +100.00
 Balance:       $9,950.00
 ```
 
+**Copy-trade precision**: `Entry`, `SL`, `TP1/2/3`, and `Size` preserve the full
+precision of the source `Decimal` (via `fmt_price_precise` / `fmt_amount_precise`
+in `app/notification/formatting.py`) so the values can be mirrored on another
+account without rounding. Derived display-only values (`notional`, `Margin`,
+`Risk`, `Reward`, `Balance`) keep the compact 2-decimal format. A small-tick
+pair renders like: `Entry: $0.39405`, `Size: 90,909.0909090909`.
+
 ### SL Hit (on_fill, exit_reason="HARD_SL")
 
 ```
