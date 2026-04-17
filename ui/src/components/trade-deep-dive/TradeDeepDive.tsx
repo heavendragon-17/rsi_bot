@@ -104,12 +104,13 @@ export function TradeDeepDive({
       .map((d, i) => ({ ...d, index: i }));
   }, [chartData, zoom]);
 
-  // Mouse-wheel zoom — must be non-passive so we can preventDefault and stop
-  // the modal from scrolling while the user is zooming the chart.
+  // Shift+wheel zooms the chart; plain wheel falls through so the modal
+  // can scroll normally even when the cursor is over the chart area.
   const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
+    if (!e.shiftKey) return;
     const total = chartData.length;
     if (!total) return;
+    e.preventDefault();
 
     const start = zoom?.start ?? 0;
     const end = zoom?.end ?? total - 1;
@@ -236,20 +237,27 @@ export function TradeDeepDive({
                 <RsiChart data={visibleData} indicatorConfig={DEFAULT_INDICATOR_CONFIG} />
               </div>
 
-              {/* Reset zoom hint */}
-              {zoom && (
-                <div className="flex items-center justify-center gap-3 text-xs text-slate-500">
+              {/* Zoom / pan hint */}
+              <div className="flex items-center justify-center gap-3 text-xs text-slate-500">
+                {zoom ? (
+                  <>
+                    <span>
+                      Showing {visibleData.length} of {chartData.length} candles
+                    </span>
+                    <button
+                      onClick={() => setZoom(null)}
+                      className="px-2 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white hover:border-white/30 transition-colors"
+                    >
+                      Reset zoom
+                    </button>
+                  </>
+                ) : (
                   <span>
-                    Showing {visibleData.length} of {chartData.length} candles
+                    <kbd className="px-1.5 py-0.5 rounded border border-white/10 text-slate-400 font-mono text-[10px]">Shift</kbd>
+                    {" + scroll to zoom · drag to pan"}
                   </span>
-                  <button
-                    onClick={() => setZoom(null)}
-                    className="px-2 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white hover:border-white/30 transition-colors"
-                  >
-                    Reset zoom
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
 
