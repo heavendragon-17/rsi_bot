@@ -34,7 +34,16 @@ from app.notification.deploy_commands import (
     handle_deploy_status,
     handle_force_deploy,
 )
-from app.notification.formatting import fmt_duration, fmt_pct, fmt_pnl, fmt_price, mono, row
+from app.notification.formatting import (
+    fmt_amount_precise,
+    fmt_duration,
+    fmt_pct,
+    fmt_pnl,
+    fmt_price,
+    fmt_price_precise,
+    mono,
+    row,
+)
 from app.notification.telegram_bot import TelegramBot
 
 logger = structlog.get_logger(__name__)
@@ -128,8 +137,8 @@ class TelegramNotifier(INotifier):
         body = [
             row("Symbol:", symbol),
             row("Side:", side_label),
-            row("Entry:", fmt_price(entry_price)),
-            row("Size:", f"{float(amount):.4f}  ({fmt_price(notional)})"),
+            row("Entry:", fmt_price_precise(entry_price)),
+            row("Size:", f"{fmt_amount_precise(amount)}  ({fmt_price(notional)})"),
             row("Leverage:", f"{leverage}x  (Margin: {fmt_price(margin)})"),
             "",
         ]
@@ -137,7 +146,9 @@ class TelegramNotifier(INotifier):
         if sl_price:
             sl_pct = (sl_price - entry_price) / entry_price * 100
             sl_risk = abs(entry_price - sl_price) * amount
-            body.append(row("SL (Hard):", f"{fmt_price(sl_price)}  ({fmt_pct(sl_pct)})  Risk: {fmt_pnl(sl_risk)}"))
+            body.append(
+                row("SL (Hard):", f"{fmt_price_precise(sl_price)}  ({fmt_pct(sl_pct)})  Risk: {fmt_pnl(sl_risk)}")
+            )
 
         if tp_prices:
             for label in ("TP1", "TP2", "TP3"):
@@ -145,7 +156,9 @@ class TelegramNotifier(INotifier):
                 if tp_p:
                     diff_pct = (tp_p - entry_price) / entry_price * 100
                     reward = abs(tp_p - entry_price) * amount
-                    body.append(row(f"{label}:", f"{fmt_price(tp_p)}  ({fmt_pct(diff_pct)})  +{float(reward):,.2f}"))
+                    body.append(
+                        row(f"{label}:", f"{fmt_price_precise(tp_p)}  ({fmt_pct(diff_pct)})  +{float(reward):,.2f}")
+                    )
 
         if indicators:
             body += ["", "─" * 28]
