@@ -308,7 +308,9 @@ export function PriceCandlestickChart({
         <ComposedChart data={data} syncId="tradeDeepDive" margin={CHART_MARGIN}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
           <XAxis
+            type="number"
             dataKey="index"
+            domain={[-0.5, data.length - 0.5]}
             stroke="#64748b"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickFormatter={(value: number) => dateBreakFormatter(data, value)}

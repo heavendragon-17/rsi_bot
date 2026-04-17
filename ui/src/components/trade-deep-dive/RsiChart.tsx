@@ -51,20 +51,19 @@ const TOOLTIP_ITEM_STYLE = {
 
 interface TriangleLayerProps {
   xAxisMap?: Record<string, any>;
+  yAxisMap?: Record<string, any>;
   offset?: { top: number; left: number; width: number; height: number };
   chartData?: ChartDataPoint[];
 }
 
-function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
-  if (!xAxisMap || !chartData?.length) return null;
+function TriangleLayer({ xAxisMap, yAxisMap, chartData }: TriangleLayerProps) {
+  if (!xAxisMap || !yAxisMap || !chartData?.length) return null;
 
   const xAxis = Object.values(xAxisMap)[0] as any;
+  const yAxis = Object.values(yAxisMap)[0] as any;
   const xScale = xAxis?.scale;
-  if (!xScale) return null;
-
-  const chartTop = offset?.top ?? CHART_MARGIN.top;
-  const chartBottom =
-    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 206);
+  const yScale = yAxis?.scale;
+  if (!xScale || !yScale) return null;
 
   const entryIdx = chartData.findIndex((d) => d.isEntry);
   const exitIdx = chartData.findLastIndex((d) => d.isExit);
@@ -72,17 +71,21 @@ function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
   return (
     <g>
       {entryIdx !== -1 && (() => {
+        const rsiVal = chartData[entryIdx].rsi;
+        if (rsiVal === null) return null;
         const cx = xScale(entryIdx);
-        const top = chartTop;
+        const yRsi = yScale(rsiVal);
         const size = 7;
-        const tipY = top + size + 4;
-        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        const spacing = 5;
+        const tipY = yRsi - spacing;
+        const baseY = tipY - size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="entry-flag">
             <polygon points={pts} fill="#22c55e" opacity={0.9} />
             <text
               x={cx}
-              y={top + 1}
+              y={baseY - 2}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#22c55e"
@@ -96,17 +99,21 @@ function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
       })()}
 
       {exitIdx !== -1 && (() => {
+        const rsiVal = chartData[exitIdx].rsi;
+        if (rsiVal === null) return null;
         const cx = xScale(exitIdx);
-        const bottom = chartBottom;
+        const yRsi = yScale(rsiVal);
         const size = 7;
-        const tipY = bottom - size - 4;
-        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        const spacing = 5;
+        const tipY = yRsi + spacing;
+        const baseY = tipY + size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="exit-flag">
             <polygon points={pts} fill="#ef4444" opacity={0.9} />
             <text
               x={cx}
-              y={bottom}
+              y={baseY + 9}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#ef4444"
@@ -242,7 +249,9 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
           <XAxis
+            type="number"
             dataKey="index"
+            domain={[-0.5, data.length - 0.5]}
             stroke="#64748b"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickFormatter={(value: number) => dateBreakFormatter(data, value)}
