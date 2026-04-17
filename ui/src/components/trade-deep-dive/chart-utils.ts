@@ -165,10 +165,15 @@ export function dateBreakFormatter(
   data: ChartDataPoint[],
   index: number,
 ): string {
-  if (index < 0 || index >= data.length) return "";
-  const curr = data[index];
-  if (index === 0) return curr.dateLabel;
-  const prev = data[index - 1];
+  // With type="number" XAxis, Recharts can emit fractional tick values
+  // (e.g. 49.5) or ticks just outside the domain. Round and guard.
+  const i = Math.round(index);
+  if (i < 0 || i >= data.length) return "";
+  const curr = data[i];
+  if (!curr) return "";
+  if (i === 0) return curr.dateLabel;
+  const prev = data[i - 1];
+  if (!prev) return curr.dateLabel;
   if (curr.calendarDate !== prev.calendarDate) return curr.dateLabel;
   return "";
 }
