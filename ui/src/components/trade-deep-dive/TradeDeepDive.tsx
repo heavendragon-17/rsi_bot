@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { getTradeChart } from "../../api/quant";
@@ -175,7 +176,7 @@ export function TradeDeepDive({
     setIsDragging(false);
   }, []);
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -264,6 +265,7 @@ export function TradeDeepDive({
           <TradeAnnotationPanel tradeId={trade.id} />
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
