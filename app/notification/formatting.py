@@ -19,6 +19,22 @@ def fmt_price(p: Decimal) -> str:
     return f"${float(p):,.2f}"
 
 
+def fmt_price_precise(p: Decimal) -> str:
+    """Format price preserving full Decimal precision, for copy-trade values."""
+    d = Decimal(str(p))
+    exp = d.as_tuple().exponent
+    decimals = max(2, -exp) if isinstance(exp, int) and exp < 0 else 2
+    return f"${float(d):,.{decimals}f}"
+
+
+def fmt_amount_precise(a: Decimal) -> str:
+    """Format size/amount preserving full Decimal precision, for copy-trade values."""
+    d = Decimal(str(a))
+    exp = d.as_tuple().exponent
+    decimals = max(2, -exp) if isinstance(exp, int) and exp < 0 else 2
+    return f"{float(d):,.{decimals}f}"
+
+
 def fmt_pct(p: Decimal) -> str:
     sign = "+" if p >= 0 else ""
     return f"{sign}{float(p):.2f}%"
