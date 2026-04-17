@@ -53,7 +53,7 @@ module = [
     "app.trading.strategy.rsi_wma_retest",
     "app.trading.strategy.rsi_momentum",
     "app.trading.strategy.loader",
-    "app.backtest.portfolio_engine",
+    "app.api.routes.presets",
     "app.backtest.engine",
     "app.backtest.runners.tick_replay",
     "app.backtest.runners.portfolio_runner",
