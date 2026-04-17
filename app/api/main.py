@@ -2,13 +2,14 @@
 FastAPI entry point.
 
 Run with:
-    python -m app.api.main
-    # or
-    uvicorn app.api.main:app --reload --port 8000
+    python -m app.api.main                           # uses API_PORT env (default 8100)
+    API_PORT=9000 python -m app.api.main             # override the port
+    uvicorn app.api.main:app --reload --port 8100    # or via uvicorn CLI
 """
 
 from __future__ import annotations
 
+import os
 import traceback
 from contextlib import asynccontextmanager
 
@@ -48,15 +49,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow local Vite dev server
+# CORS — allow any localhost / 127.0.0.1 port so the UI can move freely when
+# the default port is taken. Override in production via API_CORS_ORIGINS.
+_custom_origins = os.getenv("API_CORS_ORIGINS")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_custom_origins.split(",") if _custom_origins else [],
+    allow_origin_regex=(
+        None if _custom_origins else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,8 +103,8 @@ def health():
 if __name__ == "__main__":
     uvicorn.run(
         "app.api.main:app",
-        host="0.0.0.0",
-        port=8000,
+        host=os.getenv("API_HOST", "0.0.0.0"),
+        port=int(os.getenv("API_PORT", "8100")),
         reload=True,
         log_level="info",
     )
