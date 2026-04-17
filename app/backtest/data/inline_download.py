@@ -68,14 +68,39 @@ def download_if_missing(
     loop,
     publish_event_fn: Callable,
 ) -> None:
-    """Download data file if it doesn't exist. Thread-safe via threading.Lock."""
-    if os.path.exists(csv_path):
+    """Download (or update) data file when it's missing or doesn't cover end_date."""
+
+    def _csv_covers_end() -> bool:
+        """True if CSV exists and its last timestamp >= requested end_date."""
+        if not os.path.exists(csv_path):
+            return False
+        if not end_date:
+            return True  # no upper bound → assume current file is fine
+        try:
+            import pandas as pd
+            df_check = pd.read_csv(csv_path, usecols=["timestamp"])
+            df_check["timestamp"] = pd.to_datetime(df_check["timestamp"])
+            last_ts = df_check["timestamp"].max()
+            covered = bool(pd.Timestamp(end_date) <= last_ts)
+            if not covered:
+                logger.info(
+                    "csv_stale_will_fetch_forward",
+                    symbol=symbol,
+                    csv_last=str(last_ts.date()),
+                    requested_end=end_date,
+                )
+            return covered
+        except Exception as e:
+            logger.warning("csv_coverage_check_failed", error=str(e))
+            return False
+
+    if _csv_covers_end():
         return
 
     lock = _get_lock(csv_path)
     with lock:
-        # Double-check after acquiring lock (another thread may have finished)
-        if os.path.exists(csv_path):
+        # Re-check inside lock — another thread may have already fetched
+        if _csv_covers_end():
             return
 
         # Calculate how many candles we need from date range

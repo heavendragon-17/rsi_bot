@@ -23,6 +23,13 @@ interface RsiChartProps {
 
 const CHART_MARGIN = { top: 24, right: 20, bottom: 20, left: 0 };
 
+// Colors picked for maximum hue separation on a dark slate background.
+// Using three widely-spaced hues (warm yellow, cool blue, warm pink) so that
+// even users with red-green colorblindness can tell the series apart.
+const COLOR_RSI = "#FBBF24";   // amber-400  — the primary signal
+const COLOR_EMA9 = "#38BDF8";  // sky-400    — fast moving average
+const COLOR_WMA45 = "#F472B6"; // pink-400   — slow moving average (dashed)
+
 const TOOLTIP_STYLE = {
   backgroundColor: "rgba(15, 23, 42, 0.95)",
   border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -44,20 +51,19 @@ const TOOLTIP_ITEM_STYLE = {
 
 interface TriangleLayerProps {
   xAxisMap?: Record<string, any>;
+  yAxisMap?: Record<string, any>;
   offset?: { top: number; left: number; width: number; height: number };
   chartData?: ChartDataPoint[];
 }
 
-function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
-  if (!xAxisMap || !chartData?.length) return null;
+function TriangleLayer({ xAxisMap, yAxisMap, chartData }: TriangleLayerProps) {
+  if (!xAxisMap || !yAxisMap || !chartData?.length) return null;
 
   const xAxis = Object.values(xAxisMap)[0] as any;
+  const yAxis = Object.values(yAxisMap)[0] as any;
   const xScale = xAxis?.scale;
-  if (!xScale) return null;
-
-  const chartTop = offset?.top ?? CHART_MARGIN.top;
-  const chartBottom =
-    (offset?.top ?? CHART_MARGIN.top) + (offset?.height ?? 206);
+  const yScale = yAxis?.scale;
+  if (!xScale || !yScale) return null;
 
   const entryIdx = chartData.findIndex((d) => d.isEntry);
   const exitIdx = chartData.findLastIndex((d) => d.isExit);
@@ -65,17 +71,21 @@ function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
   return (
     <g>
       {entryIdx !== -1 && (() => {
+        const rsiVal = chartData[entryIdx].rsi;
+        if (rsiVal === null) return null;
         const cx = xScale(entryIdx);
-        const top = chartTop;
+        const yRsi = yScale(rsiVal);
         const size = 7;
-        const tipY = top + size + 4;
-        const pts = `${cx},${tipY} ${cx - size},${top + 4} ${cx + size},${top + 4}`;
+        const spacing = 5;
+        const tipY = yRsi - spacing;
+        const baseY = tipY - size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="entry-flag">
             <polygon points={pts} fill="#22c55e" opacity={0.9} />
             <text
               x={cx}
-              y={top + 1}
+              y={baseY - 2}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#22c55e"
@@ -89,17 +99,21 @@ function TriangleLayer({ xAxisMap, offset, chartData }: TriangleLayerProps) {
       })()}
 
       {exitIdx !== -1 && (() => {
+        const rsiVal = chartData[exitIdx].rsi;
+        if (rsiVal === null) return null;
         const cx = xScale(exitIdx);
-        const bottom = chartBottom;
+        const yRsi = yScale(rsiVal);
         const size = 7;
-        const tipY = bottom - size - 4;
-        const pts = `${cx},${tipY} ${cx - size},${bottom - 4} ${cx + size},${bottom - 4}`;
+        const spacing = 5;
+        const tipY = yRsi + spacing;
+        const baseY = tipY + size;
+        const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="exit-flag">
             <polygon points={pts} fill="#ef4444" opacity={0.9} />
             <text
               x={cx}
-              y={bottom}
+              y={baseY + 9}
               textAnchor="middle"
               dominantBaseline="auto"
               fill="#ef4444"
@@ -170,6 +184,40 @@ function CustomTooltip({
 }
 
 // ---------------------------------------------------------------------------
+// Legend swatch — tiny colored bar + label, mirrors the line style on the chart
+// ---------------------------------------------------------------------------
+
+function LegendItem({
+  color,
+  label,
+  thick,
+  dashed,
+}: {
+  color: string;
+  label: string;
+  thick?: boolean;
+  dashed?: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
+      <svg width={16} height={8} aria-hidden>
+        <line
+          x1={0}
+          y1={4}
+          x2={16}
+          y2={4}
+          stroke={color}
+          strokeWidth={thick ? 2.5 : 1.5}
+          strokeDasharray={dashed ? "4 2" : undefined}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span style={{ color }}>{label}</span>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Chart component
 // ---------------------------------------------------------------------------
 
@@ -178,23 +226,32 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
 
   return (
     <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
-      <div className="mb-4">
-        <h3 className="text-white font-bold mb-1">RSI(21)</h3>
-        <p className="text-xs text-slate-400">
-          RSI(21), EMA9, WMA45 — OB/OS 70/30. Hover for Spread &amp; EMA21 status.
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-white font-bold mb-1">RSI(21)</h3>
+          <p className="text-xs text-slate-400">
+            OB/OS 70/30. Hover for Spread &amp; EMA21 status.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] font-mono pt-1 shrink-0">
+          <LegendItem color={COLOR_RSI} label="RSI(21)" thick />
+          <LegendItem color={COLOR_EMA9} label="EMA9" />
+          <LegendItem color={COLOR_WMA45} label="WMA45" dashed />
+        </div>
       </div>
       <ResponsiveContainer width="100%" height={250}>
         <ComposedChart data={data} syncId="tradeDeepDive" margin={CHART_MARGIN}>
           <defs>
             <linearGradient id="rsiGradientDive" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#06B6D4" stopOpacity={0.25} />
-              <stop offset="100%" stopColor="#06B6D4" stopOpacity={0} />
+              <stop offset="0%" stopColor={COLOR_RSI} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={COLOR_RSI} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
           <XAxis
+            type="number"
             dataKey="index"
+            domain={[-0.5, data.length - 0.5]}
             stroke="#64748b"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickFormatter={(value: number) => dateBreakFormatter(data, value)}
@@ -224,36 +281,37 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
           {/* Entry/exit triangle flags via Customized */}
           <Customized component={TriangleLayer} chartData={data} />
 
-          {/* RSI area */}
+          {/* RSI area — primary signal, drawn first so the MAs sit on top */}
           <Area
             type="monotone"
             dataKey={config.rsiDataKey}
-            stroke="#06B6D4"
+            stroke={COLOR_RSI}
             strokeWidth={2}
             fill="url(#rsiGradientDive)"
-            name="RSI"
+            name="RSI(21)"
             connectNulls
             isAnimationActive={false}
           />
 
-          {/* WMA45 of RSI */}
+          {/* WMA45 of RSI — slow MA, dashed so it's clearly the "other" MA */}
           <Line
             type="monotone"
             dataKey={config.wma45DataKey}
-            stroke="#8B5CF6"
-            strokeWidth={1.5}
+            stroke={COLOR_WMA45}
+            strokeWidth={1.25}
+            strokeDasharray="5 3"
             dot={false}
             name="WMA45"
             connectNulls
             isAnimationActive={false}
           />
 
-          {/* EMA9 of RSI */}
+          {/* EMA9 of RSI — fast MA, solid thin line */}
           <Line
             type="monotone"
             dataKey={config.ema9DataKey}
-            stroke="#34D399"
-            strokeWidth={1.5}
+            stroke={COLOR_EMA9}
+            strokeWidth={1.25}
             dot={false}
             name="EMA9"
             connectNulls

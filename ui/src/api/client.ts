@@ -3,7 +3,7 @@
  * All HTTP calls and SSE connections go through these utilities.
  */
 
-const BASE_URL = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "http://localhost:8100";
 
 // ---------------------------------------------------------------------------
 // ApiError
