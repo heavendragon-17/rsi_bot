@@ -248,48 +248,83 @@ def capture_entry_notification(
     symbol: str,
     fill_price: Decimal,
     amount: Decimal,
-) -> tuple | None:
-    """Build an entry notification tuple (caller holds the lock)."""
-    _sl_price = None
-    _tp_prices: dict[str, Decimal] = {}
-    for o in sim_ex._sim.get_pending_orders(symbol):
-        if o.side == "SELL":
-            if o.order_type == "stop_market" and o.trigger_price:
-                _sl_price = o.trigger_price
-            elif o.order_type == "limit" and o.price:
-                _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
+) -> dict | None:
+    """Build an entry notification payload (caller holds the lock)."""
+    signal_meta = sim_ex._pending_signal_meta.pop(symbol, {}) if hasattr(sim_ex, "_pending_signal_meta") else {}
 
+    # Determine actual position side: prefer stashed signal side, fall back to position state.
     pos = sim_ex.state.positions.get(symbol)
+    entry_side_raw = signal_meta.get("side") or (pos.side if pos else "BUY")
+    side_label = "LONG" if str(entry_side_raw).upper() in ("BUY", "LONG") else "SHORT"
+
+    # Exits for LONG are SELL; exits for SHORT are BUY.
+    exit_side = "SELL" if side_label == "LONG" else "BUY"
+
+    _sl_price: Decimal | None = None
+    _tp_raw: list[Decimal] = []
+    for o in sim_ex._sim.get_pending_orders(symbol):
+        if o.side != exit_side:
+            continue
+        if o.order_type == "stop_market" and o.trigger_price:
+            _sl_price = o.trigger_price
+        elif o.order_type == "limit" and o.price:
+            _tp_raw.append(o.price)
+
+    # Order TPs by distance from entry — ascending for LONG, descending for SHORT —
+    # so TP1 is always the nearest take-profit target.
+    _tp_raw.sort(reverse=(side_label == "SHORT"))
+    _tp_prices: dict[str, Decimal] = {
+        f"TP{i + 1}": p for i, p in enumerate(_tp_raw[:3])
+    }
+
     indicators = pos.indicators if pos else None
     entry_fee = pos.entry_fee if pos else Decimal("0")
 
-    return (
-        symbol, "LONG", fill_price, amount, sim_ex.state.balance,
-        _sl_price, _tp_prices or None, indicators, entry_fee,
-    )
+    return {
+        "symbol": symbol,
+        "side": side_label,
+        "entry_price": fill_price,
+        "amount": amount,
+        "balance": sim_ex.state.balance,
+        "sl_price": _sl_price,
+        "tp_prices": _tp_prices or None,
+        "indicators": indicators,
+        "entry_fee": entry_fee,
+        "reason": signal_meta.get("reason"),
+        "soft_sl_price": signal_meta.get("soft_sl_price"),
+        "lock_profit_price": signal_meta.get("lock_profit_price"),
+        "tp_allocations": signal_meta.get("tp_allocations"),
+        "signal_class": signal_meta.get("signal_class"),
+        "risk_per_trade_pct": signal_meta.get("risk_per_trade_pct"),
+    }
 
 
 def emit_notifications(
     sim_ex: SimExchange,
-    notify_entry: tuple | None,
+    notify_entry: dict | None,
     notify_fill: tuple | None,
 ) -> None:
     """Dispatch entry/fill notifications to the notification service."""
     if notify_entry and sim_ex._notification_service:
-        sym, side, ep, amt, bal, sl_price, tp_prices, indicators, entry_fee = notify_entry
         leverage = sim_ex._config.get("risk", {}).get("leverage", 1)
         try:
             sim_ex._notification_service.on_entry(
-                symbol=sym,
-                side=side,
-                entry_price=ep,
-                amount=amt,
-                sl_price=sl_price,
-                tp_prices=tp_prices,
+                symbol=notify_entry["symbol"],
+                side=notify_entry["side"],
+                entry_price=notify_entry["entry_price"],
+                amount=notify_entry["amount"],
+                sl_price=notify_entry["sl_price"],
+                tp_prices=notify_entry["tp_prices"],
                 leverage=leverage,
-                balance=bal,
-                indicators=indicators,
-                entry_fee=entry_fee,
+                balance=notify_entry["balance"],
+                indicators=notify_entry["indicators"],
+                entry_fee=notify_entry["entry_fee"],
+                reason=notify_entry.get("reason"),
+                soft_sl_price=notify_entry.get("soft_sl_price"),
+                lock_profit_price=notify_entry.get("lock_profit_price"),
+                tp_allocations=notify_entry.get("tp_allocations"),
+                signal_class=notify_entry.get("signal_class"),
+                risk_per_trade_pct=notify_entry.get("risk_per_trade_pct"),
             )
         except Exception:
             logger.exception("notification on_entry failed")

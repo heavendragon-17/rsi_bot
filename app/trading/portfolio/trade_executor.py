@@ -120,6 +120,15 @@ class TradeExecutor:
         entry_params: dict = {}
         if signal.indicators:
             entry_params["_indicators"] = signal.indicators
+        entry_params["_signal_meta"] = {
+            "reason": signal.reason,
+            "soft_sl_price": signal.soft_sl_price,
+            "lock_profit_price": signal.lock_profit_price,
+            "tp_allocations": signal.tp_allocations,
+            "signal_class": signal.signal_class,
+            "side": entry_side,
+            "risk_per_trade_pct": self._sizer.risk_per_trade_pct,
+        }
 
         try:
             order = self.exchange.create_order(
