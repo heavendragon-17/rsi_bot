@@ -120,6 +120,26 @@ class TradeExecutor:
         entry_params: dict = {}
         if signal.indicators:
             entry_params["_indicators"] = signal.indicators
+        tp_prices_meta = {
+            label: price
+            for label, price in (
+                ("TP1", signal.tp1_price),
+                ("TP2", signal.tp2_price),
+                ("TP3", signal.tp3_price),
+            )
+            if price is not None
+        }
+        entry_params["_signal_meta"] = {
+            "reason": signal.reason,
+            "sl_price": signal.sl_price,
+            "tp_prices": tp_prices_meta or None,
+            "soft_sl_price": signal.soft_sl_price,
+            "lock_profit_price": signal.lock_profit_price,
+            "tp_allocations": signal.tp_allocations,
+            "signal_class": signal.signal_class,
+            "side": entry_side,
+            "risk_per_trade_pct": self._sizer.risk_per_trade_pct,
+        }
 
         try:
             order = self.exchange.create_order(

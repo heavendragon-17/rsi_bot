@@ -86,6 +86,7 @@ class SimExchange(IExchange):
         self._fires_entry_notification: bool = False
         self._fires_fill_notification: bool = True
         self._pending_indicators: dict[str, dict[str, float]] = {}  # staging for entry indicators
+        self._pending_signal_meta: dict[str, dict[str, Any]] = {}  # staging for entry signal metadata
 
         # Fill simulator for pending SL/TP order management and fill detection
         self._sim_instance: FillSimulator | None = FillSimulator(TickFillMode(), MAKER_FEE, TAKER_FEE)
@@ -195,6 +196,10 @@ class SimExchange(IExchange):
         if params.get("_indicators") and not reduce_only:
             self._pending_indicators[symbol] = params["_indicators"]
 
+        # Stash signal metadata (reason, soft SL, lock profit, TP allocations, ...)
+        if params.get("_signal_meta") and not reduce_only:
+            self._pending_signal_meta[symbol] = params["_signal_meta"]
+
         # reduceOnly guard: skip if no position exists
         if reduce_only:
             with self.state.lock:
@@ -203,9 +208,6 @@ class SimExchange(IExchange):
                     return None
 
         order_id = str(uuid.uuid4())
-        order_info: dict[str, Any] = {}
-        if order_type == "stop_market" and params.get("soft_sl_price") is not None:
-            order_info["soft_sl_price"] = to_decimal(params["soft_sl_price"])
         po = PendingOrder(
             id=order_id,
             symbol=symbol,
@@ -216,7 +218,7 @@ class SimExchange(IExchange):
             trigger_price=stop_price,
             reduce_only=reduce_only,
             status="pending",
-            info=order_info,
+            info={},
         )
 
         # Market BUY (entry) → immediate fill or pending_open

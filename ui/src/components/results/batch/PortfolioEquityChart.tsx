@@ -1,11 +1,19 @@
 // @ts-nocheck
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as LightweightCharts from "lightweight-charts";
+import { parse, format } from "date-fns";
 import { useBatchResultsStore } from "../../../stores/batchResultsStore";
+import { useBacktestStore } from "../../../stores/backtestStore";
+import { getBenchmark } from "../../../api/backtest";
 
 export const PortfolioEquityChart: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<LightweightCharts.IChartApi | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const [showDispersion, setShowDispersion] = useState(false);
+  const [activeBenchmark, setActiveBenchmark] = useState<string | null>(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const {
     portfolioEquityCurve,
@@ -14,22 +22,68 @@ export const PortfolioEquityChart: React.FC = () => {
     totalPnL,
     pinnedSymbols,
     symbolResults,
+    setBatchResults,
   } = useBatchResultsStore();
 
+  const { timeframe, startDate, endDate, capital } = useBacktestStore();
+
+  const BENCHMARK_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "HYPE/USDT", "BNB/USDT", "XRP/USDT"];
+
+  const handleBenchmarkSwitch = async (sym: string | null) => {
+    if (sym === activeBenchmark) return;
+    setActiveBenchmark(sym);
+    if (!sym) {
+      setBatchResults({ benchmarkEquityCurve: [], benchmarkDrawdownCurve: [] });
+      return;
+    }
+    setBenchmarkLoading(true);
+    try {
+      // Clamp benchmark to the actual equity curve range (first → last trade),
+      // not the full backtest date range which includes warmup/indicator period.
+      const fallbackStart = format(parse(startDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const fallbackEnd = format(parse(endDate, "dd-MM-yyyy", new Date()), "yyyy-MM-dd");
+      const apiStart = portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].time : fallbackStart;
+      const apiEnd = portfolioEquityCurve.length > 0
+        ? portfolioEquityCurve[portfolioEquityCurve.length - 1].time
+        : fallbackEnd;
+      const result = await getBenchmark(sym, timeframe, apiStart, apiEnd, parseFloat(capital) || 10000);
+      // Deduplicate to one point per calendar day (backend may return one row per candle)
+      const seen = new Map<string, { time: string; value: number }>();
+      for (const p of (result.curve ?? [])) {
+        const t = String(p["date"] ?? "").slice(0, 10);
+        const v = typeof p["balance"] === "string" ? parseFloat(p["balance"] as string) : Number(p["balance"]);
+        seen.set(t, { time: t, value: v });
+      }
+      const curve = Array.from(seen.values()).sort((a, b) => (a.time < b.time ? -1 : 1));
+      let peak = -Infinity;
+      const bdd = curve.map((p) => {
+        if (p.value > peak) peak = p.value;
+        return { time: p.time, value: peak > 0 ? ((p.value - peak) / peak) * 100 : 0 };
+      });
+      setBatchResults({ benchmarkEquityCurve: curve, benchmarkDrawdownCurve: bdd });
+    } catch (_) {
+      // silently ignore if CSV not available
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
+
   const isProfit = totalPnL >= 0;
-  const portfolioColor = "#ffffff"; // White for portfolio main line
-  const benchmarkColor = "#71717a"; // Zinc-500
-  const dispersionColor = isProfit ? "#22c55e" : "#ef4444"; // Color for range
+  const portfolioColor = "#ffffff";
+  const benchmarkColor = "#71717a";
+  const dispersionColor = isProfit ? "#22c55e" : "#ef4444";
   const gridColor = "rgba(255, 255, 255, 0.05)";
   const textColor = "#a1a1aa";
   const bgColor = "transparent";
 
-  // Pin colors
-  const pinColors = ["#f59e0b", "#3b82f6", "#ec4899"]; // Amber, Blue, Pink
+  const pinColors = ["#f59e0b", "#3b82f6", "#ec4899"];
+
+  const hasDispersion = dispersionRange.length > 0;
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
     if (chartContainerRef.current.clientWidth === 0) return;
+    if (portfolioEquityCurve.length === 0) return;
 
     const { createChart, ColorType, LineStyle, LineSeries, AreaSeries } =
       LightweightCharts;
@@ -50,35 +104,7 @@ export const PortfolioEquityChart: React.FC = () => {
       crosshair: { vertLine: { labelVisible: false } },
     });
 
-    // 1. Dispersion Range (Simulated via Max/Min lines for now as AreaSeries can't float)
-    // To truly do a shaded range, we would ideally use a custom series or two areas where one masks the other.
-    // Hack: Just draw the bounds as thin lines for now to meet the "Dispersion" requirement visually without complex custom series code.
-    // Or better: Use "Extra Series" logic.
-    const maxSeries = chart.addSeries(LineSeries, {
-      color: dispersionColor,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    // @ts-ignore
-    maxSeries.setData(
-      dispersionRange.map((d) => ({
-        time: d.time,
-        value:
-          (d.max / 100) * portfolioEquityCurve[0].value +
-          portfolioEquityCurve[0].value,
-      }))
-    ); // Scale % back to value roughly for viz?
-    // Wait, dispersion is % return. Equity is value.
-    // This is tricky. Let's just plot the Portfolio Equity Area and Benchmark.
-    // And simplify Dispersion to just be implied by the portfolio line for MVP unless we normalize everything to %.
-
-    // DECISION: Normalize everything to % Return for the chart. This makes Dispersion easy.
-    // Let's re-map data to % change from start.
-    const startValue =
-      portfolioEquityCurve.length > 0 ? portfolioEquityCurve[0].value : 1;
+    const startValue = parseFloat(capital) || portfolioEquityCurve[0].value;
 
     const normPortfolio = portfolioEquityCurve.map((d) => ({
       time: d.time,
@@ -92,70 +118,72 @@ export const PortfolioEquityChart: React.FC = () => {
       value: ((d.value - startBench) / startBench) * 100,
     }));
 
-    // Now Dispersion is already in %.
-    const dispHigh = dispersionRange.map((d) => ({
-      time: d.time,
-      value: d.max,
-    }));
-    const dispLow = dispersionRange.map((d) => ({
-      time: d.time,
-      value: d.min,
-    }));
+    // --- Dispersion band: AreaSeries (high, fills downward) + LineSeries (low bound) ---
+    if (showDispersion && hasDispersion) {
+      // Upper bound: AreaSeries with gradient fill going down — creates the shaded band region
+      const highSeries = chart.addSeries(AreaSeries, {
+        lineColor: `${dispersionColor}55`,
+        topColor: "rgba(0,0,0,0)",
+        bottomColor: `${dispersionColor}18`,
+        lineWidth: 1,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
+      });
+      highSeries.setData(
+        dispersionRange.map((d) => ({ time: d.time, value: d.max }))
+      );
 
-    // Plot Dispersion Bounds (faint)
-    const highSeries = chart.addSeries(LineSeries, {
-      color: `${dispersionColor}44`,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-    highSeries.setData(dispHigh);
-    const lowSeries = chart.addSeries(LineSeries, {
-      color: `${dispersionColor}44`,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dotted,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-    lowSeries.setData(dispLow);
+      // Lower bound: LineSeries marks the floor of the band
+      const lowSeries = chart.addSeries(LineSeries, {
+        color: `${dispersionColor}55`,
+        lineWidth: 1,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
+      });
+      lowSeries.setData(
+        dispersionRange.map((d) => ({ time: d.time, value: d.min }))
+      );
+    }
 
-    // 2. Portfolio Line (Bold Area)
+    // Portfolio line (on top of dispersion)
     const portfolioSeries = chart.addSeries(AreaSeries, {
       lineColor: portfolioColor,
       topColor: `${portfolioColor}22`,
       bottomColor: `${portfolioColor}00`,
       lineWidth: 3,
-      priceFormat: { type: "percent" },
+      priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
     });
     portfolioSeries.setData(normPortfolio);
 
-    // 3. Benchmark (Dashed)
-    const benchmarkSeries = chart.addSeries(LineSeries, {
-      color: benchmarkColor,
-      lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
-      crosshairMarkerVisible: false,
-      priceFormat: { type: "percent" },
-    });
-    benchmarkSeries.setData(normBenchmark);
+    // Benchmark (dashed)
+    if (normBenchmark.length > 0) {
+      const benchmarkSeries = chart.addSeries(LineSeries, {
+        color: benchmarkColor,
+        lineWidth: 2,
+        lineStyle: LineStyle.Dashed,
+        crosshairMarkerVisible: false,
+        priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
+      });
+      benchmarkSeries.setData(normBenchmark);
+    }
 
-    // 4. Pinned Symbols
+    // Pinned symbols
     pinnedSymbols.forEach((sym, idx) => {
       const symData = symbolResults.find((r) => r.symbol === sym);
-      if (symData) {
+      if (symData && symData.equityCurve.length > 0) {
         const sStart = symData.equityCurve[0].value;
         const sCurve = symData.equityCurve.map((d) => ({
           time: d.time,
           value: ((d.value - sStart) / sStart) * 100,
         }));
-
         const pinSeries = chart.addSeries(LineSeries, {
           color: pinColors[idx % pinColors.length],
           lineWidth: 1,
-          priceFormat: { type: "percent" },
+          priceFormat: { type: "custom", formatter: (p: number) => `${p.toFixed(2)}%` },
         });
         pinSeries.setData(sCurve);
       }
@@ -163,6 +191,22 @@ export const PortfolioEquityChart: React.FC = () => {
 
     chart.timeScale().fitContent();
     chartRef.current = chart;
+
+    // Crosshair tooltip: show date on hover
+    chart.subscribeCrosshairMove((param) => {
+      if (!tooltipRef.current) return;
+      if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+        tooltipRef.current.style.display = "none";
+        return;
+      }
+      tooltipRef.current.textContent = String(param.time);
+      tooltipRef.current.style.display = "block";
+      const containerWidth = chartContainerRef.current?.clientWidth ?? 0;
+      const tipWidth = tooltipRef.current.offsetWidth;
+      const left = Math.min(param.point.x + 8, containerWidth - tipWidth - 4);
+      tooltipRef.current.style.left = `${left}px`;
+      tooltipRef.current.style.top = "6px";
+    });
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -182,6 +226,7 @@ export const PortfolioEquityChart: React.FC = () => {
     dispersionRange,
     pinnedSymbols,
     symbolResults,
+    showDispersion,
   ]);
 
   return (
@@ -190,20 +235,65 @@ export const PortfolioEquityChart: React.FC = () => {
         <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
           Portfolio Performance (Normalized %)
         </span>
+
         {/* Legend */}
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {/* Portfolio */}
           <div className="flex items-center gap-1.5 text-[10px] text-text-primary">
             <div className="w-3 h-0.5 bg-white" />
             Portfolio
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
-            <div className="w-3 h-0.5 border-t border-dashed border-zinc-500" />
-            Benchmark
+
+          {/* Benchmark legend */}
+          {benchmarkEquityCurve.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+              <div className="w-3 h-0.5 border-t border-dashed border-zinc-500" />
+              {activeBenchmark ? activeBenchmark.split("/")[0] : "Benchmark"}
+            </div>
+          )}
+
+          {/* In-chart benchmark switcher */}
+          <div className="flex items-center gap-0.5 ml-1">
+            <button
+              onClick={() => handleBenchmarkSwitch(null)}
+              className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === null ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              Off
+            </button>
+            {BENCHMARK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                onClick={() => handleBenchmarkSwitch(s)}
+                disabled={benchmarkLoading}
+                className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${activeBenchmark === s ? "bg-bg-elevated text-text-primary" : "text-text-muted hover:text-text-secondary"}`}
+              >
+                {s.split("/")[0]}
+              </button>
+            ))}
+            {benchmarkLoading && <span className="text-[9px] text-text-muted ml-1">…</span>}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-text-muted opacity-60">
-            <div className="w-3 h-2 border border-dotted border-current" />
-            Dispersion
-          </div>
+
+          {/* Dispersion toggle */}
+          {hasDispersion && (
+            <button
+              onClick={() => setShowDispersion((v) => !v)}
+              className={`flex items-center gap-1.5 text-[10px] transition-opacity ${
+                showDispersion ? "opacity-100" : "opacity-35"
+              }`}
+              style={{ color: dispersionColor }}
+              title={showDispersion ? "Hide dispersion band" : "Show dispersion band"}
+            >
+              {/* Band icon: two parallel lines */}
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+                <line x1="0" y1="1" x2="12" y2="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="0" y="2.5" width="12" height="3" fill="currentColor" fillOpacity="0.2" />
+                <line x1="0" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+              Dispersion
+            </button>
+          )}
+
+          {/* Pinned symbols */}
           {pinnedSymbols.map((sym, idx) => (
             <div
               key={sym}
@@ -216,7 +306,18 @@ export const PortfolioEquityChart: React.FC = () => {
           ))}
         </div>
       </div>
-      <div className="relative h-[250px] w-full" ref={chartContainerRef} />
+
+      <div className="relative h-[250px] w-full" ref={chartContainerRef}>
+        {portfolioEquityCurve.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
+            No equity data — run a backtest to see the portfolio curve.
+          </div>
+        )}
+        <div
+          ref={tooltipRef}
+          className="absolute z-10 pointer-events-none hidden px-1.5 py-0.5 rounded text-[10px] font-mono text-text-secondary bg-bg-elevated/90 border border-border-main"
+        />
+      </div>
     </div>
   );
 };

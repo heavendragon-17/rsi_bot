@@ -31,11 +31,7 @@ logger = structlog.get_logger()
 
 
 class MockExchange(IExchange):
-    """
-    Thread-safe mock exchange for backtesting.
-    Delegates order management and fill detection to FillSimulator(WickFillMode).
-    Owns position/margin/balance state internally.
-    """
+    """Thread-safe mock exchange for backtesting. Delegates fills to FillSimulator."""
 
     def __init__(
         self,
@@ -43,6 +39,7 @@ class MockExchange(IExchange):
         leverage: int = 1,
         maker_fee: float = 0.0,
         taker_fee: float = 0.0,
+        slippage_pct: float = 0.0,
     ) -> None:
         self._lock = threading.RLock()
 
@@ -50,6 +47,7 @@ class MockExchange(IExchange):
         self.leverage: Decimal = Decimal(str(leverage))
         self.maker_fee: Decimal = Decimal(str(maker_fee))
         self.taker_fee: Decimal = Decimal(str(taker_fee))
+        self.slippage_pct: Decimal = Decimal(str(slippage_pct))
 
         self.positions: dict[str, Decimal] = {}
         self.margin_used: dict[str, Decimal] = {}
@@ -68,25 +66,17 @@ class MockExchange(IExchange):
     @property
     def pending_orders(self) -> dict[str, dict]:
         """Dict view of pending orders for backward compatibility with tests."""
-        result: dict[str, dict] = {}
-        for oid, o in self._sim.pending_orders.items():
-            result[oid] = {
-                "id": o.id,
-                "symbol": o.symbol,
-                "side": o.side,
-                "amount": o.amount,
-                "price": o.price,
-                "triggerPrice": o.trigger_price or o.price,
-                "type": o.order_type,
-                "order_subtype": o.order_type,
-                "status": "open",
-                "reduce_only": o.reduce_only,
-                "info": dict(o.info),
-                "limit_price": o.limit_price,
-                "callback_rate": o.callback_rate,
+        return {
+            oid: {
+                "id": o.id, "symbol": o.symbol, "side": o.side, "amount": o.amount,
+                "price": o.price, "triggerPrice": o.trigger_price or o.price,
+                "type": o.order_type, "order_subtype": o.order_type, "status": "open",
+                "reduce_only": o.reduce_only, "info": dict(o.info),
+                "limit_price": o.limit_price, "callback_rate": o.callback_rate,
                 "peak_price": o.peak_price,
             }
-        return result
+            for oid, o in self._sim.pending_orders.items()
+        }
 
     def _get_position_amount(self, symbol: str) -> Decimal:
         return self.positions.get(symbol, Decimal("0"))
@@ -130,10 +120,8 @@ class MockExchange(IExchange):
             for fr in fill_results:
                 exit_reason = fr.info.get("exit_reason") or fr.order_type.upper()
 
-                # Re-clamp reduce_only fills against actual position.
-                # When multiple orders trigger on the same candle, earlier
-                # fills change the position but FillSimulator used a stale
-                # snapshot.  Skip if position is already closed.
+                # Re-clamp reduce_only against actual position (earlier same-candle
+                # fills may have closed it while FillSimulator used a stale snapshot).
                 fill_amount = fr.fill_amount
                 if fr.reduce_only:
                     current_pos = abs(self.positions.get(fr.symbol, Decimal("0")))
@@ -391,6 +379,13 @@ class MockExchange(IExchange):
         exit_reason: str | None = None,
         fee_override: Decimal | None = None,
     ) -> dict | None:
+        # Slippage on market fills only, always against trader.
+        if self.slippage_pct > Decimal("0") and order_type.upper() == "MARKET":
+            if side.upper() == "BUY":
+                exec_price = exec_price * (Decimal("1") + self.slippage_pct)
+            else:
+                exec_price = exec_price * (Decimal("1") - self.slippage_pct)
+
         return execute_order(
             self, symbol, side, amount, exec_price,
             timestamp, order_type, exit_reason, fee_override,

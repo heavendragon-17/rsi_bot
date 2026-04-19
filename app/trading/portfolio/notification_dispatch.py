@@ -16,9 +16,10 @@ logger = structlog.get_logger()
 class NotificationDispatcher:
     """Dispatches entry/exit notifications, respecting exchange notification flags."""
 
-    def __init__(self, notification_service, exchange):
+    def __init__(self, notification_service, exchange, risk_per_trade_pct: Decimal | None = None):
         self._notification_service = notification_service
         self._exchange = exchange
+        self._risk_per_trade_pct = risk_per_trade_pct
 
     def notify_entry(
         self,
@@ -44,23 +45,24 @@ class NotificationDispatcher:
         }
         entry_fee = price * amount * DEFAULT_TAKER_FEE_DECIMAL
 
-        # Prefer the soft SL (risk-sizing level) so the card's SL % and Risk
-        # match the configured risk_per_trade_pct; fall back to the disaster
-        # stop if the strategy doesn't provide a soft SL.
-        display_sl = getattr(signal, "soft_sl_price", None) or signal.sl_price
-
         try:
             self._notification_service.on_entry(
                 symbol=symbol,
                 side=notif_side,
                 entry_price=price,
                 amount=amount,
-                sl_price=display_sl,
+                sl_price=signal.sl_price,
                 tp_prices=tp_prices or None,
                 leverage=leverage,
                 balance=balance,
                 indicators=signal.indicators,
                 entry_fee=entry_fee,
+                reason=signal.reason,
+                soft_sl_price=signal.soft_sl_price,
+                lock_profit_price=signal.lock_profit_price,
+                tp_allocations=signal.tp_allocations,
+                signal_class=signal.signal_class,
+                risk_per_trade_pct=self._risk_per_trade_pct,
             )
         except Exception:
             logger.warning(f"[{symbol}] on_entry notification failed")

@@ -5,6 +5,7 @@
 
 # Python
 __pycache__/
+*.csv.lock
 *.pyc
 *.pyo
 *.egg-info/

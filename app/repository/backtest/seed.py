@@ -4,6 +4,8 @@ Seed data for the backtest database.
 Called by init_db() on startup — idempotent (skips if row already exists).
 """
 
+import dataclasses
+
 from app.repository.backtest.models import Strategy
 
 # Descriptions for DB display (keyed by strategy name)
@@ -20,12 +22,22 @@ def seed_strategies(session) -> None:
 
     for name, cls in STRATEGY_MAP.items():
         if session.query(Strategy).filter_by(name=name).first() is None:
-            default_config = getattr(cls, "DEFAULT_CONFIG", {})
+            config_cls = getattr(cls, "CONFIG_CLASS", None)
+            if config_cls:
+                defaults = {
+                    f.name: f.default
+                    for f in dataclasses.fields(config_cls)
+                    if f.default is not dataclasses.MISSING
+                    and f.name not in ("METADATA", "UI_GROUPS")
+                }
+            else:
+                defaults = getattr(cls, "DEFAULT_CONFIG", {})
+
             session.add(
                 Strategy(
                     name=name,
                     description=STRATEGY_DESCRIPTIONS.get(name, name),
-                    default_config=default_config,
+                    default_config=defaults,
                 )
             )
             session.commit()

@@ -65,6 +65,12 @@ class NotificationService(INotifier):
         balance: Decimal | None = None,
         indicators: dict[str, float] | None = None,
         entry_fee: Decimal | None = None,
+        reason: str | None = None,
+        soft_sl_price: Decimal | None = None,
+        lock_profit_price: Decimal | None = None,
+        tp_allocations: dict[str, float] | None = None,
+        signal_class: int | None = None,
+        risk_per_trade_pct: Decimal | None = None,
     ) -> None:
         self._worker.enqueue(
             "on_entry",
@@ -78,6 +84,12 @@ class NotificationService(INotifier):
             balance=balance,
             indicators=indicators,
             entry_fee=entry_fee,
+            reason=reason,
+            soft_sl_price=soft_sl_price,
+            lock_profit_price=lock_profit_price,
+            tp_allocations=tp_allocations,
+            signal_class=signal_class,
+            risk_per_trade_pct=risk_per_trade_pct,
         )
 
     def on_fill(

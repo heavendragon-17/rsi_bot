@@ -36,13 +36,11 @@ from app.notification.deploy_commands import (
 )
 from app.notification.formatting import (
     fmt_amount_auto,
-    fmt_amount_precise,
     fmt_duration,
     fmt_pct,
     fmt_pnl,
     fmt_price,
     fmt_price_auto,
-    fmt_price_precise,
     mono,
     row,
 )
@@ -128,40 +126,128 @@ class TelegramNotifier(INotifier):
         balance: Decimal | None = None,
         indicators: dict[str, float] | None = None,
         entry_fee: Decimal | None = None,
+        reason: str | None = None,
+        soft_sl_price: Decimal | None = None,
+        lock_profit_price: Decimal | None = None,
+        tp_allocations: dict[str, float] | None = None,
+        signal_class: int | None = None,
+        risk_per_trade_pct: Decimal | None = None,
     ) -> None:
         notional = entry_price * amount
         margin = notional / Decimal(str(leverage)) if leverage else notional
 
         side_label = "LONG" if side.upper() in ("BUY", "LONG") else "SHORT"
         emoji = "🟢" if side_label == "LONG" else "🔴"
+        is_long = side_label == "LONG"
+        direction = Decimal("1") if is_long else Decimal("-1")
 
-        lines = [f"{self._prefix} | {emoji} {side_label} ENTERED — {symbol}", ""]
+        header = f"{self._prefix} | {emoji} {side_label} ENTERED — {symbol}"
+        if signal_class is not None:
+            quality = "Optimal" if signal_class == 1 else "Acceptable"
+            header += f"  [{quality} · Class {signal_class}]"
+        lines = [header, ""]
+
         body = [
             row("Symbol:", symbol),
-            row("Side:", side_label),
+            row("Side:", f"{side_label} ({'BUY' if is_long else 'SELL'} to open)"),
             row("Entry:", fmt_price_auto(entry_price)),
             row("Size:", f"{fmt_amount_auto(amount, entry_price)}  ({fmt_price(notional)})"),
             row("Leverage:", f"{leverage}x  (Margin: {fmt_price(margin)})"),
-            "",
         ]
 
+        # ── Risk section (SL + soft SL + lock profit) ──
+        risk_lines: list[str] = []
+        sl_distance: Decimal | None = None
         if sl_price:
-            sl_pct = (sl_price - entry_price) / entry_price * 100
-            sl_risk = abs(entry_price - sl_price) * amount
-            body.append(
-                row("SL:", f"{fmt_price_auto(sl_price)}  ({fmt_pct(sl_pct)})  Risk: {fmt_pnl(-sl_risk)}")
+            sl_pct = (sl_price - entry_price) / entry_price * 100 * direction
+            sl_distance = abs(entry_price - sl_price)
+            sl_risk = sl_distance * amount
+            risk_pct_of_account = (sl_risk / balance * 100) if balance and balance > 0 else None
+            risk_suffix = (
+                f"  ({float(risk_pct_of_account):.2f}% of acct)" if risk_pct_of_account is not None else ""
+            )
+            risk_lines.append(
+                row(
+                    "SL (Hard):",
+                    f"{fmt_price_auto(sl_price)}  ({fmt_pct(sl_pct)})  "
+                    f"Risk: {fmt_pnl(-sl_risk)}{risk_suffix}",
+                )
             )
 
+        if soft_sl_price is not None and soft_sl_price != sl_price:
+            soft_pct = (soft_sl_price - entry_price) / entry_price * 100 * direction
+            risk_lines.append(
+                row("SL (Soft):", f"{fmt_price_auto(soft_sl_price)}  ({fmt_pct(soft_pct)})  candle-close exit")
+            )
+
+        if lock_profit_price is not None:
+            lock_pct = (lock_profit_price - entry_price) / entry_price * 100 * direction
+            risk_lines.append(
+                row(
+                    "Lock Profit:",
+                    f"{fmt_price_auto(lock_profit_price)}  ({fmt_pct(lock_pct)})  → SL moves here after TP1",
+                )
+            )
+
+        if risk_lines:
+            body += ["", *risk_lines]
+
+        # ── TP ladder with R:R + allocation ──
         if tp_prices:
+            tp_lines: list[str] = []
+            total_expected_reward = Decimal("0")
+            remaining_alloc = Decimal("1")
             for label in ("TP1", "TP2", "TP3"):
                 tp_p = tp_prices.get(label)
-                if tp_p:
-                    diff_pct = (tp_p - entry_price) / entry_price * 100
-                    reward = abs(tp_p - entry_price) * amount
-                    body.append(
-                        row(f"{label}:", f"{fmt_price_auto(tp_p)}  ({fmt_pct(diff_pct)})  +{float(reward):,.2f}")
-                    )
+                if not tp_p:
+                    continue
+                diff_pct = (tp_p - entry_price) / entry_price * 100 * direction
+                gross_reward = abs(tp_p - entry_price) * amount
+                rr = (abs(tp_p - entry_price) / sl_distance) if sl_distance else None
 
+                alloc_frac: Decimal | None = None
+                if tp_allocations:
+                    raw = tp_allocations.get(label)
+                    if raw is not None:
+                        alloc_frac = Decimal(str(raw))
+
+                # Allocation is % of *remaining* contracts per the partial close model
+                alloc_of_initial: Decimal | None = None
+                if alloc_frac is not None:
+                    alloc_of_initial = remaining_alloc * alloc_frac
+                    remaining_alloc -= alloc_of_initial
+                    total_expected_reward += gross_reward * alloc_of_initial
+
+                parts = [fmt_price_auto(tp_p), f"({fmt_pct(diff_pct)})"]
+                if rr is not None:
+                    parts.append(f"{float(rr):.2f}R")
+                if alloc_of_initial is not None:
+                    parts.append(f"close {float(alloc_of_initial) * 100:.0f}%")
+                parts.append(f"+{float(gross_reward):,.2f}")
+
+                tp_lines.append(row(f"{label}:", "  ".join(parts)))
+
+            if tp_lines:
+                body += ["", *tp_lines]
+
+            if total_expected_reward > 0 and sl_distance:
+                expected_risk = sl_distance * amount
+                rr_weighted = (
+                    total_expected_reward / expected_risk if expected_risk > 0 else None
+                )
+                suffix = f"  ({float(rr_weighted):.2f}R weighted)" if rr_weighted else ""
+                body.append(
+                    row(
+                        "Exp. Reward:",
+                        f"+{float(total_expected_reward):,.2f}{suffix}",
+                    )
+                )
+
+        # ── Strategy reason ──
+        if reason:
+            body += ["", row("Reason:", reason)]
+
+        # ── Indicators at signal time ──
         if indicators:
             body += ["", "─" * 28]
             if "rsi_ema9" in indicators:
@@ -173,11 +259,15 @@ class TelegramNotifier(INotifier):
             if "above_ema21" in indicators:
                 body.append(row("Above EMA21:", f"{int(indicators['above_ema21'])}"))
 
+        # ── Account footer ──
+        if risk_per_trade_pct is not None:
+            body += ["", row("Risk/Trade:", f"{float(risk_per_trade_pct) * 100:.2f}%")]
+
         if entry_fee is not None:
-            body += ["", row("Entry Fee:", f"{fmt_pnl(-entry_fee)}")]
+            body.append(row("Entry Fee:", f"{fmt_pnl(-entry_fee)}"))
 
         if balance is not None:
-            body += ["", row("Balance:", f"{fmt_price(balance)}")]
+            body.append(row("Balance:", f"{fmt_price(balance)}"))
 
         lines.append(mono("\n".join(body)))
         self._send("\n".join(lines))

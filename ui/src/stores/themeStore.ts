@@ -235,7 +235,7 @@ const DEFAULT_THEMES: Theme[] = [
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      currentTheme: null,
+      currentTheme: DEFAULT_THEMES.find((t) => t.id === "deep-space") ?? DEFAULT_THEMES[0],
       isLoading: false,
       themes: [],
       performanceMode: false,
@@ -246,9 +246,10 @@ export const useThemeStore = create<ThemeState>()(
         await new Promise((resolve) => setTimeout(resolve, 100));
         set({ themes: DEFAULT_THEMES, isLoading: false });
 
-        // If no theme is set, apply the first one (Cyberpunk Neon)
+        // If no theme is set, apply Deep Space as the default
         if (!get().currentTheme) {
-          get().applyTheme(DEFAULT_THEMES[0]);
+          const deepSpace = DEFAULT_THEMES.find((t) => t.id === "deep-space") ?? DEFAULT_THEMES[0];
+          get().applyTheme(deepSpace);
         }
       },
 

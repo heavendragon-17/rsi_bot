@@ -163,7 +163,12 @@ class TestMovedSLExitReason:
         assert trade.exit_reason == "HARD_SL"
         assert trade.pnl_gross < Decimal("0")
 
-    def test_moved_sl_profit_reported_when_sl_fills_above_entry(self):
+    def test_moved_sl_replaces_hard_sl_label(self):
+        """Any stop_market fill after the SL has been relocated reports MOVED_SL.
+
+        By construction the strategy only moves the SL to a lock-profit level,
+        so such fills are always in profit — we don't need a separate label.
+        """
         ex = _make_exchange()
         _open_long(ex, symbol="BTC/USDT", entry="100.0", amount="10")
         _place_hard_sl(
@@ -187,7 +192,7 @@ class TestMovedSLExitReason:
 
         ex.on_tick("BTC/USDT", Decimal("100.5"), time.time())
         trade = ex.state.closed_trades[-1]
-        assert trade.exit_reason == "MOVED_SL_PROFIT"
+        assert trade.exit_reason == "MOVED_SL"
         assert trade.pnl_gross > Decimal("0")
 
     def test_moved_sl_at_0_2r_reports_close_to_0_2r(self):
@@ -232,12 +237,12 @@ class TestMovedSLExitReason:
 
         trade = ex.state.closed_trades[-1]
         # True net profit should be ~0.2 × $100 risk = $20, and R ≈ 0.20.
-        assert trade.exit_reason == "MOVED_SL_PROFIT"
+        assert trade.exit_reason == "MOVED_SL"
         assert abs(trade.pnl_net - Decimal("20")) < Decimal("0.05")
         assert abs(trade.r_multiple - Decimal("0.20")) < Decimal("0.005")
 
-    def test_moved_sl_to_breakeven_reports_moved_sl(self):
-        """SL moved to break-even and hits → labelled MOVED_SL (not HARD_SL)."""
+    def test_moved_sl_even_at_breakeven_uses_moved_sl_label(self):
+        """Even the edge case of SL moved exactly to entry reports MOVED_SL."""
         ex = _make_exchange()
         _open_long(ex, symbol="BTC/USDT", entry="100.0", amount="10")
         _place_hard_sl(
@@ -291,58 +296,47 @@ class TestLiquidation:
 # ---------------------------------------------------------------------------
 
 
-class TestEntryNotificationShowsSoftSL:
-    def test_dispatcher_prefers_soft_sl_over_disaster(self):
-        """
-        The portfolio ``NotificationDispatcher`` is what fires the entry card
-        in all modes; it must advertise the soft SL (risk-sizing level) when
-        the signal provides one, not the wider disaster stop. This matches the
-        card's Risk figure to the configured ``risk_per_trade_pct``.
-        """
+class TestDispatcherPassesBothSLs:
+    """Dispatcher forwards hard and soft SL separately so the card can show both."""
+
+    def _dispatch(self, signal, balance=Decimal("10000")):
         from unittest.mock import MagicMock
 
         from app.trading.portfolio.notification_dispatch import NotificationDispatcher
 
         notif = MagicMock()
         exchange = MagicMock()
-        # Sim switches this off (dispatcher handles entries). Live adapters
-        # also leave it unset, so the dispatcher path is exercised.
         exchange._fires_entry_notification = False
-
-        dispatcher = NotificationDispatcher(notif, exchange)
-        signal = MagicMock()
-        signal.sl_price = Decimal("97.0")           # disaster stop
-        signal.soft_sl_price = Decimal("99.0")      # risk-sizing SL
-        signal.tp1_price = Decimal("101.0")
-        signal.tp2_price = None
-        signal.tp3_price = None
-        signal.indicators = None
-
-        dispatcher.notify_entry(
+        NotificationDispatcher(notif, exchange).notify_entry(
             symbol="BTC/USDT",
             entry_side="BUY",
             price=Decimal("100.0"),
             amount=Decimal("10"),
             signal=signal,
             leverage=10,
-            balance=Decimal("10000"),
+            balance=balance,
         )
+        return notif.on_entry.call_args.kwargs
 
-        kwargs = notif.on_entry.call_args.kwargs
-        assert kwargs["sl_price"] == Decimal("99.0")
-        assert kwargs["tp_prices"] == {"TP1": Decimal("101.0")}
-
-    def test_dispatcher_falls_back_to_hard_sl_without_soft(self):
-        """Single-SL strategies (no soft SL) still see the disaster stop."""
+    def test_dual_sl_both_passed(self):
         from unittest.mock import MagicMock
 
-        from app.trading.portfolio.notification_dispatch import NotificationDispatcher
+        signal = MagicMock()
+        signal.sl_price = Decimal("97.0")
+        signal.soft_sl_price = Decimal("99.0")
+        signal.tp1_price = Decimal("101.0")
+        signal.tp2_price = None
+        signal.tp3_price = None
+        signal.indicators = None
 
-        notif = MagicMock()
-        exchange = MagicMock()
-        exchange._fires_entry_notification = False
+        kwargs = self._dispatch(signal)
+        assert kwargs["sl_price"] == Decimal("97.0")
+        assert kwargs["soft_sl_price"] == Decimal("99.0")
+        assert kwargs["tp_prices"] == {"TP1": Decimal("101.0")}
 
-        dispatcher = NotificationDispatcher(notif, exchange)
+    def test_single_sl_only_hard(self):
+        from unittest.mock import MagicMock
+
         signal = MagicMock()
         signal.sl_price = Decimal("97.0")
         signal.soft_sl_price = None
@@ -351,17 +345,9 @@ class TestEntryNotificationShowsSoftSL:
         signal.tp3_price = None
         signal.indicators = None
 
-        dispatcher.notify_entry(
-            symbol="BTC/USDT",
-            entry_side="BUY",
-            price=Decimal("100.0"),
-            amount=Decimal("10"),
-            signal=signal,
-            leverage=10,
-            balance=Decimal("10000"),
-        )
-
-        assert notif.on_entry.call_args.kwargs["sl_price"] == Decimal("97.0")
+        kwargs = self._dispatch(signal)
+        assert kwargs["sl_price"] == Decimal("97.0")
+        assert kwargs["soft_sl_price"] is None
 
 
 class TestZeroSizeGuards:

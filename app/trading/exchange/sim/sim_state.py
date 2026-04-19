@@ -67,7 +67,7 @@ class ClosedTrade:
     funding_paid: Decimal
     pnl_net: Decimal  # gross - fees - funding
     r_multiple: Decimal  # pnl_net / initial_risk
-    exit_reason: str  # TP1|TP2|TP3|HARD_SL|MOVED_SL|MOVED_SL_PROFIT|CANDLE_SL|TOGGLE_CLOSE|RESET
+    exit_reason: str  # TP1|TP2|TP3|HARD_SL|MOVED_SL|CANDLE_SL|TOGGLE_CLOSE|RESET
     opened_at: float
     closed_at: float
 
