@@ -243,7 +243,6 @@ class TelegramNotifier(INotifier):
                     )
                 )
 
-        # ── Strategy reason ──
         if reason:
             body += ["", row("Reason:", reason)]
 

@@ -19,8 +19,6 @@ import time
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.trading.exchange.sim.sim_exchange import SimExchange
 from app.trading.exchange.sim.sim_state import SimTradeState
 
