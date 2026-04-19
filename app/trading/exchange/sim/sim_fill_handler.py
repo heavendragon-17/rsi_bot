@@ -257,25 +257,26 @@ def capture_entry_notification(
     entry_side_raw = signal_meta.get("side") or (pos.side if pos else "BUY")
     side_label = "LONG" if str(entry_side_raw).upper() in ("BUY", "LONG") else "SHORT"
 
-    # Exits for LONG are SELL; exits for SHORT are BUY.
-    exit_side = "SELL" if side_label == "LONG" else "BUY"
+    # Prefer SL/TP from the originating signal (reliable: available before the SL/TP
+    # orders have been placed on the exchange). Fall back to scanning pending orders
+    # for callers that create_order the entry without routing through trade_executor.
+    _sl_price: Decimal | None = signal_meta.get("sl_price")
+    _tp_prices: dict[str, Decimal] | None = signal_meta.get("tp_prices")
 
-    _sl_price: Decimal | None = None
-    _tp_raw: list[Decimal] = []
-    for o in sim_ex._sim.get_pending_orders(symbol):
-        if o.side != exit_side:
-            continue
-        if o.order_type == "stop_market" and o.trigger_price:
-            _sl_price = o.trigger_price
-        elif o.order_type == "limit" and o.price:
-            _tp_raw.append(o.price)
-
-    # Order TPs by distance from entry — ascending for LONG, descending for SHORT —
-    # so TP1 is always the nearest take-profit target.
-    _tp_raw.sort(reverse=(side_label == "SHORT"))
-    _tp_prices: dict[str, Decimal] = {
-        f"TP{i + 1}": p for i, p in enumerate(_tp_raw[:3])
-    }
+    if _sl_price is None or not _tp_prices:
+        exit_side = "SELL" if side_label == "LONG" else "BUY"
+        scanned_tp: list[Decimal] = []
+        for o in sim_ex._sim.get_pending_orders(symbol):
+            if o.side != exit_side:
+                continue
+            if _sl_price is None and o.order_type == "stop_market" and o.trigger_price:
+                _sl_price = o.trigger_price
+            elif o.order_type == "limit" and o.price:
+                scanned_tp.append(o.price)
+        if not _tp_prices and scanned_tp:
+            # Sort by distance from entry so TP1 is the nearest target.
+            scanned_tp.sort(reverse=(side_label == "SHORT"))
+            _tp_prices = {f"TP{i + 1}": p for i, p in enumerate(scanned_tp[:3])}
 
     indicators = pos.indicators if pos else None
     entry_fee = pos.entry_fee if pos else Decimal("0")
@@ -287,7 +288,7 @@ def capture_entry_notification(
         "amount": amount,
         "balance": sim_ex.state.balance,
         "sl_price": _sl_price,
-        "tp_prices": _tp_prices or None,
+        "tp_prices": _tp_prices,
         "indicators": indicators,
         "entry_fee": entry_fee,
         "reason": signal_meta.get("reason"),
