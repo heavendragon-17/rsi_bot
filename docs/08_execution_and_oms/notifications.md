@@ -44,12 +44,18 @@ class INotifier(ABC):
     def on_entry(
         self, symbol, side, entry_price, amount,
         sl_price=None, tp_prices=None, leverage=1, balance=None,
+        indicators=None, entry_fee=None,
+        # Rich signal metadata (populated by NotificationDispatcher):
+        reason=None, soft_sl_price=None, lock_profit_price=None,
+        tp_allocations=None, signal_class=None, risk_per_trade_pct=None,
     ) -> None: ...
 
     def on_fill(
         self, symbol, exit_reason, fill_price, amount,
         pnl_gross=None, pnl_net=None, fees=None,
         r_multiple=None, remaining_amount=None, balance=None,
+        entry_price=None, total_fees=None,
+        hold_duration=None, return_pct=None,
     ) -> None: ...
 
     def on_error(self, context: str, error: str) -> None: ...
@@ -69,16 +75,18 @@ class INotifier(ABC):
 
 | Event                    | Sim mode                                                                   | Live / Paper mode                                                                                                      |
 | ------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `on_entry`               | `SimExchange._execute_fill` (exact candle-open fill price, includes SL/TP) | `PortfolioManager._handle_buy_signal` (signal price approximation)                                                     |
-| `on_fill` (SL / TP)      | `SimExchange._execute_fill` (exact fill price)                             | Not fired — hard SL fills externally on Binance; see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |
-| `on_fill` (manual close) | `SimExchange._execute_fill` (via `create_order`)                           | `PortfolioManager._handle_full_sell`                                                                                   |
+| `on_entry`               | `NotificationDispatcher` (fired by `TradeExecutor` **after** SL/TP are placed so the card can render them) | `NotificationDispatcher` (same path)                                          |
+| `on_fill` (SL / TP)      | `SimExchange.execute_fill_from_result` → `sim_notifications.emit_notifications` (exact fill price) | Not fired — hard SL fills externally on Binance; see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |
+| `on_fill` (manual close) | `SimExchange.execute_fill_from_order` (via `create_order`)                 | `PortfolioManager._handle_full_sell`                                                                                   |
 | `on_funding`             | `SimFundingScheduler` (every 8 h)                                          | Not fired                                                                                                              |
 | `on_toggle`              | `SimExchange.is_paused` setter (if wired)                                  | Not fired                                                                                                              |
 | `on_error`               | Available for any caller                                                   | Available for any caller                                                                                               |
 
-**Duplication guard**: `SimExchange` sets `_fires_entry_notification = True` and
-`_fires_fill_notification = True`. `PortfolioManager` checks these flags and
-skips its own fire to avoid duplicate messages in sim mode.
+**Duplication guard**: `SimExchange` sets `_fires_entry_notification = False`
+(entry notifications come from `NotificationDispatcher` so SL/TP are already in
+the card) and `_fires_fill_notification = True` (fills happen on tick, not on
+signal, so sim owns them). `NotificationDispatcher` checks these flags and
+skips firing any event the exchange already owns.
 
 ---
 
@@ -98,60 +106,98 @@ skips its own fire to avoid duplicate messages in sim mode.
 ### Entry (on_entry)
 
 ```
-📄 SIM | 🟢 LONG ENTERED — BTC/USDT
+📄 SIM | 🟢 LONG ENTERED — API3/USDT  [Acceptable · Class 2]
 
-Symbol:        BTC/USDT
-Side:          LONG
-Entry:         $100,000.00
-Size:          0.0100  ($1,000.00)
-Leverage:      10x  (Margin: $100.00)
+Symbol:        API3/USDT
+Side:          LONG (BUY to open)
+Entry:         $0.33740
+Size:          31,746  ($10,711.11)
+Leverage:      10x  (Margin: $1,071.11)
 
-SL (Hard):     $95,000.00  (-5.00%)  Risk: 50.00
-TP1:           $105,000.00  (+5.00%)  Reward: +50.00
-TP2:           $110,000.00  (+10.00%)  Reward: +100.00
+SL (Hard):     $0.32710  (-3.02%)  Risk: -321.33  (3.00% of acct)
+SL (Soft):     $0.33403  (-1.00%)  candle-close exit
+Lock Profit:   $0.33761  (+0.06%)  → SL moves here after TP1
 
-Balance:       $9,950.00
+TP1:           $0.34082  (+1.01%)  1.00R  close 100%  +108.57
+Exp. Reward:   +108.57  (1.00R weighted)
+
+Reason:        NO-RETEST BUY (spread=3.39 >= 2.5)
+
+────────────────────────────
+RSI EMA9:      42.20
+RSI WMA45:     38.81
+Spread:        3.39
+Above EMA21:   1
+
+Risk/Trade:    2.00%
+Entry Fee:     -5.36
+Balance:       $9,333.77
 ```
 
-**Copy-trade precision**: `Entry`, `SL`, `TP1/2/3`, and `Size` preserve the full
-precision of the source `Decimal` (via `fmt_price_precise` / `fmt_amount_precise`
-in `app/notification/formatting.py`) so the values can be mirrored on another
-account without rounding. Derived display-only values (`notional`, `Margin`,
-`Risk`, `Reward`, `Balance`) keep the compact 2-decimal format. A small-tick
-pair renders like: `Entry: $0.39405`, `Size: 90,909.0909090909`.
+**Dynamic precision**: prices (`Entry`, `SL`, `TP1/2/3`, `Lock Profit`, `Fill`,
+`Exit`) and sizes (`Size`, `Closed`) are rendered by `fmt_price_auto` and
+`fmt_amount_auto` in `app/notification/formatting.py`. Decimals are derived from
+two `%` knobs at the top of that module:
 
-### SL Hit (on_fill, exit_reason="HARD_SL")
+```python
+PRICE_PRECISION_PCT = 0.01   # last digit ≈ 0.01% of price — tight
+SIZE_PRECISION_PCT  = 1.0    # last digit ≈ 1% of amount — readable
+```
+
+So BTC at $100,123 shows 2 dp, API3 at $0.33 shows 5 dp, ZIL at $0.007 shows 7
+dp; BTC size 0.003427 shows 5 dp, API3 size 31,746 shows 0 dp. USD-denominated
+values (`notional`, `Margin`, `Risk`, `Balance`, `Gross/Net P&L`, `Fees`) always
+use 2 dp via `fmt_price`. Tune the knobs to change every card in one place; no
+`fmt_*_precise` is used in notifications (those helpers are reserved for
+copy-trade reports outside this flow).
+
+### SL Hit (on_fill, exit_reason="HARD_SL" or "MOVED_SL")
+
+`HARD_SL` is reported when the original stop_market fires. `MOVED_SL` is
+reported when the stop has been relocated (lock-profit / trailing) and
+subsequently fires — such exits are always at-or-above entry by construction.
 
 ```
 📄 SIM | 🛑 HARD SL HIT — BTC/USDT LONG
 
-Fill:          $94,800.00
-Closed:        0.0100  ($948.00)
-Gross P&L:     -52.00
-Fee (taker):   -0.47  (0.05%)
-Net P&L:       -52.47
+Entry:         $100,000.00
+Exit:          $97,000.00
+Closed:        0.003427  ($332.42)
+Gross P&L:     -10.28
+Total Fees:    -0.09  (entry -0.05, exit -0.05 taker)
+Net P&L:       -10.37
 
-────────────────────────────────
-Trade P&L:     -52.47  (-1.05R)
+─────────────────────────────────
+Trade P&L:     -10.37  (-1.00R)
+Return:        -3.09%
+Hold:          22m
 
-Balance:       $9,897.53
+Balance:       $9,989.63
 ```
 
-### TP Hit (on_fill, exit_reason="TP1", remaining_amount=0.005)
+### TP Hit (on_fill, exit_reason="TP1", remaining_amount=0)
 
 ```
-📄 SIM | ✅ TP1 HIT — BTC/USDT LONG (partial)
+📄 SIM | ✅ TP1 HIT — XLM/USDT LONG (CLOSED)
 
-Fill:          $105,000.00
-Closed:        0.0050  ($525.00)
-Gross P&L:     +25.00
-Fee (maker):   -0.11
-Net P&L:       +24.89
+Entry:         $0.1747
+Exit:          $0.1759
+Closed:        190,476  ($33,276.52)
+Gross P&L:     +225.09
+Total Fees:    -23.18  (entry -16.52, exit -6.66 maker)
+Net P&L:       +201.91
 
-Remaining:     0.0050 contracts
+─────────────────────────────────
+Trade P&L:     +201.91  (1.00R)
+Return:        +0.61%
+Hold:          30m
 
-Balance:       $9,974.89
+Balance:       $10,298.93
 ```
+
+`Net P&L` is the true lifecycle net: `gross − entry_fee_slice − exit_fee`.
+The entry fee is pro-rated for partial closes so the displayed value matches
+what the balance actually gained across the trade.
 
 ### Funding (on_funding)
 
@@ -233,5 +279,6 @@ Summary: implement `INotifier`, pass an instance to `NotificationService(your_no
 | No Telegram messages at all         | `telegram_enabled: false` or missing token   | Check config + `.env`                                                             |
 | `TelegramBot` init error on startup | `TELEGRAM_BOT_TOKEN` env var missing         | Add to `.env`, falls back to `NullNotifier`                                       |
 | Messages delayed                    | `NotificationWorker` queue backed up         | Normal under load — queue drains async                                            |
-| Duplicate on_entry messages         | Exchange fires + PM fires                    | Check `_fires_entry_notification` flag on exchange                                |
+| Duplicate on_entry messages         | Exchange and dispatcher both fire            | Check `_fires_entry_notification` flag — sim should leave it `False` so only the dispatcher fires after SL/TP are placed |
+| Entry card missing SL/TP lines      | Exchange fires the entry notification *before* SL/TP orders are placed | Set `_fires_entry_notification = False` on the exchange so `NotificationDispatcher.notify_entry` fires at the end of `TradeExecutor._handle_entry_signal` |
 | No SL notifications in live mode    | Hard SL fills on exchange without PM polling | Known gap — see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |

@@ -83,16 +83,18 @@ Records of significant architectural decisions with context, rationale, and cons
 
 ---
 
-## IMPORTANT: Documentation Maintenance
+## MANDATORY: Documentation Maintenance
 
-After completing ANY code change (feature, bug fix, refactor), you MUST update documentation:
+**Documentation updates are mandatory for EVERY code change — no exceptions.**
+A code change is **not complete** until the matching doc in this tree reflects
+the new state, and no PR should be merged with drifted docs.
 
 1. Use the table below to find which doc folder covers the code you changed
-2. Update the relevant file(s) to reflect your changes
+2. Update the relevant file(s) in the **same PR** as the code change
 3. If you added a new extension point, follow the matching `docs/workflows/add-*.md` first
 4. If you modified `app/repository/` models, run `python scripts/gen_db_docs.py`
-
-Skip doc updates only for trivial changes (typo fixes, log message tweaks, comment edits).
+5. Even for changes that look trivial (typo fixes, log tweaks, comment edits), verify
+   the affected docs haven't drifted and fix them in the same PR if they have
 
 ### Code Path → Documentation Folder
 

@@ -179,6 +179,15 @@ app/repository/   → ALL database: ORM models, queries, connections
 - Fee constants: import from `app/core/constants.py` — do NOT hardcode `0.0005` anywhere.
 - dotenv: loaded ONCE in `main.py` entry point — do NOT call `load_dotenv()` in individual modules.
 
-## IMPORTANT: Documentation Maintenance
+## MANDATORY: Documentation Maintenance
 
-After ANY code change, follow the documentation maintenance rules in `docs/INDEX.md` → "Documentation Maintenance" section. This is mandatory for all non-trivial changes.
+**Documentation updates are mandatory for EVERY code change — no exceptions.**
+A code change is **not complete** until the matching doc in `docs/` reflects
+the new state. Do not commit, push, or mark work done without this step.
+
+Follow the routing table in `docs/INDEX.md` → "Documentation Maintenance" to
+find which folder to update. If you changed a public interface, a user-facing
+behavior, a config key, a CLI command, a data shape, a notification/UI card
+layout, or an exit/exchange/strategy semantic, the corresponding doc MUST be
+updated in the **same PR** as the code. Drifted docs are a code-review reason
+to block the PR.
