@@ -226,6 +226,12 @@ class INotifier(ABC):
         balance: Decimal | None = None,
         indicators: dict[str, float] | None = None,
         entry_fee: Decimal | None = None,
+        reason: str | None = None,
+        soft_sl_price: Decimal | None = None,
+        lock_profit_price: Decimal | None = None,
+        tp_allocations: dict[str, float] | None = None,
+        signal_class: int | None = None,
+        risk_per_trade_pct: Decimal | None = None,
     ) -> None:
         """Called when a position is opened (entry order filled)."""
         pass

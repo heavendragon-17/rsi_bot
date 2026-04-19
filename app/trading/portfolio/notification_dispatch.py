@@ -16,9 +16,10 @@ logger = structlog.get_logger()
 class NotificationDispatcher:
     """Dispatches entry/exit notifications, respecting exchange notification flags."""
 
-    def __init__(self, notification_service, exchange):
+    def __init__(self, notification_service, exchange, risk_per_trade_pct: Decimal | None = None):
         self._notification_service = notification_service
         self._exchange = exchange
+        self._risk_per_trade_pct = risk_per_trade_pct
 
     def notify_entry(
         self,
@@ -56,6 +57,12 @@ class NotificationDispatcher:
                 balance=balance,
                 indicators=signal.indicators,
                 entry_fee=entry_fee,
+                reason=signal.reason,
+                soft_sl_price=signal.soft_sl_price,
+                lock_profit_price=signal.lock_profit_price,
+                tp_allocations=signal.tp_allocations,
+                signal_class=signal.signal_class,
+                risk_per_trade_pct=self._risk_per_trade_pct,
             )
         except Exception:
             logger.warning(f"[{symbol}] on_entry notification failed")

@@ -49,7 +49,9 @@ class PortfolioManager:
         # Compose components — all share the same positions dict by reference
         self._sizer = PositionSizer(config, exchange)
         self._sl_tp = SLTPManager(exchange, config)
-        self._dispatcher = NotificationDispatcher(notification_service, exchange)
+        self._dispatcher = NotificationDispatcher(
+            notification_service, exchange, risk_per_trade_pct=self._sizer.risk_per_trade_pct
+        )
         self._executor = TradeExecutor(
             exchange,
             self.positions,

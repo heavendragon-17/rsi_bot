@@ -19,10 +19,27 @@ import structlog
 
 from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL
 from app.trading.exchange.fill_simulator import PendingOrder
+from app.trading.exchange.sim.sim_notifications import (
+    capture_entry_notification,
+    emit_notifications,
+)
 from app.trading.exchange.sim.sim_state import ClosedTrade, SimPosition
 
 if TYPE_CHECKING:
     from app.trading.exchange.sim.sim_exchange import SimExchange
+
+__all__ = [
+    "execute_fill_from_order",
+    "execute_fill_from_result",
+    "open_position_locked",
+    "close_position_locked",
+    "capture_entry_notification",
+    "emit_notifications",
+    "link_sl_to_position",
+    "link_tp_to_position",
+    "post_fill_hook",
+    "exit_reason_from_fields",
+]
 
 logger = structlog.get_logger()
 
@@ -238,86 +255,6 @@ def close_position_locked(
         hold_duration,
         return_pct,
     )
-
-
-# ── Notification capture / emit ───────────────────────────────
-
-
-def capture_entry_notification(
-    sim_ex: SimExchange,
-    symbol: str,
-    fill_price: Decimal,
-    amount: Decimal,
-) -> tuple | None:
-    """Build an entry notification tuple (caller holds the lock)."""
-    _sl_price = None
-    _tp_prices: dict[str, Decimal] = {}
-    for o in sim_ex._sim.get_pending_orders(symbol):
-        if o.side == "SELL":
-            if o.order_type == "stop_market" and o.trigger_price:
-                _sl_price = o.trigger_price
-            elif o.order_type == "limit" and o.price:
-                _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
-
-    pos = sim_ex.state.positions.get(symbol)
-    indicators = pos.indicators if pos else None
-    entry_fee = pos.entry_fee if pos else Decimal("0")
-
-    return (
-        symbol, "LONG", fill_price, amount, sim_ex.state.balance,
-        _sl_price, _tp_prices or None, indicators, entry_fee,
-    )
-
-
-def emit_notifications(
-    sim_ex: SimExchange,
-    notify_entry: tuple | None,
-    notify_fill: tuple | None,
-) -> None:
-    """Dispatch entry/fill notifications to the notification service."""
-    if notify_entry and sim_ex._notification_service:
-        sym, side, ep, amt, bal, sl_price, tp_prices, indicators, entry_fee = notify_entry
-        leverage = sim_ex._config.get("risk", {}).get("leverage", 1)
-        try:
-            sim_ex._notification_service.on_entry(
-                symbol=sym,
-                side=side,
-                entry_price=ep,
-                amount=amt,
-                sl_price=sl_price,
-                tp_prices=tp_prices,
-                leverage=leverage,
-                balance=bal,
-                indicators=indicators,
-                entry_fee=entry_fee,
-            )
-        except Exception:
-            logger.exception("notification on_entry failed")
-
-    if notify_fill and sim_ex._notification_service:
-        (
-            sym, reason, fp, amt, pnl_g, pnl_n, fees, r_mult, rem, bal,
-            entry_price, total_fees, hold_duration, return_pct,
-        ) = notify_fill
-        try:
-            sim_ex._notification_service.on_fill(
-                symbol=sym,
-                exit_reason=reason,
-                fill_price=fp,
-                amount=amt,
-                pnl_gross=pnl_g,
-                pnl_net=pnl_n,
-                fees=fees,
-                r_multiple=r_mult,
-                remaining_amount=rem,
-                balance=bal,
-                entry_price=entry_price,
-                total_fees=total_fees,
-                hold_duration=hold_duration,
-                return_pct=return_pct,
-            )
-        except Exception:
-            logger.exception("notification on_fill failed")
 
 
 # ── Position metadata helpers ─────────────────────────────────
