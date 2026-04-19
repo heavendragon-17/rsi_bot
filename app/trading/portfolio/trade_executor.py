@@ -178,16 +178,19 @@ class TradeExecutor:
 
         if signal.sl_price is not None:
             try:
+                sl_params = {
+                    "stopPrice": signal.sl_price,
+                    "reduceOnly": True,
+                    "exit_reason": EXIT_STOP_LOSS,
+                }
+                if signal.soft_sl_price is not None:
+                    sl_params["soft_sl_price"] = signal.soft_sl_price
                 sl_order = self.exchange.create_order(
                     symbol=signal.symbol,
                     order_type="stop_market",
                     side=exit_side,
                     amount=amount,
-                    params={
-                        "stopPrice": signal.sl_price,
-                        "reduceOnly": True,
-                        "exit_reason": EXIT_STOP_LOSS,
-                    },
+                    params=sl_params,
                 )
                 if sl_order:
                     self.positions[signal.symbol].sl_order_id = sl_order.get("id")

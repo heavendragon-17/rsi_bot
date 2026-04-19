@@ -103,6 +103,49 @@ Tick-by-tick order simulation against live aggTrade data. Implements `IExchange`
 - **SL/TP**: Checked tick-by-tick against live aggTrade prices
 - **Order queue**: FIFO — orders are checked in submission order
 - **Fees**: taker 0.04%, maker 0.02%
+- **Safety guards**:
+  - `create_order` rejects any amount ≤ 0.
+  - Once `state.is_paused` is set, only `reduceOnly` orders are accepted
+    (no new entries).
+- **Liquidation** (`app/trading/exchange/sim/sim_liquidation.py`):
+  - After each tick, equity = `balance + Σ uPnL` is checked against 0.
+  - If equity ≤ 0, every open position is force-closed at the current tick
+    price, balance is zeroed, and `is_paused` is set. Pending orders for the
+    closed symbols are cancelled. A `LIQUIDATION` fill notification is emitted
+    per position. Mirrors the backtest `check_liquidation` so sim can't report
+    an impossible negative balance.
+
+### Exit-reason taxonomy reported by sim
+
+Fill reasons emitted via `on_fill`:
+
+| Reason         | Triggered by                                                            |
+| -------------- | ----------------------------------------------------------------------- |
+| `HARD_SL`      | Original stop_market order fires.                                       |
+| `MOVED_SL`     | A replacement stop_market (lock-profit / trailing) fires.              |
+| `CANDLE_SL`    | `market + reduceOnly` sent by a candle-close SL signal.                 |
+| `TP1/2/3`      | `limit + reduceOnly` TP fills, in order of SL order IDs on the position.|
+| `LIQUIDATION`  | `sim_liquidation.check_liquidation` force-close.                        |
+
+`HARD_SL` is distinguished from `MOVED_SL` via `SimPosition.moved_sl`, which
+flips `True` the first time `link_sl_to_position` sees a new order id
+replacing an existing one. The strategy only moves the stop to a lock-profit
+level, so `MOVED_SL` exits are always at-or-above entry by construction — no
+separate "profit" label is needed.
+
+### R-multiple and Net P&L accuracy
+
+`link_sl_to_position` computes `initial_risk = |entry − soft_sl| × amount`
+where `soft_sl` is the level used for position sizing (passed via
+`params["soft_sl_price"]` on the stop_market order). This is the *risk-sizing*
+SL, not the wider disaster stop, so reported R-multiples match the configured
+`risk_per_trade_pct`.
+
+`close_position_locked` pro-rates `position.entry_fee` for partial closes and
+subtracts both the pro-rated entry fee and the exit fee from the reported
+`pnl_net`. Balance accounting is unchanged: the entry fee was debited at open,
+and balance only changes by `(gross − exit_fee)` at close — so the *displayed*
+Net P&L equals the true lifecycle account change across the trade.
 
 ### Use Case
 

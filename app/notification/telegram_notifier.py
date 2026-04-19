@@ -35,12 +35,12 @@ from app.notification.deploy_commands import (
     handle_force_deploy,
 )
 from app.notification.formatting import (
-    fmt_amount_precise,
+    fmt_amount_auto,
     fmt_duration,
     fmt_pct,
     fmt_pnl,
     fmt_price,
-    fmt_price_precise,
+    fmt_price_auto,
     mono,
     row,
 )
@@ -150,8 +150,8 @@ class TelegramNotifier(INotifier):
         body = [
             row("Symbol:", symbol),
             row("Side:", f"{side_label} ({'BUY' if is_long else 'SELL'} to open)"),
-            row("Entry:", fmt_price_precise(entry_price)),
-            row("Size:", f"{fmt_amount_precise(amount)}  ({fmt_price(notional)})"),
+            row("Entry:", fmt_price_auto(entry_price)),
+            row("Size:", f"{fmt_amount_auto(amount, entry_price)}  ({fmt_price(notional)})"),
             row("Leverage:", f"{leverage}x  (Margin: {fmt_price(margin)})"),
         ]
 
@@ -162,18 +162,14 @@ class TelegramNotifier(INotifier):
             sl_pct = (sl_price - entry_price) / entry_price * 100 * direction
             sl_distance = abs(entry_price - sl_price)
             sl_risk = sl_distance * amount
-            risk_pct_of_account = (
-                (sl_risk / balance * 100) if balance and balance > 0 else None
-            )
+            risk_pct_of_account = (sl_risk / balance * 100) if balance and balance > 0 else None
             risk_suffix = (
-                f"  ({float(risk_pct_of_account):.2f}% of acct)"
-                if risk_pct_of_account is not None
-                else ""
+                f"  ({float(risk_pct_of_account):.2f}% of acct)" if risk_pct_of_account is not None else ""
             )
             risk_lines.append(
                 row(
                     "SL (Hard):",
-                    f"{fmt_price_precise(sl_price)}  ({fmt_pct(sl_pct)})  "
+                    f"{fmt_price_auto(sl_price)}  ({fmt_pct(sl_pct)})  "
                     f"Risk: {fmt_pnl(-sl_risk)}{risk_suffix}",
                 )
             )
@@ -181,11 +177,7 @@ class TelegramNotifier(INotifier):
         if soft_sl_price is not None and soft_sl_price != sl_price:
             soft_pct = (soft_sl_price - entry_price) / entry_price * 100 * direction
             risk_lines.append(
-                row(
-                    "SL (Soft):",
-                    f"{fmt_price_precise(soft_sl_price)}  ({fmt_pct(soft_pct)})  "
-                    f"candle-close exit",
-                )
+                row("SL (Soft):", f"{fmt_price_auto(soft_sl_price)}  ({fmt_pct(soft_pct)})  candle-close exit")
             )
 
         if lock_profit_price is not None:
@@ -193,8 +185,7 @@ class TelegramNotifier(INotifier):
             risk_lines.append(
                 row(
                     "Lock Profit:",
-                    f"{fmt_price_precise(lock_profit_price)}  ({fmt_pct(lock_pct)})  "
-                    f"→ SL moves here after TP1",
+                    f"{fmt_price_auto(lock_profit_price)}  ({fmt_pct(lock_pct)})  → SL moves here after TP1",
                 )
             )
 
@@ -227,7 +218,7 @@ class TelegramNotifier(INotifier):
                     remaining_alloc -= alloc_of_initial
                     total_expected_reward += gross_reward * alloc_of_initial
 
-                parts = [f"{fmt_price_precise(tp_p)}", f"({fmt_pct(diff_pct)})"]
+                parts = [fmt_price_auto(tp_p), f"({fmt_pct(diff_pct)})"]
                 if rr is not None:
                     parts.append(f"{float(rr):.2f}R")
                 if alloc_of_initial is not None:
@@ -252,7 +243,6 @@ class TelegramNotifier(INotifier):
                     )
                 )
 
-        # ── Strategy reason ──
         if reason:
             body += ["", row("Reason:", reason)]
 
@@ -316,19 +306,32 @@ class TelegramNotifier(INotifier):
         body = []
 
         if entry_price is not None:
-            body.append(row("Entry:", fmt_price(entry_price)))
+            body.append(row("Entry:", fmt_price_auto(entry_price)))
         body += [
-            row("Exit:", fmt_price(fill_price)),
-            row("Closed:", f"{float(amount):.4f}  ({fmt_price(fill_price * amount)})"),
+            row("Exit:", fmt_price_auto(fill_price)),
+            row("Closed:", f"{fmt_amount_auto(amount, fill_price)}  ({fmt_price(fill_price * amount)})"),
         ]
 
         if pnl_gross is not None:
             body.append(row("Gross P&L:", fmt_pnl(pnl_gross)))
-        if fees is not None:
-            fee_label = "Fee (maker):" if is_tp else "Fee (taker):"
-            body.append(row(fee_label, f"{fmt_pnl(-fees)}"))
         if total_fees is not None:
-            body.append(row("Total Fees:", f"{fmt_pnl(-total_fees)}"))
+            # Show a single Total Fees line with the entry/exit breakdown inline.
+            # ``total_fees`` is pro-rated (entry_fee_slice + exit_fee) so partial
+            # closes reflect only the slice's share of the entry fee.
+            if fees is not None:
+                entry_slice = total_fees - fees
+                leg_label = "maker" if is_tp else "taker"
+                body.append(
+                    row(
+                        "Total Fees:",
+                        f"{fmt_pnl(-total_fees)}  (entry {fmt_pnl(-entry_slice)}, exit {fmt_pnl(-fees)} {leg_label})",
+                    )
+                )
+            else:
+                body.append(row("Total Fees:", f"{fmt_pnl(-total_fees)}"))
+        elif fees is not None:
+            leg_label = "maker" if is_tp else "taker"
+            body.append(row("Total Fees:", f"{fmt_pnl(-fees)}  (exit only, {leg_label})"))
         if pnl_net is not None:
             body.append(row("Net P&L:", fmt_pnl(pnl_net)))
 

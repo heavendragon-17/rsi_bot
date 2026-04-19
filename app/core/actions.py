@@ -21,8 +21,15 @@ def opposite_side(side: str) -> str:
 
 
 # ── Exit reason constants ───────────────────────────────────────────
+# STOP_LOSS:  exit_reason stamped on a hard stop_market order when it is placed
+# SOFT_SL:    signal reason emitted when a candle closes beyond the soft SL level
+# MOVED_SL:   fill reason when a stop_market that has been relocated (lock-profit
+#             / trailing) triggers — always at-or-above entry by construction
+# HARD_SL (string only, see sim fill handler) is the fill reason for an un-moved
+# stop_market; it isn't exported as a constant because nothing imports it.
 EXIT_STOP_LOSS = "STOP_LOSS"
 EXIT_SOFT_SL = "SOFT_SL"
+EXIT_MOVED_SL = "MOVED_SL"
 EXIT_BREAKEVEN = "BREAKEVEN"
 EXIT_LOCK_PROFIT = "LOCK_PROFIT"
 EXIT_LIQUIDATION = "LIQUIDATION"

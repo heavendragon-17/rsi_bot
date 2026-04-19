@@ -38,17 +38,18 @@ class SimOrder:
 @dataclass
 class SimPosition:
     symbol: str
-    side: str  # always "long" (bot is LONG-only)
+    side: str  # "long" or "short" (sim currently opens only longs, but field is direction-neutral)
     amount: Decimal  # current open contracts
     entry_price: Decimal
     initial_amount: Decimal  # for R-multiple calc
-    initial_risk: Decimal  # (entry_price - sl_price) * initial_amount
+    initial_risk: Decimal  # |entry - soft_sl| * initial_amount — the *risk-sizing* SL, not the disaster stop
     sl_order_id: str | None = None
     tp_order_ids: dict[str, str] = field(default_factory=dict)  # {"TP1": id, ...}
     lock_profit_price: Decimal | None = None
     lock_profit_activated: bool = False
     tp1_hit: bool = False
     tp2_hit: bool = False
+    moved_sl: bool = False  # True once the SL stop_market order has been replaced (lock-profit / trailing)
     indicators: dict[str, float] | None = None
     entry_fee: Decimal = Decimal("0")
     opened_at: float = 0.0
@@ -66,7 +67,7 @@ class ClosedTrade:
     funding_paid: Decimal
     pnl_net: Decimal  # gross - fees - funding
     r_multiple: Decimal  # pnl_net / initial_risk
-    exit_reason: str  # TP1|TP2|TP3|HARD_SL|CANDLE_SL|TOGGLE_CLOSE|RESET
+    exit_reason: str  # TP1|TP2|TP3|HARD_SL|MOVED_SL|CANDLE_SL|TOGGLE_CLOSE|RESET
     opened_at: float
     closed_at: float
 
