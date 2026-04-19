@@ -1,12 +1,9 @@
 # app/trading/exchange/sim/sim_fill_handler.py
-"""
-SimExchange fill execution logic
-=================================
-Module-level functions extracted from SimExchange that handle order fills,
-position open/close, notification capture, and position linking helpers.
+"""SimExchange fill execution: order fills, position open/close, notification capture.
 
-All functions receive the SimExchange instance (``sim_ex``) as their first
-parameter so they can access ``sim_ex.state``, ``sim_ex._sim``, etc.
+All functions take the SimExchange instance as the first argument so they can
+access ``sim_ex.state`` and ``sim_ex._sim``. Liquidation lives in
+``sim_liquidation.py`` to respect the 400-line cap.
 """
 
 from __future__ import annotations
@@ -28,9 +25,6 @@ logger = structlog.get_logger()
 
 TAKER_FEE = DEFAULT_TAKER_FEE_DECIMAL
 MAKER_FEE = DEFAULT_MAKER_FEE_DECIMAL
-
-
-# ── Fill entry points ─────────────────────────────────────────
 
 
 def execute_fill_from_order(
@@ -65,12 +59,10 @@ def execute_fill_from_order(
                 filled_at,
                 fee,
             )
-            notify_entry = capture_entry_notification(
-                sim_ex,
-                order.symbol,
-                fill_price,
-                order.amount,
-            )
+            if getattr(sim_ex, "_fires_entry_notification", False):
+                notify_entry = capture_entry_notification(
+                    sim_ex, order.symbol, fill_price, order.amount
+                )
         elif order.side == "SELL":
             notify_fill = close_position_locked(
                 sim_ex,
@@ -107,12 +99,10 @@ def execute_fill_from_result(sim_ex: SimExchange, fr: Any) -> None:
                 filled_at,
                 fee,
             )
-            notify_entry = capture_entry_notification(
-                sim_ex,
-                fr.symbol,
-                fr.fill_price,
-                fr.fill_amount,
-            )
+            if getattr(sim_ex, "_fires_entry_notification", False):
+                notify_entry = capture_entry_notification(
+                    sim_ex, fr.symbol, fr.fill_price, fr.fill_amount
+                )
         elif fr.side == "SELL":
             notify_fill = close_position_locked(
                 sim_ex,
@@ -133,9 +123,6 @@ def execute_fill_from_result(sim_ex: SimExchange, fr: Any) -> None:
             )
 
     emit_notifications(sim_ex, notify_entry, notify_fill)
-
-
-# ── Position open / close (must be called under state.lock) ───
 
 
 def open_position_locked(
@@ -186,15 +173,25 @@ def close_position_locked(
 
     fee = fill_price * close_amount * (MAKER_FEE if order_type == "limit" else TAKER_FEE)
     pnl_gross = (fill_price - position.entry_price) * close_amount
-    pnl_net = pnl_gross - fee
+    # Entry fee was debited from balance at open. Pro-rate it for partial closes
+    # so the displayed Net P&L matches the *true* lifecycle net (gross − entry − exit fees),
+    # which is the figure ``compute_price_at_rr`` targets when pricing TPs/lock-profit.
+    entry_fee_slice = (
+        position.entry_fee * (close_amount / position.initial_amount) if position.initial_amount > 0 else Decimal("0")
+    )
+    pnl_net = pnl_gross - fee - entry_fee_slice
 
-    sim_ex.state.balance += pnl_net
+    # Balance only changes by (gross − exit fee) at close: the entry fee was
+    # already taken out at open, so don't double-charge it here.
+    sim_ex.state.balance += pnl_gross - fee
     sim_ex.state.total_fees_paid += fee
 
-    exit_reason = exit_reason_from_fields(order_id, order_type, reduce_only, position)
+    exit_reason = exit_reason_from_fields(order_id, order_type, reduce_only, position, fill_price)
 
     r_multiple = (pnl_net / position.initial_risk) if position.initial_risk else Decimal("0")
-    total_fees = position.entry_fee + fee
+    # Pro-rate entry fee for this close slice so partial-close notifications
+    # show the true fee cost of the portion being closed (not the full position).
+    total_fees = entry_fee_slice + fee
     hold_duration = (filled_at - position.opened_at) if position.opened_at > 0 else 0.0
     notional = position.entry_price * close_amount
     return_pct = (pnl_net / notional * 100) if notional else Decimal("0")
@@ -240,22 +237,25 @@ def close_position_locked(
     )
 
 
-# ── Notification capture / emit ───────────────────────────────
-
-
 def capture_entry_notification(
     sim_ex: SimExchange,
     symbol: str,
     fill_price: Decimal,
     amount: Decimal,
 ) -> tuple | None:
-    """Build an entry notification tuple (caller holds the lock)."""
+    """Build an entry notification tuple (caller holds the lock).
+
+    Prefers the *soft* SL (risk-sizing level) over the disaster stop_market
+    trigger when the strategy threaded one via the SL order's ``info`` dict —
+    that's the level that corresponds to the configured risk % and therefore
+    to the card's "Risk" figure.
+    """
     _sl_price = None
     _tp_prices: dict[str, Decimal] = {}
     for o in sim_ex._sim.get_pending_orders(symbol):
         if o.side == "SELL":
             if o.order_type == "stop_market" and o.trigger_price:
-                _sl_price = o.trigger_price
+                _sl_price = o.info.get("soft_sl_price") or o.trigger_price
             elif o.order_type == "limit" and o.price:
                 _tp_prices[f"TP{len(_tp_prices) + 1}"] = o.price
 
@@ -320,22 +320,31 @@ def emit_notifications(
             logger.exception("notification on_fill failed")
 
 
-# ── Position metadata helpers ─────────────────────────────────
-
-
 def link_sl_to_position(
     sim_ex: SimExchange,
     symbol: str,
     sl_order_id: str,
     sl_price: Decimal,
+    risk_sl_price: Decimal | None = None,
 ) -> None:
-    """Attach SL order ID and compute initial_risk on the position."""
+    """Attach SL order ID and compute initial_risk on the position.
+
+    ``risk_sl_price`` should be the *soft* SL used for position sizing (so
+    ``initial_risk ≈ risk_per_trade_pct × capital`` and R-multiples are
+    correct); if ``None``, falls back to the stop_market trigger (``sl_price``).
+    A replacement SL order marks ``moved_sl=True`` so later exits are labelled
+    MOVED_SL(_PROFIT) rather than HARD_SL.
+    """
     with sim_ex.state.lock:
         pos = sim_ex.state.positions.get(symbol)
-        if pos:
-            pos.sl_order_id = sl_order_id
-            if pos.initial_risk == Decimal("0"):
-                pos.initial_risk = abs(pos.entry_price - sl_price) * pos.initial_amount
+        if not pos:
+            return
+        if pos.sl_order_id is not None and pos.sl_order_id != sl_order_id:
+            pos.moved_sl = True
+        pos.sl_order_id = sl_order_id
+        if pos.initial_risk == Decimal("0"):
+            risk_ref = risk_sl_price if risk_sl_price is not None else sl_price
+            pos.initial_risk = abs(pos.entry_price - risk_ref) * pos.initial_amount
 
 
 def link_tp_to_position(
@@ -374,9 +383,19 @@ def exit_reason_from_fields(
     order_type: str,
     reduce_only: bool,
     position: SimPosition,
+    fill_price: Decimal | None = None,
 ) -> str:
-    """Determine the exit reason string from order fields and position state."""
+    """Resolve exit reason from order fields and position state.
+
+    A stop_market fill after the SL has been replaced (``position.moved_sl``) is
+    MOVED_SL_PROFIT if filled above entry, MOVED_SL otherwise — distinguishing a
+    trailing/lock-profit exit from the original HARD_SL placement.
+    """
     if order_type == "stop_market":
+        if position.moved_sl and fill_price is not None:
+            if fill_price > position.entry_price:
+                return "MOVED_SL_PROFIT"
+            return "MOVED_SL"
         return "HARD_SL"
     if order_type == "market" and reduce_only:
         return "CANDLE_SL"

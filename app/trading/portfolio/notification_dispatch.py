@@ -44,13 +44,18 @@ class NotificationDispatcher:
         }
         entry_fee = price * amount * DEFAULT_TAKER_FEE_DECIMAL
 
+        # Prefer the soft SL (risk-sizing level) so the card's SL % and Risk
+        # match the configured risk_per_trade_pct; fall back to the disaster
+        # stop if the strategy doesn't provide a soft SL.
+        display_sl = getattr(signal, "soft_sl_price", None) or signal.sl_price
+
         try:
             self._notification_service.on_entry(
                 symbol=symbol,
                 side=notif_side,
                 entry_price=price,
                 amount=amount,
-                sl_price=signal.sl_price,
+                sl_price=display_sl,
                 tp_prices=tp_prices or None,
                 leverage=leverage,
                 balance=balance,

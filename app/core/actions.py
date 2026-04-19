@@ -22,7 +22,11 @@ def opposite_side(side: str) -> str:
 
 # ── Exit reason constants ───────────────────────────────────────────
 EXIT_STOP_LOSS = "STOP_LOSS"
+EXIT_HARD_SL = "HARD_SL"
 EXIT_SOFT_SL = "SOFT_SL"
+EXIT_CANDLE_SL = "CANDLE_SL"
+EXIT_MOVED_SL = "MOVED_SL"  # SL was moved (breakeven / partial loss after lock-profit)
+EXIT_MOVED_SL_PROFIT = "MOVED_SL_PROFIT"  # moved SL fills above entry (trailing profit)
 EXIT_BREAKEVEN = "BREAKEVEN"
 EXIT_LOCK_PROFIT = "LOCK_PROFIT"
 EXIT_LIQUIDATION = "LIQUIDATION"

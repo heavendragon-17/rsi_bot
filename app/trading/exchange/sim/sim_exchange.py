@@ -54,6 +54,7 @@ from app.trading.exchange.sim.sim_fill_handler import (
     execute_fill_from_result,
     link_sl_to_position,
 )
+from app.trading.exchange.sim.sim_liquidation import check_liquidation
 from app.trading.exchange.sim.sim_state import SimTradeState
 
 logger = structlog.get_logger()
@@ -79,7 +80,10 @@ class SimExchange(IExchange):
         self._sim_time: float | None = None
 
         self._notification_service = notification_service
-        self._fires_entry_notification: bool = True
+        # Entry notifications are fired by the portfolio dispatcher *after*
+        # SL/TP orders have been placed, so the entry card can include them.
+        # Fills still come from sim because they happen on tick, not on signal.
+        self._fires_entry_notification: bool = False
         self._fires_fill_notification: bool = True
         self._pending_indicators: dict[str, dict[str, float]] = {}  # staging for entry indicators
 
@@ -179,6 +183,14 @@ class SimExchange(IExchange):
         amount = to_decimal(amount)
         price = to_decimal(price) if price else None
 
+        if self.state.is_paused and not reduce_only:
+            logger.warning(f"[SimExchange] Paused (post-liquidation) — rejecting {order_type} {side} for {symbol}")
+            return None
+
+        if amount <= Decimal("0"):
+            logger.warning(f"[SimExchange] Rejecting {order_type} {side} {symbol}: non-positive amount {amount}")
+            return None
+
         # Stash indicator snapshot for entry notifications
         if params.get("_indicators") and not reduce_only:
             self._pending_indicators[symbol] = params["_indicators"]
@@ -191,6 +203,9 @@ class SimExchange(IExchange):
                     return None
 
         order_id = str(uuid.uuid4())
+        order_info: dict[str, Any] = {}
+        if order_type == "stop_market" and params.get("soft_sl_price") is not None:
+            order_info["soft_sl_price"] = to_decimal(params["soft_sl_price"])
         po = PendingOrder(
             id=order_id,
             symbol=symbol,
@@ -201,7 +216,7 @@ class SimExchange(IExchange):
             trigger_price=stop_price,
             reduce_only=reduce_only,
             status="pending",
-            info={},
+            info=order_info,
         )
 
         # Market BUY (entry) → immediate fill or pending_open
@@ -237,7 +252,9 @@ class SimExchange(IExchange):
         )
 
         if order_type == "stop_market" and side == "SELL" and stop_price:
-            link_sl_to_position(self, symbol, order_id, stop_price)
+            soft_sl_raw = params.get("soft_sl_price")
+            risk_sl = to_decimal(soft_sl_raw) if soft_sl_raw is not None else None
+            link_sl_to_position(self, symbol, order_id, stop_price, risk_sl_price=risk_sl)
 
         return self._po_to_dict(po)
 
@@ -263,6 +280,8 @@ class SimExchange(IExchange):
 
         for fr in fill_results:
             execute_fill_from_result(self, fr)
+
+        check_liquidation(self)
 
     def is_paused(self) -> bool:
         return self.state.is_paused
