@@ -33,6 +33,13 @@ FORCE_DEPLOY_FLAG = str(_TMP / "rsi_bot_force_deploy")
 CANCEL_DEPLOY_FLAG = str(_TMP / "rsi_bot_cancel_deploy")
 STATUS_WRITE_INTERVAL = 30  # seconds
 
+# ── Sim state persistence (survives bot restarts / deploys) ──────────
+# JSON snapshot of balance + session-anchor + cumulative fees so a deploy
+# doesn't reset the user's running session P&L back to the configured
+# initial_balance. Open positions are NOT persisted — they roll over
+# naturally via cleanup_on_startup.
+SIM_STATE_FILE_PATH = str(_TMP / "rsi_bot_sim_state.json")
+
 # ── Equity curve sampling (Phase 2.2) ─────────────────────────────────
 # Adaptive sampling: normal interval, high-res interval, and drawdown threshold
 EQUITY_SAMPLE_INTERVAL = 3  # candles between samples (normal mode)

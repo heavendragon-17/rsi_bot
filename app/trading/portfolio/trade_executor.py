@@ -47,12 +47,29 @@ class TradeExecutor:
         self._dispatcher = dispatcher
 
     def sync_from_exchange(self) -> None:
-        """Remove positions that no longer exist on exchange (e.g. SL filled)."""
-        if not hasattr(self.exchange, "positions"):
+        """Remove tracked positions that no longer exist on the exchange.
+
+        Triggered when a hard SL fires automatically (sim or live), when a user
+        closes a position outside the bot, or after a liquidation. Without this
+        the in-memory dict drifts and StatusWriter reports phantom positions,
+        which blocks the deploy pipeline.
+        """
+        if not self.positions:
             return
+        try:
+            live = self.exchange.fetch_positions(list(self.positions.keys()))
+        except Exception:
+            logger.warning("sync_from_exchange: fetch_positions failed", exc_info=True)
+            return
+        live_symbols = {
+            p.get("symbol")
+            for p in live
+            if abs(float(p.get("contracts", 0) or 0)) > 0
+        }
         for sym in list(self.positions.keys()):
-            if sym not in self.exchange.positions:
+            if sym not in live_symbols:
                 self.positions.pop(sym, None)
+                logger.info(f"[{sym}] Cleared stale portfolio entry (closed on exchange)")
 
     def on_signal(self, signal: SignalEvent):
         """Process a trading signal. Routes to entry, exit, or SL/TP handlers."""

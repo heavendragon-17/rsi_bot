@@ -46,10 +46,23 @@
 
 The exchange is the authoritative source for position existence. PortfolioManager syncs in two ways:
 
-### Startup Sync (`sync_from_exchange()`)
-- Fetches all positions from exchange via `fetch_positions()`
-- Removes local positions that no longer exist on exchange
+### Reconciliation Sync (`sync_from_exchange()`)
+- Calls `exchange.fetch_positions(symbols=list(self.positions.keys()))`
+- Treats any tracked symbol that the exchange omits — or reports with
+  `contracts == 0` — as closed, and pops it from `self.positions`
 - Does NOT recreate local tracking for exchange positions not in `self.positions`
+- Errors from `fetch_positions()` are swallowed (logged) so a transient API
+  blip never wipes valid local state
+- Triggered on every signal (`TradeExecutor.on_signal`) **and** at the end of
+  every runner-loop iteration when a new candle closes, so a hard SL fill (or
+  any out-of-band close) is reconciled within one candle in live mode
+
+### Sim Mode Fast-Path (`register_position_closed_callback`)
+- `SimExchange` exposes a callback hook fired the instant
+  `sim_fill_handler.close_position_locked()` zeroes a position
+- `PortfolioManager.__init__` registers itself if the exchange supports the hook
+- This makes sim cleanup synchronous with the SL/TP fill — no polling lag —
+  so `StatusWriter` never reports phantom positions to the deploy pipeline
 
 ### TP Fill Polling (`sync_tp_fills()`)
 - Iterates each TP order ID

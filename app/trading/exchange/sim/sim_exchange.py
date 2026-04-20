@@ -75,6 +75,7 @@ class SimExchange(IExchange):
         initial_balance = to_decimal(sim_cfg.get("initial_balance", 10000))
 
         self.state = SimTradeState(initial_balance)
+        self.state.try_restore(sim_cfg)
         self._config = config
         self._last_prices: dict[str, Decimal] = {}
         self._sim_time: float | None = None
@@ -87,13 +88,34 @@ class SimExchange(IExchange):
         self._fires_fill_notification: bool = True
         self._pending_indicators: dict[str, dict[str, float]] = {}  # staging for entry indicators
         self._pending_signal_meta: dict[str, dict[str, Any]] = {}  # staging for entry signal metadata
+        # Callbacks fired when a position is fully closed (sim-only). Lets
+        # PortfolioManager purge its in-memory dict the instant a hard SL fills,
+        # so StatusWriter never reports phantom positions to the deploy pipeline.
+        self._position_closed_callbacks: list[Any] = []
 
         # Fill simulator for pending SL/TP order management and fill detection
         self._sim_instance: FillSimulator | None = FillSimulator(TickFillMode(), MAKER_FEE, TAKER_FEE)
         # Bridge: state.pending_orders → simulator's dict for backward compat
         self.state.pending_orders = self._sim_instance.pending_orders  # type: ignore[assignment]
 
-        logger.info(f"SimExchange initialised — balance={initial_balance} USDT")
+        logger.info(
+            f"SimExchange initialised — balance={self.state.balance} USDT "
+            f"(initial={self.state.initial_balance})"
+        )
+
+    def register_position_closed_callback(self, cb) -> None:
+        """Register a callback fired when a sim position closes fully."""
+        self._position_closed_callbacks.append(cb)
+
+    def _fire_position_closed(self, symbol: str) -> None:
+        # Tests construct via __new__ and skip __init__, so guard against the
+        # attribute not being set rather than failing inside fill handlers.
+        callbacks = getattr(self, "_position_closed_callbacks", None) or []
+        for cb in list(callbacks):
+            try:
+                cb(symbol)
+            except Exception:
+                logger.exception("position_closed callback failed")
 
     @property
     def _sim(self) -> FillSimulator:
