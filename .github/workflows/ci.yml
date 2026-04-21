@@ -82,7 +82,8 @@ jobs:
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-config=pyproject.toml
+            --cov-config=pyproject.toml \
+            --cov-fail-under=70
       - name: Post coverage summary
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7

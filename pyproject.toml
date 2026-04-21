@@ -15,11 +15,30 @@ markers = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["app/__pycache__/*"]
+omit = [
+    "app/__pycache__/*",
+    # True CLI entry-point scripts — all logic delegated to library code.
+    "app/backtest/backtest.py",
+    "app/backtest/benchmark.py",
+    "app/backtest/runners/tick_replay.py",
+    "app/backtest/runners/batch_runner.py",
+    "app/backtest/runners/portfolio_runner.py",
+    "app/backtest/runners/portfolio_sweep.py",
+    "app/backtest/runners/__init__.py",
+    "app/backtest/statistics/analyzer.py",
+    "app/backtest/statistics/__init__.py",
+    "app/backtest/statistics/visualize.py",
+    "app/backtest/reporting/__init__.py",
+    "app/backtest/reporting/styles.py",
+    "app/backtest/data/download.py",
+    "app/backtest/data/download_tick.py",
+    "app/api/export_schema.py",
+    "app/main.py",
+]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 0
+fail_under = 70
 
 [tool.ruff]
 target-version = "py311"
