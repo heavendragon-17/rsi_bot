@@ -19,7 +19,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 
 from app.trading.exchange.sim.sim_exchange import SimExchange
-from app.trading.exchange.sim.sim_state import SimTradeState
 from app.trading.portfolio.manager import PortfolioManager
 from app.trading.portfolio.models import Position
 

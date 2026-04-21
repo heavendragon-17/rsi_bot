@@ -21,8 +21,6 @@ from decimal import Decimal
 
 import structlog
 
-from app.core.constants import SIM_STATE_FILE_PATH
-
 logger = structlog.get_logger()
 
 
