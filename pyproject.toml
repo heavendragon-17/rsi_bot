@@ -17,52 +17,23 @@ markers = [
 source = ["app"]
 omit = [
     "app/__pycache__/*",
-    # CLI entry-point scripts — orchestration only, tested manually.
+    # True CLI entry-point scripts — all logic delegated to library code.
     "app/backtest/backtest.py",
     "app/backtest/benchmark.py",
     "app/backtest/runners/tick_replay.py",
     "app/backtest/runners/batch_runner.py",
     "app/backtest/runners/portfolio_runner.py",
     "app/backtest/runners/portfolio_sweep.py",
-    "app/backtest/runners/progress.py",
     "app/backtest/runners/__init__.py",
     "app/backtest/statistics/analyzer.py",
-    "app/backtest/statistics/visualize.py",
     "app/backtest/statistics/__init__.py",
+    "app/backtest/statistics/visualize.py",
     "app/backtest/reporting/__init__.py",
     "app/backtest/reporting/styles.py",
     "app/backtest/data/download.py",
     "app/backtest/data/download_tick.py",
-    "app/backtest/engine/portfolio_engine.py",
-    "app/backtest/engine/portfolio_event_source.py",
-    "app/backtest/workers.py",
-    "app/backtest/config_builder.py",
-    "app/backtest/batch_aggregation.py",
-    "app/backtest/engine/jit_functions.py",
     "app/api/export_schema.py",
-    "app/api/routes/trade_chart.py",
-    # Network / SDK wrappers — require live services or heavy mocking.
-    "app/trading/exchange/binance_adapter.py",
-    "app/trading/exchange/lighter_adapter.py",
-    "app/trading/exchange/lighter_queries.py",
-    "app/trading/exchange/hyperliquid_adapter.py",
-    "app/trading/exchange/sim/sim_funding.py",
-    "app/trading/exchange/sim/sim_stream.py",
-    "app/data/stream_manager.py",
-    "app/notification/telegram_notifier.py",
-    "app/notification/telegram_bot.py",
-    "app/notification/command_handlers.py",
-    "app/notification/deploy_commands.py",
-    "app/notification/notification_service.py",
-    # Runtime entry points — wire threads/signals together.
-    "app/trading/runner.py",
-    "app/trading/runner_loop.py",
-    "app/trading/status_writer.py",
     "app/main.py",
-    # DB setup / ORM glue — thin SQLAlchemy wiring.
-    "app/repository/db_connect.py",
-    "app/repository/order_repo.py",
-    "app/repository/backtest/seed.py",
 ]
 
 [tool.coverage.report]
