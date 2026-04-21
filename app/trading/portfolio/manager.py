@@ -60,11 +60,20 @@ class PortfolioManager:
             self._dispatcher,
         )
 
+        # Sim-only: register for instant cleanup on hard-SL fills so the
+        # in-memory positions dict never goes stale (which would block deploys).
+        register = getattr(exchange, "register_position_closed_callback", None)
+        if callable(register):
+            register(self._on_exchange_position_closed)
+
         # Expose config values that tests/consumers may read
         self.leverage = self._sizer.leverage
         self.initial_capital = self._sizer.initial_capital
         self.tp1_close_pct = self._sl_tp.tp1_close_pct
         self.tp2_close_pct = self._sl_tp.tp2_close_pct
+
+    def _on_exchange_position_closed(self, symbol: str) -> None:
+        self.positions.pop(symbol, None)
 
     # ---- Delegate to TradeExecutor ----
 

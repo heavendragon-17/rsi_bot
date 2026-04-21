@@ -227,6 +227,11 @@ def run_symbol_loop(
             if symbol in portfolio.positions:
                 portfolio.sync_tp_fills(symbol)
 
+            # Reconcile against the exchange so a hard SL fill (or any out-of-band
+            # close) doesn't leave a phantom entry in the in-memory dict — that
+            # would block the deploy pipeline.
+            portfolio.sync_from_exchange()
+
             last_processed_ts = last_closed_ts
 
             # Small sleep to prevent CPU spinning

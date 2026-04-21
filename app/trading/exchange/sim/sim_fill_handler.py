@@ -231,9 +231,17 @@ def close_position_locked(
 
     position.amount -= close_amount
     remaining = position.amount
-    if position.amount <= Decimal("0.000001"):
+    fully_closed = position.amount <= Decimal("0.000001")
+    if fully_closed:
         del sim_ex.state.positions[symbol]
     sim_ex.state.closed_trades.append(trade)
+    if fully_closed:
+        # Notify listeners (e.g. PortfolioManager) so they can purge their
+        # in-memory tracking immediately. Done after dict removal so callbacks
+        # observing exchange state see the cleared position.
+        fire = getattr(sim_ex, "_fire_position_closed", None)
+        if callable(fire):
+            fire(symbol)
 
     balance_after = sim_ex.state.balance
     return (

@@ -295,7 +295,17 @@ VPS (check-deploy.timer — runs every 60s)
 | Bot won't start | `journalctl -u rsi-bot -n 50` — check for import/config errors |
 | "Config validation failed" | Run the smoke test manually (section 4.5) |
 | No Telegram notifications | Verify `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` |
-| Deploy stuck in "waiting" | Create force flag: `touch /tmp/rsi_bot_force_deploy` |
+| Deploy stuck in "waiting" with `Positions: N > 0` but `/status` shows 0 | Pre-fix this was a stale `PortfolioManager.positions` dict (sync was a no-op). Fixed by `sync_from_exchange()` reconciling via `fetch_positions()` and a `position_closed` callback in sim. If you see this on an old build, force-deploy via `touch /tmp/rsi_bot_force_deploy`. |
+| Deploy stuck in "waiting" with real open positions | Wait for them to close, or `touch /tmp/rsi_bot_force_deploy` to override |
 | Cancel pending deploy | `touch /tmp/rsi_bot_cancel_deploy` |
 | Status file stale | Bot may have crashed — `systemctl restart rsi-bot` |
+| Sim balance reset after deploy | Snapshot at `/tmp/rsi_bot_sim_state.json` should restore it. If missing, check that `StatusWriter` is running and that the configured `sim.initial_balance` matches the snapshot's anchor (a config change discards the snapshot). |
 | Permission denied on `/opt` | `sudo chown -R your-user:your-user /opt/rsi_bot` |
+
+### State files written at runtime
+
+| Path | Writer | Purpose |
+|------|--------|---------|
+| `/tmp/rsi_bot_status.json` | `StatusWriter` (every 30s) | Bot health + position count read by the deploy gate |
+| `/tmp/rsi_bot_deploy_state.json` | `check_deploy.sh` / `deploy.sh` | Current deploy state (`idle` / `waiting` / `deploying` / `completed` / `failed`) |
+| `/tmp/rsi_bot_sim_state.json` | `StatusWriter` (sim mode only, every 30s) | Persists `balance`, `initial_balance` (session anchor), and cumulative fees across restarts so a deploy doesn't wipe the user's session P&L. Open positions are NOT persisted — they roll over via `cleanup_on_startup` against the live exchange. Discarded automatically if `sim.initial_balance` is changed in config. |

@@ -109,4 +109,12 @@ class StatusWriter:
                 _write_atomic(STATUS_FILE_PATH, status)
             except Exception:
                 logger.exception("status_write_failed")
+            # Sim mode: snapshot balance + session anchor so a deploy doesn't
+            # reset the user's running session P&L.
+            try:
+                state = getattr(self._runner.exchange, "state", None)
+                if state is not None and hasattr(state, "write_snapshot"):
+                    state.write_snapshot()
+            except Exception:
+                logger.exception("sim_state_snapshot_failed")
             self._stop_event.wait(timeout=STATUS_WRITE_INTERVAL)
