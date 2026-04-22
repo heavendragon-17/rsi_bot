@@ -38,6 +38,7 @@ class Candle:
     close: Decimal
     volume: Decimal
     closed: bool
+    timeframe: str = ""
 
 
 @dataclass

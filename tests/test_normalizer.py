@@ -38,6 +38,7 @@ class TestNormalizeBinance:
             "s": "BTCUSDT",
             "k": {
                 "t": 1_700_000_000_000,
+                "i": "15m",
                 "o": "50000.0",
                 "h": "51000.0",
                 "l": "49500.0",
@@ -56,6 +57,20 @@ class TestNormalizeBinance:
         assert evt.payload.close == Decimal("50500.0")
         assert evt.payload.volume == Decimal("123.45")
         assert evt.payload.closed is True
+        assert evt.payload.timeframe == "15m"
+
+    def test_missing_interval_defaults_to_empty(self):
+        raw = {
+            "e": "kline",
+            "s": "BTCUSDT",
+            "k": {
+                "t": 1_700_000_000_000,
+                "o": "1", "h": "2", "l": "0.5", "c": "1.5", "v": "10",
+                "x": True,
+            },
+        }
+        evt = DataNormalizer.normalize_binance(raw)
+        assert evt.payload.timeframe == ""
 
     def test_open_candle_returns_tick_update(self):
         raw = {
@@ -87,6 +102,12 @@ class TestNormalizeCcxt:
         assert candle.close == Decimal("105.0")
         assert candle.volume == Decimal("1000.0")
         assert candle.closed is True
+        assert candle.timeframe == ""
+
+    def test_ohlcv_with_explicit_timeframe(self):
+        ohlcv = [1_700_000_000_000, 100.0, 110.0, 90.0, 105.0, 1000.0]
+        candle = DataNormalizer.normalize_ccxt("BTC/USDT", ohlcv, timeframe="1h")
+        assert candle.timeframe == "1h"
 
 
 class TestNormalizeHyperliquid:

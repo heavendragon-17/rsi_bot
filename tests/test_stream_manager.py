@@ -86,6 +86,20 @@ class TestFetchInitialData:
         mgr.fetch_initial_data()
         store.update_candle.assert_not_called()
 
+    def test_history_does_not_fire_live_callbacks(self):
+        """History ingest must not invoke on_tick / on_kline_close — those
+        callbacks are for live WS events only, per LiveEventSource semantics."""
+        mgr, _, exchange = _mk_mgr()
+        exchange.fetch_ohlcv.return_value = [
+            [1_700_000_000_000, 100, 110, 90, 105, 1.0],
+            [1_700_000_300_000, 105, 112, 95, 108, 1.5],
+        ]
+        mgr.on_tick = MagicMock()
+        mgr.on_kline_close = MagicMock()
+        mgr.fetch_initial_data()
+        mgr.on_tick.assert_not_called()
+        mgr.on_kline_close.assert_not_called()
+
 
 class TestOnMessage:
     def test_invalid_json(self):

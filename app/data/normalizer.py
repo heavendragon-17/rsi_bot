@@ -55,18 +55,20 @@ class DataNormalizer:
             close=to_decimal(kline["c"]),
             volume=to_decimal(kline["v"]),
             closed=is_closed,
+            timeframe=kline.get("i", ""),
         )
 
         return MarketEvent(type=event_type, exchange="binance", payload=candle)
 
     @staticmethod
-    def normalize_ccxt(symbol: str, ohlcv: list) -> Candle:
+    def normalize_ccxt(symbol: str, ohlcv: list, timeframe: str = "") -> Candle:
         """
         Convert CCXT OHLCV list to Candle object.
 
         Args:
             symbol: Trading pair symbol (e.g. 'BTC/USDT')
             ohlcv: [timestamp, open, high, low, close, volume]
+            timeframe: Optional timeframe string (e.g. '15m'). Empty when unknown.
 
         Returns:
             Candle with Decimal price fields
@@ -83,6 +85,7 @@ class DataNormalizer:
             close=to_decimal(ohlcv[4]),
             volume=to_decimal(ohlcv[5]),
             closed=True,  # Historical data is always closed
+            timeframe=timeframe,
         )
 
     @staticmethod
