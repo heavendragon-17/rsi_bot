@@ -18,6 +18,18 @@ WARMUP = 220
 # ── Memory limits ───────────────────────────────────────────────────
 MAX_CANDLES_IN_RAM = 6000
 
+# Per-timeframe RAM cap for the signal-bot multi-TF path.
+# Higher resolution keeps more history; lower resolution needs less.
+# Keys must be Binance-compatible timeframe strings.
+MAX_CANDLES_IN_RAM_PER_TF: dict[str, int] = {
+    "1m": 6000,
+    "5m": 6000,
+    "15m": 6000,
+    "1h": 3000,
+    "4h": 1500,
+    "1d": 500,
+}
+
 # ── Fee defaults (Binance futures) ──────────────────────────────────
 DEFAULT_TAKER_FEE = 0.0005  # 0.05 %
 DEFAULT_MAKER_FEE = 0.0002  # 0.02 %
