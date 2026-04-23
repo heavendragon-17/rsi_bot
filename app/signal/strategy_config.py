@@ -132,7 +132,13 @@ def _merge_risk(base: RiskConfig, override: dict | None, strategy_name: str) -> 
     return dataclasses.replace(base, **updates)
 
 
-def _validate_telegram(raw: dict) -> int:
+def validate_telegram_config(raw: dict) -> int:
+    """Validate the ``telegram`` block and return the parsed debug topic id.
+
+    Exposed so callers (``SignalRunner``) can read the validated
+    ``debug_topic_id`` without a second pass over ``raw``. Idempotent —
+    :func:`resolve_strategy_configs` also calls this internally.
+    """
     telegram = raw.get("telegram") or {}
     group_id = telegram.get("group_id")
     debug_topic_id = telegram.get("debug_topic_id")
@@ -140,7 +146,12 @@ def _validate_telegram(raw: dict) -> int:
         raise ValueError("signal mode requires telegram.group_id to be set")
     if debug_topic_id is None:
         raise ValueError("signal mode requires telegram.debug_topic_id to be set")
-    return int(debug_topic_id)
+    try:
+        return int(debug_topic_id)
+    except (TypeError, ValueError) as e:
+        raise ValueError(
+            f"telegram.debug_topic_id must be an integer, got {debug_topic_id!r}"
+        ) from e
 
 
 def _resolve_entry(
@@ -214,7 +225,7 @@ def resolve_strategy_configs(raw: dict) -> list[StrategyInstanceConfig]:
     Deferred (tracked for v2): per-strategy ``exclude:`` lists and
     per-strategy ``strategy_params``.
     """
-    debug_topic_id = _validate_telegram(raw)
+    debug_topic_id = validate_telegram_config(raw)
 
     global_symbols = tuple(raw.get("symbols") or ())
     global_timeframe = raw.get("timeframe")

@@ -76,6 +76,11 @@ SIGNAL_MAX_CONSECUTIVE_FAILURES = 3
 # with a warn-log so WebSocket ingest never stalls.
 SIGNAL_WORKER_QUEUE_SIZE = 500
 
+# Per-worker join timeout during SignalRunner.stop(). Threads still alive
+# after this interval get a warn-log but are not force-killed (daemon=True
+# means they'll die with the process).
+SIGNAL_SHUTDOWN_JOIN_SECONDS = 10
+
 # Timeframe string → whole seconds. Used by the exit monitor's age check
 # and anywhere else that needs to convert a Binance-style timeframe into
 # elapsed time. Keys must match the timeframe strings Binance uses.
