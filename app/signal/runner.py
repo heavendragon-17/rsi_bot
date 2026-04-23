@@ -38,7 +38,7 @@ from app.signal.strategy_config import (
 )
 from app.signal.strategy_worker import StrategyWorker
 from app.signal.virtual_position import VirtualPositionStore
-from app.trading.strategy.loader import STRATEGY_MAP
+from app.trading.strategy.loader import load_strategy_instance
 
 logger = structlog.get_logger()
 
@@ -195,8 +195,11 @@ class SignalRunner:
     def _build_workers(self) -> None:
         assert self._multiplexer is not None
         for cfg in self._instance_cfgs:
-            strategy_cls = STRATEGY_MAP[cfg.name]
-            strategy = strategy_cls(cfg.as_legacy_dict())
+            # load_strategy_instance reads config["strategy"] (set by
+            # as_legacy_dict) to pick the concrete class from STRATEGY_MAP.
+            # Using the factory keeps the abstract/concrete type dance inside
+            # the loader.
+            strategy = load_strategy_instance(cfg.as_legacy_dict())
             worker = StrategyWorker(
                 instance_cfg=cfg,
                 strategy=strategy,

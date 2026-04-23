@@ -76,6 +76,9 @@ class BinanceStreamManager:
         self._by_ws_key: dict[tuple[str, str], str] = {}
 
         if legacy_given:
+            # The legacy_given guard above already established these are set;
+            # asserts narrow the types for mypy.
+            assert symbols is not None and timeframe is not None
             self._mode = "legacy"
             self._targets: frozenset[tuple[str, str]] = frozenset(
                 (s, timeframe) for s in symbols
@@ -85,6 +88,7 @@ class BinanceStreamManager:
             self.raw_symbols = list(symbols)
             self.timeframe: str = timeframe
         else:
+            assert targets is not None and multiplexer is not None
             self._mode = "multi"
             self._targets = frozenset(targets)
             self.store = None
@@ -156,8 +160,10 @@ class BinanceStreamManager:
                 for ohlcv in ohlcvs:
                     candle = DataNormalizer.normalize_ccxt(pair, ohlcv, timeframe=tf)
                     if self._mode == "legacy":
+                        assert self.store is not None
                         self.store.update_candle(candle)
                     else:
+                        assert self.multiplexer is not None
                         self.multiplexer.on_kline_event(pair, tf, candle)
                 logger.info("history_fetched", symbol=pair, timeframe=tf, candles=len(ohlcvs))
             except Exception as e:
@@ -185,6 +191,7 @@ class BinanceStreamManager:
         candle = event.payload
 
         if self._mode == "legacy":
+            assert self.store is not None
             self.store.update_candle(candle)
             if self.on_tick is not None:
                 self.on_tick(candle)
@@ -202,6 +209,7 @@ class BinanceStreamManager:
             )
             return
 
+        assert self.multiplexer is not None
         self.multiplexer.on_kline_event(user_pair, candle.timeframe, candle)
 
     def on_error(self, ws, error) -> None:
