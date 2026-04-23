@@ -54,6 +54,13 @@ class TestSendMessage:
         notifier, bot = _mk_notifier()
         notifier.send_message("hi")
         bot.send_message.assert_called_once()
+        # Legacy callers default to no topic → message_thread_id=None.
+        assert bot.send_message.call_args.kwargs.get("message_thread_id") is None
+
+    def test_send_forwards_topic_id_to_bot(self):
+        notifier, bot = _mk_notifier()
+        notifier.send_message("hi", topic_id=99)
+        assert bot.send_message.call_args.kwargs["message_thread_id"] == 99
 
     def test_send_swallows_exception(self):
         notifier, bot = _mk_notifier()

@@ -1,17 +1,4 @@
-"""
-TelegramNotifier
-================
-Implements INotifier with rich HTML-formatted Telegram messages.
-Mode-agnostic: prefix adapts to the mode passed at construction.
-
-Mode prefixes:
-  live    → 🤖 LIVE
-  paper   → 🧪 TESTNET
-  sim     → 📄 SIM
-  mock    → 🔬 BACKTEST
-
-All methods use scalar parameters only — no exchange-specific state objects.
-"""
+"""TelegramNotifier — INotifier impl with HTML-formatted trade messages."""
 
 from __future__ import annotations
 
@@ -54,11 +41,6 @@ _MODE_PREFIX: dict[str, str] = {
     "sim": "📄 SIM",
     "mock": "🔬 BACKTEST",
 }
-
-
-# ---------------------------------------------------------------------------
-# TelegramNotifier
-# ---------------------------------------------------------------------------
 
 
 class TelegramNotifier(INotifier):
@@ -107,12 +89,8 @@ class TelegramNotifier(INotifier):
             return False
         return True
 
-    # ------------------------------------------------------------------
-    # INotifier
-    # ------------------------------------------------------------------
-
-    def send_message(self, message: str) -> None:
-        self._send(message)
+    def send_message(self, message: str, *, topic_id: int | None = None) -> None:
+        self._send(message, topic_id=topic_id)
 
     def on_entry(
         self,
@@ -388,12 +366,8 @@ class TelegramNotifier(INotifier):
             msg = f"{self._prefix} | ▶️ RESUMED\nSignal execution active."
         self._send(msg)
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
-    def _send(self, message: str) -> None:
+    def _send(self, message: str, *, topic_id: int | None = None) -> None:
         try:
-            self._bot.send_message(message, chat_id=self._chat_id)
+            self._bot.send_message(message, chat_id=self._chat_id, message_thread_id=topic_id)
         except Exception:
             logger.exception("TelegramNotifier: failed to send message")

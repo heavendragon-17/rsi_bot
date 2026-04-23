@@ -209,8 +209,16 @@ class INotifier(ABC):
     """
 
     @abstractmethod
-    def send_message(self, message: str) -> None:
-        """Send a plain-text (or HTML) message."""
+    def send_message(self, message: str, *, topic_id: int | None = None) -> None:
+        """Send a plain-text (or HTML) message.
+
+        Args:
+            message: Text body (plain or HTML).
+            topic_id: Optional Telegram forum topic id. When set, the message
+                is posted into that thread of the configured supergroup
+                (used by the signal bot for per-strategy routing). ``None``
+                posts to the main chat — the default for live-bot callers.
+        """
         pass
 
     @abstractmethod
