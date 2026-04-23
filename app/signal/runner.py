@@ -84,6 +84,9 @@ class SignalRunner:
         self._instance_cfgs = resolve_strategy_configs(self._raw)
         if not self._instance_cfgs:
             logger.warning("signal_runner_no_active_strategies")
+            # Set the stop event so ``wait()`` returns immediately rather
+            # than blocking forever on a never-started runner.
+            self._stop_event.set()
             return
 
         self._debug_topic_id = validate_telegram_config(self._raw)

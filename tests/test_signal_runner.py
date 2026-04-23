@@ -87,6 +87,19 @@ class TestStart:
         assert runner._workers == []
         assert runner._stream is None
 
+    def test_no_active_strategies_wait_returns_immediately(self):
+        """Regression: after a no-op start(), wait() must not block."""
+        import threading
+        raw = _base_raw_config()
+        raw["strategies"] = []
+        runner, _, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager"):
+            runner.start()
+        t = threading.Thread(target=runner.wait, daemon=True)
+        t.start()
+        t.join(timeout=2.0)
+        assert not t.is_alive()
+
     def test_invalid_config_propagates(self):
         raw = _base_raw_config()
         raw["strategies"] = [
