@@ -22,13 +22,11 @@ Flow:
 
 from __future__ import annotations
 
-import threading
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 
 from app.core.actions import DoNothing, OpenPosition

@@ -273,6 +273,7 @@ class TestWait:
 
         # Seed a VP so the broadcast path runs.
         from decimal import Decimal
+
         from app.signal.virtual_position import VirtualPosition
         runner._vp_store.open(
             VirtualPosition(

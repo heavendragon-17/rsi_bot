@@ -159,6 +159,7 @@ class TestAgeExpiry:
     def test_unknown_timeframe_warning_dedupes_per_vp(self):
         """A misconfigured timeframe must not spam warnings every candle."""
         import structlog.testing
+
         from app.signal import exit_monitor as em
         em._warned_unknown_timeframe.clear()
 
