@@ -54,7 +54,7 @@ class Expired:
 ExitEvent = SLHit | TPHit | Expired
 
 
-def _candle_ts_ms(candle: Candle) -> int:
+def candle_ts_ms(candle: Candle) -> int:
     """Convert a Candle's timestamp to unix milliseconds.
 
     ``DataNormalizer`` applies a ``+7h`` shift when building candles. Because
@@ -143,7 +143,7 @@ def _age_expiry(
             )
         return None
 
-    elapsed_ms = _candle_ts_ms(candle) - vp.opened_at_candle_ts
+    elapsed_ms = candle_ts_ms(candle) - vp.opened_at_candle_ts
     if elapsed_ms <= 0:
         return None
     age_candles = elapsed_ms // (tf_seconds * 1000)

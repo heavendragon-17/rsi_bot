@@ -67,6 +67,15 @@ MAX_WORKERS_UPPER_BOUND = 8  # hard cap on concurrent workers
 # Default age cap for virtual positions before auto-expiry.
 SIGNAL_MAX_VP_AGE_CANDLES = 50
 
+# Per-symbol retry counter threshold: after this many consecutive errors
+# on the same symbol, the strategy worker thread exits.
+SIGNAL_MAX_CONSECUTIVE_FAILURES = 3
+
+# Bounded queue size between the multiplexer callback and the worker
+# thread. On overflow (very slow analyze() chain), events are dropped
+# with a warn-log so WebSocket ingest never stalls.
+SIGNAL_WORKER_QUEUE_SIZE = 500
+
 # Timeframe string → whole seconds. Used by the exit monitor's age check
 # and anywhere else that needs to convert a Binance-style timeframe into
 # elapsed time. Keys must match the timeframe strings Binance uses.
