@@ -62,3 +62,22 @@ EQUITY_DRAWDOWN_THRESHOLD = 2.0  # % drawdown to trigger high-res mode
 # ── Concurrency ──────────────────────────────────────────────────────
 DEFAULT_MAX_WORKERS = 2  # concurrent backtest jobs
 MAX_WORKERS_UPPER_BOUND = 8  # hard cap on concurrent workers
+
+# ── Signal runner ────────────────────────────────────────────────────
+# Default age cap for virtual positions before auto-expiry.
+SIGNAL_MAX_VP_AGE_CANDLES = 50
+
+# Timeframe string → whole seconds. Used by the exit monitor's age check
+# and anywhere else that needs to convert a Binance-style timeframe into
+# elapsed time. Keys must match the timeframe strings Binance uses.
+TIMEFRAME_SECONDS: dict[str, int] = {
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "1d": 86400,
+}
