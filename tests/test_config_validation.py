@@ -21,7 +21,7 @@ def test_from_yaml_loads_actual_config():
     """AppConfig.from_yaml() must load the real config.yaml without error."""
     cfg = AppConfig.from_yaml("config.yaml")
     assert cfg.exchange.name == "binanceusdm"
-    assert cfg.exchange.mode in {"mock", "sim", "paper", "testnet", "live"}
+    assert cfg.exchange.mode in {"mock", "sim", "paper", "testnet", "live", "signal"}
     assert len(cfg.symbols) > 0
     assert cfg.timeframe
 

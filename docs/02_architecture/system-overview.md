@@ -79,6 +79,31 @@ WebSocket (fstream.binance.com)
                DoNothing     -> (no-op)
 ```
 
+### Signal Bot Data Flow (simplified)
+
+When `bot.mode: "signal"` in `config.yaml`, `main.py` takes a separate
+branch into `SignalRunner` (`app/signal/runner.py`). No orders are placed —
+the bot tracks in-memory "virtual positions" and posts advisories to
+per-strategy Telegram topics. The live bot's `MultiSymbolRunner` is
+untouched.
+
+```
+WebSocket (fstream.binance.com, multi-TF URL)
+  -> BinanceStreamManager(targets, multiplexer).on_message()
+    -> DataNormalizer.normalize_binance() -> Candle (with timeframe)
+      -> TimeframeMultiplexer.on_kline_event(sym, tf, candle)
+        -> Per-(sym, tf) DataFrame  +  fan-out to registered callbacks
+          -> StrategyWorker.enqueue(sym, tf, candle)      [one queue per strategy]
+            -> exit_monitor.check(vp, candle) -> SLHit | TPHit | Expired
+            -> Strategy.analyze(sym, df, position, context) -> AnalysisResult
+              -> VirtualPositionStore mutations (open/close/update_sl/mark_tp_hit)
+              -> NotificationService.send_message(msg, topic_id=...)
+                -> Telegram topic (per strategy) or debug_topic_id (infra)
+```
+
+See [docs/07_trading_strategies/signal-bot.md](../07_trading_strategies/signal-bot.md)
+for the full spec.
+
 ### Backtest UI Data Flow (simplified)
 
 ```

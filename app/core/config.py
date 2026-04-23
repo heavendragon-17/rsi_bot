@@ -22,12 +22,15 @@ class ExchangeConfig:
     """Exchange connection settings."""
 
     name: str = "binanceusdm"
-    mode: str = "mock"  # mock | sim | paper | testnet | live
+    mode: str = "mock"  # mock | sim | paper | testnet | live | signal
     leverage: int = 10
     margin_type: str = "ISOLATED"
 
     def __post_init__(self):
-        valid_modes = {"mock", "sim", "paper", "testnet", "live"}
+        # "signal" is accepted here so AppConfig.from_yaml never crashes on a
+        # signal-mode config, even though main.py bypasses AppConfig in that
+        # mode and drives SignalRunner directly.
+        valid_modes = {"mock", "sim", "paper", "testnet", "live", "signal"}
         if self.mode not in valid_modes:
             raise ValueError(f"Invalid mode '{self.mode}'. Must be one of {sorted(valid_modes)}")
         valid_exchanges = {"binanceusdm", "binance", "hyperliquid", "lighter"}

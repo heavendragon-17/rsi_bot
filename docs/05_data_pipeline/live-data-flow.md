@@ -275,3 +275,77 @@ for event in event_source.events():
 ```
 
 The DataFrame passed to `analyze()` has indicator columns already computed by the `Indicators` class (see `data-formats.md` for column schema).
+
+---
+
+## Signal-Bot Branch (multi-TF)
+
+When `bot.mode: "signal"` is set, `main.py` routes to `SignalRunner`
+(`app/signal/runner.py`) which replaces `MarketDataStore` + `LiveEventSource`
+with `TimeframeMultiplexer` + per-strategy worker queues. The live bot is
+**not** affected by this path — it continues to use `MarketDataStore`.
+
+```
+Binance fstream WebSocket (URL: btcusdt@kline_1m/btcusdt@kline_15m/...)
+        |
+        v
+BinanceStreamManager(targets, multiplexer).on_message()
+        |
+        v
+DataNormalizer.normalize_binance(raw)  -- populates Candle.timeframe from k.i
+        |
+        v
+TimeframeMultiplexer.on_kline_event(symbol, timeframe, candle)
+        |  (per-(sym,tf) frame + per-TF RAM cap)
+        v  (on candle.closed: fan out to registered callbacks)
+StrategyWorker.enqueue(symbol, timeframe, candle)  -- per-strategy bounded queue
+        |
+        v
+StrategyWorker.run():
+    1. exit_monitor.check(vp, candle)   -> SLHit / TPHit / Expired
+    2. strategy.analyze(symbol, df, position, context)
+    3. dispatch OpenPosition | ClosePosition | MoveSL | PartialClose | DoNothing
+        |
+        v
+NotificationService.send_message(msg, topic_id=...)
+        |
+        v
+Telegram topic (per strategy) or debug_topic_id (infra messages)
+```
+
+### BinanceStreamManager in multi-TF mode
+
+Same class as the live bot, invoked via the keyword-only form:
+
+```python
+BinanceStreamManager(
+    targets={("BTC/USDT", "1m"), ("BTC/USDT", "15m"), ("ETH/USDT", "15m")},
+    multiplexer=mux,
+    history_limit=300,
+)
+```
+
+The WS URL concatenates one `@kline_{tf}` sub-stream per `(pair, tf)`. The
+legacy `(symbols, timeframe, store)` ctor form is unchanged — the two modes
+are mutually exclusive and validated at construction.
+
+### TimeframeMultiplexer
+
+**Source**: `app/data/multiplexer.py`. Thread-safe storage keyed on
+`(symbol, timeframe)` tuples. One DataFrame per pair — the RAM cap comes from
+`data.max_candles_per_timeframe` in YAML (default `MAX_CANDLES_IN_RAM_PER_TF`).
+Close callbacks fire outside the per-pair lock so a slow subscriber cannot
+block ingest for other pairs; callback exceptions are isolated and logged.
+
+Shared helpers in `app/data/_candle_row.py` (`candle_to_row`,
+`last_row_to_decimal_dict`) ensure the row schema matches `MarketDataStore`
+exactly — row building and last-row Decimal extraction are single-source.
+
+### Per-strategy worker queue
+
+Each `StrategyWorker` owns a bounded `queue.Queue`
+(size `SIGNAL_WORKER_QUEUE_SIZE = 500`). `SignalRunner` registers a filtered
+callback on the multiplexer that routes only the worker's own `(sym, tf)`
+targets into the queue — other events are dropped at callback time, not
+after queue ingest. On overflow, the enqueue side drops with a
+`strategy_worker_queue_full` warn-log so WebSocket ingest never stalls.

@@ -6,12 +6,20 @@
 
 ## config.yaml Full Schema
 
-The bot reads `config.yaml` from the project root at startup via `AppConfig.from_yaml("config.yaml")`. Below is every key, its type, default value, and validation rules.
+The bot reads `config.yaml` from the project root at startup.
+
+* **Live modes** (`mock` / `sim` / `paper` / `testnet` / `live`) parse via
+  `AppConfig.from_yaml("config.yaml")` and drive `MultiSymbolRunner`.
+* **Signal mode** (`bot.mode: "signal"`) bypasses `AppConfig` and feeds the
+  raw dict to `resolve_strategy_configs()` in `app/signal/strategy_config.py`.
+  See the [Signal mode schema](#signal-mode-schema) section below.
+
+Below is every live-mode key, its type, default value, and validation rules.
 
 ```yaml
 bot:
     active: true              # bool, default: true — master enable flag
-    mode: 'paper'             # str, default: 'mock' — mock | sim | paper | testnet | live
+    mode: 'paper'             # str, default: 'mock' — mock | sim | paper | testnet | live | signal
     debug: true               # bool, default: false — toggle verbose strategy logging
     telegram_enabled: true    # bool, default: true — enable Telegram notifications
 
@@ -261,3 +269,86 @@ To add a new configuration option:
 4. If needed for legacy code paths, add it to `to_legacy_dict()`.
 5. Add validation in `__post_init__` if the field has constraints.
 6. Update this document.
+
+---
+
+## Signal mode schema
+
+When `bot.mode: "signal"` is set, `main.py` bypasses `AppConfig.from_yaml` and
+passes the raw YAML dict directly to `resolve_strategy_configs()` in
+`app/signal/strategy_config.py`. The live-mode keys above remain valid in the
+file (they are ignored by the signal path) — only the keys documented here
+are consumed in signal mode.
+
+**Authoritative spec**: [docs/07_trading_strategies/signal-bot.md](../07_trading_strategies/signal-bot.md) §3.
+
+```yaml
+bot:
+    mode: "signal"           # required — selects the signal-bot runtime
+
+telegram:
+    group_id: -1001234567890 # int, required — supergroup with topics enabled
+    debug_topic_id: 99       # int, required — receives expiry/failure/warn messages
+
+timeframe: "15m"             # str, required — global default, overridable per strategy
+symbols:                     # List[str], required — global default, overridable per strategy
+    - "BTC/USDT"
+    - "ETH/USDT"
+
+strategies:                  # List[dict], required
+    - name: rsi_no_retest    # str, required — must exist in STRATEGY_MAP
+      active: true           # bool, default: true
+      telegram_topic_id: 42  # int, required — must be unique and != debug_topic_id
+      # Optional overrides; missing keys fall through to the globals above.
+      # timeframe: "1h"
+      # symbols: ["BTC/USDT"]
+      # risk:
+      #   tp1_close_pct: 0.5 # merges into the global risk block
+
+virtual_positions:
+    max_age_candles: 50      # int, default: 50 (SIGNAL_MAX_VP_AGE_CANDLES) — auto-expire
+
+signal_runner:
+    max_consecutive_failures: 3  # int, default: 3 — thread dies after N errors on same symbol
+
+data:
+    max_candles_per_timeframe: # dict[str, int] — per-TF RAM cap for the multiplexer
+        "1m": 6000
+        "5m": 6000
+        "15m": 6000
+        "1h": 3000
+        "4h": 1500
+        "1d": 500
+```
+
+### Validation rules (enforced at startup)
+
+| Rule | Raises |
+|------|--------|
+| `telegram.group_id` present | `ValueError` |
+| `telegram.debug_topic_id` present and int-coercible | `ValueError` |
+| Every active strategy declares a `name` that exists in `STRATEGY_MAP` | `ValueError` |
+| Every active strategy declares `telegram_topic_id` | `ValueError` |
+| `telegram_topic_id` values are unique across active strategies | `ValueError` |
+| No strategy uses `debug_topic_id` as its `telegram_topic_id` | `ValueError` |
+| If every strategy is inactive (or the list is empty), runner warn-logs and exits cleanly | (no raise) |
+
+### Merge semantics (global → per-strategy override)
+
+| Field | Rule |
+|-------|------|
+| `symbols` | Per-strategy `symbols` replaces the global list when present. |
+| `timeframe` | Per-strategy `timeframe` replaces the global value when present. |
+| `risk` | Per-strategy `risk` **merges field-by-field** into the global `RiskConfig` (unspecified keys fall through). Unknown keys are warn-logged and ignored to catch typos. |
+| `active` | Defaults to `true` when the key is missing. |
+
+### Runtime constants
+
+Signal-mode defaults live in `app/core/constants.py`:
+
+* `SIGNAL_MAX_VP_AGE_CANDLES = 50`
+* `SIGNAL_MAX_CONSECUTIVE_FAILURES = 3`
+* `SIGNAL_WORKER_QUEUE_SIZE = 500`
+* `SIGNAL_SHUTDOWN_JOIN_SECONDS = 10`
+* `MAX_CANDLES_IN_RAM_PER_TF` — fallback for `data.max_candles_per_timeframe`
+* `TIMEFRAME_SECONDS` — the exit monitor's TF→seconds lookup
