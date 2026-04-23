@@ -272,6 +272,55 @@ Summary: implement `INotifier`, pass an instance to `NotificationService(your_no
 
 ---
 
+## Telegram Topic Routing (signal mode)
+
+`send_message()` accepts an optional keyword-only `topic_id: int | None` param
+that flows through `NotificationService` → `NotificationWorker` → the concrete
+notifier → `TelegramBot.send_message(..., message_thread_id=topic_id)`. When
+set, Telegram posts the message into that forum topic inside the configured
+supergroup; when `None` (live-bot default), the message goes to the main chat.
+
+```python
+# Signal bot — route per-strategy:
+ns.send_message("🟢 LONG BTC/USDT  (RSIN#042) …", topic_id=42)
+
+# Signal bot — route to the shared debug topic:
+ns.send_message("[debug] ⏰ RSIN#042 expired …", topic_id=99)
+
+# Live bot (unchanged):
+ns.send_message("🤖 RSI Bot Started")
+```
+
+### Routing table (signal mode, per spec §10)
+
+| Event                                     | Topic                            |
+|-------------------------------------------|----------------------------------|
+| 🟢 Entry signal                           | strategy's `telegram_topic_id`   |
+| 🛑 Mechanical SL hit                      | strategy's `telegram_topic_id`   |
+| 🎯 Mechanical TP hit                      | strategy's `telegram_topic_id`   |
+| 🔚 Strategy-emitted exit                  | strategy's `telegram_topic_id`   |
+| 📉 SL moved / ⚖️ Partial close             | strategy's `telegram_topic_id`   |
+| ⚠ Shutdown broadcast (per strategy)       | strategy's `telegram_topic_id`   |
+| ⏰ VP age expiry                           | `telegram.debug_topic_id`        |
+| ⚠ Invariant violation (invalid action)    | `telegram.debug_topic_id`        |
+| ⚠ Strategy thread dead after N failures   | `telegram.debug_topic_id`        |
+
+### Implementation notes
+
+* Signal-bot messages are built by pure templates in
+  `app/signal/signal_formatter.py` and sent via `send_message()` — they are
+  **plain text** (no HTML, no parse_mode escaping needed) so user-facing
+  strings like `strategy_name` and `symbol` cannot cause Telegram markup
+  injection.
+* The typed events (`on_entry`, `on_fill`, `on_error`, `on_funding`,
+  `on_toggle`) deliberately do **not** carry a `topic_id`. They are the
+  live-bot surface and always post to the main chat.
+* `NullNotifier` and `TelegramNotifier` both implement
+  `send_message(msg, *, topic_id=None)`. The kwarg-only form prevents
+  accidental positional misuse (e.g. confusing `topic_id` with `chat_id`).
+
+---
+
 ## Troubleshooting
 
 | Symptom                             | Cause                                        | Fix                                                                               |

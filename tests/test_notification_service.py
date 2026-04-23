@@ -32,7 +32,12 @@ class TestNotificationServiceDispatch:
     def test_send_message_enqueues(self):
         svc, worker, _ = _mk_service()
         svc.send_message("hello")
-        worker.enqueue.assert_called_with("send_message", "hello")
+        worker.enqueue.assert_called_with("send_message", "hello", topic_id=None)
+
+    def test_send_message_forwards_topic_id(self):
+        svc, worker, _ = _mk_service()
+        svc.send_message("hello", topic_id=42)
+        worker.enqueue.assert_called_with("send_message", "hello", topic_id=42)
 
     def test_on_entry_enqueues_with_kwargs(self):
         svc, worker, _ = _mk_service()

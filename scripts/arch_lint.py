@@ -70,6 +70,7 @@ ALLOWED_APP_DIRS = {
     "api",
     "notification",
     "repository",
+    "signal",
     "__pycache__",
 }
 

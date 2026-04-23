@@ -6,12 +6,12 @@ Stores both float (for pandas operations) and Decimal (for precision).
 """
 
 import threading
-from decimal import Decimal
 
 import pandas as pd
 
 from app.core.constants import MAX_CANDLES_IN_RAM
 from app.core.events import Candle
+from app.data._candle_row import candle_to_row, last_row_to_decimal_dict
 
 
 class MarketDataStore:
@@ -40,21 +40,7 @@ class MarketDataStore:
         """
         symbol = candle.symbol
         with self._get_lock(symbol):
-            # Convert Decimal to float for pandas, preserve Decimal for precision
-            new_row = {
-                "timestamp": candle.timestamp,
-                "open": float(candle.open),
-                "high": float(candle.high),
-                "low": float(candle.low),
-                "close": float(candle.close),
-                "volume": float(candle.volume),
-                "closed": candle.closed,
-                # Preserve Decimal values for precise calculations
-                "open_dec": candle.open,
-                "high_dec": candle.high,
-                "low_dec": candle.low,
-                "close_dec": candle.close,
-            }
+            new_row = candle_to_row(candle)
 
             if symbol not in self.data:
                 df = pd.DataFrame([new_row])
@@ -92,17 +78,4 @@ class MarketDataStore:
         Get the last candle as a dictionary with Decimal values.
         Useful for precise price calculations.
         """
-        df = self.get_dataframe(symbol)
-        if df is None or df.empty:
-            return None
-
-        row = df.iloc[-1]
-        return {
-            "timestamp": row.name,
-            "open": row.get("open_dec", Decimal(str(row["open"]))),
-            "high": row.get("high_dec", Decimal(str(row["high"]))),
-            "low": row.get("low_dec", Decimal(str(row["low"]))),
-            "close": row.get("close_dec", Decimal(str(row["close"]))),
-            "volume": Decimal(str(row["volume"])),
-            "closed": row["closed"],
-        }
+        return last_row_to_decimal_dict(self.get_dataframe(symbol))

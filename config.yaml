@@ -1,6 +1,6 @@
 bot:
   active: true
-  mode: "sim" # mock | paper | live
+  mode: "signal" # mock | sim | paper | live | signal — see docs/07_trading_strategies/signal-bot.md for signal mode
   debug: true # Toggle verbose strategy logging
 
 exchange:
@@ -58,3 +58,45 @@ sim:
   telegram_token: "" # leave blank to reuse TELEGRAM_BOT_TOKEN
   chat_id: "" # leave blank to reuse TELEGRAM_CHAT_ID; set to a channel/group ID to send sim msgs separately
   tick_sample_interval_ms: 500 # aggTrade sampling interval (ms)
+
+# =====================================================================
+# Signal-bot mode (bot.mode: "signal").
+# =====================================================================
+# The signal bot runs N strategies concurrently and posts entry/exit
+# advice to per-strategy Telegram topics in a single supergroup. It does
+# NOT place orders. See docs/07_trading_strategies/signal-bot.md for the
+# full spec. Replace group_id / topic_ids with your supergroup's values.
+
+telegram:
+  group_id: -1001234567890 # supergroup with topics enabled
+  debug_topic_id: 99 # receives expiry + failure + warn messages
+
+strategies:
+  - name: rsi_no_retest
+    active: true
+    telegram_topic_id: 42
+  - name: rsi_wma_retest
+    active: false
+    telegram_topic_id: 43
+    timeframe: "1h" # override the global 15m
+    symbols: ["BTC/USDT"] # override the global symbols list
+    risk:
+      tp1_close_pct: 0.5 # merges into the global risk block
+  - name: rsi_momentum
+    active: false
+    telegram_topic_id: 44
+
+virtual_positions:
+  max_age_candles: 50 # auto-expire after N candles with no SL/TP hit
+
+signal_runner:
+  max_consecutive_failures: 3 # per-symbol retry budget before thread dies
+
+data:
+  max_candles_per_timeframe:
+    "1m": 6000
+    "5m": 6000
+    "15m": 6000
+    "1h": 3000
+    "4h": 1500
+    "1d": 500

@@ -14,7 +14,7 @@ from app.core.interfaces import INotifier
 class NullNotifier(INotifier):
     """No-op notifier. All methods silently do nothing."""
 
-    def send_message(self, message: str) -> None:
+    def send_message(self, message: str, *, topic_id: int | None = None) -> None:
         pass
 
     def on_entry(

@@ -50,8 +50,8 @@ class NotificationService(INotifier):
     # INotifier delegation — all calls go through the worker queue
     # ------------------------------------------------------------------
 
-    def send_message(self, message: str) -> None:
-        self._worker.enqueue("send_message", message)
+    def send_message(self, message: str, *, topic_id: int | None = None) -> None:
+        self._worker.enqueue("send_message", message, topic_id=topic_id)
 
     def on_entry(
         self,

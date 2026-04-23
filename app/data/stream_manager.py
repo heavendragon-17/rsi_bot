@@ -5,10 +5,14 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections.abc import Callable
+from typing import Literal
 
 import ccxt
 import structlog
 import websocket
+
+from app.core.events import Candle
 
 from .normalizer import DataNormalizer
 
@@ -18,47 +22,92 @@ STREAM_URL = "wss://fstream.binance.com/stream?streams="
 
 
 class BinanceStreamManager:
-    """
-    Binance Futures (USDT-M) Stream Manager
+    """Binance USDT-M futures WebSocket stream manager.
 
-    - Streams kline from: fstream.binance.com
-    - Fetches initial history using: ccxt.binanceusdm()
-    - Normalizes everything using DataNormalizer:
-        * WS kline -> MarketEvent(Candle)
-        * CCXT OHLCV -> Candle
-    - Stores Candle into `store.update_candle(candle)`
+    Supports two mutually-exclusive modes:
+
+    * **Legacy (single-TF, live bot):**
+      ``BinanceStreamManager(symbols, timeframe, store, ...)`` routes every
+      WS candle to ``store.update_candle(candle)`` and fires
+      ``on_kline_close`` / ``on_tick`` callbacks. History is fetched once
+      per symbol; the callbacks do NOT fire for historical candles.
+
+    * **Multi-TF (signal bot):**
+      ``BinanceStreamManager(targets={(pair, tf), ...}, multiplexer=mux)``
+      routes each candle to ``multiplexer.on_kline_event(pair, tf, candle)``.
+      History is fetched per ``(pair, tf)`` and routed into the multiplexer.
     """
 
     def __init__(
         self,
-        symbols: list[str],
-        timeframe: str,
-        store,
+        symbols: list[str] | None = None,
+        timeframe: str | None = None,
+        store=None,
+        *,
+        targets: set[tuple[str, str]] | None = None,
+        multiplexer=None,
         history_limit: int = 300,
         enable_history: bool = True,
     ):
-        self.raw_symbols = symbols
-        self.timeframe = timeframe
-        self.store = store
+        legacy_given = symbols is not None and timeframe is not None and store is not None
+        multi_given = targets is not None and multiplexer is not None
+        if legacy_given and multi_given:
+            raise ValueError(
+                "BinanceStreamManager: pass either (symbols, timeframe, store) "
+                "or (targets, multiplexer), not both."
+            )
+        if not legacy_given and not multi_given:
+            raise ValueError(
+                "BinanceStreamManager: must pass either (symbols, timeframe, store) "
+                "or (targets, multiplexer)."
+            )
+
         self.history_limit = int(history_limit)
         self.enable_history = bool(enable_history)
 
         self.ws: websocket.WebSocketApp | None = None
         self.keep_running = True
 
-        # Optional callbacks — set by LiveEventSource to receive closed candles
-        self.on_kline_close = None  # Callable[[Candle], None]
-        self.on_tick = None  # Callable[[Candle], None]  (every kline update)
+        # Legacy live-bot callbacks. Only populated/used in the legacy path.
+        self.on_kline_close: Callable[[Candle], None] | None = None
+        self.on_tick: Callable[[Candle], None] | None = None
 
-        # Convert input symbols to websocket stream symbols:
-        # "BTC/USDT" -> "btcusdt"
-        # "BTCUSDT"  -> "btcusdt"
-        self.stream_symbols = [self._to_stream_symbol(s) for s in self.raw_symbols]
+        self._mode: Literal["legacy", "multi"]
+        self._by_ws_key: dict[tuple[str, str], str] = {}
 
-        params = "/".join([f"{s}@kline_{self.timeframe}" for s in self.stream_symbols])
+        if legacy_given:
+            # The legacy_given guard above already established these are set;
+            # asserts narrow the types for mypy.
+            assert symbols is not None and timeframe is not None
+            self._mode = "legacy"
+            self._targets: frozenset[tuple[str, str]] = frozenset(
+                (s, timeframe) for s in symbols
+            )
+            self.store = store
+            self.multiplexer = None
+            self.raw_symbols = list(symbols)
+            self.timeframe: str = timeframe
+        else:
+            assert targets is not None and multiplexer is not None
+            self._mode = "multi"
+            self._targets = frozenset(targets)
+            self.store = None
+            self.multiplexer = multiplexer
+            self.raw_symbols = sorted({pair for pair, _ in self._targets})
+            # Reverse map: (BINANCE_WS_SYMBOL_UPPER, interval) -> user-facing
+            # pair. Lets ``on_message`` recover the caller's pair string from
+            # the payload. Binance always sends uppercase ``s``, but we
+            # uppercase for safety.
+            self._by_ws_key = {
+                (self._to_stream_symbol(pair).upper(), tf): pair
+                for pair, tf in self._targets
+            }
+
+        params = "/".join(
+            f"{self._to_stream_symbol(pair)}@kline_{tf}" for pair, tf in self._targets
+        )
         self.url = STREAM_URL + params
 
-        # Futures historical fetch (match fstream)
         self.exchange = ccxt.binanceusdm({"enableRateLimit": True})
 
     # ----------------------------
@@ -103,29 +152,22 @@ class BinanceStreamManager:
         if not self.enable_history:
             return
 
-        logger.info("fetching_history", symbols=self.raw_symbols)
-        try:
-            ccxt.binanceusdm()
-            for symbol in self.raw_symbols:
-                ccxt_symbol = self._to_ccxt_symbol(symbol)
-                try:
-                    ohlcvs = self.exchange.fetch_ohlcv(ccxt_symbol, self.timeframe, limit=self.history_limit)
-
-                    # IMPORTANT:
-                    # DataNormalizer.normalize_ccxt expects symbol like "BTC/USDT" (not with :USDT)
-                    # because it strips quotes to base asset anyway.
-                    # We'll pass the original user symbol so your normalizer remains consistent.
-                    for ohlcv in ohlcvs:
-                        candle = DataNormalizer.normalize_ccxt(symbol, ohlcv)
+        logger.info("fetching_history", pairs=sorted(self._targets))
+        for pair, tf in sorted(self._targets):
+            ccxt_symbol = self._to_ccxt_symbol(pair)
+            try:
+                ohlcvs = self.exchange.fetch_ohlcv(ccxt_symbol, tf, limit=self.history_limit)
+                for ohlcv in ohlcvs:
+                    candle = DataNormalizer.normalize_ccxt(pair, ohlcv, timeframe=tf)
+                    if self._mode == "legacy":
+                        assert self.store is not None
                         self.store.update_candle(candle)
-
-                    logger.info("history_fetched", symbol=symbol, candles=len(ohlcvs))
-
-                except Exception as e:
-                    logger.error("history_fetch_error", symbol=symbol, error=str(e))
-
-        except Exception as e:
-            logger.error("ccxt_init_error", error=str(e))
+                    else:
+                        assert self.multiplexer is not None
+                        self.multiplexer.on_kline_event(pair, tf, candle)
+                logger.info("history_fetched", symbol=pair, timeframe=tf, candles=len(ohlcvs))
+            except Exception as e:
+                logger.error("history_fetch_error", symbol=pair, timeframe=tf, error=str(e))
 
     # ----------------------------
     # websocket callbacks
@@ -140,21 +182,35 @@ class BinanceStreamManager:
         if not data:
             return
 
-        # Normalize WS data -> MarketEvent(Candle)
         try:
             event = DataNormalizer.normalize_binance(data)
         except Exception as e:
             logger.error("normalizer_error", error=str(e))
             return
 
-        # store Candle
-        self.store.update_candle(event.payload)
+        candle = event.payload
 
-        # Fire optional callbacks for LiveEventSource integration
-        if self.on_tick is not None:
-            self.on_tick(event.payload)
-        if event.type.name == "KLINE_CLOSE" and self.on_kline_close is not None:
-            self.on_kline_close(event.payload)
+        if self._mode == "legacy":
+            assert self.store is not None
+            self.store.update_candle(candle)
+            if self.on_tick is not None:
+                self.on_tick(candle)
+            if candle.closed and self.on_kline_close is not None:
+                self.on_kline_close(candle)
+            return
+
+        raw_symbol = data.get("s", "")
+        user_pair = self._by_ws_key.get((raw_symbol, candle.timeframe))
+        if user_pair is None:
+            logger.debug(
+                "stream_untargeted_message",
+                raw_symbol=raw_symbol,
+                interval=candle.timeframe,
+            )
+            return
+
+        assert self.multiplexer is not None
+        self.multiplexer.on_kline_event(user_pair, candle.timeframe, candle)
 
     def on_error(self, ws, error) -> None:
         logger.error("websocket_error", error=str(error))
@@ -163,7 +219,7 @@ class BinanceStreamManager:
         logger.warning("websocket_disconnected", code=close_status_code, msg=close_msg)
 
     def on_open(self, ws) -> None:
-        logger.info("websocket_connected", symbols=self.stream_symbols, timeframe=self.timeframe)
+        logger.info("websocket_connected", targets=sorted(self._targets))
 
     # ----------------------------
     # lifecycle

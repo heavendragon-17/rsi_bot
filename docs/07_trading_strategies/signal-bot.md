@@ -6,6 +6,43 @@
 
 ---
 
+## Implementation Status (v1 shipped)
+
+The v1 runtime is implemented under `app/signal/` and wired into `main.py`
+via `bot.mode: "signal"`. The file-by-file list in §13 is complete; the
+rollout slices in §14 were merged as separate commits.
+
+**v1 deviations from the spec below** — all intentional, locked in by tests:
+
+| Area | Spec | v1 | Reason |
+|------|------|-----|--------|
+| VP store keying | `close(signal_id)` / `update_sl(signal_id)` | `close(strategy_name, symbol)` / `update_sl(strategy_name, symbol, new_sl)` | Callers never hold `signal_id`; they have `(strategy, symbol)`. `signal_id` stays on the VP for formatting. |
+| `VirtualPosition.tp_hits` | `set[int]` | `frozenset[int]` | Frozen dataclass immutability; state transitions produce new VPs via `dataclasses.replace`. |
+| `VirtualPosition.side` | `Literal["LONG","SHORT"]` | plain `str` with the same values | Matches the codebase's `SIDE_BUY`/`SIDE_SELL` convention. |
+| Signal-id prefix | "3–4 chars" | first 4 chars of `strategy_name.replace("_", "").upper()` | Makes `rsi_no_retest`/`rsi_wma_retest`/`rsi_momentum` unambiguous (`RSIN`/`RSIW`/`RSIM`). Explicit `id_prefix` config deferred per §15. |
+| `as_legacy_dict()` | shim for existing strategies | Implemented; mirrors `AppConfig.to_legacy_dict()` for the subset of keys strategies read. | No ctor changes needed in v1 strategies. |
+
+**Known behavioral defaults:**
+
+* Signal-bot messages are plain text (no HTML / parse_mode). The formatter
+  lives in `app/signal/signal_formatter.py`.
+* Worker threads are `daemon=True`; shutdown waits up to
+  `SIGNAL_SHUTDOWN_JOIN_SECONDS = 10` per worker before force-aborting via
+  process exit.
+* `VirtualPositionStore` has a **single-writer-per-strategy** concurrency
+  contract enforced by the thread-per-strategy model (spec §16). No CAS
+  primitive — if that invariant ever breaks, add an `apply(key, fn)` method
+  under the existing lock.
+
+Cross-references for implementation details:
+
+* Config schema: [docs/03_setup_and_installation/configuration.md](../03_setup_and_installation/configuration.md#signal-mode-schema)
+* Multi-TF data flow: [docs/05_data_pipeline/live-data-flow.md](../05_data_pipeline/live-data-flow.md#signal-bot-branch-multi-tf)
+* Telegram topic routing: [docs/08_execution_and_oms/notifications.md](../08_execution_and_oms/notifications.md#telegram-topic-routing-signal-mode)
+* Architecture diagram: [docs/02_architecture/system-overview.md](../02_architecture/system-overview.md#signal-bot-data-flow-simplified)
+
+---
+
 ## 1. Goals & Non-Goals
 
 ### Goals (v1)

@@ -42,6 +42,7 @@ class TelegramBot:
         button_text: str | None = None,
         button_url: str | None = None,
         disable_web_preview: bool = True,
+        message_thread_id: int | None = None,
     ) -> bool:
         """
         Send a Telegram message.
@@ -52,6 +53,8 @@ class TelegramBot:
             button_text: If provided with button_url, adds an inline URL button.
             button_url: Target URL for the inline button.
             disable_web_preview: Avoid URL previews.
+            message_thread_id: Forum-topic id. When set, the message is
+                posted to that thread in the target supergroup.
 
         Returns:
             True if request succeeded (HTTP 200), False otherwise.
@@ -69,6 +72,9 @@ class TelegramBot:
             "disable_web_page_preview": bool(disable_web_preview),
             "parse_mode": "HTML",
         }
+
+        if message_thread_id is not None:
+            payload["message_thread_id"] = str(message_thread_id)
 
         # Add an inline URL button if requested
         if button_text and button_url:
