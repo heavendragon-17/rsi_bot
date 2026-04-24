@@ -171,6 +171,11 @@ RSI_MOMENTUM_METADATA = {
         "description": "RSI WMA slow signal period",
         "ui_group": "indicators", "ui_order": 3,
     },
+    "price_ema_slow": {
+        "title": "Price EMA Slow (Trend)", "minimum": 50, "maximum": 500,
+        "description": "Period of the EMA used by the S6 trend filter",
+        "ui_group": "indicators", "ui_order": 4,
+    },
     # Entry
     "spread_threshold": {
         "title": "Spread Threshold",
@@ -191,8 +196,17 @@ RSI_MOMENTUM_METADATA = {
     },
     "min_candles": {
         "title": "Min Candles (Warmup)",
-        "minimum": 20, "maximum": 200,
+        "minimum": 20, "maximum": 500,
         "ui_group": "entry", "ui_order": 4, "ui_hidden": True,
+    },
+    "ema200_filter": {
+        "title": "EMA200 Trend Filter", "ui_group": "entry", "ui_order": 5,
+        "description": "Only take SHORT entries when close < EMA200",
+    },
+    "max_candles_since_crossover": {
+        "title": "Max Candles Since Crossover", "minimum": 0, "maximum": 20,
+        "description": "Drop the EMA9<WMA45 signal after N candles (0 = no cap)",
+        "ui_group": "entry", "ui_order": 6,
     },
     # Stop Loss
     "sl_lookback": {
@@ -257,11 +271,15 @@ RSI_MOMENTUM_METADATA = {
         "minimum": 0.0, "maximum": 1.0, "ui_step": 0.01, "ui_suffix": "%",
         "ui_group": "management", "ui_order": 4,
     },
+    "stale_exit_candles": {
+        "title": "Stale Trade Exit (candles)", "minimum": 0, "maximum": 100,
+        "description": "Force close after N candles if TP1 has not been hit (0 = disabled)",
+        "ui_group": "management", "ui_order": 5,
+    },
     # Fees — hidden from UI (use server defaults)
     "taker_fee": {"ui_hidden": True},
     "maker_fee": {"ui_hidden": True},
 }
-
 
 # ──────────────────────────────────────────────────────────
 # RSI WMA Retest

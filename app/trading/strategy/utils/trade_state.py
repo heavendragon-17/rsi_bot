@@ -25,6 +25,8 @@ class TradeState:
     moved_sl_to_entry: bool = False
     pending_candle_sl: bool = False
     crossover_detected: bool = False
+    candles_since_crossover: int = 0
+    candles_in_trade: int = 0
     tp_allocations: dict | None = field(default_factory=dict)
 
     def to_meta(self) -> dict[str, Any]:
@@ -40,6 +42,8 @@ class TradeState:
             "moved_sl_to_entry": self.moved_sl_to_entry,
             "pending_candle_sl": self.pending_candle_sl,
             "crossover_detected": self.crossover_detected,
+            "candles_since_crossover": self.candles_since_crossover,
+            "candles_in_trade": self.candles_in_trade,
             "tp_allocations": self.tp_allocations,
         }
 
@@ -59,5 +63,7 @@ class TradeState:
             moved_sl_to_entry=bool(meta.get("moved_sl_to_entry", False)),
             pending_candle_sl=bool(meta.get("pending_candle_sl", False)),
             crossover_detected=bool(meta.get("crossover_detected", False)),
+            candles_since_crossover=int(meta.get("candles_since_crossover", 0) or 0),
+            candles_in_trade=int(meta.get("candles_in_trade", 0) or 0),
             tp_allocations=meta.get("tp_allocations"),
         )

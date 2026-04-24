@@ -6,11 +6,13 @@ Extracted from RsiMomentumStrategy._check_entry() as a module-level function.
 
 Entry conditions (all must hold simultaneously):
   S1: EMA9 crossed below WMA45 on this candle *OR* alignment still holds
-      from a previous crossover candle (flexible persistence).
+      from a previous crossover candle (flexible persistence, capped by
+      ``max_candles_since_crossover``).
   S2: RSI < EMA9
   S3: EMA9 < WMA45
   S4: (WMA45 - EMA9) > spread_threshold  (default 2.5)
   S5: Bearish RSI divergence in last 30 candles
+  S6: Trend filter — ``close < EMA200`` (when ``ema200_filter`` is enabled)
 """
 
 from __future__ import annotations
@@ -73,22 +75,37 @@ def check_entry(
     ts = TradeState.from_meta(context.meta)
     _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
+    def _persist(ts_obj: TradeState) -> AnalysisResult:
+        return AnalysisResult(
+            actions=[DoNothing()],
+            new_context=ContextSnapshot(state=SCANNING, meta=ts_obj.to_meta()),
+        )
+
     # -- S2 + S3: Alignment check
     if not indicators.check_alignment(df_ind, direction="bearish"):
-        # Alignment broken -> reset crossover flag
-        if ts.crossover_detected:
+        # Alignment broken -> reset persistence
+        if ts.crossover_detected or ts.candles_since_crossover:
             ts.crossover_detected = False
-            return AnalysisResult(
-                actions=[DoNothing()],
-                new_context=ContextSnapshot(state=SCANNING, meta=ts.to_meta()),
-            )
+            ts.candles_since_crossover = 0
+            return _persist(ts)
         return _noop
 
-    # -- S1: Crossover or persistent alignment
+    # -- S1: Crossover or persistent alignment (with freshness cap)
     crossover_now = indicators.detect_crossover(df_ind, direction="bearish")
     crossover_before = ts.crossover_detected
 
-    if not crossover_now and not crossover_before:
+    if crossover_now:
+        ts.crossover_detected = True
+        ts.candles_since_crossover = 0
+    elif crossover_before:
+        ts.candles_since_crossover += 1
+        # Signal has gone stale — drop it and scan for a fresh crossover.
+        max_age = int(cfg.max_candles_since_crossover)
+        if max_age > 0 and ts.candles_since_crossover > max_age:
+            ts.crossover_detected = False
+            ts.candles_since_crossover = 0
+            return _persist(ts)
+    else:
         return _noop
 
     # -- S4: Spread constraint
@@ -96,11 +113,27 @@ def check_entry(
     ema = last.get("rsi_ema9")
     wma = last.get("rsi_wma45")
     if ema is None or wma is None or pd.isna(ema) or pd.isna(wma):
-        return _noop
+        return _persist(ts)
 
     spread = float(wma) - float(ema)
     if spread <= cfg.spread_threshold:
-        return _noop
+        return _persist(ts)
+
+    # -- S6: EMA200 trend filter
+    if cfg.ema200_filter:
+        ema200 = last.get("ema200")
+        close_val = last.get("close")
+        if ema200 is None or close_val is None or pd.isna(ema200) or pd.isna(close_val):
+            # Indicator not warmed up yet — skip but keep persistence
+            return _persist(ts)
+        if float(close_val) >= float(ema200):
+            logger.debug(
+                "rsi_momentum.ema200_filter_block",
+                symbol=symbol,
+                close=float(close_val),
+                ema200=float(ema200),
+            )
+            return _persist(ts)
 
     # -- S5: Bearish RSI divergence
     if not indicators.detect_bearish_divergence(
@@ -108,12 +141,7 @@ def check_entry(
         lookback=cfg.divergence_lookback,
         pivot_strength=cfg.pivot_strength,
     ):
-        # Preserve crossover flag so persistence still works
-        ts.crossover_detected = crossover_now or crossover_before
-        return AnalysisResult(
-            actions=[DoNothing()],
-            new_context=ContextSnapshot(state=SCANNING, meta=ts.to_meta()),
-        )
+        return _persist(ts)
 
     # -- All conditions met -- compute SL/TP
     close = to_decimal_or_none(last.get("close"))
@@ -196,6 +224,7 @@ def check_entry(
         lock_profit_price=lock_profit_price,
         move_trigger=move_trigger,
         tp_allocations=tp_allocations,
+        candles_in_trade=0,
     )
     new_ctx = ContextSnapshot(
         state=SCANNING,

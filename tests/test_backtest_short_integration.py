@@ -44,6 +44,17 @@ BASE_CONFIG = {
         "tp1_close_pct": 0.5,
         "tp2_close_pct": 0.5,
     },
+    # Post-review filters are disabled here so this integration test keeps
+    # exercising the original entry path (see tests/test_rsi_momentum.py for
+    # dedicated coverage of EMA200/stale-exit/crossover-freshness behaviour).
+    "strategy_params": {
+        "min_candles": 75,
+        "ema200_filter": False,
+        "max_candles_since_crossover": 0,
+        "stale_exit_candles": 0,
+        "move_sl_rr": 0.5,
+        "lock_profit_rr": 0.2,
+    },
 }
 
 

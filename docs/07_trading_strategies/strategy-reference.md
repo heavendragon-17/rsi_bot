@@ -106,6 +106,7 @@ SHORT-only strategy using RSI momentum crossover with bearish divergence confirm
 | `rsi_period` | 14 | RSI calculation length |
 | `ema_period` | 9 | EMA smoothing of RSI (signal line) |
 | `wma_period` | 45 | WMA smoothing of RSI (trend baseline) |
+| `price_ema_slow` | 200 | Period of the price EMA used by the S6 trend filter |
 
 ### Entry Conditions
 
@@ -114,7 +115,9 @@ SHORT-only strategy using RSI momentum crossover with bearish divergence confirm
 | `spread_threshold` | 2.5 | S4: Minimum (WMA45 − EMA9) RSI-unit spread |
 | `divergence_lookback` | 30 | S5: Candles to search for bearish divergence |
 | `pivot_strength` | 5 | S5: N for swing high detection (11-bar pivot, N bars each side) |
-| `min_candles` | 75 | Warm-up requirement (14 RSI + 45 WMA + 16 buffer) |
+| `min_candles` | 210 | Warm-up requirement (covers EMA200 + 45 WMA + buffer) |
+| `ema200_filter` | True | S6: require `close < EMA200` before shorting (trend filter) |
+| `max_candles_since_crossover` | 3 | Drop the EMA9<WMA45 signal after N candles of no entry (0 disables) |
 
 ### Stop Loss Settings
 
@@ -138,12 +141,20 @@ SHORT-only strategy using RSI momentum crossover with bearish divergence confirm
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `move_sl_rr` | 0.5 | Lock-profit trigger: price drops 0.5R (in our favor for SHORT) |
-| `lock_profit_rr` | 0.2 | Lock-profit SL level: 0.2R above entry (locking profit for SHORT) |
+| `move_sl_rr` | 1.0 | Lock-profit trigger: price drops 1.0R (in our favor for SHORT) |
+| `lock_profit_rr` | 0.5 | Lock-profit SL level: 0.5R below entry (locks profit on SHORT) |
+| `stale_exit_candles` | 8 | Force close after N candles if TP1 has not been hit (0 disables) |
 | `use_active_trades` | True | Whether strategy manages open positions |
 | `candle_close_slippage_pct` | 0.0 | Slippage on candle-close exits |
 | `taker_fee` | 0.0005 | Taker fee rate (market/stop orders) |
 | `maker_fee` | 0.0002 | Maker fee rate (limit orders) |
+
+> **Note (Apr 2026 review):** the `move_sl_rr` / `lock_profit_rr` defaults
+> were loosened from 0.5 / 0.2 to 1.0 / 0.5 after the BE-sweep issue on
+> TRX 2026-02-13 and AXS. See
+> [docs/13_runbooks_and_postmortems/short-strategy-2026-04.md](../13_runbooks_and_postmortems/short-strategy-2026-04.md)
+> for the full post-trade review, including the motivation for the EMA200
+> filter, the crossover freshness cap, and the stale-trade exit.
 
 ---
 
@@ -167,6 +178,7 @@ In priority order (checked each candle):
 1. **Pending candle SL**: If flagged on previous candle → exit at current open
 2. **Lock-profit trigger**: If `low <= entry - move_sl_rr × risk` and SL not yet moved → move SL to `lock_profit_price` (entry − lock_profit_rr × risk)
 3. **Soft SL check**: If `close >= soft_sl_price` → flag `pending_candle_sl`, wait for next candle
+4. **Stale-trade exit**: If `candles_in_trade >= stale_exit_candles` and TP1 has not been hit → emit `ClosePosition(reason=STALE_TRADE)`. Use 0 to disable.
 
 TP fills are handled by `PortfolioManager` via exchange limit orders (not strategy-managed). The hard (disaster) SL is a `stop_market` BUY order on the exchange.
 

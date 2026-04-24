@@ -114,9 +114,25 @@ def _bearish_divergence_df(n: int = 80) -> pd.DataFrame:
 
 
 def _make_strategy(cfg_overrides: dict = None) -> RsiMomentumStrategy:
-    """Create a strategy instance with a minimal config dict."""
+    """Create a strategy instance with a minimal config dict.
+
+    Unless explicitly overridden, existing tests opt out of the post-review
+    filters (EMA200 trend filter, crossover freshness cap, stale-trade
+    exit, stricter warm-up) so their original signal semantics still apply.
+    New tests opt *in* to validate each filter individually.
+    """
+    base_overrides = {
+        "min_candles": 75,
+        "ema200_filter": False,
+        "max_candles_since_crossover": 0,
+        "stale_exit_candles": 0,
+        # Preserve original lock-profit defaults for legacy tests.
+        "move_sl_rr": 0.5,
+        "lock_profit_rr": 0.2,
+    }
+    params = {**base_overrides, **(cfg_overrides or {})}
     config = {
-        "strategy_params": cfg_overrides or {},
+        "strategy_params": params,
         "bot": {"timeframe": "15m"},
         "risk": {"leverage": 1},
         "backtest": {"initial_balance": 10000},

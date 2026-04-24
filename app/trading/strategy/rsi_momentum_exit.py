@@ -13,6 +13,7 @@ import pandas as pd
 
 from app.core.actions import (
     EXIT_CLOSE_BY_CANDLE_SL,
+    EXIT_STALE_TRADE,
     SIDE_SELL,
     ClosePosition,
     DoNothing,
@@ -34,6 +35,7 @@ def manage_exit(
     *,
     move_sl_rr: float,
     lock_profit_rr: float,
+    stale_exit_candles: int = 0,
     taker_fee: Decimal,
     maker_fee: Decimal,
 ) -> AnalysisResult:
@@ -53,12 +55,15 @@ def manage_exit(
         R:R trigger to move SL to lock-profit level.
     lock_profit_rr : float
         R:R level for the locked-profit SL.
+    stale_exit_candles : int
+        Max candles to hold without hitting TP1. 0 disables the rule.
     taker_fee : Decimal
         Taker fee rate.
     maker_fee : Decimal
         Maker fee rate.
     """
     ts = TradeState.from_meta(context.meta)
+    ts.candles_in_trade += 1
 
     entry_price = to_decimal_or_none(ts.entry_price)
     if entry_price is None:
@@ -84,6 +89,13 @@ def manage_exit(
             taker_fee=taker_fee,
         )
 
+    def _ctx(sl_override: Decimal | None = None) -> ContextSnapshot:
+        return ContextSnapshot(
+            state=context.state,
+            soft_sl_price=sl_override if sl_override is not None else soft_sl,
+            meta=ts.to_meta(),
+        )
+
     # -- STEP 0: pending candle SL -- close at this candle's open
     if pending_candle_sl and open_price is not None:
         return AnalysisResult(
@@ -104,15 +116,9 @@ def manage_exit(
                 exit_fee=maker_fee,
             )
         if move_trigger is not None and low <= move_trigger and lock_profit_price is not None:
-            new_ts = TradeState.from_meta(context.meta)
-            new_ts.moved_sl_to_entry = True
-            new_ts.sl_price = lock_profit_price
-            new_ts.soft_sl_price = lock_profit_price
-            new_ctx = ContextSnapshot(
-                state=context.state,
-                soft_sl_price=lock_profit_price,
-                meta=new_ts.to_meta(),
-            )
+            ts.moved_sl_to_entry = True
+            ts.sl_price = lock_profit_price
+            ts.soft_sl_price = lock_profit_price
             return AnalysisResult(
                 actions=[
                     MoveSL(
@@ -121,14 +127,29 @@ def manage_exit(
                         reason=f"MOVE_SL_LOCK_PROFIT (low={low} <= {move_trigger} = -{move_sl_rr}R, new_sl={lock_profit_price} = -{lock_profit_rr}R)",
                     )
                 ],
-                new_context=new_ctx,
+                new_context=_ctx(lock_profit_price),
             )
 
     # -- STEP 2: Candle-close SL -- flag exit for next candle
     if soft_sl is not None and close is not None and close >= soft_sl:
-        new_ts = TradeState.from_meta(context.meta)
-        new_ts.pending_candle_sl = True
-        new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_ts.to_meta())
-        return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
+        ts.pending_candle_sl = True
+        return AnalysisResult(actions=[DoNothing()], new_context=_ctx())
 
-    return AnalysisResult(actions=[DoNothing()], new_context=context)
+    # -- STEP 3: Stale-trade exit -- bail out if TP1 never materialised
+    if stale_exit_candles and ts.candles_in_trade >= int(stale_exit_candles):
+        # If we are already in profit (SL parked at lock-profit level), close at
+        # market to capture whatever PnL is there; otherwise close at market as
+        # a BE cut — the price is still above entry but the thesis is stale.
+        exit_price = close if close is not None else None
+        return AnalysisResult(
+            actions=[
+                ClosePosition(
+                    symbol=symbol,
+                    reason=EXIT_STALE_TRADE,
+                    price=exit_price,
+                )
+            ],
+            new_context=ContextSnapshot(state=SCANNING),
+        )
+
+    return AnalysisResult(actions=[DoNothing()], new_context=_ctx())

@@ -38,6 +38,7 @@ EXIT_TP2 = "TP2"
 EXIT_TP3 = "TP3"
 EXIT_MANUAL = "MANUAL"
 EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"
+EXIT_STALE_TRADE = "STALE_TRADE"
 
 # ── Default fee rates (Binance futures) ────────────────────────────
 # Canonical values in app.core.constants; re-exported here for compatibility.

@@ -4,16 +4,20 @@ RsiMomentumStrategy — SHORT entries only.
 
 Entry conditions (all must hold simultaneously):
   S1: EMA9 crossed below WMA45 on this candle *OR* alignment still holds
-      from a previous crossover candle (flexible persistence).
+      from a previous crossover candle (flexible persistence, capped by
+      ``max_candles_since_crossover``).
   S2: RSI < EMA9
   S3: EMA9 < WMA45
   S4: (WMA45 - EMA9) > spread_threshold  (default 2.5)
   S5: Bearish RSI divergence in last 30 candles
+  S6: Trend filter — ``close < EMA200`` (disable with ``ema200_filter=False``)
 
 Exit system:
   - Dual SL: soft SL at 30-candle highest high, disaster SL at 3x distance
   - Multi-TP: configurable R:R ratios (default TP1 1R, TP2 2R, TP3 3R)
-  - Lock-profit: move SL to +0.2R after price drops 0.5R (inverted for shorts)
+  - Lock-profit: move SL to +0.5R after price drops 1.0R (inverted for shorts)
+  - Stale-trade exit: force close after ``stale_exit_candles`` candles if TP1
+    has not been hit (BE close if already in profit, market close otherwise).
 
 Config lives in the RsiMomentumConfig dataclass in this file (NOT config.yaml).
 
@@ -60,12 +64,15 @@ class RsiMomentumConfig(SchemaConfigMixin):
     rsi_period: int = 14
     ema_period: int = 9
     wma_period: int = 45
+    price_ema_slow: int = 200  # S6: EMA200 trend filter period
 
     # Entry conditions
     spread_threshold: float = 2.5  # S4: min (WMA45 - EMA9) distance
     divergence_lookback: int = 30  # S5: candles to search for divergence
     pivot_strength: int = 5  # S5: N for 11-bar pivot (N on each side)
-    min_candles: int = 75  # Warm-up: 14 RSI + 45 WMA + 16 buffer
+    min_candles: int = 210  # Warm-up: EMA200 + 45 WMA + buffer
+    ema200_filter: bool = True  # S6: require close < EMA200 before shorting
+    max_candles_since_crossover: int = 3  # S1: cap how long a crossover stays valid
 
     # Exit: SL
     sl_lookback: int = 30  # Highest high lookback for soft SL
@@ -81,8 +88,16 @@ class RsiMomentumConfig(SchemaConfigMixin):
     # TP3 closes all remaining
 
     # Exit: Lock profit
-    move_sl_rr: float = 0.5  # Trigger: move SL when price drops 0.5R (short)
-    lock_profit_rr: float = 0.2  # New SL level: 0.2R below entry (lock profit)
+    # Defaults loosened (from 0.5/0.2) after post-trade review: lock kicks in
+    # only once -1R is reached and parks SL at -0.5R, to avoid BE sweeps.
+    move_sl_rr: float = 1.0  # Trigger: move SL when price drops 1.0R (short)
+    lock_profit_rr: float = 0.5  # New SL level: 0.5R below entry (lock profit)
+
+    # Exit: Stale trade
+    # Force exit if TP1 has not been hit after N candles. BE close when
+    # already in profit (avoids donating it back), market close otherwise.
+    # Set to 0 to disable.
+    stale_exit_candles: int = 8
 
     # Fees
     taker_fee: float = DEFAULT_TAKER_FEE
@@ -113,11 +128,32 @@ class RsiMomentumStrategy(BaseStrategy):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.cfg = merge_config(RsiMomentumConfig, config) if config else RsiMomentumConfig()
+
+        # Accept either an AppConfig object or a raw dict. Extract strategy
+        # overrides from the conventional strategy_params nested dict; fall
+        # back to top-level fields for backwards compatibility.
+        from app.core.config import AppConfig
+
+        if isinstance(config, AppConfig):
+            overrides = dict(getattr(config, "strategy_params", {}) or {})
+        elif isinstance(config, dict):
+            overrides = dict(config.get("strategy_params") or {})
+            # Top-level keys that happen to match a config field are honoured
+            # too (used by some call sites that pass a flat dict).
+            top_level_names = {f.name for f in dc_fields(RsiMomentumConfig)}
+            for k, v in config.items():
+                if k in top_level_names and k not in overrides:
+                    overrides[k] = v
+        else:
+            overrides = {}
+
+        self.cfg = merge_config(RsiMomentumConfig, overrides) if overrides else RsiMomentumConfig()
         self.indicators = Indicators(
             rsi_period=self.cfg.rsi_period,
             rsi_ema_period=self.cfg.ema_period,
             rsi_wma_period=self.cfg.wma_period,
+            price_ema_slow=self.cfg.price_ema_slow,
+            include_price_emas=True,
         )
         self.taker_fee = Decimal(str(self.cfg.taker_fee))
         self.maker_fee = Decimal(str(self.cfg.maker_fee))
@@ -156,6 +192,7 @@ class RsiMomentumStrategy(BaseStrategy):
                 context,
                 move_sl_rr=self.cfg.move_sl_rr,
                 lock_profit_rr=self.cfg.lock_profit_rr,
+                stale_exit_candles=self.cfg.stale_exit_candles,
                 taker_fee=self.taker_fee,
                 maker_fee=self.maker_fee,
             )

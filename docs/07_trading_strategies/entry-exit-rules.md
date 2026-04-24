@@ -151,22 +151,31 @@ TP hit flags (`tp1_hit`, `tp2_hit`, `tp3_hit`) come from `PositionSnapshot` (Por
 
 ## Entry Logic
 
-All five conditions must hold simultaneously on the current candle:
+All six conditions must hold simultaneously on the current candle:
 
 ```
 S1 (Crossover/Persistence) ──┐
-S2 (RSI < EMA9)              ├── ALL TRUE ──► Compute SL/TP ──► OpenPosition(side="SELL")
-S3 (EMA9 < WMA45)            │
+S2 (RSI < EMA9)              │
+S3 (EMA9 < WMA45)            ├── ALL TRUE ──► Compute SL/TP ──► OpenPosition(side="SELL")
 S4 (WMA45 − EMA9 > 2.5)     │
-S5 (Bearish divergence)  ────┘
+S5 (Bearish divergence)      │
+S6 (close < EMA200)      ────┘
 ```
 
-### S1: Crossover or Signal Persistence
+### S1: Crossover or Signal Persistence (capped)
 
 **Crossover**: EMA9-of-RSI crosses below WMA45-of-RSI on the current candle:
 - `EMA9[prev] >= WMA45[prev]` AND `EMA9[current] < WMA45[current]`
 
-**Persistence**: If a crossover was detected on a prior candle (stored as `crossover_detected=True` in context), the signal persists on subsequent candles as long as S2+S3+S4 alignment holds. This prevents missing entries due to divergence appearing one candle late.
+**Persistence**: If a crossover was detected on a prior candle (stored as
+`crossover_detected=True` in context), the signal persists on subsequent
+candles as long as S2+S3+S4 alignment holds. This prevents missing entries
+due to divergence appearing one candle late.
+
+**Freshness cap**: the persistence counter (`candles_since_crossover`) is
+dropped once it exceeds `max_candles_since_crossover` (default 3). Beyond
+that, a fresh crossover is required — this stops us from entering long
+after the move has already played out. Set to 0 to disable the cap.
 
 If alignment (S2+S3) breaks, `crossover_detected` resets to `False`.
 
@@ -190,6 +199,12 @@ Detection uses pivot swing highs (N=`pivot_strength`, default 5, meaning 11-bar 
 1. Find the two most recent swing highs in price within lookback
 2. Find the two most recent swing highs in RSI within lookback
 3. If `price_high[-1] > price_high[-2]` AND `rsi_high[-1] < rsi_high[-2]` → divergence confirmed
+
+### S6: EMA200 Trend Filter
+
+`close < EMA200` on the current candle. Keeps us from shorting into a
+larger-frame uptrend. EMA200 period is configurable via `price_ema_slow`
+(default 200). Disable by setting `ema200_filter=False`.
 
 ---
 
@@ -257,6 +272,18 @@ If `close >= soft_sl_price` (price went against us — up):
 
 This 2-candle pattern prevents false exits from wick-only touches.
 
+### 4. Stale-Trade Exit
+If `candles_in_trade >= stale_exit_candles` (default 8) and TP1 has not
+been hit:
+- Emit `ClosePosition(reason="STALE_TRADE")` at the current close
+- Reset to SCANNING
+
+The thesis for the short was that price should drop quickly after the
+EMA9<WMA45 crossover + bearish divergence. If it hasn't after N candles,
+the edge has decayed — cut the position (BE when already in profit,
+market close otherwise) rather than wait for a SL. Set
+`stale_exit_candles=0` to disable.
+
 ---
 
 ## rsi_momentum Context Meta Keys
@@ -275,6 +302,8 @@ The strategy stores these in `ContextSnapshot.meta` via the `TradeState` datacla
 | `moved_sl_to_entry` | bool | Whether SL has been moved to lock-profit level |
 | `pending_candle_sl` | bool | Candle SL flagged, exit next candle |
 | `crossover_detected` | bool | Whether a bearish crossover has been detected (signal persistence) |
+| `candles_since_crossover` | int | Candles elapsed since the crossover fired; dropped after `max_candles_since_crossover` |
+| `candles_in_trade` | int | Candles since entry; drives the stale-trade exit |
 | `tp_allocations` | dict | TP allocation fractions, e.g. `{"TP1": 0.5, "TP2": 0.5, "TP3": 1.0}` |
 
 TP hit flags (`tp1_hit`, `tp2_hit`, `tp3_hit`) come from `PositionSnapshot` (PortfolioManager is source of truth), not from context.
