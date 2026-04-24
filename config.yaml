@@ -68,13 +68,13 @@ sim:
 # full spec. Replace group_id / topic_ids with your supergroup's values.
 
 telegram:
-  group_id: -1001234567890 # supergroup with topics enabled
-  debug_topic_id: 99 # receives expiry + failure + warn messages
+  group_id: -1003329642656 # supergroup with topics enabled
+  debug_topic_id: 1006 # receives expiry + failure + warn messages
 
 strategies:
   - name: rsi_no_retest
     active: true
-    telegram_topic_id: 42
+    telegram_topic_id: 1003
   - name: rsi_wma_retest
     active: false
     telegram_topic_id: 43
