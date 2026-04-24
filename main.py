@@ -66,6 +66,7 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     pay the cost of loading the multiplexer / stream manager / VP store.
     """
     from app.signal.runner import SignalRunner
+    from app.trading.status_writer import StatusWriter
 
     try:
         runner = SignalRunner(raw, ns)
@@ -75,9 +76,24 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
         ns.stop()
         sys.exit(1)
 
+    def _vp_positions() -> list[dict]:
+        out: list[dict] = []
+        for strategy_name, vps in runner.vp_store.all_open_by_strategy().items():
+            for vp in vps:
+                out.append({
+                    "symbol": vp.symbol,
+                    "side": vp.side,
+                    "strategy": strategy_name,
+                    "entry_price": float(vp.entry_price),
+                })
+        return out
+
+    status_writer = StatusWriter(_vp_positions)
     try:
+        status_writer.start()
         runner.wait()
     finally:
+        status_writer.stop()
         runner.stop()
 
 
@@ -107,7 +123,26 @@ def _run_live_mode(
         exchange=exchange,
         notification_service=ns,
     )
-    status_writer = StatusWriter(runner)
+
+    def _live_positions() -> list[dict]:
+        out: list[dict] = []
+        for symbol, portfolio in list(runner.portfolios.items()):
+            pos = portfolio.get_position(symbol)
+            if pos is not None:
+                out.append({
+                    "symbol": symbol,
+                    "side": pos.side,
+                    "size": float(pos.amount),
+                    "entry_price": float(pos.entry_price),
+                })
+        return out
+
+    def _sim_snapshot() -> None:
+        state = getattr(runner.exchange, "state", None)
+        if state is not None and hasattr(state, "write_snapshot"):
+            state.write_snapshot()
+
+    status_writer = StatusWriter(_live_positions, snapshot_hook=_sim_snapshot)
 
     ns.send_message(f"🤖 RSI Bot Started\nMode: {bot_mode.upper()}")
     try:

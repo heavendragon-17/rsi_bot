@@ -3,6 +3,12 @@ Background thread that writes bot status to a JSON file on disk.
 
 The deploy listener reads this file to check position state before deploying.
 Writes atomically (temp file + rename) to prevent partial reads.
+
+Decoupled from any concrete runner: callers pass a ``position_provider``
+callable (returns the open-positions list) and an optional
+``snapshot_hook`` (invoked after each write, used by sim mode to persist
+balance state). Both live (``MultiSymbolRunner``) and signal
+(``SignalRunner``) modes share this writer.
 """
 
 from __future__ import annotations
@@ -11,20 +17,21 @@ import json
 import os
 import tempfile
 import threading
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
 
 from app.core.constants import STATUS_FILE_PATH, STATUS_WRITE_INTERVAL
 
-if TYPE_CHECKING:
-    from app.trading.runner import MultiSymbolRunner
-
 logger = structlog.get_logger()
 
 _VERSION_FILE = Path(__file__).resolve().parent.parent.parent / "VERSION"
+
+PositionProvider = Callable[[], list[dict[str, Any]]]
+SnapshotHook = Callable[[], None]
 
 
 def _read_version() -> tuple[str, str]:
@@ -37,22 +44,12 @@ def _read_version() -> tuple[str, str]:
         return "dev", "unknown"
 
 
-def _build_status(runner: MultiSymbolRunner, started_at: datetime) -> dict[str, Any]:
-    """Build the status dict from the runner's current state."""
+def _build_status(
+    open_positions: list[dict[str, Any]], started_at: datetime
+) -> dict[str, Any]:
+    """Build the status dict from the current open-positions snapshot."""
     tag, sha = _read_version()
     now = datetime.now(UTC)
-
-    open_positions: list[dict[str, Any]] = []
-    for symbol, portfolio in list(runner.portfolios.items()):
-        pos = portfolio.get_position(symbol)
-        if pos is not None:
-            open_positions.append({
-                "symbol": symbol,
-                "side": pos.side,
-                "size": float(pos.amount),
-                "entry_price": float(pos.entry_price),
-            })
-
     return {
         "version": tag,
         "commit_sha": sha,
@@ -75,7 +72,6 @@ def _write_atomic(path: str, data: dict[str, Any]) -> None:
             json.dump(data, f, indent=2)
         os.replace(tmp_path, path)
     except OSError:
-        # Clean up temp file on failure
         try:
             os.unlink(tmp_path)
         except OSError:
@@ -86,8 +82,14 @@ def _write_atomic(path: str, data: dict[str, Any]) -> None:
 class StatusWriter:
     """Background daemon thread that periodically writes bot status to disk."""
 
-    def __init__(self, runner: MultiSymbolRunner) -> None:
-        self._runner = runner
+    def __init__(
+        self,
+        position_provider: PositionProvider,
+        *,
+        snapshot_hook: SnapshotHook | None = None,
+    ) -> None:
+        self._position_provider = position_provider
+        self._snapshot_hook = snapshot_hook
         self._started_at = datetime.now(UTC)
         self._stop_event = threading.Event()
         self._thread = threading.Thread(
@@ -105,16 +107,14 @@ class StatusWriter:
     def _loop(self) -> None:
         while not self._stop_event.is_set():
             try:
-                status = _build_status(self._runner, self._started_at)
+                open_positions = self._position_provider()
+                status = _build_status(open_positions, self._started_at)
                 _write_atomic(STATUS_FILE_PATH, status)
             except Exception:
                 logger.exception("status_write_failed")
-            # Sim mode: snapshot balance + session anchor so a deploy doesn't
-            # reset the user's running session P&L.
-            try:
-                state = getattr(self._runner.exchange, "state", None)
-                if state is not None and hasattr(state, "write_snapshot"):
-                    state.write_snapshot()
-            except Exception:
-                logger.exception("sim_state_snapshot_failed")
+            if self._snapshot_hook is not None:
+                try:
+                    self._snapshot_hook()
+                except Exception:
+                    logger.exception("status_snapshot_hook_failed")
             self._stop_event.wait(timeout=STATUS_WRITE_INTERVAL)

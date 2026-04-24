@@ -4,8 +4,7 @@ import json
 import os
 import threading
 from datetime import UTC, datetime
-from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from app.trading.status_writer import (
     StatusWriter,
@@ -53,27 +52,20 @@ class TestWriteAtomic:
 
 
 class TestBuildStatus:
-    def test_builds_status_dict(self, tmp_path):
-        runner = MagicMock()
-        runner.portfolios = {}  # no open positions
+    def test_builds_status_dict(self):
         started = datetime.now(UTC)
         with patch("app.trading.status_writer._VERSION_FILE", "/tmp/nonexistent"):
-            status = _build_status(runner, started)
+            status = _build_status([], started)
         assert "version" in status
         assert status["position_count"] == 0
         assert status["status"] == "running"
         assert status["open_positions"] == []
 
     def test_includes_open_positions(self):
-        pos = MagicMock()
-        pos.side = "BUY"
-        pos.amount = Decimal("1.5")
-        pos.entry_price = Decimal("100")
-        portfolio = MagicMock()
-        portfolio.get_position.return_value = pos
-        runner = MagicMock()
-        runner.portfolios = {"BTC": portfolio}
-        status = _build_status(runner, datetime.now(UTC))
+        positions = [
+            {"symbol": "BTC", "side": "BUY", "size": 1.5, "entry_price": 100.0},
+        ]
+        status = _build_status(positions, datetime.now(UTC))
         assert status["position_count"] == 1
         assert status["open_positions"][0]["symbol"] == "BTC"
         assert status["open_positions"][0]["side"] == "BUY"
@@ -84,31 +76,38 @@ class TestStatusWriter:
         monkeypatch.setattr("app.trading.status_writer.STATUS_FILE_PATH", str(tmp_path / "status.json"))
         monkeypatch.setattr("app.trading.status_writer.STATUS_WRITE_INTERVAL", 0.1)
 
-        runner = MagicMock()
-        runner.portfolios = {}
-        runner.exchange = MagicMock(spec=[])
-
-        writer = StatusWriter(runner)
+        writer = StatusWriter(lambda: [])
         writer.start()
-        # Let one iteration run
         threading.Event().wait(0.2)
         writer.stop()
-        # File should exist after at least one loop iteration
         assert os.path.exists(str(tmp_path / "status.json"))
 
-    def test_loop_snapshot_sim_state(self, tmp_path, monkeypatch):
+    def test_loop_invokes_snapshot_hook(self, tmp_path, monkeypatch):
         monkeypatch.setattr("app.trading.status_writer.STATUS_FILE_PATH", str(tmp_path / "status.json"))
         monkeypatch.setattr("app.trading.status_writer.STATUS_WRITE_INTERVAL", 0.1)
 
-        state = MagicMock()
-        state.write_snapshot = MagicMock()
-        runner = MagicMock()
-        runner.portfolios = {}
-        runner.exchange.state = state
+        hook_calls: list[int] = []
 
-        writer = StatusWriter(runner)
+        def hook() -> None:
+            hook_calls.append(1)
+
+        writer = StatusWriter(lambda: [], snapshot_hook=hook)
         writer.start()
         threading.Event().wait(0.2)
         writer.stop()
-        # Sim state snapshot should have been called
-        assert state.write_snapshot.called
+        assert len(hook_calls) >= 1
+
+    def test_position_provider_populates_status(self, tmp_path, monkeypatch):
+        status_path = tmp_path / "status.json"
+        monkeypatch.setattr("app.trading.status_writer.STATUS_FILE_PATH", str(status_path))
+        monkeypatch.setattr("app.trading.status_writer.STATUS_WRITE_INTERVAL", 0.1)
+
+        positions = [{"symbol": "BTC", "side": "BUY", "size": 1.0, "entry_price": 100.0}]
+        writer = StatusWriter(lambda: positions)
+        writer.start()
+        threading.Event().wait(0.2)
+        writer.stop()
+
+        data = json.loads(status_path.read_text())
+        assert data["position_count"] == 1
+        assert data["open_positions"][0]["symbol"] == "BTC"
