@@ -69,12 +69,25 @@ class TelegramNotifier(INotifier):
         verify = self._verify_chat_id
         ex = self._exchange
         pfx = self._prefix
+
+        def _exchange_cmd(fn):
+            """Wrap an exchange-scoped command so signal mode replies clearly
+            rather than silently doing nothing when no exchange is attached."""
+            def cb(cid):
+                if not verify(cid):
+                    return
+                if ex is None:
+                    send("ℹ️ Not available in signal mode.", chat_id=cid)
+                    return
+                fn(ex, pfx, send, cid)
+            return cb
+
         callbacks = {
-            "/status": lambda cid: handle_status(ex, pfx, send, cid) if verify(cid) and ex else None,
-            "/history": lambda cid: handle_history(ex, pfx, send, cid) if verify(cid) and ex else None,
-            "/report": lambda cid: handle_report(ex, pfx, send, cid) if verify(cid) and ex else None,
-            "/winrate": lambda cid: handle_report(ex, pfx, send, cid) if verify(cid) and ex else None,
-            "/reset": lambda cid: handle_reset(ex, pfx, send, cid) if verify(cid) and ex else None,
+            "/status": _exchange_cmd(handle_status),
+            "/history": _exchange_cmd(handle_history),
+            "/report": _exchange_cmd(handle_report),
+            "/winrate": _exchange_cmd(handle_report),
+            "/reset": _exchange_cmd(handle_reset),
             "/help": lambda cid: handle_help(pfx, send, cid) if verify(cid) else None,
             "/force_deploy": lambda cid: handle_force_deploy(send, cid) if verify(cid) else None,
             "/deploy_status": lambda cid: handle_deploy_status(send, cid) if verify(cid) else None,

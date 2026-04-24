@@ -91,6 +91,19 @@ app/signal/
 - `mode: "signal"` → start `SignalRunner`
 - any other mode → existing `MultiSymbolRunner` (unchanged)
 
+Signal mode also starts `StatusWriter` (so the deploy health check sees the new version), enables Telegram command polling, and posts a start-up / shutdown notice to the debug topic.
+
+### Telegram commands (signal mode)
+
+| Command | Behavior |
+|---|---|
+| `/bot_version` | Deployed tag, SHA, uptime, open VP count |
+| `/force_deploy` | Writes the force-deploy flag file |
+| `/deploy_status` | Reads the deploy state file |
+| `/cancel_deploy` | Cancels a pending (waiting) deploy |
+| `/help` | Lists commands |
+| `/status`, `/history`, `/report`, `/winrate`, `/reset` | Reply "Not available in signal mode" (require a live exchange) |
+
 ### Data flow (signal mode)
 
 ```

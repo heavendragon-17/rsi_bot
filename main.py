@@ -59,6 +59,28 @@ def _build_notifier(bot_mode: str, *, require_telegram: bool) -> NotificationSer
         return NotificationService(NullNotifier(), mode=bot_mode)
 
 
+def _build_signal_startup_message(raw: dict) -> str:
+    """Compose the start-up announcement sent to the debug topic."""
+    strategies = raw.get("strategies") or []
+    active = [s for s in strategies if s.get("active") is True]
+    global_tf = raw.get("timeframe", "?")
+    global_symbols = raw.get("symbols") or []
+
+    lines = [
+        "🤖 Signal Bot Started",
+        f"Mode: SIGNAL",
+        f"Active strategies: {len(active)}",
+    ]
+    for s in active:
+        tf = s.get("timeframe", global_tf)
+        syms = s.get("symbols") or global_symbols
+        lines.append(
+            f"  • {s.get('name')} — topic {s.get('telegram_topic_id')}"
+            f" · {tf} · {len(syms)} symbols"
+        )
+    return "\n".join(lines)
+
+
 def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     """Start and run the SignalRunner lifecycle.
 
@@ -66,6 +88,7 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     pay the cost of loading the multiplexer / stream manager / VP store.
     """
     from app.signal.runner import SignalRunner
+    from app.signal.strategy_config import validate_telegram_config
     from app.trading.status_writer import StatusWriter
 
     try:
@@ -75,6 +98,21 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
         logger.error("signal_config_invalid", error=str(e))
         ns.stop()
         sys.exit(1)
+
+    # Enable Telegram command polling (/bot_version, /force_deploy, ...).
+    # Exchange-scoped commands (/status, /history, ...) reply with a
+    # "not available in signal mode" notice since no exchange is attached.
+    ns.start_command_polling()
+
+    # Re-resolve debug_topic_id; runner.start() already validated so this
+    # cannot raise unless the config is mutated between calls.
+    debug_topic_id = validate_telegram_config(raw)
+    try:
+        ns.send_message(
+            _build_signal_startup_message(raw), topic_id=debug_topic_id
+        )
+    except Exception:
+        logger.exception("signal_startup_broadcast_failed")
 
     def _vp_positions() -> list[dict]:
         out: list[dict] = []
@@ -93,6 +131,10 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
         status_writer.start()
         runner.wait()
     finally:
+        try:
+            ns.send_message("🛑 Signal Bot Stopped", topic_id=debug_topic_id)
+        except Exception:
+            logger.exception("signal_shutdown_broadcast_failed")
         status_writer.stop()
         runner.stop()
 
