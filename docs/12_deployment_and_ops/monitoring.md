@@ -49,7 +49,7 @@ grep "order_placed\|order_filled\|order_cancelled" bot.log
 
 ## Bot Status File
 
-`StatusWriter` (`app/trading/status_writer.py`) writes bot health data to `/tmp/rsi_bot_status.json` on a periodic basis. This file is used by the deploy system to check for open positions before deploying, and is useful for quick health checks:
+`StatusWriter` (`app/trading/status_writer.py`) writes bot health data to `/tmp/rsi_bot_status.json` on a periodic basis. It runs in both live and signal modes; live mode reports real positions from the portfolio, signal mode reports open virtual positions from the VP store. This file is used by the deploy system to check for open positions before deploying (and to confirm the new `version` string during the health check), and is useful for quick health checks:
 
 ```bash
 cat /tmp/rsi_bot_status.json | python3 -m json.tool

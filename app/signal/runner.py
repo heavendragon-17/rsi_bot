@@ -72,6 +72,11 @@ class SignalRunner:
         self._stop_event = threading.Event()
         self._started = False
 
+    @property
+    def vp_store(self) -> VirtualPositionStore:
+        """Expose the VP store so the StatusWriter can snapshot open VPs."""
+        return self._vp_store
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
