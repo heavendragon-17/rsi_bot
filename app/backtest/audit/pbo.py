@@ -1,0 +1,1 @@
+"""Probability of Backtest Overfitting via Combinatorially Symmetric Cross-Validation (Bailey, Borwein, Lopez de Prado, Zhu 2014). Estimates the probability that the parameter set chosen as best-in-sample will rank below median out-of-sample. Reference paper in docs/17_audit/references/."""

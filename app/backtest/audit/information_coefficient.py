@@ -1,0 +1,1 @@
+"""Spearman rank correlation between indicator strength and forward returns at multiple horizons. Decile analysis and rolling IC. Tests whether the indicator carries actual signal vs being window-dressing on entry/exit machinery."""

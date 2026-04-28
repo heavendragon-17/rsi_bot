@@ -1,0 +1,1 @@
+"""Deflated Sharpe Ratio (Bailey and Lopez de Prado 2014). Probability that the true Sharpe exceeds zero, after adjusting for the number of trials evaluated during parameter selection. Reference paper in docs/17_audit/references/."""

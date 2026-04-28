@@ -1,0 +1,1 @@
+"""Pass thresholds for audit tests. IC_MIN_ABS, IC_MAX_PVALUE, DSR_PASS_THRESHOLD, PBO_FAIL_THRESHOLD, etc. Following CLAUDE.md, all numeric thresholds for this module live here, not inline in the test functions."""

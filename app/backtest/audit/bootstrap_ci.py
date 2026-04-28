@@ -1,0 +1,1 @@
+"""Stationary block bootstrap confidence intervals on Sharpe ratio, profit factor, and win rate. Uses the arch library. Tells you whether observed performance is statistically distinguishable from sampling luck."""

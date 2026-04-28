@@ -1,0 +1,1 @@
+"""Builds a per-bar DataFrame pairing indicator values (e.g. RSI) with forward returns at multiple horizons. Used by the Information Coefficient test. Recomputes indicators from raw OHLCV CSV via app/data/indicators.py — does not require new persistence."""
