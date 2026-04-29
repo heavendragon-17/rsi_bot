@@ -1,5 +1,6 @@
 import React from "react";
 import { useBacktestStore } from "../../stores/backtestStore";
+import type { ParamProp } from "../../stores/backtestStore";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { ValidatedInput } from "../ui/ValidatedInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -28,7 +29,7 @@ export const DynamicParamForm: React.FC = () => {
   const properties = schema.properties;
 
   // Group params
-  const groupedParams: Record<string, [string, any][]> = {};
+  const groupedParams: Record<string, [string, ParamProp][]> = {};
 
   for (const [key, prop] of Object.entries(properties)) {
     if (prop.ui_hidden) continue;
@@ -93,7 +94,7 @@ export const DynamicParamForm: React.FC = () => {
 // Individual param input renderer
 const ParamInput: React.FC<{
   name: string;
-  prop: any;
+  prop: ParamProp;
   value: unknown;
   onChange: (value: unknown) => void;
 }> = ({ name, prop, value, onChange }) => {

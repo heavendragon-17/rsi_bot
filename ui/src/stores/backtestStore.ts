@@ -12,7 +12,29 @@ import { mapApiToResults, useResultsStore } from "./resultsStore";
 import { mapApiToBatchResults, useBatchResultsStore } from "./batchResultsStore";
 import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
-import type { StrategyInfo, JSONSchema } from "../types/generated";
+import type { StrategyInfo } from "../types/generated";
+
+// param_schema is dict[str, Any] on the backend; this is the UI-only shape we expect.
+export interface ParamProp {
+  type?: "string" | "number" | "integer" | "boolean";
+  title?: string;
+  default?: unknown;
+  enum?: string[];
+  ui_hidden?: boolean;
+  ui_group?: string;
+  ui_order?: number;
+  ui_suffix?: string;
+}
+
+export interface ParamGroup {
+  title: string;
+  order?: number;
+}
+
+export interface JSONSchema {
+  properties: Record<string, ParamProp>;
+  ui_groups?: Record<string, ParamGroup>;
+}
 
 export interface BacktestState {
   // Navigation State
@@ -168,7 +190,7 @@ export const useBacktestStore = create<BacktestState>()(
         const strat = get().availableStrategies.find(s => s.name === strategy);
         set({
           strategy,
-          currentParamSchema: strat?.param_schema || null,
+          currentParamSchema: (strat?.param_schema as unknown as JSONSchema | undefined) || null,
           params: strat?.default_config ? { ...strat.default_config } : {},
         });
       },
@@ -454,7 +476,8 @@ export const useBacktestStore = create<BacktestState>()(
             min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
             use_risk_based_sizing: state.useRiskBasedSizing,
             use_initial_capital_for_risk: state.useInitialCapitalForRisk,
-            fee_tier: state.enableFees ? state.feeTier : "0",
+            taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
+            maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
             slippage_model: state.slippageModel,
             slippage_pct: state.slippagePct,
             benchmark: state.benchmark,
@@ -530,7 +553,7 @@ export const useBacktestStore = create<BacktestState>()(
             const currentParams = get().params;
             const hasParams = Object.keys(currentParams).length > 0;
             set({
-              currentParamSchema: current.param_schema,
+              currentParamSchema: (current.param_schema as unknown as JSONSchema | undefined) || null,
               // Only set defaults if no params are loaded (e.g., fresh load)
               ...(!hasParams ? { params: { ...current.default_config } } : {}),
             });

@@ -169,6 +169,47 @@
         }
       }
     },
+    "/api/backtest/{run_id}/debug": {
+      "get": {
+        "tags": [
+          "backtest"
+        ],
+        "summary": "Debug Run",
+        "description": "Raw DB state for diagnosing backend vs frontend issues.\n\nReturns what exists in the DB without any transformation.\nIf this endpoint returns complete data but the UI shows nothing,\nthe problem is in the frontend. If data is missing here, it's backend.",
+        "operationId": "debug_run_api_backtest__run_id__debug_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/backtest/{run_id}/progress": {
       "get": {
         "tags": [
@@ -500,6 +541,98 @@
         }
       }
     },
+    "/api/data/benchmark/{symbol}": {
+      "get": {
+        "tags": [
+          "data"
+        ],
+        "summary": "Get Benchmark Curve",
+        "description": "Compute and return a buy-and-hold benchmark curve for a symbol.\n\nUses the locally downloaded OHLCV CSV \u2014 no network call required.\nReturns 200 with an empty curve if the CSV is missing.",
+        "operationId": "get_benchmark_curve_api_data_benchmark__symbol__get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Symbol"
+            }
+          },
+          {
+            "name": "timeframe",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Timeframe"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          },
+          {
+            "name": "initial_capital",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10000.0,
+              "title": "Initial Capital"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/data/download/{job_id}/progress": {
       "get": {
         "tags": [
@@ -718,6 +851,113 @@
         }
       }
     },
+    "/api/settings/concurrency": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Concurrency",
+        "operationId": "get_concurrency_api_settings_concurrency_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConcurrencyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Concurrency",
+        "operationId": "update_concurrency_api_settings_concurrency_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConcurrencyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConcurrencyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/trades/{trade_id}/chart": {
+      "get": {
+        "tags": [
+          "trades"
+        ],
+        "summary": "Get Trade Chart",
+        "operationId": "get_trade_chart_api_trades__trade_id__chart_get",
+        "parameters": [
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Trade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Trade Chart Api Trades  Trade Id  Chart Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -815,10 +1055,15 @@
             "title": "Risk Per Trade Pct",
             "default": "0.02"
           },
-          "fee_tier": {
+          "taker_fee_pct": {
             "type": "string",
-            "title": "Fee Tier",
-            "default": "0.001"
+            "title": "Taker Fee Pct",
+            "default": "0.10"
+          },
+          "maker_fee_pct": {
+            "type": "string",
+            "title": "Maker Fee Pct",
+            "default": "0.10"
           },
           "slippage_model": {
             "type": "string",
@@ -835,6 +1080,17 @@
             "type": "object",
             "title": "Params",
             "default": {}
+          },
+          "benchmark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark"
           },
           "max_workers": {
             "anyOf": [
@@ -857,6 +1113,36 @@
               }
             ],
             "title": "Tick Data Path"
+          },
+          "tp1_close_pct": {
+            "type": "number",
+            "title": "Tp1 Close Pct",
+            "default": 1.0
+          },
+          "tp2_close_pct": {
+            "type": "number",
+            "title": "Tp2 Close Pct",
+            "default": 0.0
+          },
+          "max_position_size_pct": {
+            "type": "number",
+            "title": "Max Position Size Pct",
+            "default": 10.0
+          },
+          "min_sl_distance_pct": {
+            "type": "number",
+            "title": "Min Sl Distance Pct",
+            "default": 0.003
+          },
+          "use_risk_based_sizing": {
+            "type": "boolean",
+            "title": "Use Risk Based Sizing",
+            "default": true
+          },
+          "use_initial_capital_for_risk": {
+            "type": "boolean",
+            "title": "Use Initial Capital For Risk",
+            "default": true
           }
         },
         "type": "object",
@@ -886,6 +1172,34 @@
           "status"
         ],
         "title": "BacktestStartResponse"
+      },
+      "ConcurrencyResponse": {
+        "properties": {
+          "max_workers": {
+            "type": "integer",
+            "title": "Max Workers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_workers"
+        ],
+        "title": "ConcurrencyResponse"
+      },
+      "ConcurrencyUpdate": {
+        "properties": {
+          "max_workers": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Max Workers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_workers"
+        ],
+        "title": "ConcurrencyUpdate"
       },
       "DataStatusResponse": {
         "properties": {
@@ -1395,6 +1709,22 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Monthly Returns"
+          },
+          "dispersion_range": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Dispersion Range"
+          },
+          "benchmark_curve": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Benchmark Curve"
           }
         },
         "type": "object",
@@ -1402,7 +1732,9 @@
           "run_id",
           "equity_curve",
           "drawdown_curve",
-          "monthly_returns"
+          "monthly_returns",
+          "dispersion_range",
+          "benchmark_curve"
         ],
         "title": "TimeseriesResponse"
       },

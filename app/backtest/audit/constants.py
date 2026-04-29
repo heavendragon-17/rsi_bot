@@ -1,1 +1,42 @@
-"""Pass thresholds for audit tests. IC_MIN_ABS, IC_MAX_PVALUE, DSR_PASS_THRESHOLD, PBO_FAIL_THRESHOLD, etc. Following CLAUDE.md, all numeric thresholds for this module live here, not inline in the test functions."""
+"""Numeric thresholds and configuration constants for the Phase 1 audit pipeline.
+
+All constants live here per CLAUDE.md's no-magic-numbers rule. Audit test
+modules import what they need; never hardcode a threshold inside a test.
+"""
+
+from __future__ import annotations
+
+# ── Information Coefficient (information_coefficient.py) ──────────────────────
+IC_MIN_ABS = 0.02
+IC_MAX_PVALUE = 0.01
+IC_HORIZONS = [1, 4, 16, 96]
+IC_ROLLING_WINDOW_MONTHS = 6
+
+# ── Bootstrap CI (bootstrap_ci.py) ────────────────────────────────────────────
+BOOTSTRAP_REPS = 10_000
+BOOTSTRAP_CI_PCT = 95
+BOOTSTRAP_SHARPE_LB_MIN = 0.0
+BOOTSTRAP_PROFIT_FACTOR_LB_MIN = 1.0
+
+# ── Deflated Sharpe Ratio (deflated_sharpe.py) ────────────────────────────────
+DSR_PASS_THRESHOLD = 0.95
+
+# ── Probability of Backtest Overfitting (pbo.py) ──────────────────────────────
+PBO_FAIL_THRESHOLD = 0.20
+PBO_BLOCK_COUNT = 16
+
+# ── Sanity checks (sanity.py) ─────────────────────────────────────────────────
+SANITY_TOP_TRADE_SHARE_MAX = 0.50
+SANITY_TOP_TRADE_COUNT = 5
+SANITY_COST_STRESS_FEE_MULTIPLIER = 2
+SANITY_COST_STRESS_EXTRA_SLIPPAGE_TICKS = 1
+
+# ── Strategy direction flags ──────────────────────────────────────────────────
+# Used by the API route to set `single_direction` when building run_audit()
+# calls. Not consumed by the audit module itself — placed here so the
+# canonical mapping has one home.
+STRATEGY_DIRECTION_FLAG = {
+    "rsi_no_retest": True,
+    "rsi_momentum": True,
+    "rsi_wma_retest": False,
+}

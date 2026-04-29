@@ -19,3 +19,7 @@ python-dateutil
 matplotlib
 ipykernel
 jinja2
+jupyterlab
+matplotlib
+seaborn 
+plotly
