@@ -12,12 +12,14 @@ from __future__ import annotations
 import os
 import traceback
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import (
     backtest_results,
@@ -110,11 +112,24 @@ def health():
     return {"status": "ok"}
 
 
+# ── Static UI bundle ───────────────────────────────────────────────────────
+# When `ui/build/` exists (produced by `npm run build`), serve it at "/" so
+# the whole app — backend + UI — runs from a single Python process. This lets
+# end users launch the backtest UI without installing Node.js. Mounted AFTER
+# all API routers so it never shadows them.
+_UI_BUILD = Path(__file__).resolve().parents[2] / "ui" / "build"
+if _UI_BUILD.is_dir():
+    app.mount("/", StaticFiles(directory=str(_UI_BUILD), html=True), name="ui")
+    logger.info("ui_mounted", path=str(_UI_BUILD))
+
+
 if __name__ == "__main__":
+    # Reload is off when the UI is mounted — the static dir would be watched
+    # too and trigger restart loops on rebuild.
     uvicorn.run(
         "app.api.main:app",
         host=os.getenv("API_HOST", "0.0.0.0"),
         port=int(os.getenv("API_PORT", "8100")),
-        reload=True,
+        reload=not _UI_BUILD.is_dir(),
         log_level="info",
     )

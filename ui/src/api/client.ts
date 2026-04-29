@@ -3,7 +3,11 @@
  * All HTTP calls and SSE connections go through these utilities.
  */
 
-const BASE_URL = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "http://localhost:8100";
+// In production builds the UI is served by FastAPI at the same origin, so an
+// empty BASE_URL (relative URLs) is correct. In dev (`npm run dev`) Vite runs
+// on a different port, so default to the API's dev port.
+const _env = (import.meta as { env?: { VITE_API_URL?: string; PROD?: boolean } }).env ?? {};
+const BASE_URL = _env.VITE_API_URL ?? (_env.PROD ? "" : "http://localhost:8100");
 
 // ---------------------------------------------------------------------------
 // ApiError
