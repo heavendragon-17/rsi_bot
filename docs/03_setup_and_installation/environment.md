@@ -100,19 +100,23 @@ Reads `config.yaml` for mode, symbols, strategy, and risk parameters. Connects t
 
 ### Backtest UI (Full Stack)
 
-Backend (FastAPI):
+**Development** — backend + Vite dev server (hot reload):
 
 ```bash
-python -m uvicorn app.api.main:app --reload --port 8000
+python -m app.api.main                # backend on :8100
+cd ui && npm run dev                  # UI on :3100, talks to :8100
 ```
 
-Frontend (Vite dev server):
+**Production / one-click (no Node.js needed at runtime)**:
 
 ```bash
-cd ui && npm run dev
+cd ui && npm install && npm run build  # one-time, on a machine with Node
+python run_backtest_ui.py              # or run_backtest_ui.{sh,bat}
 ```
 
-The frontend proxies API requests to `http://localhost:8000`.
+`run_backtest_ui.py` starts FastAPI, which serves the prebuilt `ui/build/`
+bundle at the same origin (`http://localhost:8100`) and opens a browser tab.
+Once `ui/build/` exists, end users only need Python — Node is not required.
 
 ### Backtest CLI
 
