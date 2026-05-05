@@ -25,7 +25,13 @@ import structlog
 
 from app.core.actions import DoNothing
 from app.core.analysis_result import AnalysisResult
-from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL, WARMUP
+from app.core.constants import (
+    DEFAULT_MAKER_FEE_DECIMAL,
+    DEFAULT_TAKER_FEE_DECIMAL,
+    SL_TRIGGER_CANDLE_CLOSE,
+    SL_TRIGGER_MODES,
+    WARMUP,
+)
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.utils import to_decimal_or_none
@@ -62,6 +68,7 @@ class RsiNoRetestConfig(SchemaConfigMixin):
     nr_sl_mode: str = "lowest_close"
     sl_buffer_pct: float = 0.0
     disaster_sl_multiplier: float = 3.0
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE
     candle_close_slippage_pct: float = 0.0
     nr_tp1_rr: float = 1.0
     nr_tp2_rr: float = 2.0
@@ -72,6 +79,8 @@ class RsiNoRetestConfig(SchemaConfigMixin):
     tp3_close_pct: float = 0.0
     nr_move_sl_rr: float = 0.5
     nr_lock_profit_rr: float = 0.2
+    max_holding_enabled: bool = True
+    max_holding_bars: int = 96
     use_active_trades: bool = True
 
 
@@ -95,6 +104,7 @@ class RsiNoRetestStrategy(BaseStrategy):
         "nr_sl_mode": "lowest_close",
         "sl_buffer_pct": 0.0,
         "disaster_sl_multiplier": 3.0,
+        "sl_trigger_mode": SL_TRIGGER_CANDLE_CLOSE,
         "candle_close_slippage_pct": 0,
         "nr_tp1_rr": 1.0,
         "nr_tp2_rr": 2.0,
@@ -105,6 +115,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         "tp3_close_pct": 0,
         "nr_move_sl_rr": 0.5,
         "nr_lock_profit_rr": 0.2,
+        "max_holding_enabled": True,
+        "max_holding_bars": 96,
         "use_active_trades": True,
     }
 
@@ -151,6 +163,12 @@ class RsiNoRetestStrategy(BaseStrategy):
         self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
         self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 2.0))
+        sl_trigger_mode = str(cfg.get("sl_trigger_mode", SL_TRIGGER_CANDLE_CLOSE)).lower()
+        if sl_trigger_mode not in SL_TRIGGER_MODES:
+            raise ValueError(
+                f"sl_trigger_mode must be one of {SL_TRIGGER_MODES}, got {sl_trigger_mode!r}"
+            )
+        self.sl_trigger_mode = sl_trigger_mode
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
 
         self.tp1_rr = Decimal(str(cfg.get("nr_tp1_rr", 1.0)))
@@ -162,6 +180,8 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
         self.lock_profit_rr = Decimal(str(cfg.get("nr_lock_profit_rr", 0.2)))
+        self.max_holding_enabled = bool(cfg.get("max_holding_enabled", True))
+        self.max_holding_bars = int(cfg.get("max_holding_bars", 96) or 0)
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
         self.debug_enabled = bool(bot_cfg.get("debug", False))
@@ -234,6 +254,10 @@ class RsiNoRetestStrategy(BaseStrategy):
                 lock_profit_rr=self.lock_profit_rr,
                 taker_fee=self.taker_fee,
                 maker_fee=self.maker_fee,
+                sl_trigger_mode=self.sl_trigger_mode,
+                max_holding_bars=(
+                    self.max_holding_bars if self.max_holding_enabled else 0
+                ),
             )
 
         # ---- ENTRY (no open position) ----
@@ -254,6 +278,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             sl_mode=self.sl_mode,
             sl_buffer_pct=self.sl_buffer_pct,
             disaster_sl_multiplier=self.disaster_sl_multiplier,
+            sl_trigger_mode=self.sl_trigger_mode,
             tp1_rr=self.tp1_rr,
             tp2_rr=self.tp2_rr,
             tp3_rr=self.tp3_rr,

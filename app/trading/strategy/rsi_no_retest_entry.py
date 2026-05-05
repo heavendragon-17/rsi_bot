@@ -18,6 +18,7 @@ import structlog
 
 from app.core.actions import DoNothing, OpenPosition
 from app.core.analysis_result import AnalysisResult
+from app.core.constants import SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH
 from app.core.context import CONFIRMING, SCANNING
 from app.core.snapshots import ContextSnapshot
 from app.core.utils import to_decimal_or_none
@@ -185,6 +186,7 @@ def check_entry(
     sl_mode: str,
     sl_buffer_pct: float,
     disaster_sl_multiplier: float,
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE,
     tp1_rr: Decimal,
     tp2_rr: Decimal,
     tp3_rr: Decimal,
@@ -308,12 +310,16 @@ def check_entry(
         soft_sl_price = sl_price
         disaster_sl_price = None
         if soft_sl_price is not None:
-            soft_sl_distance = entry_price - soft_sl_price
-            disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(disaster_sl_multiplier)))
-            # Floor at 1% of entry — a stop loss price must never be zero or negative
-            min_sl = entry_price * Decimal("0.01")
-            if disaster_sl_price < min_sl:
-                disaster_sl_price = min_sl
+            if sl_trigger_mode == SL_TRIGGER_TOUCH:
+                # Exchange stop sits at the soft-SL level and fires on touch.
+                disaster_sl_price = soft_sl_price
+            else:
+                soft_sl_distance = entry_price - soft_sl_price
+                disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(disaster_sl_multiplier)))
+                # Floor at 1% of entry — a stop loss price must never be zero or negative
+                min_sl = entry_price * Decimal("0.01")
+                if disaster_sl_price < min_sl:
+                    disaster_sl_price = min_sl
 
         lock_profit_price = compute_price_at_rr(
             entry_price,

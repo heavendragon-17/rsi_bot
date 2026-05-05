@@ -84,12 +84,19 @@ RSI_NO_RETEST_METADATA = {
     "disaster_sl_multiplier": {
         "title": "Disaster SL Multiplier",
         "minimum": 1.0, "maximum": 10.0, "ui_step": 0.5, "ui_suffix": "x",
+        "description": "Hard exchange-stop distance vs. soft SL. Ignored when SL Trigger Mode is 'touch'.",
         "ui_group": "exit_sl", "ui_order": 3,
+    },
+    "sl_trigger_mode": {
+        "title": "SL Trigger Mode",
+        "enum": ["candle_close", "touch"],
+        "description": "candle_close: wait for candle close through soft SL. touch: exchange stop at soft SL fires on touch.",
+        "ui_group": "exit_sl", "ui_order": 4,
     },
     "candle_close_slippage_pct": {
         "title": "Candle Close Slippage",
         "minimum": 0.0, "maximum": 1.0, "ui_step": 0.01, "ui_suffix": "%",
-        "ui_group": "exit_sl", "ui_order": 4,
+        "ui_group": "exit_sl", "ui_order": 5,
     },
     # Take Profit
     "nr_tp1_rr": {
@@ -138,10 +145,21 @@ RSI_NO_RETEST_METADATA = {
         "minimum": 0.0, "maximum": 5.0, "ui_step": 0.1, "ui_suffix": "R",
         "ui_group": "management", "ui_order": 2,
     },
+    "max_holding_enabled": {
+        "title": "Max Holding Enabled",
+        "description": "Force-close stale positions after Max Holding Bars candles.",
+        "ui_group": "management", "ui_order": 3,
+    },
+    "max_holding_bars": {
+        "title": "Max Holding Bars",
+        "minimum": 1, "maximum": 1000, "ui_step": 1,
+        "description": "Number of candles after which a stale position is force-closed (when enabled).",
+        "ui_group": "management", "ui_order": 4,
+    },
     "use_active_trades": {
         "title": "Use Active Trades",
         "description": "Track concurrent open positions",
-        "ui_group": "management", "ui_order": 3,
+        "ui_group": "management", "ui_order": 5,
     },
 }
 
@@ -204,7 +222,14 @@ RSI_MOMENTUM_METADATA = {
     "disaster_sl_multiplier": {
         "title": "Disaster SL Multiplier",
         "minimum": 1.0, "maximum": 10.0, "ui_step": 0.5, "ui_suffix": "x",
+        "description": "Hard exchange-stop distance vs. soft SL. Ignored when SL Trigger Mode is 'touch'.",
         "ui_group": "exit_sl", "ui_order": 2,
+    },
+    "sl_trigger_mode": {
+        "title": "SL Trigger Mode",
+        "enum": ["candle_close", "touch"],
+        "description": "candle_close: wait for candle close through soft SL. touch: exchange stop at soft SL fires on touch.",
+        "ui_group": "exit_sl", "ui_order": 3,
     },
     # Take Profit
     "tp1_rr": {
@@ -248,14 +273,25 @@ RSI_MOMENTUM_METADATA = {
         "minimum": 0.0, "maximum": 5.0, "ui_step": 0.1, "ui_suffix": "R",
         "ui_group": "management", "ui_order": 2,
     },
+    "max_holding_enabled": {
+        "title": "Max Holding Enabled",
+        "description": "Force-close stale positions after Max Holding Bars candles.",
+        "ui_group": "management", "ui_order": 3,
+    },
+    "max_holding_bars": {
+        "title": "Max Holding Bars",
+        "minimum": 1, "maximum": 1000, "ui_step": 1,
+        "description": "Number of candles after which a stale position is force-closed (when enabled).",
+        "ui_group": "management", "ui_order": 4,
+    },
     "use_active_trades": {
         "title": "Use Active Trades",
-        "ui_group": "management", "ui_order": 3,
+        "ui_group": "management", "ui_order": 5,
     },
     "candle_close_slippage_pct": {
         "title": "Candle Close Slippage",
         "minimum": 0.0, "maximum": 1.0, "ui_step": 0.01, "ui_suffix": "%",
-        "ui_group": "management", "ui_order": 4,
+        "ui_group": "management", "ui_order": 6,
     },
     # Fees — hidden from UI (use server defaults)
     "taker_fee": {"ui_hidden": True},
@@ -366,12 +402,19 @@ RSI_WMA_RETEST_METADATA = {
     "disaster_sl_multiplier": {
         "title": "Disaster SL Multiplier",
         "minimum": 1.0, "maximum": 10.0, "ui_step": 0.5, "ui_suffix": "x",
+        "description": "Hard exchange-stop distance vs. soft SL. Ignored when SL Trigger Mode is 'touch'.",
         "ui_group": "exit_sl", "ui_order": 2,
+    },
+    "sl_trigger_mode": {
+        "title": "SL Trigger Mode",
+        "enum": ["candle_close", "touch"],
+        "description": "candle_close: wait for candle close through soft SL. touch: exchange stop at soft SL fires on touch.",
+        "ui_group": "exit_sl", "ui_order": 3,
     },
     "candle_close_slippage_pct": {
         "title": "Candle Close Slippage",
         "minimum": 0.0, "maximum": 1.0, "ui_step": 0.001, "ui_suffix": "%",
-        "ui_group": "exit_sl", "ui_order": 3,
+        "ui_group": "exit_sl", "ui_order": 4,
     },
     # Management
     "use_active_trades": {

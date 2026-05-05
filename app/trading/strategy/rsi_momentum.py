@@ -32,7 +32,12 @@ import structlog
 
 from app.core.actions import DoNothing
 from app.core.analysis_result import AnalysisResult
-from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
+from app.core.constants import (
+    DEFAULT_MAKER_FEE,
+    DEFAULT_TAKER_FEE,
+    SL_TRIGGER_CANDLE_CLOSE,
+    SL_TRIGGER_MODES,
+)
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators
@@ -70,6 +75,7 @@ class RsiMomentumConfig(SchemaConfigMixin):
     # Exit: SL
     sl_lookback: int = 30  # Highest high lookback for soft SL
     disaster_sl_multiplier: float = 3.0  # Hard SL = entry + 3x soft_sl_distance
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE  # "candle_close" | "touch"
 
     # Exit: TP
     tp1_rr: float = 1.0
@@ -83,6 +89,10 @@ class RsiMomentumConfig(SchemaConfigMixin):
     # Exit: Lock profit
     move_sl_rr: float = 0.5  # Trigger: move SL when price drops 0.5R (short)
     lock_profit_rr: float = 0.2  # New SL level: 0.2R below entry (lock profit)
+
+    # Exit: max holding period (force-close stale positions).
+    max_holding_enabled: bool = True
+    max_holding_bars: int = 96  # 96 candles = 24h on 15m
 
     # Fees
     taker_fee: float = DEFAULT_TAKER_FEE
@@ -114,6 +124,11 @@ class RsiMomentumStrategy(BaseStrategy):
     def __init__(self, config: dict):
         super().__init__(config)
         self.cfg = merge_config(RsiMomentumConfig, config) if config else RsiMomentumConfig()
+        if self.cfg.sl_trigger_mode not in SL_TRIGGER_MODES:
+            raise ValueError(
+                f"sl_trigger_mode must be one of {SL_TRIGGER_MODES}, "
+                f"got {self.cfg.sl_trigger_mode!r}"
+            )
         self.indicators = Indicators(
             rsi_period=self.cfg.rsi_period,
             rsi_ema_period=self.cfg.ema_period,
@@ -158,6 +173,10 @@ class RsiMomentumStrategy(BaseStrategy):
                 lock_profit_rr=self.cfg.lock_profit_rr,
                 taker_fee=self.taker_fee,
                 maker_fee=self.maker_fee,
+                sl_trigger_mode=self.cfg.sl_trigger_mode,
+                max_holding_bars=(
+                    self.cfg.max_holding_bars if self.cfg.max_holding_enabled else 0
+                ),
             )
 
         # -- ENTRY logic (no position)

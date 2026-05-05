@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from dataclasses import fields as dc_fields
 from decimal import Decimal
 
-from app.core.constants import WARMUP
+from app.core.constants import (
+    SL_TRIGGER_CANDLE_CLOSE,
+    SL_TRIGGER_MODES,
+    SL_TRIGGER_TOUCH,
+    WARMUP,
+)
 from app.core.context import CONFIRMING, RETESTING, SCANNING
 from app.core.events import SignalEvent
 from app.data.indicators import Indicators
@@ -47,6 +52,7 @@ class RsiWmaRetestConfig(SchemaConfigMixin):
     # SL settings
     sl_buffer_pct: float = 0.003
     disaster_sl_multiplier: float = 3.0
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE
     candle_close_slippage_pct: float = 0.001
     # Trade management
     use_active_trades: bool = True
@@ -102,6 +108,16 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         # Disaster SL multiplier (3x means disaster SL is 3x further than soft SL)
         self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 3.0))
+
+        # SL trigger mode: "candle_close" (default) waits for candle close to
+        # confirm the SL hit. "touch" places the exchange stop at the soft-SL
+        # level and lets the exchange fire it on touch.
+        sl_trigger_mode = str(cfg.get("sl_trigger_mode", SL_TRIGGER_CANDLE_CLOSE)).lower()
+        if sl_trigger_mode not in SL_TRIGGER_MODES:
+            raise ValueError(
+                f"sl_trigger_mode must be one of {SL_TRIGGER_MODES}, got {sl_trigger_mode!r}"
+            )
+        self.sl_trigger_mode = sl_trigger_mode
 
         # Slippage for candle close exits
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
@@ -165,8 +181,13 @@ class RsiWmaRetestStrategy(BaseStrategy):
             meta = self._get_trade_meta(symbol)
 
             # Close by Candle SL: check FIRST, before TP ladder.
+            # Skipped in "touch" mode: exchange-level stop fires on touch.
             soft_sl = meta.get("soft_sl_price")
-            if soft_sl is not None and close is not None:
+            if (
+                self.sl_trigger_mode != SL_TRIGGER_TOUCH
+                and soft_sl is not None
+                and close is not None
+            ):
                 if close_dec <= soft_sl:
                     # Close the trade immediately
                     self.context.close_trade(symbol)
@@ -320,15 +341,21 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
                 if sl_price_raw is not None:
                     soft_sl_price = sl_price_raw * Decimal(str(1 - self.sl_buffer_pct))
-
-                    # Calculate Disaster SL at multiplier x distance from entry
                     entry_price = Decimal(str(close))
-                    soft_sl_distance = entry_price - soft_sl_price
-                    disaster_sl_price = entry_price - (soft_sl_distance * Decimal(str(self.disaster_sl_multiplier)))
-                    # Floor at 1% of entry — a stop loss price must never be zero or negative
-                    min_sl = entry_price * Decimal("0.01")
-                    if disaster_sl_price < min_sl:
-                        disaster_sl_price = min_sl
+
+                    if self.sl_trigger_mode == SL_TRIGGER_TOUCH:
+                        # Exchange stop sits at the soft-SL level, fires on touch.
+                        disaster_sl_price = soft_sl_price
+                    else:
+                        # Disaster SL at multiplier x distance from entry.
+                        soft_sl_distance = entry_price - soft_sl_price
+                        disaster_sl_price = entry_price - (
+                            soft_sl_distance * Decimal(str(self.disaster_sl_multiplier))
+                        )
+                        # Floor at 1% of entry — a stop loss price must never be zero or negative
+                        min_sl = entry_price * Decimal("0.01")
+                        if disaster_sl_price < min_sl:
+                            disaster_sl_price = min_sl
 
                 # Register trade
                 if self.use_active_trades:

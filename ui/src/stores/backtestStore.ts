@@ -162,8 +162,8 @@ export const useBacktestStore = create<BacktestState>()(
       capital: "10000",
       leverage: "1",
       riskPercent: "1",
-      tp1ClosePct: "1.0",
-      tp2ClosePct: "0.0",
+      tp1ClosePct: "100",
+      tp2ClosePct: "0",
       maxPositionSizePct: "10.0",
       minSlDistancePct: "0.3",
       useRiskBasedSizing: true,
@@ -172,7 +172,7 @@ export const useBacktestStore = create<BacktestState>()(
       takerFeePct: "0.10",
       makerFeePct: "0.06",
       slippageModel: "none" as const,
-      slippagePct: "0.0",
+      slippagePct: "0",
       benchmark: null,
 
       isRunning: false,
@@ -328,16 +328,16 @@ export const useBacktestStore = create<BacktestState>()(
               leverage: parseInt(state.leverage) || 1,
               risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
               params: state.params,
-              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+              tp1_close_pct: (parseFloat(state.tp1ClosePct) || 100) / 100,
+              tp2_close_pct: (parseFloat(state.tp2ClosePct) || 0) / 100,
               max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+              min_sl_distance_pct: (parseFloat(state.minSlDistancePct) || 0.3) / 100,
               use_risk_based_sizing: state.useRiskBasedSizing,
               use_initial_capital_for_risk: state.useInitialCapitalForRisk,
               taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
               maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
-              slippage_pct: state.slippagePct,
+              slippage_pct: ((parseFloat(state.slippagePct) || 0) / 100).toString(),
               benchmark: state.benchmark,
             });
 
@@ -401,16 +401,16 @@ export const useBacktestStore = create<BacktestState>()(
               leverage: parseInt(state.leverage) || 1,
               risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
               params: state.params,
-              tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-              tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+              tp1_close_pct: (parseFloat(state.tp1ClosePct) || 100) / 100,
+              tp2_close_pct: (parseFloat(state.tp2ClosePct) || 0) / 100,
               max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-              min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+              min_sl_distance_pct: (parseFloat(state.minSlDistancePct) || 0.3) / 100,
               use_risk_based_sizing: state.useRiskBasedSizing,
               use_initial_capital_for_risk: state.useInitialCapitalForRisk,
               taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
               maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
               slippage_model: state.slippageModel,
-              slippage_pct: state.slippagePct,
+              slippage_pct: ((parseFloat(state.slippagePct) || 0) / 100).toString(),
               benchmark: state.benchmark,
             });
 
@@ -470,16 +470,16 @@ export const useBacktestStore = create<BacktestState>()(
             leverage: parseInt(state.leverage) || 1,
             risk_per_trade_pct: (parseFloat(state.riskPercent) / 100).toFixed(4),
             params: state.params,
-            tp1_close_pct: parseFloat(state.tp1ClosePct) || 1.0,
-            tp2_close_pct: parseFloat(state.tp2ClosePct) || 0.0,
+            tp1_close_pct: (parseFloat(state.tp1ClosePct) || 100) / 100,
+            tp2_close_pct: (parseFloat(state.tp2ClosePct) || 0) / 100,
             max_position_size_pct: parseFloat(state.maxPositionSizePct) || 10.0,
-            min_sl_distance_pct: parseFloat(state.minSlDistancePct) || 0.003,
+            min_sl_distance_pct: (parseFloat(state.minSlDistancePct) || 0.3) / 100,
             use_risk_based_sizing: state.useRiskBasedSizing,
             use_initial_capital_for_risk: state.useInitialCapitalForRisk,
             taker_fee_pct: state.enableFees ? state.takerFeePct : "0",
             maker_fee_pct: state.enableFees ? state.makerFeePct : "0",
             slippage_model: state.slippageModel,
-            slippage_pct: state.slippagePct,
+            slippage_pct: ((parseFloat(state.slippagePct) || 0) / 100).toString(),
             benchmark: state.benchmark,
           });
 
@@ -632,8 +632,8 @@ export const useBacktestStore = create<BacktestState>()(
           capital: "10000",
           leverage: "1",
           riskPercent: "1",
-          tp1ClosePct: "1.0",
-          tp2ClosePct: "0.0",
+          tp1ClosePct: "100",
+          tp2ClosePct: "0",
           maxPositionSizePct: "10.0",
           minSlDistancePct: "0.3",
           useRiskBasedSizing: true,
@@ -642,7 +642,7 @@ export const useBacktestStore = create<BacktestState>()(
           takerFeePct: "0.10",
           makerFeePct: "0.06",
           slippageModel: "none",
-          slippagePct: "0.0",
+          slippagePct: "0",
         });
       },
 
@@ -669,6 +669,30 @@ export const useBacktestStore = create<BacktestState>()(
     }),
     {
       name: "backtest-config-v2",
+      // Bump version when input semantics change so persisted values get migrated.
+      // v1: tp1/tp2/slippage inputs switched from decimal fraction (e.g. "1.0"=100%)
+      //     to human percentage (e.g. "100"=100%). Multiply old values by 100.
+      version: 1,
+      migrate: (persistedState, version) => {
+        const s = persistedState as Record<string, unknown>;
+        if (version < 1) {
+          const scale = (key: string) => {
+            const raw = s[key];
+            if (typeof raw === "string") {
+              const n = parseFloat(raw);
+              if (!isNaN(n)) s[key] = (n * 100).toString();
+            }
+          };
+          scale("tp1ClosePct");
+          scale("tp2ClosePct");
+          scale("slippagePct");
+          // minSlDistancePct: leave as-is. Old buggy semantics treated "0.3" as 30%
+          // (almost always satisfied → no-op); new semantics treat "0.3" as 0.3%,
+          // matching the backend's documented default and likely user intent.
+          // maxPositionSizePct: leave as-is. It's a leverage multiplier, not a percent.
+        }
+        return s;
+      },
       // Only persist configuration — not runtime state
       partialize: (state) => ({
         mode: state.mode,

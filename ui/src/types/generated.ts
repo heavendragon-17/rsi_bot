@@ -1,23 +1,63 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-04-29T15:16:59Z
+ * Generated: 2026-05-02T15:41:31Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
 
-export interface BacktestStartResponse {
-  run_id: number;
-  status: string;
+export interface PresetUpdate {
+  name?: string | null;
+  config?: Record<string, unknown> | null;
 }
 
-export interface PresetResponse {
-  id: number;
+export interface PresetCreate {
   name: string;
   strategy: string;
   config: Record<string, unknown>;
+}
+
+export interface TimeseriesResponse {
+  run_id: number;
+  equity_curve: Record<string, unknown>[];
+  drawdown_curve: Record<string, unknown>[];
+  monthly_returns: Record<string, unknown>;
+  dispersion_range: Record<string, unknown>[];
+  benchmark_curve: Record<string, unknown>[];
+}
+
+export interface DataStatusResponse {
+  symbol: string;
+  timeframe: string;
+  available: boolean;
+  file_path: string | null;
+  candle_count: number | null;
+  date_range: Record<string, string> | null;
+}
+
+export interface StrategyInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  default_config: Record<string, unknown>;
+  param_schema?: Record<string, unknown>;
+}
+
+export interface RunDetail {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
   created_at: string;
-  updated_at: string;
+  config: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  trades: Record<string, unknown>[] | null;
+}
+
+export interface DownloadStartResponse {
+  job_id: string;
+  status: string;
 }
 
 export interface HistoryResponse {
@@ -27,12 +67,39 @@ export interface HistoryResponse {
   pages: number;
 }
 
-export interface StrategyInfo {
+export interface BacktestStartResponse {
+  run_id: number;
+  status: string;
+}
+
+export interface RunSummary {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  start_date: string;
+  end_date: string;
+  initial_capital: string;
+  leverage: number;
+  net_profit: string | null;
+  net_profit_pct: number | null;
+  win_rate: number | null;
+  profit_factor: number | null;
+  max_drawdown_pct: number | null;
+  sharpe_ratio: number | null;
+  total_trades: number | null;
+  tags: string[];
+}
+
+export interface PresetResponse {
   id: number;
   name: string;
-  description: string | null;
-  default_config: Record<string, unknown>;
-  param_schema?: Record<string, unknown>;
+  strategy: string;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BacktestRequest {
@@ -60,71 +127,4 @@ export interface BacktestRequest {
   min_sl_distance_pct?: number;
   use_risk_based_sizing?: boolean;
   use_initial_capital_for_risk?: boolean;
-}
-
-export interface DownloadStartResponse {
-  job_id: string;
-  status: string;
-}
-
-export interface TimeseriesResponse {
-  run_id: number;
-  equity_curve: Record<string, unknown>[];
-  drawdown_curve: Record<string, unknown>[];
-  monthly_returns: Record<string, unknown>;
-  dispersion_range: Record<string, unknown>[];
-  benchmark_curve: Record<string, unknown>[];
-}
-
-export interface DataStatusResponse {
-  symbol: string;
-  timeframe: string;
-  available: boolean;
-  file_path: string | null;
-  candle_count: number | null;
-  date_range: Record<string, string> | null;
-}
-
-export interface RunSummary {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  start_date: string;
-  end_date: string;
-  initial_capital: string;
-  leverage: number;
-  net_profit: string | null;
-  net_profit_pct: number | null;
-  win_rate: number | null;
-  profit_factor: number | null;
-  max_drawdown_pct: number | null;
-  sharpe_ratio: number | null;
-  total_trades: number | null;
-  tags: string[];
-}
-
-export interface PresetCreate {
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-}
-
-export interface PresetUpdate {
-  name?: string | null;
-  config?: Record<string, unknown> | null;
-}
-
-export interface RunDetail {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  config: Record<string, unknown>;
-  results: Record<string, unknown> | null;
-  trades: Record<string, unknown>[] | null;
 }
