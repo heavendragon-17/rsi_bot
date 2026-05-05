@@ -10,8 +10,8 @@ __pycache__/
 *.pyo
 *.egg-info/
 .eggs/
-dist/
-build/
+/dist/
+/build/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -19,7 +19,6 @@ venv/
 
 # Node.js
 /ui/node_modules/
-/ui/build/
 /ui/dist/
 
 # Data
