@@ -112,9 +112,11 @@ Use `scipy.stats.spearmanr`.
 
 Stationary block bootstrap on `trade_log['ret_pct']` for three metrics:
 
-- Sharpe ratio (annualized to per-trade frequency)
-- Profit factor
-- Win rate
+- Sharpe ratio — per-trade `mean / std`, **not annualized**. The CI lower bound > 0 test is invariant to any constant scaling factor, so annualizing would add noise (and a strategy- and timeframe-dependent constant) without statistical content.
+- Profit factor — `sum(positives) / abs(sum(negatives))`; `+inf` if no losers.
+- Win rate — fraction in `[0, 1]` (NOT a percentage).
+
+The three metrics are reimplemented inline in `bootstrap_ci.py` rather than imported from `app/backtest/statistics/compute_core_metrics`. This is intentional: it isolates the audit from any future bug in the shared statistics module, avoids the win-rate fraction-vs-percent unit footgun across modules, and keeps the bootstrap inner loop cheap (no per-call equity-curve allocation). Documented as an intentional duplication in `docs/CODE_DUPLICATIONS.md`.
 
 | Output | Pass criterion |
 |--------|----------------|

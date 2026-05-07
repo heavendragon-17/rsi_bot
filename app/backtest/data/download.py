@@ -17,6 +17,30 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 logger = structlog.get_logger()
 
 
+def _load_markets_with_retry(exchange, max_attempts: int = 3) -> None:
+    """Load markets with exponential backoff on transient network errors.
+
+    Re-raises the last exception unchanged on exhaustion so callers see the
+    original ccxt exception type.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            exchange.load_markets()
+            return
+        except ccxt.NetworkError as e:
+            if attempt >= max_attempts:
+                raise
+            sleep_s = 2 ** attempt  # 2, 4, 8
+            logger.warning(
+                "load_markets_retry",
+                attempt=attempt,
+                max_attempts=max_attempts,
+                sleep_s=sleep_s,
+                error=f"{type(e).__name__}: {e}",
+            )
+            time.sleep(sleep_s)
+
+
 def calculate_candle_limit(
     timeframe: str, days: int = 0, months: int = 0, years: int = 0, default_limit: int = 8832
 ) -> int:
@@ -67,7 +91,7 @@ def download_data(symbol: str, timeframe: str, limit: int, output_dir: str, exch
 
     if exchange is None:
         exchange = ccxt.binanceusdm()
-        exchange.load_markets()  # Sync full symbol list so all valid tickers are recognized
+        _load_markets_with_retry(exchange)  # Sync full symbol list so all valid tickers are recognized
     MAX_PER_REQUEST = 1000
 
     # CCXT binanceusdm requires futures symbol format: "PYTH/USDT:USDT" not "PYTH/USDT"
