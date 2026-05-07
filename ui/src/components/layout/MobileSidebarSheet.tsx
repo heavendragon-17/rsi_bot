@@ -211,13 +211,13 @@ export const MobileSidebarSheet: React.FC = () => {
                     <label className="text-xs font-medium text-text-secondary mb-1.5 block">
                       Timeframe
                     </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {["15m", "1h", "4h", "1d"].map((tf) => (
+                    <div className="grid grid-cols-7 gap-1.5 mb-2">
+                      {["1m", "5m", "15m", "30m", "1h", "4h", "1d"].map((tf) => (
                         <button
                           key={tf}
                           onClick={() => setTimeframe(tf)}
                           className={cn(
-                            "py-2 border rounded-md text-sm font-medium transition-colors min-h-[44px]",
+                            "py-2 border rounded-md text-xs font-medium transition-colors min-h-[40px]",
                             timeframe === tf
                               ? "bg-accent-main/10 border-accent-main text-accent-main"
                               : "border-border-main text-text-secondary hover:border-text-muted"
@@ -227,6 +227,13 @@ export const MobileSidebarSheet: React.FC = () => {
                         </button>
                       ))}
                     </div>
+                    <input
+                      type="text"
+                      value={timeframe}
+                      onChange={(e) => setTimeframe(e.target.value.toLowerCase().trim())}
+                      placeholder="Custom (e.g. 3m, 2h, 12h, 1w)"
+                      className="w-full bg-input/50 border border-border-main rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted font-mono"
+                    />
                   </div>
                 </div>
               </CollapsibleSection>

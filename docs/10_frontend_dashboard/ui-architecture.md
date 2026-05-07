@@ -25,6 +25,10 @@
 - **Sidebar**: Always shows the same shared configuration regardless of mode. In "Portfolio" mode, the symbol selector expands to allow multiple symbol selection.
 - **Main content area**: Mode-specific content and mode-specific config (grid axes, walk-forward windows, portfolio aggregation settings, etc.)
 
+### Timeframe Selector
+
+The Asset Config section exposes a row of preset pills (`1m`, `5m`, `15m`, `30m`, `1h`, `4h`, `1d`) plus a free-form text input that accepts any Binance-compatible timeframe string of the form `\d+[mhdw]` (e.g. `3m`, `2h`, `12h`, `1w`). The same controls are mirrored in `MobileSidebarSheet.tsx`. The store derives bars-per-day from the timeframe string via `barsPerDayFor()` so the relative-date sync and bar estimate work for any value, not just the presets.
+
 ---
 
 ## Zustand Stores

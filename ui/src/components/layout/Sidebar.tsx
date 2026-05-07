@@ -307,13 +307,13 @@ export const Sidebar: React.FC = () => {
                       <label className="text-xs font-medium text-text-secondary mb-1.5 block">
                         Timeframe
                       </label>
-                      <div className="flex gap-2">
-                        {["15m", "1h", "4h", "1d"].map((tf) => (
+                      <div className="grid grid-cols-7 gap-1 mb-1.5">
+                        {["1m", "5m", "15m", "30m", "1h", "4h", "1d"].map((tf) => (
                           <button
                             key={tf}
                             onClick={() => setTimeframe(tf)}
                             className={cn(
-                              "flex-1 py-1.5 border rounded-md text-xs font-medium transition-colors",
+                              "py-1.5 border rounded-md text-[10px] font-medium transition-colors",
                               timeframe === tf
                                 ? "bg-accent-main/10 border-accent-main text-accent-main"
                                 : "border-border-main text-text-secondary hover:border-text-muted"
@@ -323,6 +323,13 @@ export const Sidebar: React.FC = () => {
                           </button>
                         ))}
                       </div>
+                      <input
+                        type="text"
+                        value={timeframe}
+                        onChange={(e) => setTimeframe(e.target.value.toLowerCase().trim())}
+                        placeholder="Custom (e.g. 3m, 2h, 12h, 1w)"
+                        className="w-full bg-input/50 border border-border-main rounded-md px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-main/50 placeholder:text-text-muted font-mono"
+                      />
                     </div>
                   </div>
                 </CollapsibleSection>
