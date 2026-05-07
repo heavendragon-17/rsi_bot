@@ -54,7 +54,7 @@ _SIDE_NORMALIZATION = {
 }
 
 
-def _normalize_side(raw: str) -> str:
+def _normalize_side(raw) -> str | None:
     """Map persisted side string to canonical SIDE_BUY/SIDE_SELL."""
     if raw is None:
         return raw

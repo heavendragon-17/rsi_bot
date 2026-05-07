@@ -40,7 +40,7 @@ export function Launchpad({ onNext, config }: LaunchpadProps) {
   );
   const [exchange] = useState(config.exchange);
 
-  const timeframes = ["15m", "1h", "4h", "1d"];
+  const timeframes = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"];
 
   const recentSearches = ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
 
