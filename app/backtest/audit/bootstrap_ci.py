@@ -1,70 +1,45 @@
-"""Stationary block bootstrap confidence intervals on per-trade metrics.
+"""Stationary block bootstrap confidence intervals on Sharpe, profit factor, and win rate.
 
-Computes CIs for three metrics from `TradeLog.df['ret_pct']`:
+Resamples the trade-return stream with `arch.bootstrap.StationaryBootstrap`,
+sized by the Politis-White `optimal_block_length` (the `stationary`
+column of its DataFrame output). Returns 95% percentile-bound CIs and a
+pass/fail per-metric verdict against the thresholds declared in
+`audit/constants.py`.
 
-    sharpe         per-trade mean / std (NOT annualized)
-    profit_factor  sum(positives) / abs(sum(negatives))
-    win_rate       fraction of trades with ret_pct > 0   (in [0, 1])
+DRY violation, by design
+========================
+The three metric helpers below — `_sharpe`, `_profit_factor`,
+`_win_rate` — are *deliberate* reimplementations of formulas that also
+live inside
+`app.backtest.statistics.metrics_core.compute_core_metrics`. Reasons,
+in priority order:
 
-The block size is chosen automatically by `arch.bootstrap.optimal_block_length`
-(Politis-White, 2009) — we take the column labelled `'stationary'` and floor at
-1. The bootstrap itself is `arch.bootstrap.StationaryBootstrap`, which resamples
-contiguous blocks of geometric length `block_size` (mean), preserving any
-residual autocorrelation in the trade-return series. CIs are the empirical
-percentile bounds of `n_reps` resampled metric values.
+1. **Unit safety.** `compute_core_metrics` reports `win_rate` as a
+   percentage (0–100). The bootstrap input/output for win_rate is a
+   *fraction* in [0, 1]. Routing through the shared helper would mean
+   dividing by 100 every rep — inviting the percent-vs-fraction unit
+   footgun on every future edit.
 
-Pass criteria
--------------
-sharpe         CI lower bound > 0   (positive risk-adjusted edge)
-profit_factor  CI lower bound > 1   (gross winners > gross losers)
-win_rate       report-only          (a strategy can be profitable with <50%)
+2. **Performance.** Each metric function is invoked `n_reps` times
+   (default 10 000) per metric per audit run.
+   `compute_core_metrics` allocates intermediate equity lists and
+   computes statistics this module does not need; that overhead would
+   dominate the inner loop. The inline one-liners stay vectorized and
+   allocation-free.
 
-Overall `passed` requires Sharpe AND profit factor both pass.
+3. **Correctness over reuse.** The shared helper's contract is "give
+   me the canonical run summary" — a different problem from
+   "evaluate this resampled return vector for one statistic." Coupling
+   them would force one to bend to the other.
 
-Why this module deliberately reimplements its three metrics
------------------------------------------------------------
-This is a knowing DRY violation, NOT laziness. `app/backtest/statistics/`
-already has `compute_core_metrics` which computes the same names. We do not
-call it here, and the three private helpers below (`_sharpe`,
-`_profit_factor`, `_win_rate`) are the canonical implementations for the
-audit pipeline. Three reasons:
-
-1. Unit footgun. `compute_core_metrics`'s `win_rate` is a percentage in
-   [0, 100]; the audit's pass-criteria thresholds are written in fraction
-   space ([0, 1]). Sharing the function would force every caller to
-   remember which space the value lives in. A 1-line `_win_rate` that
-   *only* speaks fractions is safer than a shared helper that speaks both.
-
-2. Hot loop allocation. `arch.bootstrap.StationaryBootstrap.apply` calls
-   the metric callable `n_reps` times (default 10,000) per metric — 30k
-   calls for the three metrics. `compute_core_metrics` builds an equity
-   curve list internally, which is dead work when all we need from the
-   resampled vector is mean/std (Sharpe), pos-sum/neg-sum (PF), or a
-   boolean mean (win rate). Inline numpy ops keep the inner loop cheap.
-
-3. Independence. The audit is a *check on* the rest of the system. If a
-   subtle bug ever slips into `compute_core_metrics` (e.g. annualization
-   constant changes, win-rate flips to fraction), the audit must catch it
-   instead of inheriting it. Two implementations that disagree are a
-   feature, not a bug.
-
-The corresponding TODO/cross-reference is recorded in
-`docs/CODE_DUPLICATIONS.md` (audit metric reimplementation, intentional).
-
-Why per-trade, unscaled Sharpe
-------------------------------
-Per-trade Sharpe = mean(ret_pct) / std(ret_pct) is the right object for
-significance testing the trade-return *series*. Annualizing would require
-multiplying by `sqrt(trades_per_year)`, which (a) is symbol- and
-strategy-dependent, (b) inflates the value without adding statistical
-information — the t-statistic is identical up to a constant. The CI lower
-bound > 0 test is invariant to that constant, so we keep the unscaled form.
+Treat this duplication as load-bearing. Do not unify it with
+`compute_core_metrics` later "for DRY"; the divergence is the point.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 import structlog
@@ -80,16 +55,18 @@ from app.backtest.audit.trade_log import TradeLog
 
 logger = structlog.get_logger()
 
-_THRESHOLD_SHARPE = "ci_low_above_zero"
-_THRESHOLD_PROFIT_FACTOR = "ci_low_above_one"
-_THRESHOLD_REPORT_ONLY = "report_only"
-
 _SMALL_SAMPLE_WARN_THRESHOLD = 50
+
+# Threshold-type tags. Recorded on each `BootstrapResult` so the report
+# layer can render the rule that produced `passed` without re-deriving it.
+_THRESHOLD_CI_LOW_ABOVE_ZERO = "ci_low_above_zero"
+_THRESHOLD_CI_LOW_ABOVE_ONE = "ci_low_above_one"
+_THRESHOLD_REPORT_ONLY = "report_only"
 
 
 @dataclass(frozen=True)
 class BootstrapResult:
-    """Bootstrap CI summary for one metric."""
+    """Per-metric bootstrap output with the rule that produced `passed`."""
 
     metric_name: str
     point_estimate: float
@@ -104,30 +81,29 @@ class BootstrapResult:
 
 
 def _sharpe(returns: np.ndarray) -> float:
-    """Per-trade Sharpe: mean / std. Unscaled (no annualization)."""
-    std = returns.std()
-    return float("nan") if std == 0.0 else float(returns.mean() / std)
+    """Per-trade Sharpe = mean / std, **unscaled** (no annualization).
+
+    The audit consumes a per-trade return stream whose holding period
+    varies trade-to-trade; there is no constant `sqrt(T)` factor that
+    would honestly annualize it. Annualizing would require either a
+    uniform-holding-period assumption (false here) or time-weighting
+    each return (a different statistic). Unscaled mean/std is the
+    correct per-trade signal-to-noise ratio; the `> 0` threshold is
+    calibrated against that quantity.
+    """
+    sd = returns.std()
+    return float(returns.mean() / sd) if sd > 0 else 0.0
 
 
 def _profit_factor(returns: np.ndarray) -> float:
-    """Sum of winners / abs(sum of losers). +inf when there are no losers."""
-    losers = returns[returns < 0.0]
-    if losers.size == 0:
-        return float("inf")
-    return float(returns[returns > 0.0].sum() / -losers.sum())
+    """Sum of winning returns / |sum of losing returns|. ∞ if no losers."""
+    neg = returns[returns < 0].sum()
+    return float(returns[returns > 0].sum() / -neg) if neg < 0 else float("inf")
 
 
 def _win_rate(returns: np.ndarray) -> float:
-    """Fraction of strictly positive returns. In [0, 1], NOT a percentage."""
-    return float((returns > 0.0).mean())
-
-
-def _resolve_block_size(returns: np.ndarray, block_size: int | None) -> int:
-    """Politis-White optimal stationary block length, floored at 1."""
-    if block_size is not None:
-        return max(1, int(block_size))
-    opt = optimal_block_length(returns)
-    return max(1, int(opt.iloc[0]["stationary"]))
+    """Fraction of strictly positive returns. In [0, 1] — NOT a percentage."""
+    return float((returns > 0).mean())
 
 
 def _bootstrap_metric(
@@ -138,21 +114,59 @@ def _bootstrap_metric(
     ci_pct: int,
     block_size: int | None,
 ) -> tuple[float, float, float, int]:
-    """Resample `returns` with stationary bootstrap and return CI bounds.
+    """Bootstrap one metric. Returns `(point, ci_low, ci_high, block_size_used)`.
 
-    Returns `(point_estimate, ci_low, ci_high, block_size_used)`.
-    `point_estimate` is the metric on the original series, NOT the
-    bootstrap mean — the bootstrap quantifies sampling uncertainty around
-    the point estimate, it does not replace it.
+    When `block_size` is None it is computed once from `returns` via
+    Politis-White `optimal_block_length` (stationary column, floored
+    at 1). The caller can pass a precomputed block size to skip that
+    work when bootstrapping multiple metrics on the same series.
     """
-    block = _resolve_block_size(returns, block_size)
-    bs = StationaryBootstrap(block, returns)
-    samples = bs.apply(metric_fn, n_reps).reshape(-1)
-    alpha = (100 - ci_pct) / 2.0
-    ci_low = float(np.percentile(samples, alpha))
-    ci_high = float(np.percentile(samples, 100 - alpha))
+    if block_size is None:
+        opt = optimal_block_length(returns)
+        block_size = max(1, int(opt.iloc[0]["stationary"]))
+    bs = StationaryBootstrap(block_size, returns)
+    samples = np.asarray(bs.apply(metric_fn, n_reps)).ravel()
     point = float(metric_fn(returns))
-    return point, ci_low, ci_high, block
+    alpha = (100.0 - ci_pct) / 2.0
+    ci_low = float(np.percentile(samples, alpha))
+    ci_high = float(np.percentile(samples, 100.0 - alpha))
+    return point, ci_low, ci_high, block_size
+
+
+def _evaluate_threshold(threshold_type: str, ci_low: float) -> bool:
+    if threshold_type == _THRESHOLD_CI_LOW_ABOVE_ZERO:
+        return ci_low > 0.0
+    if threshold_type == _THRESHOLD_CI_LOW_ABOVE_ONE:
+        return ci_low > 1.0
+    if threshold_type == _THRESHOLD_REPORT_ONLY:
+        return True
+    raise ValueError(f"unknown threshold_type: {threshold_type}")
+
+
+def _build_result(
+    name: str,
+    *,
+    point: float,
+    ci_low: float,
+    ci_high: float,
+    ci_pct: int,
+    n_reps: int,
+    block_size: int,
+    threshold_type: str,
+    threshold_value: float | None,
+) -> BootstrapResult:
+    return BootstrapResult(
+        metric_name=name,
+        point_estimate=point,
+        ci_low=ci_low,
+        ci_high=ci_high,
+        ci_pct=ci_pct,
+        n_reps=n_reps,
+        block_size=block_size,
+        passed=_evaluate_threshold(threshold_type, ci_low),
+        threshold_type=threshold_type,
+        threshold_value=threshold_value,
+    )
 
 
 def run_bootstrap_ci(
@@ -161,84 +175,62 @@ def run_bootstrap_ci(
     n_reps: int = BOOTSTRAP_REPS,
     ci_pct: int = BOOTSTRAP_CI_PCT,
 ) -> dict:
-    """Run bootstrap CIs for Sharpe, profit factor, and win rate.
+    """Bootstrap Sharpe / profit factor / win rate from `tl`'s `ret_pct` stream.
 
-    Wide CIs on small samples are correct behavior — there is no
-    `min_trades` guard. When `n_trades < 50` we log a warning and proceed.
+    Overall `passed` is the AND of the Sharpe and profit-factor verdicts
+    only — win rate is reported but never gates. Wide CIs on small
+    samples are an honest signal, not an error: when `n_trades < 50`
+    a warning is logged and the bootstrap proceeds anyway.
     """
     df = tl.df
     n_trades = int(len(df))
     if df.empty:
-        return {
-            "passed": False,
-            "n_trades": 0,
-            "reason": "no closed trades",
-            "metrics": {},
-        }
+        return {"passed": False, "n_trades": 0, "reason": "no closed trades"}
     if n_trades < _SMALL_SAMPLE_WARN_THRESHOLD:
         logger.warning(
-            "audit_bootstrap_small_sample",
-            run_id=tl.run_id,
+            "bootstrap_ci_small_sample",
             n_trades=n_trades,
-            warn_threshold=_SMALL_SAMPLE_WARN_THRESHOLD,
+            min_for_stable_ci=_SMALL_SAMPLE_WARN_THRESHOLD,
         )
 
     returns = np.ascontiguousarray(df["ret_pct"].to_numpy(dtype=np.float64))
 
-    sharpe_pt, sharpe_lo, sharpe_hi, sharpe_block = _bootstrap_metric(
-        returns, _sharpe, n_reps=n_reps, ci_pct=ci_pct, block_size=None
+    sharpe_pt, sharpe_lo, sharpe_hi, block_size = _bootstrap_metric(
+        returns, _sharpe, n_reps=n_reps, ci_pct=ci_pct, block_size=None,
     )
-    pf_pt, pf_lo, pf_hi, pf_block = _bootstrap_metric(
-        returns, _profit_factor, n_reps=n_reps, ci_pct=ci_pct, block_size=None
+    pf_pt, pf_lo, pf_hi, _ = _bootstrap_metric(
+        returns, _profit_factor, n_reps=n_reps, ci_pct=ci_pct, block_size=block_size,
     )
-    wr_pt, wr_lo, wr_hi, wr_block = _bootstrap_metric(
-        returns, _win_rate, n_reps=n_reps, ci_pct=ci_pct, block_size=None
+    wr_pt, wr_lo, wr_hi, _ = _bootstrap_metric(
+        returns, _win_rate, n_reps=n_reps, ci_pct=ci_pct, block_size=block_size,
     )
 
-    sharpe_passed = sharpe_lo > BOOTSTRAP_SHARPE_LB_MIN
-    pf_passed = pf_lo > BOOTSTRAP_PROFIT_FACTOR_LB_MIN
-
-    metrics = {
-        "sharpe": BootstrapResult(
-            metric_name="sharpe",
-            point_estimate=sharpe_pt,
-            ci_low=sharpe_lo,
-            ci_high=sharpe_hi,
-            ci_pct=ci_pct,
-            n_reps=n_reps,
-            block_size=sharpe_block,
-            passed=sharpe_passed,
-            threshold_type=_THRESHOLD_SHARPE,
-            threshold_value=BOOTSTRAP_SHARPE_LB_MIN,
-        ),
-        "profit_factor": BootstrapResult(
-            metric_name="profit_factor",
-            point_estimate=pf_pt,
-            ci_low=pf_lo,
-            ci_high=pf_hi,
-            ci_pct=ci_pct,
-            n_reps=n_reps,
-            block_size=pf_block,
-            passed=pf_passed,
-            threshold_type=_THRESHOLD_PROFIT_FACTOR,
-            threshold_value=BOOTSTRAP_PROFIT_FACTOR_LB_MIN,
-        ),
-        "win_rate": BootstrapResult(
-            metric_name="win_rate",
-            point_estimate=wr_pt,
-            ci_low=wr_lo,
-            ci_high=wr_hi,
-            ci_pct=ci_pct,
-            n_reps=n_reps,
-            block_size=wr_block,
-            passed=True,
-            threshold_type=_THRESHOLD_REPORT_ONLY,
-            threshold_value=None,
-        ),
-    }
+    common = {"ci_pct": ci_pct, "n_reps": n_reps, "block_size": block_size}
+    sharpe_res = _build_result(
+        "sharpe", point=sharpe_pt, ci_low=sharpe_lo, ci_high=sharpe_hi,
+        threshold_type=_THRESHOLD_CI_LOW_ABOVE_ZERO,
+        threshold_value=BOOTSTRAP_SHARPE_LB_MIN,
+        **common,
+    )
+    pf_res = _build_result(
+        "profit_factor", point=pf_pt, ci_low=pf_lo, ci_high=pf_hi,
+        threshold_type=_THRESHOLD_CI_LOW_ABOVE_ONE,
+        threshold_value=BOOTSTRAP_PROFIT_FACTOR_LB_MIN,
+        **common,
+    )
+    wr_res = _build_result(
+        "win_rate", point=wr_pt, ci_low=wr_lo, ci_high=wr_hi,
+        threshold_type=_THRESHOLD_REPORT_ONLY,
+        threshold_value=None,
+        **common,
+    )
 
     return {
-        "passed": bool(sharpe_passed and pf_passed),
+        "passed": bool(sharpe_res.passed and pf_res.passed),
         "n_trades": n_trades,
-        "metrics": metrics,
+        "metrics": {
+            "sharpe": sharpe_res,
+            "profit_factor": pf_res,
+            "win_rate": wr_res,
+        },
     }
