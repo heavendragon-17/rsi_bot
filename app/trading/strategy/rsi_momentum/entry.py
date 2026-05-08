@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_momentum_entry.py
+# app/trading/strategy/rsi_momentum/entry.py
 """
 Entry logic for RsiMomentumStrategy (SHORT entries only).
 
@@ -37,7 +37,7 @@ from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
 from app.trading.strategy.utils.trade_state import TradeState
 
 if TYPE_CHECKING:
-    from app.trading.strategy.rsi_momentum import RsiMomentumConfig
+    from app.trading.strategy.rsi_momentum.strategy import RsiMomentumConfig
 
 logger = structlog.get_logger()
 

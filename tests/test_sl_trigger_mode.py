@@ -21,8 +21,8 @@ from app.core.constants import SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators
 from app.trading.strategy.rsi_no_retest import RsiNoRetestStrategy
-from app.trading.strategy.rsi_no_retest_entry import check_entry as no_retest_check_entry
-from app.trading.strategy.rsi_no_retest_exit import manage_exit as no_retest_manage_exit
+from app.trading.strategy.rsi_no_retest.entry import check_entry as no_retest_check_entry
+from app.trading.strategy.rsi_no_retest.exit import manage_exit as no_retest_manage_exit
 
 SYMBOL = "BTC/USDT"
 ENTRY = Decimal("100")

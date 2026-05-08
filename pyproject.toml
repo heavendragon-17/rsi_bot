@@ -70,7 +70,7 @@ module = [
     "app.trading.exchange.factory",
     "app.trading.runner",
     "app.trading.strategy.rsi_wma_retest",
-    "app.trading.strategy.rsi_momentum",
+    "app.trading.strategy.rsi_momentum.strategy",
     "app.trading.strategy.loader",
     "app.api.routes.presets",
     "app.backtest.engine",

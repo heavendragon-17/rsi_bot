@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_momentum_exit.py
+# app/trading/strategy/rsi_momentum/exit.py
 """
 Exit management logic for RsiMomentumStrategy (SHORT positions).
 

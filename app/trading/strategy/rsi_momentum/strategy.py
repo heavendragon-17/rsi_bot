@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_momentum.py
+# app/trading/strategy/rsi_momentum/strategy.py
 """
 RsiMomentumStrategy — SHORT entries only.
 
@@ -17,8 +17,8 @@ Exit system:
 
 Config lives in the RsiMomentumConfig dataclass in this file (NOT config.yaml).
 
-Entry logic: see rsi_momentum_entry.py
-Exit logic:  see rsi_momentum_exit.py
+Entry logic: see rsi_momentum/entry.py
+Exit logic:  see rsi_momentum/exit.py
 """
 
 from __future__ import annotations
@@ -42,8 +42,8 @@ from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.data.indicators import Indicators
 from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.rsi_momentum_entry import check_entry
-from app.trading.strategy.rsi_momentum_exit import manage_exit
+from app.trading.strategy.rsi_momentum.entry import check_entry
+from app.trading.strategy.rsi_momentum.exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
 from app.trading.strategy.utils.param_metadata import (
     RSI_MOMENTUM_GROUPS,

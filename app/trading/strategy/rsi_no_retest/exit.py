@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_no_retest_exit.py
+# app/trading/strategy/rsi_no_retest/exit.py
 """
 Layer 2: Core Logic - RSI No Retest Strategy — Exit Management
 ==============================================================

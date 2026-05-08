@@ -1,10 +1,10 @@
-# app/trading/strategy/rsi_no_retest.py
+# app/trading/strategy/rsi_no_retest/strategy.py
 """
 Layer 2: Core Logic - RSI No Retest Strategy (Entry reclaim EMA21)
 ==================================================================
 
-Thin orchestrator: dispatches to ``rsi_no_retest_entry`` and
-``rsi_no_retest_exit`` for the actual state-machine logic.
+Thin orchestrator: dispatches to the package's ``entry`` and ``exit``
+submodules for the actual state-machine logic.
 
 Rules (summary):
 - Entry: first candle closing > EMA21 (cross up) after prolonged decline
@@ -38,8 +38,8 @@ from app.core.utils import to_decimal_or_none
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.rsi_no_retest_entry import check_entry
-from app.trading.strategy.rsi_no_retest_exit import manage_exit
+from app.trading.strategy.rsi_no_retest.entry import check_entry
+from app.trading.strategy.rsi_no_retest.exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
 from app.trading.strategy.utils.param_metadata import (
     RSI_NO_RETEST_GROUPS,
