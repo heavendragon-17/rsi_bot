@@ -129,24 +129,49 @@ return series, take the `stationary` column. 10,000 bootstrap reps.
 
 ### 4. Deflated Sharpe Ratio — `deflated_sharpe.py`
 
-Bailey & López de Prado (2014). Adjusts the observed Sharpe for the number
-of trials in parameter selection.
+Bailey & López de Prado (2014). Converts the observed Sharpe + sample
+higher moments into a probability that the strategy's *true* per-trade
+Sharpe exceeds a benchmark Sharpe (default 0).
 
-Inputs:
-- Observed Sharpe of the chosen run
-- Sharpes of all sibling runs from the same parameter sweep (if any)
-- Trade returns of the chosen run (for skew/kurtosis adjustment)
-- Number of trials `N` (count of distinct parameter sets evaluated)
+Public surface:
 
-If the run is not part of a parameter sweep, `N=1` and the trials correction
-collapses; report DSR but flag that no correction was applied.
+- `DSRResult` — frozen dataclass with `n_trades`, `sharpe_observed`,
+  `skew`, `kurtosis` (excess), `psr`, `dsr`, `n_trials`,
+  `benchmark_sharpe`, `passed`, `threshold`.
+- `run_dsr_analysis(tl, *, n_trials=1, benchmark_sharpe=0.0,
+  threshold=DSR_PASS_THRESHOLD) -> DSRResult` — reads
+  `tl.df['ret_pct']`, computes per-trade unscaled Sharpe (matching
+  `bootstrap_ci.py`), sample-bias-corrected skew via
+  `scipy.stats.skew(bias=False)`, and excess kurtosis via
+  `scipy.stats.kurtosis(bias=False, fisher=True)`, then plugs into
+  Bailey & LdP eq. (1) for PSR.
+
+PSR formula:
+
+```
+PSR = Φ( (sharpe - benchmark) * sqrt(n - 1)
+       / sqrt(1 - skew*sharpe + (kurtosis/4)*sharpe^2) )
+```
+
+The denominator is guarded: if `1 - skew*sharpe + (kurtosis/4)*sharpe^2`
+goes non-positive (a pathological skew/kurtosis combination), PSR is
+returned as NaN with a structlog warning rather than crashing.
+
+**v1 scope: PSR only.** `n_trials > 1` raises `NotImplementedError`. The
+multi-trial branch needs the count of parameter combinations evaluated
+during selection, which is not yet tracked end-to-end in the
+backtest persistence layer (`runs.grid_search_parent_id` is set, but the
+trial count is not propagated through the audit input). Until that
+plumbing exists, callers must leave `n_trials=1`, in which case DSR is
+algebraically identical to PSR. The expected-max-of-N-trials adjustment
+is documented in `_dsr`'s docstring for the eventual implementation.
 
 | Output | Pass criterion |
 |--------|----------------|
-| DSR | `> DSR_PASS_THRESHOLD` (0.95 default) |
+| `dsr` (== `psr` when `n_trials=1`) | `>= DSR_PASS_THRESHOLD` (0.95 default) |
 
-Reference: `references/`. Cross-check the formula against the paper before
-running.
+Reference: `references/`. The `_psr` formula is taken directly from
+Bailey & LdP (2014) eq. (1); cross-check before raising the threshold.
 
 ### 5. Probability of Backtest Overfitting — `pbo.py`
 
@@ -282,9 +307,12 @@ Per CLAUDE.md and `docs/agent-workflow.md`:
 
 - All audit functions return dicts or DataFrames. Never print, never log to
   stdout. Use `structlog.get_logger()` for diagnostic logging.
-- Use the `arch` library for bootstrap and `scipy.stats` for IC. These are
-  the only new dependencies; add to `requirements.txt` when the first test
-  is implemented, not before.
+- Use the `arch` library for bootstrap and `scipy.stats` for IC and DSR.
+  These are the only new dependencies; add to `requirements.txt` when
+  the first test is implemented, not before. (`arch` is already added
+  for `bootstrap_ci.py`; `scipy` is used by `deflated_sharpe.py` and
+  should be added before the audit pipeline is wired into a runtime
+  code path.)
 - One logic class per file. Files stay under 400 lines.
 - All numeric thresholds in `constants.py`.
 - This module imports from `app.repository.backtest`, `app.data.indicators`,
