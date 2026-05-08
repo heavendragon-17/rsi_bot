@@ -22,6 +22,7 @@ when serializing to JSON.
 
 from __future__ import annotations
 
+import importlib
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -69,42 +70,52 @@ class AuditResult:
 
 
 # ── sub-test runners with graceful fallback ──────────────────────────────────
+#
+# The stub modules (bootstrap_ci, deflated_sharpe, information_coefficient)
+# don't yet export their `run_*` functions. We resolve them at runtime via
+# importlib + getattr so mypy doesn't fail on the missing attributes; once
+# the modules are filled in, these helpers transparently start using them.
+
+
+def _resolve(module_path: str, attr: str) -> Any | None:
+    try:
+        module = importlib.import_module(module_path)
+    except ImportError:
+        return None
+    return getattr(module, attr, None)
 
 
 def _try_run_bootstrap(tl: TradeLog) -> dict | None:
-    try:
-        from app.backtest.audit.bootstrap_ci import run_bootstrap_ci
-    except ImportError:
+    fn = _resolve("app.backtest.audit.bootstrap_ci", "run_bootstrap_ci")
+    if fn is None:
         return None
     try:
-        return run_bootstrap_ci(tl)
+        return fn(tl)
     except Exception as exc:  # noqa: BLE001 — protect aggregator from sub-test crashes
         logger.warning("audit_bootstrap_failed", run_id=tl.run_id, error=str(exc))
         return None
 
 
 def _try_run_dsr(tl: TradeLog) -> Any | None:
-    try:
-        from app.backtest.audit.deflated_sharpe import run_dsr_analysis
-    except ImportError:
+    fn = _resolve("app.backtest.audit.deflated_sharpe", "run_dsr_analysis")
+    if fn is None:
         return None
     try:
-        return run_dsr_analysis(tl)
+        return fn(tl)
     except Exception as exc:  # noqa: BLE001
         logger.warning("audit_dsr_failed", run_id=tl.run_id, error=str(exc))
         return None
 
 
 def _try_run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, Any] | None:
-    try:
-        from app.backtest.audit.information_coefficient import run_ic_analysis
-        from app.backtest.audit.signal_panel import build_signal_panel
-    except ImportError:
+    run_ic = _resolve("app.backtest.audit.information_coefficient", "run_ic_analysis")
+    build_panel = _resolve("app.backtest.audit.signal_panel", "build_signal_panel")
+    if run_ic is None or build_panel is None:
         return None
     out: dict[str, Any] = {}
     for symbol in symbols:
         try:
-            panel = build_signal_panel(symbol, timeframe)
+            panel = build_panel(symbol, timeframe)
         except FileNotFoundError as exc:
             logger.warning("audit_ic_panel_missing", symbol=symbol, error=str(exc))
             continue
@@ -112,7 +123,7 @@ def _try_run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, Any]
             logger.warning("audit_ic_panel_failed", symbol=symbol, error=str(exc))
             continue
         try:
-            out[symbol] = run_ic_analysis(panel)
+            out[symbol] = run_ic(panel)
         except Exception as exc:  # noqa: BLE001
             logger.warning("audit_ic_run_failed", symbol=symbol, error=str(exc))
             continue
@@ -227,6 +238,8 @@ def _ic_passed_aggregate(
             if isinstance(per_h, dict):
                 for entry in per_h.values():
                     val = entry.get("ic") if isinstance(entry, dict) else entry
+                    if val is None:
+                        continue
                     try:
                         best = max(best, abs(float(val)))
                     except (TypeError, ValueError):
@@ -327,7 +340,7 @@ def run_audit(
             if run.strategy_id is not None
             else None
         )
-        cfg_timeframe = cfg.timeframe if cfg is not None else timeframe
+        cfg_timeframe = str(cfg.timeframe) if cfg is not None else timeframe
         effective_timeframe = timeframe or cfg_timeframe
 
         tl = build_trade_log(run_id, session=db)
@@ -351,7 +364,7 @@ def run_audit(
         pbo_result = run_pbo_analysis(run_id, session=db)
 
         direction = _resolve_strategy_direction(
-            strategy.name if strategy is not None else None,
+            str(strategy.name) if strategy is not None else None,
             tl,
         )
         direction_mismatch = _compute_direction_mismatch(ic_result, direction)
