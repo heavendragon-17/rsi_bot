@@ -14,6 +14,21 @@ import { parse, format } from "date-fns";
 import { fetchStrategies } from "../api/strategies";
 import type { StrategyInfo } from "../types/generated";
 
+// Derive bars-per-day from a Binance-style timeframe string (e.g. "5m", "1h", "1d", "1w").
+// Returns 24 (1h equivalent) for unparseable strings so callers always get a usable number.
+const barsPerDayFor = (tf: string): number => {
+  const m = /^(\d+)([mhdw])$/i.exec(tf?.trim() ?? "");
+  if (!m) return 24;
+  const n = parseInt(m[1], 10);
+  if (!n) return 24;
+  const unit = m[2].toLowerCase();
+  if (unit === "m") return 1440 / n;
+  if (unit === "h") return 24 / n;
+  if (unit === "d") return 1 / n;
+  if (unit === "w") return 1 / (7 * n);
+  return 24;
+};
+
 // param_schema is dict[str, Any] on the backend; this is the UI-only shape we expect.
 export interface ParamProp {
   type?: "string" | "number" | "integer" | "boolean";
@@ -270,10 +285,7 @@ export const useBacktestStore = create<BacktestState>()(
          let start = new Date();
 
          if (lookbackUnit === "bars") {
-           const barsPerDay: Record<string, number> = {
-             "15m": 96, "1h": 24, "4h": 6, "1d": 1,
-           };
-           const bpd = barsPerDay[timeframe] || 24;
+           const bpd = barsPerDayFor(timeframe);
            const days = Math.ceil(lookbackValue / bpd);
            start.setDate(start.getDate() - days);
          } else if (lookbackUnit === "hours") {
@@ -658,13 +670,7 @@ export const useBacktestStore = create<BacktestState>()(
         const { timeframe } = get();
         const days = get().getDaysDuration();
         if (days === 0) return 0;
-        const barsPerDay: Record<string, number> = {
-          "15m": 96,
-          "1h": 24,
-          "4h": 6,
-          "1d": 1,
-        };
-        return days * (barsPerDay[timeframe] ?? 24);
+        return Math.floor(days * barsPerDayFor(timeframe));
       },
     }),
     {
