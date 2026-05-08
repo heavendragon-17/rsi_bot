@@ -40,3 +40,23 @@ STRATEGY_DIRECTION_FLAG = {
     "rsi_momentum": True,
     "rsi_wma_retest": False,
 }
+
+# Strategy direction side — used by report.py to detect direction-vs-IC
+# mismatches. Keys are strategy slugs as stored in the `strategies.name`
+# column. "long" / "short" / "both" describe which side the strategy
+# trades; mixed-direction strategies map to "both".
+STRATEGY_DIRECTION_SIDE = {
+    "rsi_no_retest": "long",
+    "rsi_momentum": "short",
+    "rsi_wma_retest": "long",
+}
+
+# IC horizon used for direction-mismatch checks (matches the typical
+# strategy holding period at the 15m timeframe).
+IC_DIRECTION_MISMATCH_HORIZON = 4
+
+# Multi-symbol IC aggregation policy (v1 = MAJORITY).
+# TODO(audit-ic-aggregation-v2): make configurable per-strategy or
+# per-run. v1 hardcodes majority because most batches are one-strategy
+# applied to many symbols and a single-symbol veto is too strict.
+IC_AGGREGATE_POLICY = "majority"
