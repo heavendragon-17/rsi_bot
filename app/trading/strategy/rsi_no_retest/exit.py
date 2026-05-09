@@ -7,6 +7,7 @@ Module-level functions for managing open positions:
 - Pending candle SL (close at next candle open)
 - Lock-profit SL trigger (move SL when high >= +0.5R)
 - Candle-close SL flag (close < soft SL)
+- Max-holding-period force-close (last-resort exit)
 
 All functions receive explicit parameters instead of accessing ``self``.
 """
@@ -17,12 +18,17 @@ from decimal import Decimal
 
 import structlog
 
-from app.core.actions import EXIT_MAX_HOLDING_PERIOD, ClosePosition, DoNothing, MoveSL
+from app.core.actions import ClosePosition, DoNothing, MoveSL
 from app.core.analysis_result import AnalysisResult
 from app.core.constants import SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot
 from app.core.utils import to_decimal_or_none
+from app.trading.strategy.utils.bars_held import (
+    increment_bars_held,
+    maybe_force_close_max_holding,
+)
+from app.trading.strategy.utils.trade_state import TradeState
 
 logger = structlog.get_logger()
 
@@ -79,38 +85,38 @@ def manage_exit(
     """Run exit management for an open position.
 
     Returns an ``AnalysisResult`` with one of:
-    - ``ClosePosition`` (pending candle SL fires)
+    - ``ClosePosition`` (pending candle SL fires, or max-holding force-close)
     - ``MoveSL`` (lock profit trigger)
     - ``DoNothing`` (candle-close SL flag set, or nothing to do)
 
     When *sl_trigger_mode* is ``"touch"`` the exchange-level stop fires on
     touch, so the candle-close detection in STEP 2 is skipped.
     """
-    meta = dict(context.meta or {})  # mutable copy
+    ts = TradeState.from_meta(context.meta)
 
-    entry_price = to_decimal_or_none(meta.get("entry_price"))
+    entry_price = to_decimal_or_none(ts.entry_price)
     if entry_price is None:
         return AnalysisResult(actions=[DoNothing()], new_context=context)
 
     # Increment bars-held counter once per call and rebuild context so all
     # downstream return paths (which copy from meta) carry the new value.
-    meta["bars_held"] = int(meta.get("bars_held", 0) or 0) + 1
+    bars_held = increment_bars_held(ts)
     context = ContextSnapshot(
         state=context.state,
         soft_sl_price=context.soft_sl_price,
-        meta=meta,
+        meta=ts.to_meta(),
     )
     _noop = AnalysisResult(actions=[DoNothing()], new_context=context)
 
-    # Soft SL: prefer ContextSnapshot direct field, fall back to meta
-    soft_sl = context.soft_sl_price or to_decimal_or_none(meta.get("soft_sl_price"))
-    original_soft_sl = to_decimal_or_none(meta.get("original_soft_sl")) or soft_sl
+    # Soft SL: prefer ContextSnapshot direct field, fall back to ts
+    soft_sl = context.soft_sl_price or to_decimal_or_none(ts.soft_sl_price)
+    original_soft_sl = to_decimal_or_none(ts.original_soft_sl) or soft_sl
 
-    moved_sl = bool(meta.get("moved_sl_to_entry", False))
-    pending_candle_sl = bool(meta.get("pending_candle_sl", False))
+    moved_sl = ts.moved_sl_to_entry
+    pending_candle_sl = ts.pending_candle_sl
 
     # Lock profit price: precompute from original SL (never changes)
-    lock_profit_price = to_decimal_or_none(meta.get("lock_profit_price"))
+    lock_profit_price = to_decimal_or_none(ts.lock_profit_price)
     if lock_profit_price is None and original_soft_sl and entry_price:
         lock_profit_price = compute_price_at_rr(
             entry_price,
@@ -145,14 +151,14 @@ def manage_exit(
             is_taker_exit=False,
         )
         if move_trigger is not None and high >= move_trigger and lock_profit_price is not None:
-            new_meta = dict(meta)
-            new_meta["moved_sl_to_entry"] = True
-            new_meta["sl_price"] = lock_profit_price
-            new_meta["soft_sl_price"] = lock_profit_price
+            new_ts = TradeState.from_meta(context.meta)
+            new_ts.moved_sl_to_entry = True
+            new_ts.sl_price = lock_profit_price
+            new_ts.soft_sl_price = lock_profit_price
             new_ctx = ContextSnapshot(
                 state=context.state,
                 soft_sl_price=lock_profit_price,
-                meta=new_meta,
+                meta=new_ts.to_meta(),
             )
             return AnalysisResult(
                 actions=[
@@ -169,21 +175,6 @@ def manage_exit(
             )
 
     # -------------------------------------------------
-    # STEP 1.6: max holding period — force-close stale positions at market
-    # -------------------------------------------------
-    if max_holding_bars > 0 and meta["bars_held"] >= max_holding_bars and close is not None:
-        return AnalysisResult(
-            actions=[
-                ClosePosition(
-                    symbol=symbol,
-                    reason=EXIT_MAX_HOLDING_PERIOD,
-                    price=close,
-                )
-            ],
-            new_context=ContextSnapshot(state=SCANNING),
-        )
-
-    # -------------------------------------------------
     # STEP 2: Candle-close SL — set flag, exit next candle's open
     # Skipped in "touch" mode: exchange-level stop handles it on touch.
     # -------------------------------------------------
@@ -193,9 +184,22 @@ def manage_exit(
         and close is not None
         and close <= soft_sl
     ):
-        new_meta = dict(meta)
-        new_meta["pending_candle_sl"] = True
-        new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_meta)
+        new_ts = TradeState.from_meta(context.meta)
+        new_ts.pending_candle_sl = True
+        new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_ts.to_meta())
         return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
+
+    # -------------------------------------------------
+    # STEP 3: Max holding period — force-close stale positions at market.
+    # Fires LAST so any specific exit above takes priority on the same bar.
+    # -------------------------------------------------
+    max_holding_result = maybe_force_close_max_holding(
+        symbol=symbol,
+        bars_held=bars_held,
+        max_bars=max_holding_bars,
+        close_price=close,
+    )
+    if max_holding_result is not None:
+        return max_holding_result
 
     return _noop

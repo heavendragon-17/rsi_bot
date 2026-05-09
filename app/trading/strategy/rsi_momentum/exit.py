@@ -13,7 +13,6 @@ import pandas as pd
 
 from app.core.actions import (
     EXIT_CLOSE_BY_CANDLE_SL,
-    EXIT_MAX_HOLDING_PERIOD,
     SIDE_SELL,
     ClosePosition,
     DoNothing,
@@ -25,6 +24,10 @@ from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.utils import to_decimal_or_none
 from app.trading.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.utils.bars_held import (
+    increment_bars_held,
+    maybe_force_close_max_holding,
+)
 from app.trading.strategy.utils.trade_state import TradeState
 
 
@@ -70,7 +73,7 @@ def manage_exit(
 
     # Increment bars-held counter once per call and rebuild context so that
     # downstream steps (and any persisted return path) carry the new value.
-    ts.bars_held = (ts.bars_held or 0) + 1
+    bars_held = increment_bars_held(ts)
     context = ContextSnapshot(
         state=context.state,
         soft_sl_price=context.soft_sl_price,
@@ -137,19 +140,6 @@ def manage_exit(
                 new_context=new_ctx,
             )
 
-    # -- STEP 1.6: max holding period -- force-close stale positions at market
-    if max_holding_bars > 0 and ts.bars_held >= max_holding_bars and close is not None:
-        return AnalysisResult(
-            actions=[
-                ClosePosition(
-                    symbol=symbol,
-                    reason=EXIT_MAX_HOLDING_PERIOD,
-                    price=close,
-                )
-            ],
-            new_context=ContextSnapshot(state=SCANNING),
-        )
-
     # -- STEP 2: Candle-close SL -- flag exit for next candle
     # Skipped in "touch" mode: exchange-level stop fires on touch.
     if (
@@ -162,5 +152,16 @@ def manage_exit(
         new_ts.pending_candle_sl = True
         new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_ts.to_meta())
         return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
+
+    # -- STEP 3: max holding period -- force-close stale positions at market.
+    # Fires LAST so any specific exit above takes priority on the same bar.
+    max_holding_result = maybe_force_close_max_holding(
+        symbol=symbol,
+        bars_held=bars_held,
+        max_bars=max_holding_bars,
+        close_price=close,
+    )
+    if max_holding_result is not None:
+        return max_holding_result
 
     return AnalysisResult(actions=[DoNothing()], new_context=context)
