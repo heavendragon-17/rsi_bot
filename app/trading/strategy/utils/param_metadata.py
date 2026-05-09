@@ -195,6 +195,27 @@ RSI_NO_RETEST_SHORT_METADATA = {
 
 
 # ──────────────────────────────────────────────────────────
+# RSI No Retest FADE (parent's trigger, opposite direction)
+# ──────────────────────────────────────────────────────────
+
+RSI_NO_RETEST_FADE_GROUPS = {**INDICATOR_GROUPS}
+
+# Identical to RSI_NO_RETEST_METADATA except `nr_sl_mode` enum lists
+# SHORT-flavored modes (highest_close / highest_wick). The trigger is
+# the parent's, so `nr_max_above_ema21` STAYS — DO NOT rename to
+# `nr_max_below_ema21` like the SHORT mirror does.
+RSI_NO_RETEST_FADE_METADATA = {
+    **{k: v for k, v in RSI_NO_RETEST_METADATA.items() if k != "nr_sl_mode"},
+    "nr_sl_mode": {
+        "title": "Stop Loss Mode",
+        "enum": ["highest_close", "highest_wick"],
+        "description": "FADE is a SHORT — SL placement: highest_close uses max close of lookback; highest_wick uses max high.",
+        "ui_group": "exit_sl", "ui_order": 1,
+    },
+}
+
+
+# ──────────────────────────────────────────────────────────
 # RSI Momentum
 # ──────────────────────────────────────────────────────────
 
