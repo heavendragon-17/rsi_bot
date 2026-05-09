@@ -197,6 +197,14 @@ risk:                            # global defaults (used for SL/TP computation)
 - Live/sim/paper modes are unchanged: they still read `TELEGRAM_CHAT_ID` from
   the env.
 
+### Smoke-testing the notifier
+- `/test_signal` (sent in the supergroup) posts a `[FAKE TEST]` entry message
+  to every active strategy's topic plus the debug topic. Useful for verifying
+  end-to-end routing without waiting for a real signal.
+- The script `scripts/test_signal_notification.py` does the same thing from
+  the command line and supports `--all` to also fire SL / TP / shutdown
+  messages.
+
 ---
 
 ## 4. `StrategyInstanceConfig` (resolver)
