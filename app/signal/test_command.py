@@ -10,7 +10,7 @@ into the signal package.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import structlog
@@ -36,7 +36,7 @@ def _fake_vp(strategy_name: str, symbol: str = "BTC/USDT") -> VirtualPosition:
         sl_price=Decimal("49000"),
         tp_levels=(Decimal("51000"), Decimal("52000"), Decimal("53000")),
         tp_close_pcts=(0.33, 0.5, 1.0),
-        opened_at_candle_ts=int(datetime.now(timezone.utc).timestamp() * 1000),
+        opened_at_candle_ts=int(datetime.now(UTC).timestamp() * 1000),
         timeframe="15m",
     )
 

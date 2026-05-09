@@ -23,7 +23,7 @@ import argparse
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import yaml
@@ -53,7 +53,7 @@ def _build_fake_vp(strategy_name: str, symbol: str = "BTC/USDT") -> VirtualPosit
         sl_price=Decimal("49000"),
         tp_levels=(Decimal("51000"), Decimal("52000"), Decimal("53000")),
         tp_close_pcts=(0.33, 0.5, 1.0),
-        opened_at_candle_ts=int(datetime.now(timezone.utc).timestamp() * 1000),
+        opened_at_candle_ts=int(datetime.now(UTC).timestamp() * 1000),
         timeframe="15m",
     )
 
@@ -62,7 +62,7 @@ def _fake_candle(price: Decimal) -> Candle:
     return Candle(
         symbol="BTC/USDT",
         timeframe="15m",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         open=price,
         high=price,
         low=price,

@@ -42,7 +42,6 @@ from sqlalchemy.orm import Session
 from app.backtest.audit.bootstrap_ci import run_bootstrap_ci
 from app.backtest.audit.constants import (
     IC_DIRECTION_MISMATCH_HORIZON,
-    IC_MIN_ABS,
     STRATEGY_DIRECTION_SIDE,
 )
 from app.backtest.audit.deflated_sharpe import DSRResult, run_dsr_analysis

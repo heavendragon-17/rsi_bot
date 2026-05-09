@@ -55,9 +55,8 @@ class TelegramNotifier(INotifier):
             token_env="TELEGRAM_BOT_TOKEN",
             chat_id_env="TELEGRAM_CHAT_ID",
         )
-        # Signal mode passes telegram.group_id from config.yaml so topic-targeted
-        # notifications use the supergroup that hosts the topics, not whatever
-        # TELEGRAM_CHAT_ID happens to point at.
+        # Signal mode supplies telegram.group_id so topic-targeted sends use
+        # the supergroup that hosts the topics, not TELEGRAM_CHAT_ID.
         if chat_id_override is not None:
             self._chat_id: str | None = str(chat_id_override)
         else:
@@ -76,10 +75,9 @@ class TelegramNotifier(INotifier):
         """Start the Telegram polling loop and register commands.
 
         ``extra_callbacks`` lets callers (e.g. the signal-mode runner) inject
-        commands that depend on runtime state the notifier doesn't own —
-        such as the active strategy list. Each callback receives ``chat_id``
-        and is responsible for its own auth check (use the ``verify`` helper
-        exposed via ``verify_chat_id`` if needed).
+        commands depending on runtime state the notifier doesn't own. Each
+        callback receives ``chat_id`` and must run its own auth check via
+        ``verify_chat_id``.
         """
         send = self._bot.send_message
         verify = self._verify_chat_id
@@ -87,8 +85,7 @@ class TelegramNotifier(INotifier):
         pfx = self._prefix
 
         def _exchange_cmd(fn):
-            """Wrap an exchange-scoped command so signal mode replies clearly
-            rather than silently doing nothing when no exchange is attached."""
+            """Wrap an exchange-scoped command so signal mode replies clearly."""
             def cb(cid):
                 if not verify(cid):
                     return
@@ -168,7 +165,6 @@ class TelegramNotifier(INotifier):
             row("Leverage:", f"{leverage}x  (Margin: {fmt_price(margin)})"),
         ]
 
-        # ── Risk section (SL + soft SL + lock profit) ──
         risk_lines: list[str] = []
         sl_distance: Decimal | None = None
         if sl_price:
@@ -205,7 +201,6 @@ class TelegramNotifier(INotifier):
         if risk_lines:
             body += ["", *risk_lines]
 
-        # ── TP ladder with R:R + allocation ──
         if tp_prices:
             tp_lines: list[str] = []
             total_expected_reward = Decimal("0")
@@ -259,7 +254,6 @@ class TelegramNotifier(INotifier):
         if reason:
             body += ["", row("Reason:", reason)]
 
-        # ── Indicators at signal time ──
         if indicators:
             body += ["", "─" * 28]
             if "rsi_ema9" in indicators:
@@ -271,7 +265,6 @@ class TelegramNotifier(INotifier):
             if "above_ema21" in indicators:
                 body.append(row("Above EMA21:", f"{int(indicators['above_ema21'])}"))
 
-        # ── Account footer ──
         if risk_per_trade_pct is not None:
             body += ["", row("Risk/Trade:", f"{float(risk_per_trade_pct) * 100:.2f}%")]
 
@@ -328,8 +321,7 @@ class TelegramNotifier(INotifier):
         if pnl_gross is not None:
             body.append(row("Gross P&L:", fmt_pnl(pnl_gross)))
         if total_fees is not None:
-            # Show a single Total Fees line with the entry/exit breakdown inline.
-            # ``total_fees`` is pro-rated (entry_fee_slice + exit_fee) so partial
+            # total_fees is pro-rated (entry_fee_slice + exit_fee), so partial
             # closes reflect only the slice's share of the entry fee.
             if fees is not None:
                 entry_slice = total_fees - fees
@@ -379,10 +371,9 @@ class TelegramNotifier(INotifier):
         payment: Decimal,
         balance: Decimal,
     ) -> None:
-        rate_pct = rate * 100
         lines = [f"{self._prefix} | 💸 FUNDING — {symbol}", ""]
         body = [
-            row("Rate:", f"{fmt_pct(rate_pct)}  (longs pay)"),
+            row("Rate:", f"{fmt_pct(rate * 100)}  (longs pay)"),
             row("Payment:", f"{fmt_pnl(-payment)}"),
             "",
             row("Balance:", fmt_price(balance)),

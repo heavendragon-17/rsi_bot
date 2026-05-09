@@ -12,7 +12,6 @@ from app.trading.strategy.utils.bars_held import (
 )
 from app.trading.strategy.utils.trade_state import TradeState
 
-
 # ── increment_bars_held ────────────────────────────────────────────────────
 
 

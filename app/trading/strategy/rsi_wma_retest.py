@@ -64,8 +64,6 @@ class RsiWmaRetestStrategy(BaseStrategy):
     """
 
     CONFIG_CLASS = RsiWmaRetestConfig
-
-    # Default configuration for this strategy
     DEFAULT_CONFIG = {
         f.name: f.default for f in dc_fields(RsiWmaRetestConfig)
     }
@@ -73,7 +71,6 @@ class RsiWmaRetestStrategy(BaseStrategy):
     def __init__(self, config: dict):
         super().__init__(config)
 
-        # Use strategy defaults, allow override from config
         cfg = {**self.DEFAULT_CONFIG, **config.get("strategy_params", {})}
         bot_cfg = config.get("bot", {})
 
@@ -88,30 +85,21 @@ class RsiWmaRetestStrategy(BaseStrategy):
             include_price_emas=True,
         )
 
-        # Retest threshold (RSI points)
         self.wma_retest_distance = float(cfg.get("wma_retest_distance", 0.3))
-
-        # Filter: only trade when WMA45 < 50
         self.wma45_max = float(cfg.get("wma45_max", 50.0))
 
-        # H1 Filter: WMA45 > 45 on H1
         self.check_h1_wma45 = bool(cfg.get("check_h1_wma45", True))
         self.h1_wma45_min = float(cfg.get("h1_wma45_min", 45.0))
 
-        # TP ladder (by RSI)
         self.tp1_rsi = float(cfg.get("tp1_rsi", 60.0))
         self.tp2_rsi = float(cfg.get("tp2_rsi", 70.0))
         self.tp3_rsi = float(cfg.get("tp3_rsi", 80.0))
 
-        # SL buffer (used to compute SL price from R40)
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.003))
-
-        # Disaster SL multiplier (3x means disaster SL is 3x further than soft SL)
         self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 3.0))
 
-        # SL trigger mode: "candle_close" (default) waits for candle close to
-        # confirm the SL hit. "touch" places the exchange stop at the soft-SL
-        # level and lets the exchange fire it on touch.
+        # candle_close (default) waits for candle close to confirm the SL hit;
+        # touch places the exchange stop at the soft-SL level and fires on touch.
         sl_trigger_mode = str(cfg.get("sl_trigger_mode", SL_TRIGGER_CANDLE_CLOSE)).lower()
         if sl_trigger_mode not in SL_TRIGGER_MODES:
             raise ValueError(
@@ -119,13 +107,10 @@ class RsiWmaRetestStrategy(BaseStrategy):
             )
         self.sl_trigger_mode = sl_trigger_mode
 
-        # Slippage for candle close exits
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
-
-        # Track one active trade per symbol
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
-        # Store R40 price at setup time (per symbol:timeframe)
+        # R40 price captured at retest setup, keyed by symbol:timeframe.
         self._r40_price_at_retest: dict[str, Decimal | None] = {}
 
     def _get_trade_meta(self, symbol: str) -> dict:
@@ -174,9 +159,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
 
         close_dec = Decimal(str(close)) if close is not None else Decimal("0")
 
-        # ==================================================
-        # EXIT: TP ladder (only if active trade exists)
-        # ==================================================
+        # ── EXIT: TP ladder (only if active trade exists) ──
         if self.use_active_trades and self.context.has_active_trade(symbol):
             meta = self._get_trade_meta(symbol)
 
@@ -250,9 +233,7 @@ class RsiWmaRetestStrategy(BaseStrategy):
             # While trade is open, do not search BUY
             return None
 
-        # ==================================================
-        # ENTRY: state machine
-        # ==================================================
+        # ── ENTRY: state machine ──
         state = self.context.get_state(key)
 
         # STATE 1: SCANNING

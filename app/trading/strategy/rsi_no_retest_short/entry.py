@@ -31,7 +31,6 @@ from app.core.analysis_result import AnalysisResult
 from app.core.constants import SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH
 from app.core.context import CONFIRMING, SCANNING
 from app.core.snapshots import ContextSnapshot
-from app.core.utils import to_decimal_or_none
 from app.data.indicators import Indicators
 from app.trading.sl_tp_calculator import SLTPCalculator
 from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
