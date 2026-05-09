@@ -1,15 +1,21 @@
 @echo off
 REM One-click launcher for the backtest UI (Windows).
-REM Uses the project's conda env (rsi) — the system Python lacks deps like uvicorn.
+REM Discovers Python via `where python` and uses the first match to run the backend.
 REM Node.js is NOT required at runtime — the UI is served from ui\build\.
 cd /d "%~dp0"
 
-set "RSI_PYTHON=C:\Users\hkpug\miniconda3\envs\rsi\python.exe"
-if not exist "%RSI_PYTHON%" (
-    echo [WARN] %RSI_PYTHON% not found. Falling back to PATH python.
-    echo        If you hit ModuleNotFoundError, edit RSI_PYTHON in this script.
-    set "RSI_PYTHON=python"
+set "RSI_PYTHON="
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    if not defined RSI_PYTHON set "RSI_PYTHON=%%P"
 )
 
+if not defined RSI_PYTHON (
+    echo [ERROR] No python interpreter found on PATH.
+    echo         Install Python or activate your conda env, then re-run this script.
+    pause
+    exit /b 1
+)
+
+echo [INFO] Using Python: %RSI_PYTHON%
 "%RSI_PYTHON%" run_backtest_ui.py
 pause
