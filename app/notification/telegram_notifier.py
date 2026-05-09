@@ -50,12 +50,18 @@ class TelegramNotifier(INotifier):
     Constructor reads TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from env.
     """
 
-    def __init__(self, mode: str = "sim"):
+    def __init__(self, mode: str = "sim", *, chat_id_override: str | int | None = None):
         self._bot = TelegramBot(
             token_env="TELEGRAM_BOT_TOKEN",
             chat_id_env="TELEGRAM_CHAT_ID",
         )
-        self._chat_id: str | None = os.getenv("TELEGRAM_CHAT_ID")
+        # Signal mode passes telegram.group_id from config.yaml so topic-targeted
+        # notifications use the supergroup that hosts the topics, not whatever
+        # TELEGRAM_CHAT_ID happens to point at.
+        if chat_id_override is not None:
+            self._chat_id: str | None = str(chat_id_override)
+        else:
+            self._chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self._prefix = _MODE_PREFIX.get(mode, "🤖 BOT")
         self._exchange: IExchange | None = None
 

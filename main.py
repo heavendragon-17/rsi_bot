@@ -41,14 +41,27 @@ def _load_raw_yaml(path: str) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def _build_notifier(bot_mode: str, *, require_telegram: bool) -> NotificationService:
+def _build_notifier(
+    bot_mode: str,
+    *,
+    require_telegram: bool,
+    chat_id_override: str | int | None = None,
+) -> NotificationService:
     """Build the NotificationService. Signal mode requires a real Telegram
     token — messages are the bot's only output. Live mode falls back to
-    NullNotifier if Telegram init fails."""
+    NullNotifier if Telegram init fails.
+
+    ``chat_id_override`` lets signal mode source the chat_id from
+    ``telegram.group_id`` in config.yaml (the supergroup that hosts the
+    topics) instead of relying on the ``TELEGRAM_CHAT_ID`` env var.
+    """
     try:
         from app.notification.telegram_notifier import TelegramNotifier
 
-        ns = NotificationService(TelegramNotifier(mode=bot_mode), mode=bot_mode)
+        ns = NotificationService(
+            TelegramNotifier(mode=bot_mode, chat_id_override=chat_id_override),
+            mode=bot_mode,
+        )
         logger.info("telegram_initialized")
         return ns
     except Exception as e:
@@ -207,7 +220,15 @@ def main(config_path: str = "config.yaml") -> None:
     bot_mode = (raw.get("bot") or {}).get("mode", "mock")
     logger.info("bot_starting", mode=bot_mode.upper())
 
-    ns = _build_notifier(bot_mode, require_telegram=(bot_mode == "signal"))
+    chat_id_override: str | int | None = None
+    if bot_mode == "signal":
+        chat_id_override = (raw.get("telegram") or {}).get("group_id")
+
+    ns = _build_notifier(
+        bot_mode,
+        require_telegram=(bot_mode == "signal"),
+        chat_id_override=chat_id_override,
+    )
 
     try:
         if bot_mode == "signal":
