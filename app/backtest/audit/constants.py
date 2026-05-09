@@ -37,6 +37,7 @@ SANITY_COST_STRESS_EXTRA_SLIPPAGE_TICKS = 1
 # canonical mapping has one home.
 STRATEGY_DIRECTION_FLAG = {
     "rsi_no_retest": True,
+    "rsi_no_retest_short": True,
     "rsi_momentum": True,
     "rsi_wma_retest": False,
 }
@@ -47,6 +48,7 @@ STRATEGY_DIRECTION_FLAG = {
 # trades; mixed-direction strategies map to "both".
 STRATEGY_DIRECTION_SIDE = {
     "rsi_no_retest": "long",
+    "rsi_no_retest_short": "short",
     "rsi_momentum": "short",
     "rsi_wma_retest": "long",
 }

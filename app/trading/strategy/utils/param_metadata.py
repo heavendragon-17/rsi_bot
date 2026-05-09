@@ -165,6 +165,36 @@ RSI_NO_RETEST_METADATA = {
 
 
 # ──────────────────────────────────────────────────────────
+# RSI No Retest SHORT (mirror of RSI No Retest, direction flipped)
+# ──────────────────────────────────────────────────────────
+
+RSI_NO_RETEST_SHORT_GROUPS = {**INDICATOR_GROUPS}
+
+# Identical to RSI_NO_RETEST_METADATA except:
+# - `nr_max_above_ema21` is replaced with `nr_max_below_ema21`
+# - `nr_sl_mode` enum lists SHORT-flavored modes (highest_close / highest_wick)
+RSI_NO_RETEST_SHORT_METADATA = {
+    **{
+        k: v
+        for k, v in RSI_NO_RETEST_METADATA.items()
+        if k not in {"nr_max_above_ema21", "nr_sl_mode"}
+    },
+    "nr_max_below_ema21": {
+        "title": "Max Candles Below EMA21",
+        "minimum": 0, "maximum": 10,
+        "description": "Tolerance for noise: max candles closing BELOW EMA21 in the lookback window.",
+        "ui_group": "entry", "ui_order": 2,
+    },
+    "nr_sl_mode": {
+        "title": "Stop Loss Mode",
+        "enum": ["highest_close", "highest_wick"],
+        "description": "SHORT SL placement: highest_close uses the max close of lookback; highest_wick uses the max high.",
+        "ui_group": "exit_sl", "ui_order": 1,
+    },
+}
+
+
+# ──────────────────────────────────────────────────────────
 # RSI Momentum
 # ──────────────────────────────────────────────────────────
 
