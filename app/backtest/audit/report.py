@@ -1,42 +1,55 @@
 """Phase 1 audit aggregator — converts a backtest run into an `AuditResult`.
 
-`run_audit(run_id)` runs the six audit tests (sanity, bootstrap CI,
-deflated Sharpe, information coefficient, PBO) over a single backtest
-run and returns one structured verdict. Sub-tests whose modules aren't
-yet implemented (still docstring-only stubs) report as ``None`` so the
-aggregator stays usable while the rest of the pipeline is built.
+`run_audit(run_id)` runs the six audit sub-tests over a single backtest
+run and returns one structured verdict:
 
-Aggregate verdict: ``overall_passed = True`` iff every sub-test that
-*actually ran* returned ``passed=True``. PBO is excluded from the count
-when it returns ``available=False`` (no grid-search siblings).
+    1. sanity         — pnl_concentration, long_short_symmetry, cost_sensitivity
+    2. bootstrap      — block-bootstrap CIs on Sharpe, profit factor, win rate
+    3. dsr            — Deflated Sharpe Ratio
+    4. ic             — Spearman IC vs forward log-returns, per traded symbol
+    5. pbo            — Probability of Backtest Overfitting (CSCV)
+    6. direction-vs-IC — derived flag layered on top of the IC result
 
-Multi-symbol IC verdict (v1): MAJORITY of symbols clear the |IC|
-threshold at >= one horizon AND no symbol is direction-mismatched.
-The choice is documented in ``audit/constants.py``
-(``IC_AGGREGATE_POLICY``).
+Aggregate verdict
+-----------------
+`overall_passed = True` iff every sub-test that *actually ran* returned
+`passed=True`. PBO is excluded from the count when it returns
+`available=False` (no grid-search siblings — see `pbo.py`).
 
-This module is print-friendly: all sub-results are stored on a frozen
-dataclass with a default-generated ``__repr__``. Use ``dataclasses.asdict``
-when serializing to JSON.
+Multi-symbol IC verdict (v1, `IC_AGGREGATE_POLICY = "majority"` in
+`audit/constants.py`): MAJORITY of symbols clear the |IC| threshold at
+≥ one horizon AND no symbol is direction-mismatched. Direction
+mismatch is a separate, prominent failure mode — a strategy can clear
+the IC bar while trading the wrong way on most symbols, and that's
+worth flagging at the top level.
+TODO(audit-ic-aggregation-v2): make the policy (any/majority/all)
+configurable per-strategy or per-run.
+
+Print-friendly: every sub-result is a frozen dataclass or plain dict,
+so the default `__repr__` is informative. Use `dataclasses.asdict` for
+JSON serialization once the API endpoint is wired up.
 """
 
 from __future__ import annotations
 
-import importlib
+import math
 import time
 from dataclasses import dataclass
-from typing import Any
 
 import structlog
 from sqlalchemy.orm import Session
 
+from app.backtest.audit.bootstrap_ci import run_bootstrap_ci
 from app.backtest.audit.constants import (
     IC_DIRECTION_MISMATCH_HORIZON,
     IC_MIN_ABS,
     STRATEGY_DIRECTION_SIDE,
 )
+from app.backtest.audit.deflated_sharpe import DSRResult, run_dsr_analysis
+from app.backtest.audit.information_coefficient import ICResult, run_ic_analysis
 from app.backtest.audit.pbo import PBOResult, run_pbo_analysis
 from app.backtest.audit.sanity import run_sanity_audits
+from app.backtest.audit.signal_panel import build_signal_panel
 from app.backtest.audit.trade_log import TradeLog, build_trade_log
 from app.core.actions import SIDE_BUY, SIDE_SELL
 from app.repository.backtest.database import SessionLocal
@@ -49,6 +62,13 @@ _DEFAULT_TIMEFRAME = "15m"
 
 @dataclass(frozen=True)
 class AuditResult:
+    """Aggregated verdict for one backtest run.
+
+    Sub-test fields are `None` when the test could not run (e.g. PBO
+    has no siblings, or an IC panel CSV is missing). `overall_passed`
+    is computed only over sub-tests that ran.
+    """
+
     run_id: int
     overall_passed: bool
     n_tests_run: int
@@ -56,8 +76,8 @@ class AuditResult:
 
     sanity: dict | None
     bootstrap: dict | None
-    ic: dict[str, Any] | None
-    dsr: Any | None
+    ic: dict[str, ICResult] | None
+    dsr: DSRResult | None
     pbo: PBOResult | None
 
     n_trades: int
@@ -69,53 +89,38 @@ class AuditResult:
     reason: str | None = None
 
 
-# ── sub-test runners with graceful fallback ──────────────────────────────────
-#
-# The stub modules (bootstrap_ci, deflated_sharpe, information_coefficient)
-# don't yet export their `run_*` functions. We resolve them at runtime via
-# importlib + getattr so mypy doesn't fail on the missing attributes; once
-# the modules are filled in, these helpers transparently start using them.
+# ── safe sub-test wrappers ──────────────────────────────────────────────────
 
 
-def _resolve(module_path: str, attr: str) -> Any | None:
+def _safe_bootstrap(tl: TradeLog) -> dict | None:
+    """Run bootstrap CI; downgrade exceptions to `None` so the audit completes."""
     try:
-        module = importlib.import_module(module_path)
-    except ImportError:
-        return None
-    return getattr(module, attr, None)
-
-
-def _try_run_bootstrap(tl: TradeLog) -> dict | None:
-    fn = _resolve("app.backtest.audit.bootstrap_ci", "run_bootstrap_ci")
-    if fn is None:
-        return None
-    try:
-        return fn(tl)
+        return run_bootstrap_ci(tl)
     except Exception as exc:  # noqa: BLE001 — protect aggregator from sub-test crashes
         logger.warning("audit_bootstrap_failed", run_id=tl.run_id, error=str(exc))
         return None
 
 
-def _try_run_dsr(tl: TradeLog) -> Any | None:
-    fn = _resolve("app.backtest.audit.deflated_sharpe", "run_dsr_analysis")
-    if fn is None:
-        return None
+def _safe_dsr(tl: TradeLog) -> DSRResult | None:
+    """Run DSR; downgrade exceptions to `None`."""
     try:
-        return fn(tl)
+        return run_dsr_analysis(tl)
     except Exception as exc:  # noqa: BLE001
         logger.warning("audit_dsr_failed", run_id=tl.run_id, error=str(exc))
         return None
 
 
-def _try_run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, Any] | None:
-    run_ic = _resolve("app.backtest.audit.information_coefficient", "run_ic_analysis")
-    build_panel = _resolve("app.backtest.audit.signal_panel", "build_signal_panel")
-    if run_ic is None or build_panel is None:
-        return None
-    out: dict[str, Any] = {}
+def _run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, ICResult] | None:
+    """Build a SignalPanel and run IC analysis per symbol.
+
+    Symbols whose CSV is missing or whose IC run crashes are skipped
+    with a warning; the audit proceeds with whatever symbols succeed.
+    Returns `None` when no symbol produced a result.
+    """
+    out: dict[str, ICResult] = {}
     for symbol in symbols:
         try:
-            panel = build_panel(symbol, timeframe)
+            panel = build_signal_panel(symbol, timeframe)
         except FileNotFoundError as exc:
             logger.warning("audit_ic_panel_missing", symbol=symbol, error=str(exc))
             continue
@@ -123,18 +128,24 @@ def _try_run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, Any]
             logger.warning("audit_ic_panel_failed", symbol=symbol, error=str(exc))
             continue
         try:
-            out[symbol] = run_ic(panel)
+            out[symbol] = run_ic_analysis(panel)
         except Exception as exc:  # noqa: BLE001
             logger.warning("audit_ic_run_failed", symbol=symbol, error=str(exc))
             continue
     return out or None
 
 
-# ── direction inference ──────────────────────────────────────────────────────
+# ── direction-vs-IC mismatch ────────────────────────────────────────────────
 
 
 def _infer_direction_from_trades(tl: TradeLog) -> str:
-    """Return 'long' / 'short' / 'both' from realized trade sides."""
+    """Return 'long' / 'short' / 'both' from realized trade sides.
+
+    Used as a fallback when the strategy slug is not in
+    `STRATEGY_DIRECTION_SIDE`. A run with trades on only one side may
+    still be a `both` strategy that lacked setups on the other side,
+    so this is best-effort: callers should prefer the explicit map.
+    """
     sides = set(tl.df["side"].unique())
     has_buy = SIDE_BUY in sides
     has_sell = SIDE_SELL in sides
@@ -153,51 +164,29 @@ def _resolve_strategy_direction(strategy_name: str | None, tl: TradeLog) -> str:
     return _infer_direction_from_trades(tl)
 
 
-def _ic_value_at_horizon(symbol_ic_result: Any, horizon: int) -> float | None:
-    """Best-effort extraction of the IC value at ``horizon`` from an IC result.
+def _ic_value_at_horizon(result: ICResult, horizon: int) -> float | None:
+    """Extract the IC value at `horizon` from an `ICResult`.
 
-    The IC module hasn't been implemented yet; once it is, the result
-    shape will be either a dict keyed by horizon or a dataclass with a
-    ``per_horizon`` mapping. Probe both shapes; return ``None`` if the
-    horizon isn't represented.
+    Returns `None` if the horizon isn't represented or the IC is NaN.
     """
-    if symbol_ic_result is None:
+    entry = result.per_horizon.get(horizon)
+    if entry is None:
         return None
-    candidates = []
-    per_h = getattr(symbol_ic_result, "per_horizon", None)
-    if per_h is not None:
-        candidates.append(per_h)
-    if isinstance(symbol_ic_result, dict):
-        candidates.append(symbol_ic_result.get("per_horizon", symbol_ic_result))
-    for mapping in candidates:
-        if not isinstance(mapping, dict):
-            continue
-        entry = mapping.get(horizon, mapping.get(str(horizon)))
-        if entry is None:
-            continue
-        if isinstance(entry, dict):
-            val = entry.get("ic")
-            if val is not None:
-                return float(val)
-        else:
-            try:
-                return float(entry)
-            except (TypeError, ValueError):
-                continue
-    return None
+    if math.isnan(entry.ic):
+        return None
+    return float(entry.ic)
 
 
 def _compute_direction_mismatch(
-    ic_results: dict[str, Any] | None,
+    ic_results: dict[str, ICResult] | None,
     direction: str,
 ) -> dict[str, bool] | None:
-    """Per-symbol direction-vs-IC mismatch flag.
+    """Per-symbol direction-vs-IC flag at `IC_DIRECTION_MISMATCH_HORIZON`.
 
-    ``True``  → direction conflicts with IC sign at ``IC_DIRECTION_MISMATCH_HORIZON``
-    ``False`` → direction agrees with IC sign
-    Symbols with neutral / unavailable IC are omitted from the result.
-    Returns ``None`` when IC isn't available at all or the strategy is
-    mixed-direction.
+    `True`  → strategy direction conflicts with IC sign at that horizon
+    `False` → strategy direction agrees with IC sign
+    Symbols with neutral / unavailable IC at that horizon are omitted.
+    Returns `None` when IC isn't available or the strategy is `both`.
     """
     if ic_results is None or direction == "both":
         return None
@@ -213,85 +202,49 @@ def _compute_direction_mismatch(
     return out or None
 
 
-# ── IC aggregate verdict ──────────────────────────────────────────────────────
+# ── verdict aggregation ─────────────────────────────────────────────────────
 
 
 def _ic_passed_aggregate(
-    ic_results: dict[str, Any] | None,
+    ic_results: dict[str, ICResult] | None,
     direction_mismatch: dict[str, bool] | None,
 ) -> bool | None:
-    """v1 majority rule: > half of symbols clear |IC| threshold AND no mismatch."""
+    """v1 majority rule: > half of symbols pass AND no mismatch."""
     if not ic_results:
         return None
-    passed_count = 0
-    total = 0
-    for res in ic_results.values():
-        total += 1
-        passed = getattr(res, "passed", None)
-        if passed is None and isinstance(res, dict):
-            passed = res.get("passed")
-        if passed is None:
-            best = 0.0
-            per_h = getattr(res, "per_horizon", None) or (
-                res.get("per_horizon") if isinstance(res, dict) else None
-            )
-            if isinstance(per_h, dict):
-                for entry in per_h.values():
-                    val = entry.get("ic") if isinstance(entry, dict) else entry
-                    if val is None:
-                        continue
-                    try:
-                        best = max(best, abs(float(val)))
-                    except (TypeError, ValueError):
-                        continue
-            passed = best >= IC_MIN_ABS
-        if passed:
-            passed_count += 1
-    if total == 0:
-        return None
-    majority_clear = passed_count * 2 > total
     if direction_mismatch and any(direction_mismatch.values()):
         return False
-    return majority_clear
-
-
-# ── overall verdict ───────────────────────────────────────────────────────────
-
-
-def _result_passed(result: Any) -> bool:
-    """Read ``passed`` from a dataclass or dict result; default False."""
-    val = getattr(result, "passed", None)
-    if val is None and isinstance(result, dict):
-        val = result.get("passed")
-    return bool(val)
+    passed = sum(1 for r in ic_results.values() if r.passed)
+    total = len(ic_results)
+    return passed * 2 > total
 
 
 def _aggregate_verdict(
     *,
     sanity: dict | None,
     bootstrap: dict | None,
-    dsr: Any | None,
-    ic: dict[str, Any] | None,
+    dsr: DSRResult | None,
+    ic: dict[str, ICResult] | None,
     pbo: PBOResult | None,
     direction_mismatch: dict[str, bool] | None,
 ) -> tuple[bool, int, int]:
-    """Return (overall_passed, n_tests_run, n_tests_passed)."""
+    """Return `(overall_passed, n_tests_run, n_tests_passed)`."""
     n_run = 0
     n_passed = 0
 
     if sanity is not None:
         n_run += 1
-        if _result_passed(sanity):
+        if bool(sanity.get("passed")):
             n_passed += 1
 
     if bootstrap is not None:
         n_run += 1
-        if _result_passed(bootstrap):
+        if bool(bootstrap.get("passed")):
             n_passed += 1
 
     if dsr is not None:
         n_run += 1
-        if _result_passed(dsr):
+        if dsr.passed:
             n_passed += 1
 
     if ic is not None:
@@ -308,7 +261,33 @@ def _aggregate_verdict(
     return overall, n_run, n_passed
 
 
-# ── public entrypoint ─────────────────────────────────────────────────────────
+# ── public entrypoint ───────────────────────────────────────────────────────
+
+
+def _empty_result(
+    run_id: int,
+    *,
+    started: float,
+    is_batch: bool,
+    reason: str,
+) -> AuditResult:
+    return AuditResult(
+        run_id=run_id,
+        overall_passed=False,
+        n_tests_run=0,
+        n_tests_passed=0,
+        sanity=None,
+        bootstrap=None,
+        ic=None,
+        dsr=None,
+        pbo=None,
+        n_trades=0,
+        symbols=[],
+        is_batch=is_batch,
+        duration_seconds=time.perf_counter() - started,
+        direction_mismatch=None,
+        reason=reason,
+    )
 
 
 def run_audit(
@@ -318,21 +297,32 @@ def run_audit(
     timeframe: str = _DEFAULT_TIMEFRAME,
     session: Session | None = None,
 ) -> AuditResult:
-    """Run all audit sub-tests for ``run_id`` and return an ``AuditResult``."""
+    """Run all audit sub-tests for `run_id` and return an `AuditResult`.
+
+    Parameters
+    ----------
+    run_id
+        Backtest run primary key in the audit DB.
+    single_direction
+        Forwarded to `run_sanity_audits`. When `True` the
+        long/short symmetry sub-check is skipped (the strategy is
+        declared one-sided).
+    timeframe
+        Used to locate per-symbol OHLCV CSVs for the IC panel. Defaults
+        to `15m`; falls through to the run's stored `RunConfig.timeframe`
+        when callers pass `""` or `None` (truthy precedence).
+    session
+        Caller-owned SQLAlchemy session. When `None` a fresh
+        `SessionLocal()` is opened and closed here.
+    """
     started = time.perf_counter()
     own_session = session is None
     db = session or SessionLocal()
     try:
         run = db.query(Run).filter(Run.id == run_id).first()
         if run is None:
-            return AuditResult(
-                run_id=run_id, overall_passed=False,
-                n_tests_run=0, n_tests_passed=0,
-                sanity=None, bootstrap=None, ic=None, dsr=None, pbo=None,
-                n_trades=0, symbols=[], is_batch=False,
-                duration_seconds=time.perf_counter() - started,
-                direction_mismatch=None, reason=f"run {run_id} not found",
-            )
+            return _empty_result(run_id, started=started, is_batch=False,
+                                 reason=f"run {run_id} not found")
 
         cfg = db.query(RunConfig).filter(RunConfig.run_id == run_id).first()
         strategy = (
@@ -340,27 +330,21 @@ def run_audit(
             if run.strategy_id is not None
             else None
         )
-        cfg_timeframe = str(cfg.timeframe) if cfg is not None else timeframe
-        effective_timeframe = timeframe or cfg_timeframe
+        effective_timeframe = timeframe or (str(cfg.timeframe) if cfg is not None else _DEFAULT_TIMEFRAME)
+        cfg_is_batch = bool(cfg.is_batch_mode) if cfg is not None else False
 
         tl = build_trade_log(run_id, session=db)
         if tl.df.empty:
-            return AuditResult(
-                run_id=run_id, overall_passed=False,
-                n_tests_run=0, n_tests_passed=0,
-                sanity=None, bootstrap=None, ic=None, dsr=None, pbo=None,
-                n_trades=0, symbols=[], is_batch=bool(cfg.is_batch_mode) if cfg else False,
-                duration_seconds=time.perf_counter() - started,
-                direction_mismatch=None, reason="no closed trades",
-            )
+            return _empty_result(run_id, started=started, is_batch=cfg_is_batch,
+                                 reason="no closed trades")
 
         symbols_traded = sorted(tl.df["symbol"].dropna().unique().tolist())
-        is_batch = bool(cfg.is_batch_mode) if cfg is not None else len(symbols_traded) > 1
+        is_batch = cfg_is_batch or len(symbols_traded) > 1
 
         sanity_result = run_sanity_audits(tl, single_direction=single_direction)
-        bootstrap_result = _try_run_bootstrap(tl)
-        dsr_result = _try_run_dsr(tl)
-        ic_result = _try_run_ic_per_symbol(symbols_traded, effective_timeframe)
+        bootstrap_result = _safe_bootstrap(tl)
+        dsr_result = _safe_dsr(tl)
+        ic_result = _run_ic_per_symbol(symbols_traded, effective_timeframe)
         pbo_result = run_pbo_analysis(run_id, session=db)
 
         direction = _resolve_strategy_direction(
@@ -390,8 +374,10 @@ def run_audit(
             duration_seconds=duration,
         )
         return AuditResult(
-            run_id=run_id, overall_passed=overall,
-            n_tests_run=n_run, n_tests_passed=n_passed,
+            run_id=run_id,
+            overall_passed=overall,
+            n_tests_run=n_run,
+            n_tests_passed=n_passed,
             sanity=sanity_result,
             bootstrap=bootstrap_result,
             ic=ic_result,
