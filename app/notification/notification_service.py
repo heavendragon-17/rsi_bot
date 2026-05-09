@@ -41,10 +41,14 @@ class NotificationService(INotifier):
         if hasattr(self._notifier, "attach_exchange"):
             self._notifier.attach_exchange(exchange)
 
-    def start_command_polling(self) -> None:
-        """Start the Telegram polling loop."""
+    def start_command_polling(self, extra_callbacks: dict | None = None) -> None:
+        """Start the Telegram polling loop.
+
+        ``extra_callbacks`` is forwarded to the underlying notifier so signal
+        mode can register runtime-bound commands (e.g. ``/test_signal``).
+        """
         if hasattr(self._notifier, "start_command_polling"):
-            self._notifier.start_command_polling()
+            self._notifier.start_command_polling(extra_callbacks=extra_callbacks)
 
     # ------------------------------------------------------------------
     # INotifier delegation — all calls go through the worker queue

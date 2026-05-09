@@ -50,12 +50,18 @@ class TelegramNotifier(INotifier):
     Constructor reads TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from env.
     """
 
-    def __init__(self, mode: str = "sim"):
+    def __init__(self, mode: str = "sim", *, chat_id_override: str | int | None = None):
         self._bot = TelegramBot(
             token_env="TELEGRAM_BOT_TOKEN",
             chat_id_env="TELEGRAM_CHAT_ID",
         )
-        self._chat_id: str | None = os.getenv("TELEGRAM_CHAT_ID")
+        # Signal mode passes telegram.group_id from config.yaml so topic-targeted
+        # notifications use the supergroup that hosts the topics, not whatever
+        # TELEGRAM_CHAT_ID happens to point at.
+        if chat_id_override is not None:
+            self._chat_id: str | None = str(chat_id_override)
+        else:
+            self._chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self._prefix = _MODE_PREFIX.get(mode, "🤖 BOT")
         self._exchange: IExchange | None = None
 
@@ -63,8 +69,18 @@ class TelegramNotifier(INotifier):
         """Store a reference to the exchange for handling commands."""
         self._exchange = exchange
 
-    def start_command_polling(self) -> None:
-        """Start the Telegram polling loop and register commands."""
+    def start_command_polling(
+        self,
+        extra_callbacks: dict | None = None,
+    ) -> None:
+        """Start the Telegram polling loop and register commands.
+
+        ``extra_callbacks`` lets callers (e.g. the signal-mode runner) inject
+        commands that depend on runtime state the notifier doesn't own —
+        such as the active strategy list. Each callback receives ``chat_id``
+        and is responsible for its own auth check (use the ``verify`` helper
+        exposed via ``verify_chat_id`` if needed).
+        """
         send = self._bot.send_message
         verify = self._verify_chat_id
         ex = self._exchange
@@ -94,7 +110,13 @@ class TelegramNotifier(INotifier):
             "/cancel_deploy": lambda cid: handle_cancel_deploy(send, cid) if verify(cid) else None,
             "/bot_version": lambda cid: handle_bot_version(send, cid) if verify(cid) else None,
         }
+        if extra_callbacks:
+            callbacks.update(extra_callbacks)
         self._bot.start_polling(callbacks)  # type: ignore[arg-type]
+
+    def verify_chat_id(self, chat_id: str) -> bool:
+        """Public wrapper around :meth:`_verify_chat_id` for extension callbacks."""
+        return self._verify_chat_id(chat_id)
 
     def _verify_chat_id(self, chat_id: str) -> bool:
         if self._chat_id and str(chat_id) != str(self._chat_id):
