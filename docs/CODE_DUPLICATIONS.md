@@ -182,6 +182,20 @@ Only one copy currently. Monitor for duplication.
 
 ---
 
+## 13. Audit metric reimplementation (Sharpe / profit factor / win rate) — **INTENTIONAL**
+
+| Status | File | Line | Code |
+|--------|------|------|------|
+| ✅ INTENTIONAL — DO NOT MERGE | `app/backtest/audit/bootstrap_ci.py` | `_sharpe`, `_profit_factor`, `_win_rate` | One-line numpy reimplementations of three metrics also computed by `app/backtest/statistics/compute_core_metrics`. |
+
+This duplication is by design and must NOT be removed. Three reasons, kept in sync with the module docstring of `bootstrap_ci.py`:
+
+1. **Unit-space safety.** `compute_core_metrics`'s `win_rate` is a percentage in `[0, 100]`; the audit's pass thresholds are written in fraction space `[0, 1]`. A dedicated audit `_win_rate` returns fractions only, removing the cross-module conversion footgun.
+2. **Hot-loop cost.** `arch.bootstrap.StationaryBootstrap.apply` calls the metric callable 10,000× per metric. `compute_core_metrics` builds an equity-curve list internally — wasted work in the inner loop when all we need is `mean/std`, `pos-sum/neg-sum`, or a boolean mean.
+3. **Independence as a check.** The audit is a check *on* the rest of the system. If a bug ever slips into `compute_core_metrics` (e.g. annualization constant drift, unit flip), the audit must catch it — not inherit it. Two implementations that agree are evidence; one shared implementation can hide its own bug.
+
+---
+
 ## Summary by Priority
 
 ### Critical (inconsistent values - bugs waiting to happen)

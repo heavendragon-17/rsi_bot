@@ -26,6 +26,7 @@ class TradeState:
     pending_candle_sl: bool = False
     crossover_detected: bool = False
     tp_allocations: dict | None = field(default_factory=dict)
+    bars_held: int = 0
 
     def to_meta(self) -> dict[str, Any]:
         """Serialize to a plain dict for ContextSnapshot.meta."""
@@ -41,6 +42,7 @@ class TradeState:
             "pending_candle_sl": self.pending_candle_sl,
             "crossover_detected": self.crossover_detected,
             "tp_allocations": self.tp_allocations,
+            "bars_held": self.bars_held,
         }
 
     @classmethod
@@ -60,4 +62,5 @@ class TradeState:
             pending_candle_sl=bool(meta.get("pending_candle_sl", False)),
             crossover_detected=bool(meta.get("crossover_detected", False)),
             tp_allocations=meta.get("tp_allocations"),
+            bars_held=int(meta.get("bars_held", 0) or 0),
         )

@@ -59,13 +59,22 @@ class TestOrderRepository:
 
 class TestSeedStrategies:
     def test_skips_existing(self):
-        mock_session = MagicMock()
-        # Simulate .query(...).filter_by(...).first() returning an existing row
-        mock_session.query.return_value.filter_by.return_value.first.return_value = object()
+        # Existing row whose default_config already covers every dataclass field
+        # — no insert AND no backfill update should happen.
+        from app.repository.backtest.seed import _build_defaults, seed_strategies
+        from app.trading.strategy.loader import STRATEGY_MAP
 
-        from app.repository.backtest.seed import seed_strategies
+        all_defaults = {}
+        for cls in STRATEGY_MAP.values():
+            all_defaults.update(_build_defaults(cls))
+
+        existing_row = MagicMock()
+        existing_row.default_config = all_defaults
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = existing_row
+
         seed_strategies(mock_session)
-        # Should NOT have called add/commit because all strategies exist
         mock_session.add.assert_not_called()
 
     def test_inserts_missing(self):
@@ -77,6 +86,24 @@ class TestSeedStrategies:
         # Should have called add at least once
         assert mock_session.add.called
         assert mock_session.commit.called
+
+    def test_backfills_new_fields(self):
+        """An existing row missing a new dataclass field gets it patched in,
+        without overwriting unrelated fields."""
+        existing_row = MagicMock()
+        existing_row.default_config = {"some_existing_user_value": 42}
+
+        mock_session = MagicMock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = existing_row
+
+        from app.repository.backtest.seed import seed_strategies
+        seed_strategies(mock_session)
+
+        # default_config got reassigned to a merged dict that still contains the user value
+        assert existing_row.default_config["some_existing_user_value"] == 42
+        # And new fields are present
+        assert "max_holding_enabled" in existing_row.default_config
+        assert "max_holding_bars" in existing_row.default_config
 
 
 class TestBacktestDatabase:
