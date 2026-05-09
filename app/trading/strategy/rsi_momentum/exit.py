@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_momentum_exit.py
+# app/trading/strategy/rsi_momentum/exit.py
 """
 Exit management logic for RsiMomentumStrategy (SHORT positions).
 
@@ -19,10 +19,15 @@ from app.core.actions import (
     MoveSL,
 )
 from app.core.analysis_result import AnalysisResult
+from app.core.constants import SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.utils import to_decimal_or_none
 from app.trading.sl_tp_calculator import SLTPCalculator
+from app.trading.strategy.utils.bars_held import (
+    increment_bars_held,
+    maybe_force_close_max_holding,
+)
 from app.trading.strategy.utils.trade_state import TradeState
 
 
@@ -36,6 +41,8 @@ def manage_exit(
     lock_profit_rr: float,
     taker_fee: Decimal,
     maker_fee: Decimal,
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE,
+    max_holding_bars: int = 0,
 ) -> AnalysisResult:
     """Manage exit for an open SHORT position.
 
@@ -63,6 +70,15 @@ def manage_exit(
     entry_price = to_decimal_or_none(ts.entry_price)
     if entry_price is None:
         return AnalysisResult(actions=[DoNothing()], new_context=context)
+
+    # Increment bars-held counter once per call and rebuild context so that
+    # downstream steps (and any persisted return path) carry the new value.
+    bars_held = increment_bars_held(ts)
+    context = ContextSnapshot(
+        state=context.state,
+        soft_sl_price=context.soft_sl_price,
+        meta=ts.to_meta(),
+    )
 
     soft_sl = context.soft_sl_price or to_decimal_or_none(ts.soft_sl_price)
     original_soft_sl = to_decimal_or_none(ts.original_soft_sl) or soft_sl
@@ -125,10 +141,27 @@ def manage_exit(
             )
 
     # -- STEP 2: Candle-close SL -- flag exit for next candle
-    if soft_sl is not None and close is not None and close >= soft_sl:
+    # Skipped in "touch" mode: exchange-level stop fires on touch.
+    if (
+        sl_trigger_mode != SL_TRIGGER_TOUCH
+        and soft_sl is not None
+        and close is not None
+        and close >= soft_sl
+    ):
         new_ts = TradeState.from_meta(context.meta)
         new_ts.pending_candle_sl = True
         new_ctx = ContextSnapshot(state=context.state, soft_sl_price=soft_sl, meta=new_ts.to_meta())
         return AnalysisResult(actions=[DoNothing()], new_context=new_ctx)
+
+    # -- STEP 3: max holding period -- force-close stale positions at market.
+    # Fires LAST so any specific exit above takes priority on the same bar.
+    max_holding_result = maybe_force_close_max_holding(
+        symbol=symbol,
+        bars_held=bars_held,
+        max_bars=max_holding_bars,
+        close_price=close,
+    )
+    if max_holding_result is not None:
+        return max_holding_result
 
     return AnalysisResult(actions=[DoNothing()], new_context=context)

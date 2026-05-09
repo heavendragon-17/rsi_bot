@@ -112,9 +112,11 @@ Use `scipy.stats.spearmanr`.
 
 Stationary block bootstrap on `trade_log['ret_pct']` for three metrics:
 
-- Sharpe ratio (annualized to per-trade frequency)
-- Profit factor
-- Win rate
+- Sharpe ratio — per-trade `mean / std`, **not annualized**. The CI lower bound > 0 test is invariant to any constant scaling factor, so annualizing would add noise (and a strategy- and timeframe-dependent constant) without statistical content.
+- Profit factor — `sum(positives) / abs(sum(negatives))`; `+inf` if no losers.
+- Win rate — fraction in `[0, 1]` (NOT a percentage).
+
+The three metrics are reimplemented inline in `bootstrap_ci.py` rather than imported from `app/backtest/statistics/compute_core_metrics`. This is intentional: it isolates the audit from any future bug in the shared statistics module, avoids the win-rate fraction-vs-percent unit footgun across modules, and keeps the bootstrap inner loop cheap (no per-call equity-curve allocation). Documented as an intentional duplication in `docs/CODE_DUPLICATIONS.md`.
 
 | Output | Pass criterion |
 |--------|----------------|
@@ -127,45 +129,98 @@ return series, take the `stationary` column. 10,000 bootstrap reps.
 
 ### 4. Deflated Sharpe Ratio — `deflated_sharpe.py`
 
-Bailey & López de Prado (2014). Adjusts the observed Sharpe for the number
-of trials in parameter selection.
+Bailey & López de Prado (2014). Converts the observed Sharpe + sample
+higher moments into a probability that the strategy's *true* per-trade
+Sharpe exceeds a benchmark Sharpe (default 0).
 
-Inputs:
-- Observed Sharpe of the chosen run
-- Sharpes of all sibling runs from the same parameter sweep (if any)
-- Trade returns of the chosen run (for skew/kurtosis adjustment)
-- Number of trials `N` (count of distinct parameter sets evaluated)
+Public surface:
 
-If the run is not part of a parameter sweep, `N=1` and the trials correction
-collapses; report DSR but flag that no correction was applied.
+- `DSRResult` — frozen dataclass with `n_trades`, `sharpe_observed`,
+  `skew`, `kurtosis` (excess), `psr`, `dsr`, `n_trials`,
+  `benchmark_sharpe`, `passed`, `threshold`.
+- `run_dsr_analysis(tl, *, n_trials=1, benchmark_sharpe=0.0,
+  threshold=DSR_PASS_THRESHOLD) -> DSRResult` — reads
+  `tl.df['ret_pct']`, computes per-trade unscaled Sharpe (matching
+  `bootstrap_ci.py`), sample-bias-corrected skew via
+  `scipy.stats.skew(bias=False)`, and excess kurtosis via
+  `scipy.stats.kurtosis(bias=False, fisher=True)`, then plugs into
+  Bailey & LdP eq. (1) for PSR.
+
+PSR formula:
+
+```
+PSR = Φ( (sharpe - benchmark) * sqrt(n - 1)
+       / sqrt(1 - skew*sharpe + (kurtosis/4)*sharpe^2) )
+```
+
+The denominator is guarded: if `1 - skew*sharpe + (kurtosis/4)*sharpe^2`
+goes non-positive (a pathological skew/kurtosis combination), PSR is
+returned as NaN with a structlog warning rather than crashing.
+
+**v1 scope: PSR only.** `n_trials > 1` raises `NotImplementedError`. The
+multi-trial branch needs the count of parameter combinations evaluated
+during selection, which is not yet tracked end-to-end in the
+backtest persistence layer (`runs.grid_search_parent_id` is set, but the
+trial count is not propagated through the audit input). Until that
+plumbing exists, callers must leave `n_trials=1`, in which case DSR is
+algebraically identical to PSR. The expected-max-of-N-trials adjustment
+is documented in `_dsr`'s docstring for the eventual implementation.
 
 | Output | Pass criterion |
 |--------|----------------|
-| DSR | `> DSR_PASS_THRESHOLD` (0.95 default) |
+| `dsr` (== `psr` when `n_trials=1`) | `>= DSR_PASS_THRESHOLD` (0.95 default) |
 
-Reference: `references/`. Cross-check the formula against the paper before
-running.
+Reference: `references/`. The `_psr` formula is taken directly from
+Bailey & LdP (2014) eq. (1); cross-check before raising the threshold.
 
 ### 5. Probability of Backtest Overfitting — `pbo.py`
 
 Bailey, Borwein, López de Prado, Zhu (2014). CSCV.
 
-Required input: a `(T_bars, N_param_combos)` matrix of per-bar returns,
-one column per parameter set tested. Reconstruct this from grid-search
-child runs by joining `runs.grid_search_parent_id = X` and decompressing
-each child's `run_timeseries.equity_curve` BLOB.
+Required input: a `(T, N)` returns matrix, one column per parameter
+set tested. Sibling runs are discovered by joining
+`runs.grid_search_parent_id = X`.
+
+**v1 simplification:** returns are per-trade `Trade.pnl` values aligned
+positionally and zero-padded to the longest column length. Bar-level
+returns (decompressed from `run_timeseries.equity_curve`) are deferred
+to v2. The simplification is documented in the module docstring.
 
 Algorithm: split the row index into S=16 blocks. For every C(S, S/2)=12,870
 ways to split into IS and OOS halves, find the best parameter on IS by
-Sharpe and record its OOS rank. PBO is the fraction of splits where the
-IS-best ranks below median OOS.
+Sharpe and record its OOS rank. Logit-transform the OOS rank percentile
+and count splits with logit < 0. PBO is that fraction.
 
 | Output | Pass criterion |
 |--------|----------------|
 | PBO | `< PBO_FAIL_THRESHOLD` (0.20 default) |
 
-If no parameter sweep exists for the run, return `{"available": False}` —
+If no parameter sweep exists for the run, returns
+`PBOResult(available=False, reason="no sibling runs from grid search", …)` —
 this test is skipped, not failed. PBO requires multiple param combinations.
+
+Public API:
+
+```python
+PBOResult(
+    available: bool,
+    pbo: float | None,
+    n_strategies: int,
+    n_blocks: int,
+    n_combinations: int,
+    passed: bool,
+    threshold: float,
+    reason: str | None,
+)
+
+run_pbo_analysis(
+    run_id: int,
+    *,
+    n_blocks: int = PBO_BLOCK_COUNT,
+    threshold: float = PBO_FAIL_THRESHOLD,
+    session: Session | None = None,
+) -> PBOResult
+```
 
 ## Constants — `constants.py`
 
@@ -174,34 +229,77 @@ All numeric thresholds live here per the CLAUDE.md no-magic-numbers rule:
 ```python
 IC_MIN_ABS = 0.02
 IC_MAX_PVALUE = 0.01
+IC_HORIZONS = [1, 4, 16, 96]
+IC_DIRECTION_MISMATCH_HORIZON = 4   # horizon used for direction-vs-IC sign check
+IC_AGGREGATE_POLICY = "majority"    # multi-symbol IC verdict (v1)
 BOOTSTRAP_REPS = 10_000
 BOOTSTRAP_CI_PCT = 95
 DSR_PASS_THRESHOLD = 0.95
 PBO_FAIL_THRESHOLD = 0.20
 PBO_BLOCK_COUNT = 16
 SANITY_TOP_TRADE_SHARE_MAX = 0.50
-SANITY_COST_STRESS_MULTIPLIER = 2
+SANITY_COST_STRESS_FEE_MULTIPLIER = 2
+
+# Strategy direction maps (keyed by strategy slug as stored in `strategies.name`)
+STRATEGY_DIRECTION_FLAG = {...}     # bool — used by API route to set single_direction
+STRATEGY_DIRECTION_SIDE = {...}     # "long"|"short"|"both" — used by report.py for direction-vs-IC mismatch
 ```
 
 ## Aggregator — `report.py`
 
-`run_audit(run_id: int) -> AuditResult` builds both DataFrames once, runs
-all five tests, returns:
+`run_audit(run_id)` builds the trade log once, orchestrates every
+sub-test, and returns a frozen `AuditResult` dataclass:
 
 ```python
-{
-    "run_id": int,
-    "verdict": "pass" | "fail" | "incomplete",
-    "sanity": {...},
-    "ic": {...},
-    "bootstrap": {...},
-    "dsr": {...},
-    "pbo": {...},
-}
+@dataclass(frozen=True)
+class AuditResult:
+    run_id: int
+    overall_passed: bool
+    n_tests_run: int
+    n_tests_passed: int
+
+    sanity: dict | None
+    bootstrap: dict | None
+    ic: dict[str, Any] | None       # symbol -> ICResult (per-symbol, batch mode)
+    dsr: Any | None
+    pbo: PBOResult | None
+
+    n_trades: int
+    symbols: list[str]
+    is_batch: bool
+    duration_seconds: float
+
+    direction_mismatch: dict[str, bool] | None
+    reason: str | None              # set when no closed trades / run not found
+
+def run_audit(
+    run_id: int,
+    *,
+    single_direction: bool = False,
+    timeframe: str = "15m",
+    session: Session | None = None,
+) -> AuditResult
 ```
 
-Verdict logic: `pass` only if every applicable test passes its threshold.
-`incomplete` if PBO is unavailable but the rest pass. `fail` otherwise.
+Verdict logic:
+
+- `overall_passed = True` iff **every sub-test that actually ran**
+  returned `passed=True`. A sub-test that returns `None` (module not yet
+  implemented, or panel CSV missing) is excluded from the count.
+- PBO is excluded from the count when it returns `available=False`.
+- IC verdict for multi-symbol runs is **majority rule** (v1): more than
+  half the symbols clear the |IC| threshold at ≥ one horizon. If any
+  symbol is direction-mismatched (strategy is long-only and IC at h=4
+  is negative, or short-only and IC at h=4 is positive) the IC test
+  fails outright. The aggregation policy is recorded in
+  `IC_AGGREGATE_POLICY`.
+- Strategy direction comes from `STRATEGY_DIRECTION_SIDE[strategy_name]`
+  when present, otherwise inferred from realized trade sides
+  (long-only / short-only / mixed).
+
+Resilience: each sub-test is wrapped so a crash or import error in one
+module degrades that slot to `None` rather than failing the whole audit.
+Failures are logged via `structlog`.
 
 ## Conventions
 
@@ -209,9 +307,12 @@ Per CLAUDE.md and `docs/agent-workflow.md`:
 
 - All audit functions return dicts or DataFrames. Never print, never log to
   stdout. Use `structlog.get_logger()` for diagnostic logging.
-- Use the `arch` library for bootstrap and `scipy.stats` for IC. These are
-  the only new dependencies; add to `requirements.txt` when the first test
-  is implemented, not before.
+- Use the `arch` library for bootstrap and `scipy.stats` for IC and DSR.
+  These are the only new dependencies; add to `requirements.txt` when
+  the first test is implemented, not before. (`arch` is already added
+  for `bootstrap_ci.py`; `scipy` is used by `deflated_sharpe.py` and
+  should be added before the audit pipeline is wired into a runtime
+  code path.)
 - One logic class per file. Files stay under 400 lines.
 - All numeric thresholds in `constants.py`.
 - This module imports from `app.repository.backtest`, `app.data.indicators`,

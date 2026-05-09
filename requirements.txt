@@ -21,5 +21,6 @@ ipykernel
 jinja2
 jupyterlab
 matplotlib
-seaborn 
+seaborn
 plotly
+arch

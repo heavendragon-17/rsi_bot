@@ -1,17 +1,21 @@
-# app/trading/strategy/rsi_no_retest.py
+# app/trading/strategy/rsi_no_retest_short/strategy.py
 """
-Layer 2: Core Logic - RSI No Retest Strategy (Entry reclaim EMA21)
-==================================================================
+Layer 2: Core Logic - RSI No Retest SHORT Strategy
+==================================================
 
-Thin orchestrator: dispatches to ``rsi_no_retest_entry`` and
-``rsi_no_retest_exit`` for the actual state-machine logic.
+SHORT mirror of ``rsi_no_retest`` (the LONG strategy). Pure inversion:
+same parameters, same lookback windows, same R:R structure, only the
+direction flips. This is the H3 contrarian variant motivated by the
+Information Coefficient finding (negative IC at h=4 across the trading
+universe — see ``docs/17_audit/audit.md``).
 
 Rules (summary):
-- Entry: first candle closing > EMA21 (cross up) after prolonged decline
-- RSI confirmation: (RSI_EMA9 - RSI_WMA45) >= rsi_spread_min
-- SL: configurable mode (rsi_ema9 / lowest_wick / lowest_close)
-- TP: 1-3 levels at configurable RR ratios
-- Exit: candle-close SL, lock-profit trigger, pending candle SL
+- Entry: first candle closing < EMA21 (cross down) after prolonged rise
+- RSI confirmation: (RSI_WMA45 - RSI_EMA9) >= rsi_spread_min
+- SL: configurable mode (highest_close / highest_wick); sits ABOVE entry
+- TP: 1-3 levels at configurable RR ratios, BELOW entry
+- Exit: candle-close SL, lock-profit trigger, pending candle SL,
+  max-holding-period force-close
 """
 
 from __future__ import annotations
@@ -25,19 +29,25 @@ import structlog
 
 from app.core.actions import DoNothing
 from app.core.analysis_result import AnalysisResult
-from app.core.constants import DEFAULT_MAKER_FEE_DECIMAL, DEFAULT_TAKER_FEE_DECIMAL, WARMUP
+from app.core.constants import (
+    DEFAULT_MAKER_FEE_DECIMAL,
+    DEFAULT_TAKER_FEE_DECIMAL,
+    SL_TRIGGER_CANDLE_CLOSE,
+    SL_TRIGGER_MODES,
+    WARMUP,
+)
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot, PositionSnapshot
 from app.core.utils import to_decimal_or_none
 from app.data.indicators import Indicators
 from app.data.resampler import resample_dataframe
 from app.trading.strategy.base import BaseStrategy
-from app.trading.strategy.rsi_no_retest_entry import check_entry
-from app.trading.strategy.rsi_no_retest_exit import manage_exit
+from app.trading.strategy.rsi_no_retest_short.entry import check_entry
+from app.trading.strategy.rsi_no_retest_short.exit import manage_exit
 from app.trading.strategy.utils.config_helpers import merge_config
 from app.trading.strategy.utils.param_metadata import (
-    RSI_NO_RETEST_GROUPS,
-    RSI_NO_RETEST_METADATA,
+    RSI_NO_RETEST_SHORT_GROUPS,
+    RSI_NO_RETEST_SHORT_METADATA,
 )
 from app.trading.strategy.utils.schema_helper import SchemaConfigMixin
 
@@ -45,11 +55,16 @@ logger = structlog.get_logger()
 
 
 @dataclass(frozen=True)
-class RsiNoRetestConfig(SchemaConfigMixin):
-    """Typed config for RsiNoRetestStrategy. Constructed from strategy_params dict."""
+class RsiNoRetestShortConfig(SchemaConfigMixin):
+    """Typed config for RsiNoRetestShortStrategy. Constructed from strategy_params dict.
 
-    METADATA = RSI_NO_RETEST_METADATA
-    UI_GROUPS = RSI_NO_RETEST_GROUPS
+    Kept as a separate class from ``RsiNoRetestConfig`` even though the
+    parameter set is identical — decouples future tuning of the SHORT
+    variant from the LONG parent.
+    """
+
+    METADATA = RSI_NO_RETEST_SHORT_METADATA
+    UI_GROUPS = RSI_NO_RETEST_SHORT_GROUPS
 
     rsi_period: int = 21
     rsi_ema_length: int = 9
@@ -57,11 +72,12 @@ class RsiNoRetestConfig(SchemaConfigMixin):
     price_ema_fast: int = 21
     price_ema_slow: int = 200
     nr_lookback: int = 30
-    nr_max_above_ema21: int = 3
+    nr_max_below_ema21: int = 3
     nr_rsi_spread_min: float = 2.5
-    nr_sl_mode: str = "lowest_close"
+    nr_sl_mode: str = "highest_close"
     sl_buffer_pct: float = 0.0
     disaster_sl_multiplier: float = 3.0
+    sl_trigger_mode: str = SL_TRIGGER_CANDLE_CLOSE
     candle_close_slippage_pct: float = 0.0
     nr_tp1_rr: float = 1.0
     nr_tp2_rr: float = 2.0
@@ -72,17 +88,16 @@ class RsiNoRetestConfig(SchemaConfigMixin):
     tp3_close_pct: float = 0.0
     nr_move_sl_rr: float = 0.5
     nr_lock_profit_rr: float = 0.2
+    max_holding_enabled: bool = True
+    max_holding_bars: int = 96
     use_active_trades: bool = True
 
 
-class RsiNoRetestStrategy(BaseStrategy):
-    """
-    RSI No Retest Strategy - enters on EMA21 reclaim without requiring RSI retest.
-    """
+class RsiNoRetestShortStrategy(BaseStrategy):
+    """RSI No Retest SHORT — enters on EMA21 break-down without requiring RSI retest."""
 
-    CONFIG_CLASS = RsiNoRetestConfig
+    CONFIG_CLASS = RsiNoRetestShortConfig
 
-    # Default configuration for this strategy
     DEFAULT_CONFIG = {
         "rsi_period": 21,
         "rsi_ema_length": 9,
@@ -90,11 +105,12 @@ class RsiNoRetestStrategy(BaseStrategy):
         "price_ema_fast": 21,
         "price_ema_slow": 200,
         "nr_lookback": 30,
-        "nr_max_above_ema21": 3,
+        "nr_max_below_ema21": 3,
         "nr_rsi_spread_min": 2.5,
-        "nr_sl_mode": "lowest_close",
+        "nr_sl_mode": "highest_close",
         "sl_buffer_pct": 0.0,
         "disaster_sl_multiplier": 3.0,
+        "sl_trigger_mode": SL_TRIGGER_CANDLE_CLOSE,
         "candle_close_slippage_pct": 0,
         "nr_tp1_rr": 1.0,
         "nr_tp2_rr": 2.0,
@@ -105,6 +121,8 @@ class RsiNoRetestStrategy(BaseStrategy):
         "tp3_close_pct": 0,
         "nr_move_sl_rr": 0.5,
         "nr_lock_profit_rr": 0.2,
+        "max_holding_enabled": True,
+        "max_holding_bars": 96,
         "use_active_trades": True,
     }
 
@@ -117,7 +135,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             config.strategy_params if isinstance(config, AppConfig) else config.get("strategy_params", {})
         ) or {}
         cfg = {**self.DEFAULT_CONFIG, **strategy_params}
-        self.strategy_cfg = merge_config(RsiNoRetestConfig, cfg)
+        self.strategy_cfg = merge_config(RsiNoRetestShortConfig, cfg)
         bot_cfg = config.get("bot", {}) if not isinstance(config, AppConfig) else {}
 
         self.timeframe = config.get("timeframe", "15m")
@@ -146,11 +164,17 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         # Strategy parameters
         self.lookback = int(cfg.get("nr_lookback", 30))
-        self.max_above_ema21 = int(cfg.get("nr_max_above_ema21", 1))
-        self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 1.5))
-        self.sl_mode = str(cfg.get("nr_sl_mode", "rsi_ema9")).lower()
+        self.max_below_ema21 = int(cfg.get("nr_max_below_ema21", 3))
+        self.rsi_spread_min = float(cfg.get("nr_rsi_spread_min", 2.5))
+        self.sl_mode = str(cfg.get("nr_sl_mode", "highest_close")).lower()
         self.sl_buffer_pct = float(cfg.get("sl_buffer_pct", 0.0))
-        self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 2.0))
+        self.disaster_sl_multiplier = float(cfg.get("disaster_sl_multiplier", 3.0))
+        sl_trigger_mode = str(cfg.get("sl_trigger_mode", SL_TRIGGER_CANDLE_CLOSE)).lower()
+        if sl_trigger_mode not in SL_TRIGGER_MODES:
+            raise ValueError(
+                f"sl_trigger_mode must be one of {SL_TRIGGER_MODES}, got {sl_trigger_mode!r}"
+            )
+        self.sl_trigger_mode = sl_trigger_mode
         self.candle_close_slippage_pct = float(cfg.get("candle_close_slippage_pct", 0.001))
 
         self.tp1_rr = Decimal(str(cfg.get("nr_tp1_rr", 1.0)))
@@ -162,6 +186,8 @@ class RsiNoRetestStrategy(BaseStrategy):
 
         self.move_sl_rr = Decimal(str(cfg.get("nr_move_sl_rr", 0.5)))
         self.lock_profit_rr = Decimal(str(cfg.get("nr_lock_profit_rr", 0.2)))
+        self.max_holding_enabled = bool(cfg.get("max_holding_enabled", True))
+        self.max_holding_bars = int(cfg.get("max_holding_bars", 96) or 0)
         self.use_active_trades = bool(cfg.get("use_active_trades", True))
 
         self.debug_enabled = bool(bot_cfg.get("debug", False))
@@ -212,7 +238,7 @@ class RsiNoRetestStrategy(BaseStrategy):
             return _noop
 
         close = to_decimal_or_none(last.get("close"))
-        high = to_decimal_or_none(last.get("high"))
+        low = to_decimal_or_none(last.get("low"))
         open_price = to_decimal_or_none(last.get("open"))
         ema21 = to_decimal_or_none(last.get("ema21"))
 
@@ -228,12 +254,16 @@ class RsiNoRetestStrategy(BaseStrategy):
                 symbol=symbol,
                 context=context,
                 close=close,
-                high=high,
+                low=low,
                 open_price=open_price,
                 move_sl_rr=self.move_sl_rr,
                 lock_profit_rr=self.lock_profit_rr,
                 taker_fee=self.taker_fee,
                 maker_fee=self.maker_fee,
+                sl_trigger_mode=self.sl_trigger_mode,
+                max_holding_bars=(
+                    self.max_holding_bars if self.max_holding_enabled else 0
+                ),
             )
 
         # ---- ENTRY (no open position) ----
@@ -249,11 +279,12 @@ class RsiNoRetestStrategy(BaseStrategy):
             rsi_ema9=rsi_ema9,
             rsi_wma45=rsi_wma45,
             lookback=self.lookback,
-            max_above_ema21=self.max_above_ema21,
+            max_below_ema21=self.max_below_ema21,
             rsi_spread_min=self.rsi_spread_min,
             sl_mode=self.sl_mode,
             sl_buffer_pct=self.sl_buffer_pct,
             disaster_sl_multiplier=self.disaster_sl_multiplier,
+            sl_trigger_mode=self.sl_trigger_mode,
             tp1_rr=self.tp1_rr,
             tp2_rr=self.tp2_rr,
             tp3_rr=self.tp3_rr,

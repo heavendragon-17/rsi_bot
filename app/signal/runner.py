@@ -77,6 +77,11 @@ class SignalRunner:
         """Expose the VP store so the StatusWriter can snapshot open VPs."""
         return self._vp_store
 
+    @property
+    def strategies(self) -> list[StrategyInstanceConfig]:
+        """Resolved active strategies (populated after :meth:`start`)."""
+        return list(self._instance_cfgs)
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------

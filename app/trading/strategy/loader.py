@@ -9,12 +9,16 @@ from app.core.interfaces import IStrategy
 
 from .rsi_momentum import RsiMomentumStrategy
 from .rsi_no_retest import RsiNoRetestStrategy
+from .rsi_no_retest_fade import RsiNoRetestFadeStrategy
+from .rsi_no_retest_short import RsiNoRetestShortStrategy
 from .rsi_wma_retest import RsiWmaRetestStrategy
 
 # Strategy name -> class mapping
 STRATEGY_MAP = {
     "rsi_wma_retest": RsiWmaRetestStrategy,
     "rsi_no_retest": RsiNoRetestStrategy,
+    "rsi_no_retest_short": RsiNoRetestShortStrategy,
+    "rsi_no_retest_fade": RsiNoRetestFadeStrategy,
     "rsi_momentum": RsiMomentumStrategy,
 }
 

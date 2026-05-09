@@ -30,6 +30,19 @@ MAX_CANDLES_IN_RAM_PER_TF: dict[str, int] = {
     "1d": 500,
 }
 
+# ── Stop-loss trigger modes ─────────────────────────────────────────
+# How the stop-loss is enforced once price reaches the soft-SL level.
+#   "candle_close" — strategy waits for the candle to *close* through the
+#                    soft SL, then exits at the next candle's open. The
+#                    real exchange stop sits at the wider disaster-SL
+#                    level and only fires as a safety net.
+#   "touch"        — exchange-level stop sits *at* the soft SL price and
+#                    fires as soon as price touches it. Strategy skips
+#                    the close-through check.
+SL_TRIGGER_CANDLE_CLOSE = "candle_close"
+SL_TRIGGER_TOUCH = "touch"
+SL_TRIGGER_MODES = (SL_TRIGGER_CANDLE_CLOSE, SL_TRIGGER_TOUCH)
+
 # ── Fee defaults (Binance futures) ──────────────────────────────────
 DEFAULT_TAKER_FEE = 0.0005  # 0.05 %
 DEFAULT_MAKER_FEE = 0.0002  # 0.02 %

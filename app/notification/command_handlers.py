@@ -253,5 +253,7 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
         "/deploy_status  Current deploy state",
         "/cancel_deploy  Cancel pending deploy",
         "/bot_version    Version, uptime, SHA",
+        "",
+        "/test_signal    Post a fake entry to every strategy topic (signal mode)",
     ]
     send(mono("\n".join(lines)), chat_id=chat_id)

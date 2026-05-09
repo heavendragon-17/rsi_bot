@@ -188,6 +188,23 @@ risk:                            # global defaults (used for SL/TP computation)
 - Strategy `name` must exist in `STRATEGY_MAP` (see `app/trading/strategy/loader.py`).
 - If no active strategies, log warning and exit cleanly.
 
+### Telegram chat target
+- In signal mode, `telegram.group_id` from `config.yaml` is wired straight into
+  `TelegramNotifier` as the chat target — every entry/exit notification is
+  posted to that supergroup with the strategy's `telegram_topic_id`.
+- The `TELEGRAM_CHAT_ID` env var is **not** consulted in signal mode. Only
+  `TELEGRAM_BOT_TOKEN` is required from the environment.
+- Live/sim/paper modes are unchanged: they still read `TELEGRAM_CHAT_ID` from
+  the env.
+
+### Smoke-testing the notifier
+- `/test_signal` (sent in the supergroup) posts a `[FAKE TEST]` entry message
+  to every active strategy's topic plus the debug topic. Useful for verifying
+  end-to-end routing without waiting for a real signal.
+- The script `scripts/test_signal_notification.py` does the same thing from
+  the command line and supports `--all` to also fire SL / TP / shutdown
+  messages.
+
 ---
 
 ## 4. `StrategyInstanceConfig` (resolver)

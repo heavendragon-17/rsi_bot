@@ -50,8 +50,21 @@ Three modes controlled by `nr_sl_mode`:
 
 After computation:
 - Optional buffer: `sl = sl × (1 - sl_buffer_pct)`
-- **Soft SL** = computed value (strategy-monitored, candle-close based)
-- **Hard SL** = `entry - disaster_sl_multiplier × (entry - soft_sl)` (exchange stop_market)
+- **Soft SL** = computed value (level at which the SL is "real")
+- **Hard SL** depends on `sl_trigger_mode`:
+  - `candle_close` (default): `entry - disaster_sl_multiplier × (entry - soft_sl)` — soft SL is monitored in-strategy on candle close, hard SL on the exchange acts as a safety net.
+  - `touch`: `hard_sl = soft_sl` — exchange stop sits at the soft SL level and fires on touch. Strategy skips the candle-close detection.
+
+---
+
+## SL Trigger Mode (`sl_trigger_mode`)
+
+| Mode | Behavior | Tradeoff |
+|------|----------|----------|
+| `candle_close` (default) | Strategy waits for the candle to *close* through `soft_sl`, then exits at the next candle's open (`CLOSE_BY_CANDLE_SL`). Exchange stop is at `disaster_sl` (wider). | Filters wick noise; pays slightly more on the exit since fill is at the next open, not the SL price. |
+| `touch` | Exchange stop is placed at `soft_sl` and triggers as soon as price touches it. Strategy does not flag `pending_candle_sl`. | Tighter and faster fills; vulnerable to wick-through stop hunts. |
+
+The lock-profit `MoveSL` step still applies in both modes (it just relocates the exchange stop).
 
 ---
 
@@ -111,12 +124,21 @@ If `high >= entry + nr_move_sl_rr × risk` and SL not yet moved:
 - Emit `MoveSL(new_sl_price=lock_profit_price)`
 - SL moves to `entry + nr_lock_profit_rr × risk`
 
-### 6. Soft SL (candle-close based)
-If `close <= soft_sl_price`:
+### 6. Max Holding Period (force-close)
+If `max_holding_enabled` is `True` and the position has been open for at least `max_holding_bars` candles:
+- Emit `ClosePosition(reason="MAX_HOLDING_PERIOD", price=close)` (market exit at the current candle's close)
+- Reset to SCANNING
+
+`bars_held` increments once per `analyze()` call while a position is open. Defaults: `max_holding_enabled=True`, `max_holding_bars=96` (24 hours on 15m). Toggle `max_holding_enabled` off to disable the check entirely.
+
+### 7. Soft SL (candle-close based)
+**Active only when `sl_trigger_mode == "candle_close"`.** If `close <= soft_sl_price`:
 - Set `pending_candle_sl=True` in context
 - Emit `DoNothing` (exit happens next candle at open)
 
 This 2-candle pattern prevents false exits from wick-only touches. The exit happens at the next candle's open price, simulating a realistic market exit.
+
+When `sl_trigger_mode == "touch"`, this step is skipped — the exchange-level stop sits at `soft_sl_price` and fires on touch.
 
 ---
 
@@ -137,6 +159,7 @@ The strategy stores these in `ContextSnapshot.meta`:
 | `lock_profit_price` | Decimal | SL moved here after trigger |
 | `moved_sl_to_entry` | bool | Whether SL has been moved |
 | `pending_candle_sl` | bool | Candle SL flagged, exit next candle |
+| `bars_held` | int | Candles since entry; force-close fires at `max_holding_bars` |
 | `rsi_spread` | float | RSI spread at entry |
 | `sl_mode` | str | SL mode used |
 | `tp_allocations` | dict | TP allocation fractions |
@@ -250,10 +273,19 @@ If `low <= move_trigger` (price dropped 0.5R in our favor) and SL not yet moved:
 
 Note: For SHORT positions, price going **down** is profitable. The lock-profit SL is placed **below** entry price (unlike LONG where it's above entry).
 
-### 3. Soft SL (candle-close based)
-If `close >= soft_sl_price` (price went against us — up):
+### 3. Max Holding Period (force-close)
+If `max_holding_enabled` is `True` and the position has been open for at least `max_holding_bars` candles:
+- Emit `ClosePosition(reason="MAX_HOLDING_PERIOD", price=close)` (market exit at the current candle's close)
+- Reset to SCANNING
+
+`bars_held` increments once per `analyze()` call while a position is open. Defaults: `max_holding_enabled=True`, `max_holding_bars=96` (24 hours on 15m). Toggle `max_holding_enabled` off to disable the check entirely.
+
+### 4. Soft SL (candle-close based)
+**Active only when `sl_trigger_mode == "candle_close"`.** If `close >= soft_sl_price` (price went against us — up):
 - Set `pending_candle_sl=True` in context
 - Emit `DoNothing` (exit happens next candle at open)
+
+When `sl_trigger_mode == "touch"`, this step is skipped — the exchange stop at `soft_sl_price` fires on touch.
 
 This 2-candle pattern prevents false exits from wick-only touches.
 
@@ -274,6 +306,7 @@ The strategy stores these in `ContextSnapshot.meta` via the `TradeState` datacla
 | `move_trigger` | Decimal | Pre-computed price level to trigger lock-profit |
 | `moved_sl_to_entry` | bool | Whether SL has been moved to lock-profit level |
 | `pending_candle_sl` | bool | Candle SL flagged, exit next candle |
+| `bars_held` | int | Candles since entry; force-close fires at `max_holding_bars` |
 | `crossover_detected` | bool | Whether a bearish crossover has been detected (signal persistence) |
 | `tp_allocations` | dict | TP allocation fractions, e.g. `{"TP1": 0.5, "TP2": 0.5, "TP3": 1.0}` |
 

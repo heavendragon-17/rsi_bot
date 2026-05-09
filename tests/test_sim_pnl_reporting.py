@@ -110,7 +110,7 @@ class TestInitialRiskReflectsSoftSL:
         r_multiple very close to 1.0, with pnl_net equal to the true lifecycle
         net (gross − entry taker fee − exit maker fee).
         """
-        from app.trading.strategy.rsi_no_retest_entry import compute_price_at_rr
+        from app.trading.strategy.rsi_no_retest.entry import compute_price_at_rr
 
         ex = _make_exchange()
         entry = Decimal("100.0")
@@ -200,7 +200,7 @@ class TestMovedSLExitReason:
         Also locks the displayed ``pnl_net`` to the true lifecycle net, so the
         Telegram "Net P&L" line matches what the balance actually gained.
         """
-        from app.trading.strategy.rsi_no_retest_entry import compute_price_at_rr
+        from app.trading.strategy.rsi_no_retest.entry import compute_price_at_rr
 
         ex = _make_exchange()
         entry = Decimal("100.0")

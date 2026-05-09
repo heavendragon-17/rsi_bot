@@ -148,9 +148,10 @@ def run_single_worker(
         publish_event_fn(run_id, loop, "complete", {"run_id": run_id, "status": "completed"})
 
     except Exception as err:
-        logger.error("backtest_worker_error", run_id=run_id, error=str(err))
-        mark_failed(run_id, str(err))
-        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
+        err_msg = f"{type(err).__name__}: {err}"
+        logger.error("backtest_worker_error", run_id=run_id, error=err_msg)
+        mark_failed(run_id, err_msg)
+        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": err_msg})
     finally:
         cleanup_fn(run_id)
 
@@ -233,9 +234,10 @@ def run_batch_worker(
         })
 
     except Exception as err:
-        logger.error("batch_worker_error", run_id=run_id, error=str(err))
-        mark_failed(run_id, str(err))
-        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
+        err_msg = f"{type(err).__name__}: {err}"
+        logger.error("batch_worker_error", run_id=run_id, error=err_msg)
+        mark_failed(run_id, err_msg)
+        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": err_msg})
     finally:
         cleanup_fn(run_id)
 
@@ -364,8 +366,9 @@ def run_portfolio_worker(
         })
 
     except Exception as err:
-        logger.error("portfolio_worker_error", run_id=run_id, error=str(err))
-        mark_failed(run_id, str(err))
-        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": str(err)})
+        err_msg = f"{type(err).__name__}: {err}"
+        logger.error("portfolio_worker_error", run_id=run_id, error=err_msg)
+        mark_failed(run_id, err_msg)
+        publish_event_fn(run_id, loop, "error", {"run_id": run_id, "message": err_msg})
     finally:
         cleanup_fn(run_id)

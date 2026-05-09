@@ -50,8 +50,8 @@ backtest:
   initial_balance: 100000
   duration:
     days: 0
-    months: 3
-    years: 0
+    months: 0
+    years: 2
 
 sim:
   initial_balance: 10000 # USDT starting balance for sim mode
@@ -75,6 +75,9 @@ strategies:
   - name: rsi_no_retest
     active: true
     telegram_topic_id: 1003
+    # strategy_params:
+    #   max_holding_enabled: true   # force-close stale positions
+    #   max_holding_bars: 96        # 96 candles = 24h on 15m
   - name: rsi_wma_retest
     active: false
     telegram_topic_id: 43
@@ -85,6 +88,9 @@ strategies:
   - name: rsi_momentum
     active: false
     telegram_topic_id: 44
+    # strategy_params:
+    #   max_holding_enabled: true
+    #   max_holding_bars: 96
 
 virtual_positions:
   max_age_candles: 50 # auto-expire after N candles with no SL/TP hit

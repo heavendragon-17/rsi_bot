@@ -1,4 +1,4 @@
-# app/trading/strategy/rsi_momentum_entry.py
+# app/trading/strategy/rsi_momentum/entry.py
 """
 Entry logic for RsiMomentumStrategy (SHORT entries only).
 
@@ -27,6 +27,7 @@ from app.core.actions import (
     OpenPosition,
 )
 from app.core.analysis_result import AnalysisResult
+from app.core.constants import SL_TRIGGER_TOUCH
 from app.core.context import SCANNING
 from app.core.snapshots import ContextSnapshot
 from app.core.utils import to_decimal_or_none
@@ -36,7 +37,7 @@ from app.trading.strategy.utils.sl_tp_builders import build_tp_allocations
 from app.trading.strategy.utils.trade_state import TradeState
 
 if TYPE_CHECKING:
-    from app.trading.strategy.rsi_momentum import RsiMomentumConfig
+    from app.trading.strategy.rsi_momentum.strategy import RsiMomentumConfig
 
 logger = structlog.get_logger()
 
@@ -138,13 +139,17 @@ def check_entry(
         )
         return _noop
 
-    # Disaster SL
-    disaster_sl = SLTPCalculator.compute_disaster_sl(
-        entry_price=entry_price,
-        soft_sl_price=soft_sl,
-        side=SIDE_SELL,
-        multiplier=Decimal(str(cfg.disaster_sl_multiplier)),
-    )
+    # Disaster SL — when sl_trigger_mode == "touch" the exchange stop sits
+    # at the soft-SL level so it fires on touch.
+    if cfg.sl_trigger_mode == SL_TRIGGER_TOUCH:
+        disaster_sl = soft_sl
+    else:
+        disaster_sl = SLTPCalculator.compute_disaster_sl(
+            entry_price=entry_price,
+            soft_sl_price=soft_sl,
+            side=SIDE_SELL,
+            multiplier=Decimal(str(cfg.disaster_sl_multiplier)),
+        )
 
     # TP prices (limit orders -> maker fee for exit)
     tp_rrs = [cfg.tp1_rr, cfg.tp2_rr, cfg.tp3_rr]
