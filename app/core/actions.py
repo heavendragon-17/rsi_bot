@@ -95,6 +95,23 @@ class PartialClose:
 
 
 @dataclass(frozen=True)
+class SendAlert:
+    """Dispatch a notification (e.g. Telegram) without touching the portfolio.
+
+    Used by alert-only strategies that surface market conditions without
+    placing orders. The runner forwards `message` to
+    `notification_service.send_message()`.
+
+    `tier` is a free-form label (e.g. "warning", "strong") that the runner
+    can use for log context; it does not gate dispatch.
+    """
+
+    symbol: str
+    message: str
+    tier: str = ""
+
+
+@dataclass(frozen=True)
 class DoNothing:
     """Explicit no-op. Makes the return type non-optional."""
 
@@ -102,4 +119,4 @@ class DoNothing:
 
 
 # Union type for type checking
-Action = OpenPosition | ClosePosition | MoveSL | PartialClose | DoNothing
+Action = OpenPosition | ClosePosition | MoveSL | PartialClose | SendAlert | DoNothing

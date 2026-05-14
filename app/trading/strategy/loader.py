@@ -7,6 +7,7 @@ Dynamic strategy loading based on configuration.
 
 from app.core.interfaces import IStrategy
 
+from .rsi_alert import RsiAlertStrategy
 from .rsi_momentum import RsiMomentumStrategy
 from .rsi_no_retest import RsiNoRetestStrategy
 from .rsi_no_retest_fade import RsiNoRetestFadeStrategy
@@ -20,6 +21,7 @@ STRATEGY_MAP = {
     "rsi_no_retest_short": RsiNoRetestShortStrategy,
     "rsi_no_retest_fade": RsiNoRetestFadeStrategy,
     "rsi_momentum": RsiMomentumStrategy,
+    "rsi_alert": RsiAlertStrategy,
 }
 
 

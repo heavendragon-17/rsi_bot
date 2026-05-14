@@ -11,6 +11,7 @@
 | `rsi_no_retest` | `app/trading/strategy/rsi_no_retest.py` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
 | `rsi_wma_retest` | `app/trading/strategy/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
 | `rsi_momentum` | `app/trading/strategy/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
+| `rsi_alert` | `app/trading/strategy/rsi_alert/` | Alert-only | Telegram alert when RSI14 (live, intra-candle) hits 8.5 / 8 — no trading |
 
 Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`.
 
@@ -182,6 +183,48 @@ Uses the old stateful API (mutable `self.context`, returns `SignalEvent`). Not f
 - **CONFIRMING**: EMA21 cross-up + RSI bounce → entry signal
 
 **TP levels**: RSI-based (60/70/80), not R:R-based.
+
+---
+
+## rsi_alert — Alert-Only Strategy
+
+Continuously watches `rsi_14` on the configured timeframe (default M15) using
+the **in-progress candle** (not just closed candles). When RSI drops into an
+oversold tier, dispatches a Telegram message via `notification_service` and
+suppresses further alerts on that tier for `cooldown_minutes`.
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `rsi_period` | 14 | RSI calculation length |
+| `warning_threshold` | 8.5 | Alert fires when live RSI ≤ this (and > strong) |
+| `strong_threshold` | 8.0 | Alert fires when live RSI ≤ this |
+| `cooldown_minutes` | 120 | Per-symbol, per-tier mute window after firing |
+| `min_candles` | 30 | Warm-up before RSI is trusted |
+
+### Behavior
+
+- Emits only `SendAlert` actions — never opens positions, never touches the
+  portfolio.
+- Sets `tick_mode = True` so `run_symbol_loop` evaluates it every ~1s using
+  the full DataFrame (including the forming candle), instead of waiting for
+  candle close.
+- Two cooldown timestamps are stored in the strategy's `ContextSnapshot.meta`
+  (`rsi_alert_last_warning_ts`, `rsi_alert_last_strong_ts`) and reset
+  independently when their cooldown expires.
+
+### Config
+
+```yaml
+strategy: rsi_alert
+timeframe: 15m
+symbols: [BTC/USDT, ETH/USDT, ...]
+```
+
+To tune thresholds or cooldown, edit the `RsiAlertConfig` defaults in
+`app/trading/strategy/rsi_alert/strategy.py`, or pass overrides through the
+top-level config dict (keys are filtered by `merge_config`).
 
 ---
 
