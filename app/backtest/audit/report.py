@@ -45,10 +45,14 @@ from app.backtest.audit.constants import (
     STRATEGY_DIRECTION_SIDE,
 )
 from app.backtest.audit.deflated_sharpe import DSRResult, run_dsr_analysis
-from app.backtest.audit.information_coefficient import ICResult, run_ic_analysis
+from app.backtest.audit.information_coefficient import (
+    ICResult,
+    TradeLevelICResult,
+    run_ic_per_symbol,
+    run_trade_level_ic_per_symbol,
+)
 from app.backtest.audit.pbo import PBOResult, run_pbo_analysis
 from app.backtest.audit.sanity import run_sanity_audits
-from app.backtest.audit.signal_panel import build_signal_panel
 from app.backtest.audit.trade_log import TradeLog, build_trade_log
 from app.core.actions import SIDE_BUY, SIDE_SELL
 from app.repository.backtest.database import SessionLocal
@@ -79,6 +83,12 @@ class AuditResult:
     dsr: DSRResult | None
     pbo: PBOResult | None
 
+    # Trade-level IC — informational, no pass/fail thresholds yet.
+    # trade_level_ic_realized: Spearman(RSI@entry, ret_pct) per symbol
+    # trade_level_ic_fwd:      Spearman(RSI@entry, fwd_logret_4) per symbol
+    trade_level_ic_realized: dict[str, TradeLevelICResult] | None
+    trade_level_ic_fwd: dict[str, TradeLevelICResult] | None
+
     n_trades: int
     symbols: list[str]
     is_batch: bool
@@ -107,31 +117,6 @@ def _safe_dsr(tl: TradeLog) -> DSRResult | None:
     except Exception as exc:  # noqa: BLE001
         logger.warning("audit_dsr_failed", run_id=tl.run_id, error=str(exc))
         return None
-
-
-def _run_ic_per_symbol(symbols: list[str], timeframe: str) -> dict[str, ICResult] | None:
-    """Build a SignalPanel and run IC analysis per symbol.
-
-    Symbols whose CSV is missing or whose IC run crashes are skipped
-    with a warning; the audit proceeds with whatever symbols succeed.
-    Returns `None` when no symbol produced a result.
-    """
-    out: dict[str, ICResult] = {}
-    for symbol in symbols:
-        try:
-            panel = build_signal_panel(symbol, timeframe)
-        except FileNotFoundError as exc:
-            logger.warning("audit_ic_panel_missing", symbol=symbol, error=str(exc))
-            continue
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("audit_ic_panel_failed", symbol=symbol, error=str(exc))
-            continue
-        try:
-            out[symbol] = run_ic_analysis(panel)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("audit_ic_run_failed", symbol=symbol, error=str(exc))
-            continue
-    return out or None
 
 
 # ── direction-vs-IC mismatch ────────────────────────────────────────────────
@@ -280,6 +265,8 @@ def _empty_result(
         ic=None,
         dsr=None,
         pbo=None,
+        trade_level_ic_realized=None,
+        trade_level_ic_fwd=None,
         n_trades=0,
         symbols=[],
         is_batch=is_batch,
@@ -343,7 +330,7 @@ def run_audit(
         sanity_result = run_sanity_audits(tl, single_direction=single_direction)
         bootstrap_result = _safe_bootstrap(tl)
         dsr_result = _safe_dsr(tl)
-        ic_result = _run_ic_per_symbol(symbols_traded, effective_timeframe)
+        ic_result = run_ic_per_symbol(symbols_traded, effective_timeframe)
         pbo_result = run_pbo_analysis(run_id, session=db)
 
         direction = _resolve_strategy_direction(
@@ -351,6 +338,9 @@ def run_audit(
             tl,
         )
         direction_mismatch = _compute_direction_mismatch(ic_result, direction)
+        tl_realized, tl_fwd = run_trade_level_ic_per_symbol(
+            tl, symbols_traded, effective_timeframe, direction,
+        )
 
         overall, n_run, n_passed = _aggregate_verdict(
             sanity=sanity_result,
@@ -382,6 +372,8 @@ def run_audit(
             ic=ic_result,
             dsr=dsr_result,
             pbo=pbo_result,
+            trade_level_ic_realized=tl_realized,
+            trade_level_ic_fwd=tl_fwd,
             n_trades=int(len(tl.df)),
             symbols=symbols_traded,
             is_batch=is_batch,

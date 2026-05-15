@@ -11,6 +11,9 @@ IC_MIN_ABS = 0.02
 IC_MAX_PVALUE = 0.01
 IC_HORIZONS = [1, 4, 16, 96]
 IC_ROLLING_WINDOW_MONTHS = 6
+# Minimum closed trades per symbol to compute trade-level IC; Spearman
+# p-values become unreliable below this threshold.
+MIN_TRADES_FOR_TRADE_LEVEL_IC = 30
 
 # ── Bootstrap CI (bootstrap_ci.py) ────────────────────────────────────────────
 BOOTSTRAP_REPS = 10_000
