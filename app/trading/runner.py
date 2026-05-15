@@ -173,6 +173,7 @@ class MultiSymbolRunner:
                     self.contexts,
                     self.running,
                 ),
+                kwargs={"notification_service": self._notification_service},
                 name=f"Symbol-{symbol}",
                 daemon=True,
             )

@@ -25,6 +25,7 @@ from app.core.actions import (
     MoveSL,
     OpenPosition,
     PartialClose,
+    SendAlert,
 )
 from app.core.events import SignalEvent
 from app.core.interfaces import IExchange, IStrategy
@@ -121,6 +122,7 @@ def run_symbol_loop(
     store_key: str,
     contexts: dict[str, ContextSnapshot],
     running: threading.Event,
+    notification_service: Any = None,
 ) -> None:
     """
     Main trading loop for a single symbol.
@@ -148,6 +150,11 @@ def run_symbol_loop(
     # Track last processed candle timestamp to avoid duplicate processing
     last_processed_ts = None
 
+    # Tick-mode strategies (e.g. rsi_alert) evaluate on every iteration using
+    # the full DataFrame (including the in-progress candle) instead of waiting
+    # for candle close. They must only emit SendAlert / DoNothing actions.
+    tick_mode = bool(getattr(strategy, "tick_mode", False))
+
     while running.is_set():
         try:
             # Get latest candle data using normalized store key
@@ -160,6 +167,24 @@ def run_symbol_loop(
 
             # Get timestamp of latest candle
             current_ts = df.index[-1]
+
+            if tick_mode:
+                ctx = contexts.get(symbol, ContextSnapshot(state="SCANNING"))
+                position = portfolio.get_position_snapshot(symbol)
+                result = strategy.analyze(symbol, df, position=position, context=ctx)
+                contexts[symbol] = result.new_context
+                for action in result.actions:
+                    if isinstance(action, SendAlert):
+                        logger.info(
+                            f"[{symbol}] ALERT ({action.tier or 'n/a'}): {action.message}"
+                        )
+                        if notification_service:
+                            try:
+                                notification_service.send_message(action.message)
+                            except Exception as e:
+                                logger.error(f"[{symbol}] Alert dispatch failed: {e}")
+                time.sleep(1)
+                continue
 
             # Find the most recently closed candle
             closed_candles = df[df["closed"]]
@@ -221,6 +246,13 @@ def run_symbol_loop(
                 elif isinstance(action, PartialClose):
                     logger.info(f"[{symbol}] PartialClose {action.tp_level} @ {action.price}: {action.reason}")
                     portfolio.execute_partial_close(action.symbol, action.tp_level, new_sl_price=action.new_sl_price)
+                elif isinstance(action, SendAlert):
+                    logger.info(f"[{symbol}] ALERT ({action.tier or 'n/a'}): {action.message}")
+                    if notification_service:
+                        try:
+                            notification_service.send_message(action.message)
+                        except Exception as e:
+                            logger.error(f"[{symbol}] Alert dispatch failed: {e}")
                 # DoNothing: no-op
 
             # Sync TP fills from exchange (limit TP orders that filled on exchange)
