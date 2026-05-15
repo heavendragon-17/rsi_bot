@@ -13,6 +13,7 @@ STRATEGY_DESCRIPTIONS = {
     "rsi_no_retest": "RSI strategy without retest confirmation",
     "rsi_wma_retest": "RSI strategy requiring WMA45 retest",
     "rsi_momentum": "RSI momentum strategy (short entries only)",
+    "rsi_alert": "Alert-only: notifies when RSI14 hits oversold tiers (8.5 / 8)",
 }
 
 

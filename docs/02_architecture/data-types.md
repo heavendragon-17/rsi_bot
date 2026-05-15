@@ -15,6 +15,7 @@
   - [ClosePosition](#closeposition)
   - [MoveSL](#movesl)
   - [PartialClose](#partialclose)
+  - [SendAlert](#sendalert)
   - [DoNothing](#donothing)
   - [Action Union Type](#action-union-type)
 - [Events](#events)
@@ -276,6 +277,20 @@ class PartialClose:
 | `reason` | `str` | (required) | Reason for partial close | `"TP1 hit at R60 level"` |
 | `new_sl_price` | `Optional[Decimal]` | `None` | Move SL to this price after partial close. Common: move to entry after TP1. | `Decimal("97500.00")` |
 
+### SendAlert
+
+Dispatch a notification message (e.g. Telegram) without touching the portfolio. Used by alert-only strategies that surface market conditions without placing orders.
+
+```python
+@dataclass(frozen=True)
+class SendAlert:
+    symbol: str
+    message: str
+    tier: str = ""  # free-form label (e.g. "warning", "strong")
+```
+
+The runner forwards `message` to `notification_service.send_message()`. `tier` is for log context only and does not gate dispatch.
+
 ### DoNothing
 
 Explicit no-op. Makes the return type non-optional -- every `analyze()` call returns at least `[DoNothing()]`.
@@ -303,7 +318,7 @@ Exit reason constants: `EXIT_CLOSE_BY_CANDLE_SL = "CLOSE_BY_CANDLE_SL"` (used by
 ### Action Union Type
 
 ```python
-Action = Union[OpenPosition, ClosePosition, MoveSL, PartialClose, DoNothing]
+Action = Union[OpenPosition, ClosePosition, MoveSL, PartialClose, SendAlert, DoNothing]
 ```
 
 Use `isinstance()` checks to dispatch actions. The runner processes actions in order.
