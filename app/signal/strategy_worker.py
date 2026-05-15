@@ -33,6 +33,7 @@ from app.core.actions import (
     MoveSL,
     OpenPosition,
     PartialClose,
+    SendAlert,
 )
 from app.core.constants import (
     SIGNAL_MAX_CONSECUTIVE_FAILURES,
@@ -52,7 +53,7 @@ logger = structlog.get_logger()
 # Sentinel pushed onto the queue by ``request_stop`` to unblock ``queue.get``.
 _STOP_SENTINEL: object = object()
 
-Action = OpenPosition | ClosePosition | MoveSL | PartialClose | DoNothing
+Action = OpenPosition | ClosePosition | MoveSL | PartialClose | SendAlert | DoNothing
 
 
 class StrategyWorker:
@@ -244,6 +245,8 @@ class StrategyWorker:
             self._handle_move_sl(action, vp, symbol)
         elif isinstance(action, PartialClose):
             self._handle_partial_close(action, vp, symbol)
+        elif isinstance(action, SendAlert):
+            self.notifier.send_message(action.message, topic_id=self.strategy_topic_id)
         # DoNothing or unknown → no-op
 
     def _handle_open(
