@@ -106,3 +106,75 @@ python app/backtest/download_tick_data.py --symbol BTCUSDT --recent 2
 ## Incremental Downloads
 
 The OHLCV download always fetches fresh data (no incremental update). To extend an existing dataset, re-download with a larger `--limit`. The tick download downloads complete monthly/daily archives — no partial downloads.
+
+The statement above applies to the legacy generic downloader. Core V2.1 uses
+the stricter anchored reconcilers below.
+
+---
+
+## Core V2.1 anchored M15 acquisition
+
+Core V2.1 has dedicated public-data acquisition under
+`app/backtest/core_v2_1/` and `app/signal/core_v2_1/`. It covers the locked 24
+Binance USD-M candidates, Binance BTC benchmark, and Hyperliquid PUMP
+candidate. Exchange credentials and a Hyperliquid wallet are not required.
+
+```bash
+# 24 Binance candidates + BTC benchmark
+python -m app.backtest.core_v2_1.binance_data \
+  --data-dir app/backtest/data \
+  --candle-count 5000 \
+  --manifest artifacts/core_v2_1/binance_refresh.json
+
+# Hyperliquid PUMP/USDC perpetual
+python -m app.signal.core_v2_1.hyperliquid_export \
+  --data-dir app/backtest/data \
+  --candle-count 5000 \
+  --manifest artifacts/core_v2_1/hyperliquid_refresh.json
+```
+
+`--symbols` may restrict the Binance command to an approved subset. PUMP has
+the structural filename
+`HYPERLIQUID__PUMP_USDC_PERP_15m.csv`; a Binance-style `PUMPUSDT_15m.csv`
+cannot satisfy that identity.
+
+### Shared storage and validation contract
+
+- Stored columns remain `timestamp,open,high,low,close,volume`, oldest first.
+- `timestamp` is the timezone-naive UTC+7 candle open used by the repository.
+  Consumers normalize it to aware UTC close time.
+- OHLCV values must be finite; prices must be positive; volume must be
+  non-negative; and the series must have exact 15-minute cadence.
+- Only fully finalized candles are written. Each command obtains an
+  authoritative venue/server clock and uses a shared finalization boundary;
+  failure to obtain that clock fails closed instead of falling back to the
+  host clock.
+- A fresh Binance file is paged from the locked feature anchor. An existing
+  anchored prefix is preserved while gaps and the missing tail are reconciled;
+  the requested recent Binance window is re-fetched authoritatively so venue
+  revisions in that window replace local values. The full candidate file is
+  strictly round-tripped before an atomic replacement.
+- Duplicate API timestamps, interior gaps, or a missing anchor reject the
+  Binance refresh rather than using first/last-wins deduplication. In an
+  existing local Binance prefix, value-identical duplicate rows may be
+  coalesced, but a conflicting duplicate anywhere in the preserved anchor
+  history rejects the refresh before network acquisition. The PUMP exporter
+  treats an identical inclusive overlap as idempotent and rejects a
+  conflicting immutable-overlap value.
+- JSON manifests record source identity, clock/boundary, row count, feature
+  anchor, and SHA-256 so an acquisition can be audited independently.
+
+### Hyperliquid retention rule
+
+Hyperliquid's public candle API retains a rolling tail and accepts at most
+5,000 candles for this exporter. The first canonical PUMP CSV must therefore
+begin at the locked anchor. Later runs fetch an inclusive overlap with the
+existing last close, verify that the overlap is unchanged, append only the
+new tail, validate the whole anchored file, and replace it atomically.
+
+If a fresh API request can no longer reach the locked anchor, or an existing
+file is more than the retained tail behind, acquisition fails with an explicit
+migration/recovery error. It must not create a new moving indicator seed. The
+canonical validated PUMP CSV is also the cold-start source used to seed an
+empty Core V2.1 runtime SQLite database before the latest public API tail is
+reconciled.

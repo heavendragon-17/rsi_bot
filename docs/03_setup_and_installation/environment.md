@@ -10,11 +10,21 @@ The project requires **Python 3.13+** managed via conda.
 
 ### Activation
 
-```bash
-source C:/ProgramData/miniconda3/Scripts/activate rsi
+```bat
+call C:\ProgramData\anaconda3\Scripts\activate.bat rsi
+python --version
+python -m pytest --version
 ```
 
-The conda environment name is `rsi`. All Python commands in this project assume this environment is active.
+The conda environment name is `rsi`. The verified workstation environment on
+2026-08-20 used Python 3.13.12 and pytest 9.0.2. Run tests as
+`python -m pytest` so discovery uses that interpreter. From a PowerShell
+session where Conda activation is unavailable, the equivalent explicit
+interpreter is:
+
+```powershell
+& 'C:\ProgramData\anaconda3\envs\rsi\python.exe' -m pytest tests -q
+```
 
 ### Key Python Dependencies
 
@@ -127,6 +137,27 @@ python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
 ```
 
+### Core V2.1 acquisition, replay, and signal runtime
+
+```bash
+# Refresh the locked Binance universe and BTC benchmark
+python -m app.backtest.core_v2_1.binance_data --data-dir app/backtest/data --candle-count 5000 --manifest artifacts/core_v2_1/binance_refresh.json
+
+# Extend canonical Hyperliquid PUMP history
+python -m app.signal.core_v2_1.hyperliquid_export --data-dir app/backtest/data --candle-count 5000 --manifest artifacts/core_v2_1/hyperliquid_refresh.json
+
+# Reproduce the full 25-candidate point-in-time audit
+python -m app.backtest.core_v2_1 --universe-mode full --data-dir app/backtest/data --output-dir artifacts/core_v2_1/full_replay
+
+# Run durable public-data Telegram advisories (no orders)
+python -m app.signal.core_v2_1.live --state-db data/core_v2_1_signal.sqlite3 --data-dir app/backtest/data --chat-id -1001234567890 --topic-id 42 --poll-seconds 15
+```
+
+The two market-data commands use public endpoints. The live signal process
+needs `TELEGRAM_BOT_TOKEN`; `--chat-id` may instead come from
+`TELEGRAM_CHAT_ID`. It does not need Binance API keys or a Hyperliquid wallet
+because it has no order execution surface.
+
 ### Tests
 
 ```bash
@@ -161,6 +192,8 @@ Regenerates `docs/database.md` from the ORM models in `app/repository/backtest/m
 | Environment template | `.env.example` (project root, committed) |
 | SQLite database | `data/backtest.db` (auto-created on first backtest run) |
 | Backtest CSV data | `app/backtest/data/` |
+| Core V2.1 signal SQLite | `data/core_v2_1_signal.sqlite3` (default; auto-created) |
+| Core V2.1 replay/manifests | `artifacts/core_v2_1/` |
 | Frontend source | `ui/src/` |
 | Backend API | `app/api/` |
 

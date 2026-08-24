@@ -349,3 +349,94 @@ callback on the multiplexer that routes only the worker's own `(sym, tf)`
 targets into the queue — other events are dropped at callback time, not
 after queue ingest. On overflow, the enqueue side drops with a
 `strategy_worker_queue_full` warn-log so WebSocket ingest never stalls.
+
+---
+
+## Core V2.1 mixed-venue signal runtime
+
+Core V2.1 is a separate standalone runtime under
+`app/signal/core_v2_1/`; it is not the v1 `SignalRunner` branch above. It uses
+public REST polling because its locked graph spans Binance USD-M and
+Hyperliquid perpetuals, and it persists the complete deterministic source and
+strategy boundary in SQLite.
+
+```text
+Binance public REST ───────┐
+                          ├─ CompositeMarketDataRouter
+Hyperliquid public REST ──┘       keyed by (venue, instrument, timeframe)
+                                   │ finalized closed candles
+                                   v
+                         ReconnectingClosedCandlePoller
+                                   │ exact chronological closes
+                                   v
+                         SQLite immutable candle cache
+                                   │
+                                   v
+                         PointInTimeBundleBuilder
+                                   │ M15 + exact Alt H1/BTC H1/BTC H4
+                                   v
+                         pure Core V2.1 evaluator
+                                   │ transition/event/outbox transaction
+                                   v
+                         durable Telegram outbox
+```
+
+### Locked market graph
+
+- 25 venue-aware M15 candidate triggers;
+- the same candidate instrument's native H1 context;
+- Binance `BTC/USDT:USDT` H1 and H4 shared benchmark context;
+- PUMP routes only to Hyperliquid `PUMP/USDC:USDC`; and
+- BTC is never iterated as a trade candidate.
+
+Venue is part of every buffer, cache, cursor, and routing key. A same-named
+instrument on another venue cannot satisfy a dependency.
+
+### Startup and cold state
+
+1. Obtain authoritative server time for every required venue and subtract the
+   five-second finalization delay.
+2. Load and validate any immutable anchored candles already in SQLite.
+3. For an empty database, seed the Hyperliquid PUMP M15 anchor from the
+   canonical `app/backtest/data/HYPERLIQUID__PUMP_USDC_PERP_15m.csv`; validate
+   source identity, anchor, cadence, OHLCV, and overlap before accepting it.
+4. Reconcile every venue-native series through the same finalized boundary.
+5. Build each unique feature history once and replay candidate M15 closes in
+   chronological order. New-install history is silent; restart catch-up after
+   an existing cursor remains deliverable.
+6. Start polling and outbox delivery only after all 25 candidate cursors and
+   their exact point-in-time dependencies are ready.
+
+The canonical CSV seed is required once Hyperliquid's public API can no longer
+reconstruct the locked anchor from its rolling 5,000-candle window. If the
+file is absent, the runtime may fall through to public hydration only when the
+API can still supply the exact anchor-through-tail range. A malformed,
+misrouted, or conflicting seed fails startup; the runtime never silently
+changes the recursive indicator seed.
+
+### Poll cycle, clocks, and readiness
+
+The default poll interval is 15 seconds. For each cycle the poller:
+
+- resolves authoritative exchange time for all venues; local wall-clock
+  fallback is forbidden. A cached venue-time sample is anchored at request
+  completion so network latency cannot advance the finalized watermark;
+- computes each timeframe's latest fully finalized close after the
+  five-second delay;
+- fetches an inclusive overlap plus every close after the persisted cursor;
+- rejects source routing mismatches, conflicts, duplicate timestamps,
+  backward time, gaps, forming candles, and rewritten immutable candles; and
+- marks the cycle ready only when **every** required market key reaches its
+  exact expected finalized tail.
+
+An old but internally contiguous response is still stale and therefore not
+ready. Any failed key makes the whole mixed-venue cycle unhealthy/fail-closed;
+it cannot be hidden by successful keys. The runtime exposes `started`,
+coordinator readiness, poller alive/ready/error/last-success fields, and
+durable outbox counts through `CoreV21LiveSignalRuntime.health()`.
+If a poller stop exceeds its timeout, shutdown raises and the runtime remains
+logically started; an immediate false-success restart is refused until the old
+thread actually exits and shutdown completes.
+
+See [Core V2.1 signal contract](../07_trading_strategies/core-v2-1.md) and
+[Core V2.1 standalone runtime](../07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime).

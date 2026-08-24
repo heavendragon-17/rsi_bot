@@ -1,12 +1,12 @@
 # System Overview
 
-> Comprehensive architecture specification for the RSI bot system. Read this first before diving into domain-specific specs. This document covers the two subsystems, the clean 3-layer interface architecture, exchange modes, order vocabulary, exception hierarchy, logging, financial precision, and configuration.
+> Comprehensive architecture specification for the RSI bot system. Read this first before diving into domain-specific specs. This document covers the runtime surfaces, the clean 3-layer interface architecture, exchange modes, order vocabulary, exception hierarchy, logging, financial precision, and configuration.
 
 ---
 
 ## Table of Contents
 
-- [Two-Subsystem Architecture](#two-subsystem-architecture)
+- [Runtime Architecture](#runtime-architecture)
 - [Tech Stack](#tech-stack)
 - [Clean 3-Layer Architecture](#clean-3-layer-architecture)
 - [Exchange Modes](#exchange-modes)
@@ -19,9 +19,12 @@
 
 ---
 
-## Two-Subsystem Architecture
+## Runtime Architecture
 
-The RSI bot is composed of two independent subsystems that share a common core library (`app/core/`). They never run simultaneously in the same process.
+The repository contains two legacy subsystems that share `app/core/`, plus a
+standalone Core V2.1 signal/replay surface. They are independently launched
+and do not run simultaneously in one process. The diagram below shows the two
+legacy application surfaces; the Core V2.1 composition follows it.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -103,6 +106,41 @@ WebSocket (fstream.binance.com, multi-TF URL)
 
 See [docs/07_trading_strategies/signal-bot.md](../07_trading_strategies/signal-bot.md)
 for the full spec.
+
+### Core V2.1 standalone signal and replay flow
+
+Core V2.1 does not use `MultiSymbolRunner`, `PortfolioManager`, an exchange
+execution adapter, or the v1 in-memory virtual-position store. Historical
+replay and the durable mixed-venue runtime share the pure evaluator under
+`app/trading/strategy/core_v2_1/`.
+
+```text
+Historical:
+  venue-specific M15 CSVs
+    -> strict UTC-close normalization + complete H1/H4 resampling
+      -> point-in-time bundles -> pure evaluator -> CSV/JSONL audit ledger
+
+Live signal-only:
+  Binance + Hyperliquid public REST (authoritative venue clocks)
+    -> venue-aware exact-tail poller
+      -> immutable SQLite candle cache + point-in-time bundles
+        -> pure evaluator
+          -> atomic state/transition/event/outbox transaction
+            -> leased at-least-once Telegram delivery
+```
+
+The locked graph contains 25 M15 candidates, each candidate's venue-native H1
+context, and shared Binance BTC H1/H4 benchmark context. PUMP is structurally
+Hyperliquid `PUMP/USDC:USDC`; BTC is reference-only. An empty runtime database
+uses the canonical anchored PUMP CSV, when present, before reconciling the
+retained API tail. Without it, public hydration must still reach the exact
+locked anchor. Startup and polling fail closed on
+missing/stale/gapped/conflicting data or an unavailable authoritative exchange
+clock.
+
+See [Core V2.1 signal contract](../07_trading_strategies/core-v2-1.md),
+[Core V2.1 replay](../11_testing_and_backtesting/backtest-engine.md#core-v21-point-in-time-replay),
+and [Core V2.1 standalone runtime](../07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime).
 
 ### Backtest UI Data Flow (simplified)
 
@@ -659,3 +697,6 @@ paper_sim:
 | `app/data/stream_manager.py` | BinanceStreamManager (WebSocket daemon) |
 | `main.py` | Live bot entry point |
 | `app/api/main.py` | FastAPI entry point for backtest UI |
+| `app/trading/strategy/core_v2_1/` | Pure Core V2.1 evaluator, typed state, indicators, and locked feature anchor |
+| `app/backtest/core_v2_1/` | Point-in-time replay, coverage, audit ledger, and Binance acquisition |
+| `app/signal/core_v2_1/` | Mixed-venue signal-only runtime, SQLite state/candle cache, and durable Telegram outbox |

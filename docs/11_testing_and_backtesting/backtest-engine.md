@@ -62,6 +62,76 @@ The system supports 4 backtest modes via the `BacktestMode` enum:
 
 ---
 
+## Core V2.1 point-in-time replay
+
+Core V2.1 has a separate deterministic event replay in
+`app/backtest/core_v2_1/`. It calls the same pure evaluator as the live
+signal-only runtime; it does not run `MockExchange`, synthesize fills, or
+calculate portfolio metrics.
+
+```bash
+# Reviewer stepping stone: ETH, SOL, BNB, XRP, LINK, HYPE + BTC context
+python -m app.backtest.core_v2_1 \
+  --universe-mode six \
+  --data-dir app/backtest/data \
+  --output-dir artifacts/core_v2_1/replay
+
+# Locked 25-candidate mixed-venue universe + BTC benchmark
+python -m app.backtest.core_v2_1 \
+  --universe-mode full \
+  --data-dir app/backtest/data \
+  --output-dir artifacts/core_v2_1/full_replay
+```
+
+`--universe-mode available` replays all valid discovered candidates;
+`--symbols` chooses an explicit approved subset. `--start` and `--end` require
+timezone-aware boundaries. The default/common-window mode uses the
+intersection shared by the selected candidates and BTC; `--full-available`
+retains every trigger close and records unavailable contexts as explicit
+`NOT_READY` ledger rows.
+
+### Data and point-in-time rules
+
+1. Load the venue-specific M15 CSV for every selected candidate and Binance
+   BTC benchmark. PUMP resolves only to
+   `HYPERLIQUID__PUMP_USDC_PERP_15m.csv`.
+2. Normalize the stored timezone-naive UTC+7 candle-open timestamp to aware
+   UTC close time.
+3. Strictly validate schema, OHLCV, duplicates, cadence, forming candles,
+   locked anchor, source identity, and coverage.
+4. Derive H1/H4 on UTC epoch boundaries from complete M15 buckets. Partial
+   buckets are discarded.
+5. At each candidate M15 close, require the exact latest expected Alt H1, BTC
+   H1, and BTC H4 close. No future row and no one-bucket-stale fallback is
+   allowed.
+6. Process each candidate's state chronologically from the locked feature
+   anchor and write every decision, including silent/rejected/not-ready rows.
+
+### Audit outputs
+
+Each run writes:
+
+- `core_v2_1_replay.jsonl` for one complete structured record per trigger;
+- `core_v2_1_replay.csv` for spreadsheet/filter workflows; and
+- `core_v2_1_replay.metadata.json` for hashes, inputs, coverage, anchor,
+  timestamp/seed conventions, counts, and requested/actual window.
+
+The checked full-universe artifact under `artifacts/core_v2_1/full_replay/`
+covers all 25 candidates plus BTC from `2026-06-29T11:30:00Z` through
+`2026-08-20T13:15:00Z`: 125,000 ledger records, 98,550 evaluated rows,
+26,450 `NOT_READY` rows, and 477 public events (`63 A_PLUS_LONG`,
+`207 WAIT_FOR_PULLBACK`, `19 PULLBACK_LONG`, `72 WAIT_CANCELLED`, and
+`116 WAIT_EXPIRED`). See the adjacent
+[`artifacts/core_v2_1/README.md`](../../artifacts/core_v2_1/README.md) for
+reproduction and artifact hashes.
+
+These counts audit signal/state-machine behavior only. They make no claim
+about orders, fills, fees, slippage, PnL, win rate, or strategy performance.
+A future execution simulator must implement those separately under the
+reviewed execution contract.
+
+---
+
 ## System Architecture
 
 ```

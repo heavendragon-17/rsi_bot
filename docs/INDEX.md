@@ -11,11 +11,13 @@
 |---|---|---|
 | Bootstrap / first time in this repo | [00_onboarding](00_onboarding/) | [onboarding.md](00_onboarding/onboarding.md) |
 | Understand the architecture | [02_architecture](02_architecture/) | [system-overview.md](02_architecture/system-overview.md) |
-| Set up the environment or config | [03_setup_and_installation](03_setup_and_installation/) | [configuration.md](03_setup_and_installation/configuration.md) |
+| Set up the environment or config | [03_setup_and_installation](03_setup_and_installation/) | [environment.md](03_setup_and_installation/environment.md), [configuration.md](03_setup_and_installation/configuration.md) |
 | Work on data ingestion or WebSocket | [05_data_pipeline](05_data_pipeline/) | [live-data-flow.md](05_data_pipeline/live-data-flow.md) |
 | Research a new trading signal | [06_quant_research](06_quant_research/) | [research-workflow.md](06_quant_research/research-workflow.md) |
-| Add or modify a strategy | [07_trading_strategies](07_trading_strategies/), [workflows/](workflows/) | [strategy-pattern.md](07_trading_strategies/strategy-pattern.md), [add-strategy.md](workflows/add-strategy.md) |
-| Work on the signal bot (multi-strategy advisory) | [07_trading_strategies](07_trading_strategies/), [03_setup_and_installation](03_setup_and_installation/), [08_execution_and_oms](08_execution_and_oms/) | [signal-bot.md](07_trading_strategies/signal-bot.md), [configuration.md § signal mode](03_setup_and_installation/configuration.md#signal-mode-schema), [notifications.md § topic routing](08_execution_and_oms/notifications.md#telegram-topic-routing-signal-mode) |
+| Add or modify a strategy | [07_trading_strategies](07_trading_strategies/), [workflows/](workflows/) | [strategy-pattern.md](07_trading_strategies/strategy-pattern.md), [Core V2.1 signal contract](07_trading_strategies/core-v2-1.md), [BTC RSI cross alert spec](07_trading_strategies/btc-rsi-cross-alert-spec.md), [BTC RSI cross agent prompt](07_trading_strategies/btc-rsi-cross-alert-agent-prompt.md), [add-strategy.md](workflows/add-strategy.md) |
+| Run or review Core V2.1 signal-only acquisition, replay, or live runtime | [05_data_pipeline](05_data_pipeline/), [07_trading_strategies](07_trading_strategies/), [08_execution_and_oms](08_execution_and_oms/), [11_testing_and_backtesting](11_testing_and_backtesting/) | [Core V2.1 signal contract](07_trading_strategies/core-v2-1.md), [historical acquisition](05_data_pipeline/historical-data.md#core-v21-anchored-m15-acquisition), [standalone runtime](07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime), [point-in-time replay](11_testing_and_backtesting/backtest-engine.md#core-v21-point-in-time-replay) |
+| Implement or review Core V2.1 automated execution | [07_trading_strategies](07_trading_strategies/), [08_execution_and_oms](08_execution_and_oms/), [11_testing_and_backtesting](11_testing_and_backtesting/) | [Core V2.1 execution decisions](07_trading_strategies/core-v2-1-execution-decisions.md) |
+| Work on the signal bot (multi-strategy advisory) | [07_trading_strategies](07_trading_strategies/), [03_setup_and_installation](03_setup_and_installation/), [08_execution_and_oms](08_execution_and_oms/) | [signal-bot.md](07_trading_strategies/signal-bot.md), [BTC RSI cross alert spec](07_trading_strategies/btc-rsi-cross-alert-spec.md), [BTC RSI cross agent prompt](07_trading_strategies/btc-rsi-cross-alert-agent-prompt.md), [configuration.md § signal mode](03_setup_and_installation/configuration.md#signal-mode-schema), [notifications.md § topic routing](08_execution_and_oms/notifications.md#telegram-topic-routing-signal-mode) |
 | Work on order execution or exchange adapters | [08_execution_and_oms](08_execution_and_oms/), [workflows/](workflows/) | [portfolio-manager.md](08_execution_and_oms/portfolio-manager.md), [add-cex-exchange.md](workflows/add-cex-exchange.md) |
 | Work on notifications / Telegram | [08_execution_and_oms](08_execution_and_oms/), [workflows/](workflows/) | [notifications.md](08_execution_and_oms/notifications.md), [add-notifier.md](workflows/add-notifier.md) |
 | Understand portfolio or reconciliation | [09_portfolio_and_reconciliation](09_portfolio_and_reconciliation/) | [position-tracking.md](09_portfolio_and_reconciliation/position-tracking.md) |
@@ -110,6 +112,7 @@ the new state, and no PR should be merged with drifted docs.
 | `app/backtest/` | `11_testing_and_backtesting/` |
 | `app/api/` | `14_api_reference/` |
 | `app/notification/` | [`08_execution_and_oms/notifications.md`](08_execution_and_oms/notifications.md) |
+| `app/signal/` | `05_data_pipeline/` + `07_trading_strategies/signal-bot.md` + `08_execution_and_oms/notifications.md` |
 | `app/repository/` | `14_api_reference/` (run `python scripts/gen_db_docs.py`) |
 | `ui/src/` | `10_frontend_dashboard/` |
 | `config.yaml` schema changes | `03_setup_and_installation/configuration.md` |
