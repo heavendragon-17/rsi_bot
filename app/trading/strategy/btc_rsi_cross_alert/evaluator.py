@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Final
+from typing import Any, Final, cast
 
 import pandas as pd
 
@@ -168,7 +168,7 @@ def _finite_closes(raw_closes: list[object]) -> list[float] | None:
     values: list[float] = []
     for raw in raw_closes:
         try:
-            value = float(raw)
+            value = float(cast(Any, raw))
         except (TypeError, ValueError):
             return None
         if not math.isfinite(value):

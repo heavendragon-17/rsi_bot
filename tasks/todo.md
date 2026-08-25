@@ -4,6 +4,29 @@
 
 ## Current Tasks
 
+### PR #148 CI remediation
+
+- [x] Inspect the live PR head and all status checks.
+- [x] Reproduce and isolate the Architecture Lint and mypy failures.
+- [x] Split the two oversized modules without changing runtime behavior.
+- [x] Correct the seven reported type-check errors.
+- [x] Run focused and CI-equivalent validation.
+- [ ] Commit, push, and confirm the PR checks pass.
+
+#### Review
+
+- Live PR root causes: two Python files exceeded the 400-line architecture
+  limit, and mypy reported one unsafe numeric conversion plus six loop-variable
+  type collisions in `SignalRunner`.
+- Split the Core V2.1 models behind compatibility exports and extracted focused
+  alert-worker helpers; no signal rules, runtime ordering, or public imports changed.
+- Related integration suite: 209 passed. Linux-targeted mypy, Bandit, secret
+  audit, circular imports, changed-file Ruff, compilation, architecture size/
+  class/helper checks, and `git diff --check` pass locally.
+- The repository-wide Windows coverage run was stopped after a CPU-bound
+  backtest remained at 27%; GitHub's Linux coverage job will provide the final
+  required full-suite result after push.
+
 ### BTC RSI Cross Alert (`btc_rsi_cross_alert`) — branch `codex/btc-rsi-cross-alert`
 
 Spec: `docs/07_trading_strategies/btc-rsi-cross-alert-spec.md` (authoritative contract)

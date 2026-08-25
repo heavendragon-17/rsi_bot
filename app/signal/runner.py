@@ -189,10 +189,10 @@ class SignalRunner:
             logger.exception("signal_runner_shutdown_broadcast_failed")
 
         # 3. Request stop on every worker (clears its event + unblocks waits).
-        for worker in self._workers:
-            worker.request_stop()
-        for worker in self._alert_workers:
-            worker.request_stop()
+        for strategy_worker in self._workers:
+            strategy_worker.request_stop()
+        for alert_worker in self._alert_workers:
+            alert_worker.request_stop()
 
         # 4. Join worker threads with a bounded timeout (ordinary + alert).
         for thread in self._threads + self._alert_threads:
@@ -247,14 +247,14 @@ class SignalRunner:
 
     def _build_workers(self) -> None:
         assert self._multiplexer is not None
-        for cfg in self._instance_cfgs:
+        for strategy_cfg in self._instance_cfgs:
             # load_strategy_instance reads config["strategy"] (set by
             # as_legacy_dict) to pick the concrete class from STRATEGY_MAP.
             # Using the factory keeps the abstract/concrete type dance inside
             # the loader.
-            strategy = load_strategy_instance(cfg.as_legacy_dict())
-            worker = StrategyWorker(
-                instance_cfg=cfg,
+            strategy = load_strategy_instance(strategy_cfg.as_legacy_dict())
+            strategy_worker = StrategyWorker(
+                instance_cfg=strategy_cfg,
                 strategy=strategy,
                 multiplexer=self._multiplexer,
                 vp_store=self._vp_store,
@@ -262,46 +262,46 @@ class SignalRunner:
                 debug_topic_id=self._debug_topic_id,
             )
             self._multiplexer.register_close_callback(
-                _make_filtered_callback(worker)
+                _make_filtered_callback(strategy_worker)
             )
             thread = threading.Thread(
-                target=worker.run,
-                name=f"signal-worker-{cfg.name}",
+                target=strategy_worker.run,
+                name=f"signal-worker-{strategy_cfg.name}",
                 daemon=True,
             )
-            self._workers.append(worker)
+            self._workers.append(strategy_worker)
             self._threads.append(thread)
             thread.start()
             logger.info(
                 "signal_worker_spawned",
-                strategy=cfg.name,
-                topic_id=cfg.telegram_topic_id,
-                targets=sorted(cfg.targets),
+                strategy=strategy_cfg.name,
+                topic_id=strategy_cfg.telegram_topic_id,
+                targets=sorted(strategy_cfg.targets),
             )
 
-        for cfg in self._alert_cfgs:
-            worker = BtcRsiCrossAlertWorker(
-                config=cfg,
+        for alert_cfg in self._alert_cfgs:
+            alert_worker = BtcRsiCrossAlertWorker(
+                config=alert_cfg,
                 multiplexer=self._multiplexer,
                 notifier=self._notifier,
                 debug_topic_id=self._debug_topic_id,
             )
             self._multiplexer.register_close_callback(
-                _make_alert_callback(worker)
+                _make_alert_callback(alert_worker)
             )
             thread = threading.Thread(
-                target=worker.run,
-                name=f"signal-alert-worker-{cfg.name}",
+                target=alert_worker.run,
+                name=f"signal-alert-worker-{alert_cfg.name}",
                 daemon=True,
             )
-            self._alert_workers.append(worker)
+            self._alert_workers.append(alert_worker)
             self._alert_threads.append(thread)
             thread.start()
             logger.info(
                 "signal_alert_worker_spawned",
-                component=cfg.name,
-                topic_id=cfg.telegram_topic_id,
-                targets=sorted(cfg.targets),
+                component=alert_cfg.name,
+                topic_id=alert_cfg.telegram_topic_id,
+                targets=sorted(alert_cfg.targets),
             )
 
     def _send_shutdown_broadcasts(self) -> None:

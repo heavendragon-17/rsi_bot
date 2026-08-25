@@ -40,6 +40,14 @@ from app.core.events import Candle
 from app.data.multiplexer import TimeframeMultiplexer
 from app.signal.btc_rsi_cross_alert.config import BtcRsiCrossAlertConfig
 from app.signal.btc_rsi_cross_alert.formatter import format_btc_rsi_cross_alert
+from app.signal.btc_rsi_cross_alert.worker_support import (
+    iso_timestamp as _iso,
+)
+from app.signal.btc_rsi_cross_alert.worker_support import (
+    newest_closed_close,
+    prepare_from_multiplexer,
+    process_safely,
+)
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     H4_DURATION,
     RETRYABLE_PREPARATION_REASONS,
@@ -47,7 +55,6 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     candle_close_time,
     evaluate_btc_rsi_cross,
     expected_h4_close_for,
-    prepare_btc_rsi_cross_input,
 )
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
@@ -61,10 +68,6 @@ logger = structlog.get_logger()
 UTC = UTC
 
 _MAX_OBSERVED_H4_CLOSES = 512
-
-
-def _iso(value: datetime | None) -> str | None:
-    return value.astimezone(UTC).isoformat() if value is not None else None
 
 
 class BtcRsiCrossAlertWorker:
@@ -192,7 +195,11 @@ class BtcRsiCrossAlertWorker:
 
         ready_at = now if now is not None else datetime.now(UTC)
         for tf in self.config.trigger_timeframes:
-            self._bootstrap_watermarks[tf] = self._newest_closed_close(tf)
+            self._bootstrap_watermarks[tf] = newest_closed_close(
+                self.multiplexer,
+                self.config.symbol,
+                tf,
+            )
         self._history_ready_at = ready_at.astimezone(UTC)
         self._history_ready.set()
         logger.info(
@@ -202,17 +209,6 @@ class BtcRsiCrossAlertWorker:
                 tf: _iso(wm) for tf, wm in self._bootstrap_watermarks.items()
             },
         )
-
-    def _newest_closed_close(self, timeframe: str) -> datetime | None:
-        frame = self.multiplexer.get_dataframe(self.config.symbol, timeframe)
-        if frame is None or frame.empty or "closed" not in frame.columns:
-            return None
-        duration = TRIGGER_DURATION_BY_TIMEFRAME[timeframe]
-        closed_column = frame["closed"]
-        for position in range(len(frame) - 1, -1, -1):
-            if bool(closed_column.iloc[position]):
-                return candle_close_time(frame.index[position], duration)
-        return None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -239,7 +235,7 @@ class BtcRsiCrossAlertWorker:
                 if not self._pending:
                     break  # stopped with an empty queue
                 symbol, timeframe, candle = self._pending.popleft()
-            if self._process_safely(symbol, timeframe, candle):
+            if process_safely(self, symbol, timeframe, candle):
                 break  # failure budget exhausted — thread dies
         logger.info(
             "btc_rsi_cross_worker_stopped",
@@ -251,40 +247,6 @@ class BtcRsiCrossAlertWorker:
     # ------------------------------------------------------------------
     # Event processing
     # ------------------------------------------------------------------
-    def _process_safely(
-        self, symbol: str, timeframe: str, candle: Candle
-    ) -> bool:
-        """Process one queued event. Returns True to terminate the thread."""
-
-        try:
-            self._process(symbol, timeframe, candle)
-            self._failure_streak = 0
-            return False
-        except Exception as exc:  # noqa: BLE001 — budgeted per-event isolation
-            self._failure_streak += 1
-            attempt = self._failure_streak
-            trigger_close = candle_close_time(
-                candle.timestamp, TRIGGER_DURATION_BY_TIMEFRAME[timeframe]
-            )
-            logger.exception(
-                "btc_rsi_cross_worker_error",
-                timeframe=timeframe,
-                trigger_close=_iso(trigger_close),
-                attempt=attempt,
-            )
-            if attempt >= self.max_failures:
-                self._advance_cursor(timeframe, trigger_close)
-                self._notify_debug(
-                    f"[{self.config.name}] worker dead after {attempt} consecutive "
-                    f"failures ({timeframe} {_iso(trigger_close)}): {exc!r}"
-                )
-                return True
-            # Requeue the same event ahead of newer events while attempts remain.
-            with self._queue_cond:
-                self._pending.appendleft((symbol, timeframe, candle))
-                self._queue_cond.notify()
-            return False
-
     def _process(self, symbol: str, timeframe: str, candle: Candle) -> None:
         duration = TRIGGER_DURATION_BY_TIMEFRAME[timeframe]
         trigger_close = candle_close_time(candle.timestamp, duration)
@@ -405,28 +367,21 @@ class BtcRsiCrossAlertWorker:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _prepare(self, timeframe: str, trigger_open_time, ready_at: datetime):
-        trigger_df = self.multiplexer.get_dataframe(self.config.symbol, timeframe)
-        h4_df = self.multiplexer.get_dataframe(self.config.symbol, self.config.trend_timeframe)
-        if (
-            trigger_df is None
-            or trigger_df.empty
-            or h4_df is None
-            or h4_df.empty
-        ):
-            raise RuntimeError(
-                f"multiplexer frames unavailable for {timeframe} evaluation"
-            )
+    def _prepare(
+        self,
+        timeframe: str,
+        trigger_open_time: datetime,
+        ready_at: datetime,
+    ):
         with self._h4_cond:
-            observed = frozenset(self._observed_h4_closes)
-        return prepare_btc_rsi_cross_input(
-            trigger_df,
-            h4_df,
-            symbol=self.config.symbol,
-            trigger_timeframe=timeframe,
-            trigger_open_time=trigger_open_time,
-            history_ready_at=ready_at,
-            observed_live_h4_closes=observed,
+            observed_h4_closes = frozenset(self._observed_h4_closes)
+        return prepare_from_multiplexer(
+            self.multiplexer,
+            self.config,
+            timeframe,
+            trigger_open_time,
+            ready_at,
+            observed_h4_closes,
         )
 
     def _advance_cursor(self, timeframe: str, trigger_close: datetime) -> None:

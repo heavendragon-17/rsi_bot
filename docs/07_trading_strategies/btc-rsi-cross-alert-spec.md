@@ -619,10 +619,15 @@ duplicates should not flood Telegram.
 | `app/trading/strategy/btc_rsi_cross_alert/__init__.py` | Public pure-domain exports; no loader registration |
 | `app/trading/strategy/btc_rsi_cross_alert/models.py` | Frozen input, point, decision, and event models |
 | `app/trading/strategy/btc_rsi_cross_alert/evaluator.py` | Pure indicator preparation and signal decision |
+| `app/trading/strategy/core_v2_1/model_validation.py` | Shared validation primitives for immutable Core V2.1 models |
+| `app/trading/strategy/core_v2_1/input_models.py` | Core V2.1 point-in-time snapshot and evaluator-input models |
+| `app/trading/strategy/core_v2_1/decision_models.py` | Core V2.1 state, event, decision, and result models |
+| `app/trading/strategy/core_v2_1/models.py` | Compatibility exports for the split Core V2.1 model modules |
 | `app/signal/btc_rsi_cross_alert/__init__.py` | Runtime/configuration exports |
 | `app/signal/btc_rsi_cross_alert/config.py` | Frozen config and strict resolver/validation |
 | `app/signal/btc_rsi_cross_alert/formatter.py` | Deterministic HTML-safe Telegram card |
 | `app/signal/btc_rsi_cross_alert/worker.py` | Queue, bootstrap gate, point-in-time adapter, retry, dedupe, lifecycle |
+| `app/signal/btc_rsi_cross_alert/worker_support.py` | Multiplexer preparation and failure-budget helpers used by the worker |
 
 ### Existing files expected to change
 
