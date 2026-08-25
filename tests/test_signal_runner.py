@@ -317,3 +317,131 @@ class TestFilteredCallback:
         cb("BTC/USDT", "1h", candle)
 
         worker.enqueue.assert_called_once_with("BTC/USDT", "15m", candle)
+
+
+def _btc_entry(**overrides) -> dict:
+    entry = {
+        "name": "btc_rsi_cross_alert",
+        "active": True,
+        "telegram_topic_id": 1007,
+        "symbol": "BTC/USDT",
+        "trigger_timeframes": ["5m", "15m"],
+        "trend_timeframe": "4h",
+        "rsi_period": 21,
+        "rsi_ema_period": 9,
+        "rsi_wma_period": 45,
+        "context_settle_seconds": 5,
+    }
+    entry.update(overrides)
+    return entry
+
+
+class TestBtcAlertComponentIntegration:
+    def test_mixed_ordinary_and_btc_build_both_worker_groups(self):
+        raw = _base_raw_config()
+        raw["strategies"].append(_btc_entry())
+        runner, notifier, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            Stream.return_value = MagicMock()
+            runner.start()
+
+        assert len(runner._workers) == 1
+        assert len(runner._alert_workers) == 1
+        assert len(runner._alert_threads) == 1
+        # strategies stays ordinary-only; typed alert config exposed separately.
+        assert [c.name for c in runner.strategies] == ["rsi_no_retest"]
+        assert [c.name for c in runner.alert_components] == ["btc_rsi_cross_alert"]
+
+        stream_kwargs = Stream.call_args.kwargs
+        assert {("BTC/USDT", "5m"), ("BTC/USDT", "15m"), ("BTC/USDT", "4h")} <= set(
+            stream_kwargs["targets"]
+        )
+        assert callable(stream_kwargs["history_complete_callback"])
+        runner.stop()
+
+    def test_alert_only_config_starts_stream_and_worker(self):
+        raw = _base_raw_config()
+        raw["strategies"] = [_btc_entry()]
+        runner, _, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            Stream.return_value = MagicMock()
+            runner.start()
+
+        assert runner.strategies == []
+        assert len(runner.alert_components) == 1
+        assert len(runner._workers) == 0
+        assert len(runner._alert_workers) == 1
+        Stream.assert_called_once()
+
+        # The history-complete hook arms every alert worker when invoked.
+        hook = Stream.call_args.kwargs["history_complete_callback"]
+        hook()
+        assert runner._alert_workers[0].is_history_ready
+        runner.stop()
+
+    def test_all_components_disabled_is_clean_noop(self):
+        raw = _base_raw_config()
+        raw["strategies"] = [
+            {"name": "rsi_no_retest", "active": False, "telegram_topic_id": 42},
+            _btc_entry(active=False),
+        ]
+        runner, _, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            runner.start()
+            Stream.assert_not_called()
+        assert runner._workers == []
+        assert runner._alert_workers == []
+        assert runner._stream is None
+        runner.stop()
+
+    def test_topic_collision_between_ordinary_and_btc_rejected(self):
+        raw = _base_raw_config()
+        raw["strategies"].append(_btc_entry(telegram_topic_id=42))
+        runner, _, _ = _mk_runner(raw)
+        with pytest.raises(ValueError, match="already used by"):
+            with patch("app.signal.runner.BinanceStreamManager"):
+                runner.start()
+
+    def test_btc_topic_colliding_with_debug_topic_rejected(self):
+        raw = _base_raw_config()
+        raw["strategies"] = [_btc_entry(telegram_topic_id=99)]
+        runner, _, _ = _mk_runner(raw)
+        with pytest.raises(ValueError, match="debug_topic_id"):
+            with patch("app.signal.runner.BinanceStreamManager"):
+                runner.start()
+
+    def test_stop_joins_alert_threads_and_sends_no_vp_broadcast_for_btc(self):
+        raw = _base_raw_config()
+        raw["strategies"] = [_btc_entry()]
+        runner, notifier, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            Stream.return_value = MagicMock()
+            runner.start()
+
+        notifier.reset_mock()
+        runner.stop()
+
+        for thread in runner._alert_threads:
+            assert not thread.is_alive()
+        # No virtual-position shutdown broadcast: the alert owns no VPs.
+        broadcasts = [
+            c for c in notifier.send_message.call_args_list
+            if "Signal bot shutting down" in c.args[0]
+        ]
+        assert broadcasts == []
+
+    def test_alert_only_wait_returns_immediately_on_stop(self):
+        import threading
+
+        raw = _base_raw_config()
+        raw["strategies"] = [_btc_entry()]
+        runner, _, _ = _mk_runner(raw)
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            Stream.return_value = MagicMock()
+            runner.start()
+
+        t = threading.Thread(target=runner.wait, daemon=True)
+        t.start()
+        runner.stop()
+        t.join(timeout=2.0)
+        assert not t.is_alive()

@@ -20,6 +20,11 @@ from typing import Any
 import structlog
 
 from app.core.config import RiskConfig
+from app.signal.btc_rsi_cross_alert.config import (
+    BtcRsiCrossAlertConfig,
+    is_btc_rsi_cross_alert_entry,
+    resolve_btc_rsi_cross_alert_config,
+)
 from app.trading.strategy.loader import STRATEGY_MAP
 
 logger = structlog.get_logger()
@@ -215,6 +220,11 @@ def resolve_strategy_configs(raw: dict) -> list[StrategyInstanceConfig]:
     Returns an empty list if no strategies are active — the caller should
     warn and exit cleanly. Raises ``ValueError`` on any schema violation.
 
+    Backward-compatible view over :func:`resolve_signal_runtime_config`:
+    returns only ordinary ``StrategyInstanceConfig`` entries (the BTC alert
+    component is never exposed as a fake single-frame strategy). New callers
+    should use the aggregate resolver directly.
+
     Merge semantics:
       * ``symbols`` — per-strategy override replaces the global list if set.
       * ``timeframe`` — per-strategy override replaces the global value if set.
@@ -225,22 +235,74 @@ def resolve_strategy_configs(raw: dict) -> list[StrategyInstanceConfig]:
     Deferred (tracked for v2): per-strategy ``exclude:`` lists and
     per-strategy ``strategy_params``.
     """
+    return list(resolve_signal_runtime_config(raw).strategies)
+
+
+@dataclass(frozen=True)
+class ResolvedSignalRuntimeConfig:
+    """Whole signal-runtime resolution: ordinary strategies plus alert-only
+    signal components, with cross-component topic uniqueness enforced."""
+
+    strategies: tuple[StrategyInstanceConfig, ...]
+    btc_rsi_cross_alert: BtcRsiCrossAlertConfig | None
+    debug_topic_id: int
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.strategies and self.btc_rsi_cross_alert is None
+
+    @property
+    def targets(self) -> frozenset[tuple[str, str]]:
+        """Union of every active component's stream targets."""
+
+        union: set[tuple[str, str]] = set()
+        for cfg in self.strategies:
+            union.update(cfg.targets)
+        if self.btc_rsi_cross_alert is not None:
+            union.update(self.btc_rsi_cross_alert.targets)
+        return frozenset(union)
+
+
+def resolve_signal_runtime_config(raw: dict) -> ResolvedSignalRuntimeConfig:
+    """Validate the entire active component set and build the aggregate.
+
+    Enforces topic uniqueness across ordinary strategies, the BTC RSI cross
+    alert component, and the debug topic together. Raises ``ValueError`` on
+    any schema violation.
+    """
     debug_topic_id = validate_telegram_config(raw)
 
     global_symbols = tuple(raw.get("symbols") or ())
     global_timeframe = raw.get("timeframe")
-    if not global_timeframe:
-        raise ValueError("signal mode requires a top-level `timeframe`")
     global_risk = _build_global_risk(raw.get("risk") or {})
 
     strategies_raw = raw.get("strategies") or []
     if not isinstance(strategies_raw, list):
         raise ValueError("`strategies` must be a list")
 
+    # The BTC component does not need the single-frame global timeframe, but
+    # ordinary entries do; keep the historical requirement for configs that
+    # declare any ordinary entry.
+    has_ordinary_candidate = any(
+        isinstance(entry, dict)
+        and entry.get("active", True)
+        and not is_btc_rsi_cross_alert_entry(entry)
+        for entry in strategies_raw
+    )
+    if has_ordinary_candidate and not global_timeframe:
+        raise ValueError("signal mode requires a top-level `timeframe`")
+
+    btc_entries = [
+        entry for entry in strategies_raw if is_btc_rsi_cross_alert_entry(entry)
+    ]
+    ordinary_entries = [
+        entry for entry in strategies_raw if not is_btc_rsi_cross_alert_entry(entry)
+    ]
+
     resolved: list[StrategyInstanceConfig] = []
     seen_topics: dict[int, str] = {}
 
-    for entry in strategies_raw:
+    for entry in ordinary_entries:
         if not isinstance(entry, dict):
             raise ValueError(f"each strategy entry must be a mapping, got {type(entry).__name__}")
         if not entry.get("active", True):
@@ -249,11 +311,21 @@ def resolve_strategy_configs(raw: dict) -> list[StrategyInstanceConfig]:
             _resolve_entry(
                 entry,
                 global_symbols=global_symbols,
-                global_timeframe=global_timeframe,
+                global_timeframe=str(global_timeframe),
                 global_risk=global_risk,
                 debug_topic_id=debug_topic_id,
                 seen_topics=seen_topics,
             )
         )
 
-    return resolved
+    btc_cfg = resolve_btc_rsi_cross_alert_config(
+        [entry for entry in btc_entries if isinstance(entry, dict)],
+        debug_topic_id=debug_topic_id,
+        seen_topics=seen_topics,
+    )
+
+    return ResolvedSignalRuntimeConfig(
+        strategies=tuple(resolved),
+        btc_rsi_cross_alert=btc_cfg,
+        debug_topic_id=debug_topic_id,
+    )

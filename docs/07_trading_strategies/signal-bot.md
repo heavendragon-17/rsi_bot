@@ -120,6 +120,57 @@ NotificationService.send(msg, topic_id=...)       [fire-and-forget queue]
 Telegram topic (per strategy / debug)
 ```
 
+### Alert-only branch: `btc_rsi_cross_alert`
+
+A dedicated branch of the same pipeline exists for the BTC RSI cross alert.
+It shares the stream manager, multiplexer, resolver and notifier but never
+touches virtual positions or strategies:
+
+```
+BinanceStreamManager ── history_complete_callback ──→ BtcRsiCrossAlertWorker.on_history_complete()
+        │                                              (arms bootstrap watermarks; no evaluation)
+        ↓
+TimeframeMultiplexer close callbacks
+        ├─ 5m/15m closed candle → worker queue → pure preparation → pure evaluator
+        │            ↑ point-in-time H4 context read from the same multiplexer
+        └─ 4h closed candle  → synchronous Condition confirmation (never queued)
+        ↓
+NotificationService.send(card, topic_id=btc topic)   [only on ALERT decisions]
+```
+
+Key properties (full contract:
+[docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](btc-rsi-cross-alert-spec.md)):
+
+* **Not an `IStrategy`** — it is not registered in the trading/backtest
+  `STRATEGY_MAP`, produces no backtest UI entry, and `/test_signal` never
+  fabricates a card for it. `SignalRunner.strategies` stays limited to
+  ordinary configs; active alerts are exposed via
+  `SignalRunner.alert_components`.
+* **Alert-only startup** — a config with zero ordinary strategies and one
+  active BTC alert still starts multiplexer, stream, worker, notifier,
+  health/status lifecycle and graceful shutdown. With everything disabled the
+  runner keeps its clean no-op startup.
+* **Bootstrap suppression** — `BinanceStreamManager` accepts an optional
+  `history_complete_callback`; it fires exactly once after all REST fetch
+  attempts return and before the WebSocket loop starts. The worker discards
+  every callback until then and permanently ignores trigger closes at/before
+  the per-timeframe REST watermark or the history-ready instant.
+* **H4 boundary coordination** — live H4 closes are confirmed synchronously
+  under a `threading.Condition`; when a trigger needs an unconfirmed H4
+  context the worker waits at most `context_settle_seconds` once, then
+  re-prepares exactly once more. Retry exhaustion fails closed silently.
+* **Deduplication & failure budget** — per-timeframe cursor + deterministic
+  event identity (SHA-256 of
+  `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`); no wall-clock cooldown.
+  Unexpected exceptions requeue the same event ahead of newer ones within the
+  existing `signal_runner.max_consecutive_failures` budget; exhaustion
+  advances the cursor, notifies the debug topic once and terminates only this
+  alert worker thread.
+* **Non-goals** — no orders, no virtual positions, no SL/TP, no PnL claims;
+  M5/M15/H4 are native Binance streams (no resampling); v1 state is in
+  memory, so restart bootstraps again and delivery remains best-effort
+  asynchronous Telegram (not the Core V2.1 durable outbox).
+
 ---
 
 ## 3. Config Schema

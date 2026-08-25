@@ -269,7 +269,7 @@ class TestEndToEndSmoke:
                 ts=datetime(2024, 1, 1),
                 close=Decimal("62000"),
                 high=Decimal("62100"),
-                low=Decimal("61900"),
+                low=Decimal("60800"),
             )
             runner._multiplexer.on_kline_event("BTC/USDT", "15m", candle)
             assert _wait_for(
@@ -289,3 +289,108 @@ class TestEndToEndSmoke:
             assert "BTC/USDT" in body
             assert "RSIN#001" in body
             assert broadcast[0].kwargs["topic_id"] == 42
+
+
+def _btc_raw_config() -> dict:
+    raw = _raw_config()
+    raw["strategies"].append(
+        {
+            "name": "btc_rsi_cross_alert",
+            "active": True,
+            "telegram_topic_id": 1007,
+            "symbol": "BTC/USDT",
+            "trigger_timeframes": ["5m", "15m"],
+            "trend_timeframe": "4h",
+            "rsi_period": 21,
+            "rsi_ema_period": 9,
+            "rsi_wma_period": 45,
+            "context_settle_seconds": 5,
+        }
+    )
+    return raw
+
+
+class TestBtcAlertEndToEnd:
+    def test_qualifying_m5_close_reaches_btc_topic_without_virtual_position(self):
+        from btc_alert_fixtures import (
+            BASE,
+            READY_AT,
+            bullish_h4_closes,
+            h4_close_times,
+            make_candle,
+            qualifying_trigger,
+        )
+
+        notifier = MagicMock()
+        raw = _btc_raw_config()
+        with patch("app.signal.runner.BinanceStreamManager") as Stream:
+            Stream.return_value = MagicMock()
+            runner = SignalRunner(raw, notifier, install_signal_handlers=False)
+            runner.start()
+
+        mux = runner._multiplexer
+        step = timedelta(minutes=5)
+
+        # REST-style hydration: trusted H4 history through 08:00 UTC and the
+        # trigger frame through one candle before the live cross.
+        m5_times, m5_closes = qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        for position in range(len(m5_times) - 1):
+            mux.on_kline_event(
+                "BTC/USDT",
+                "5m",
+                make_candle(m5_times[position], step, m5_closes[position]),
+            )
+        h4_times = h4_close_times(BASE.replace(hour=8))
+        h4_closes = bullish_h4_closes()
+        for position in range(len(h4_times)):
+            mux.on_kline_event(
+                "BTC/USDT",
+                "4h",
+                make_candle(h4_times[position], timedelta(hours=4), h4_closes[position]),
+            )
+
+        # The stream manager fires the captured hook exactly once after all
+        # fetch attempts; here we simulate that wiring with a frozen clock
+        # so the synthetic timeline stays consistent.
+        from app.signal.btc_rsi_cross_alert import worker as btc_worker_module
+
+        class _FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # noqa: ARG003 — signature parity
+                return READY_AT
+
+        history_hook = Stream.call_args.kwargs["history_complete_callback"]
+        with patch.object(btc_worker_module, "datetime", _FrozenDatetime):
+            history_hook()
+
+        # Live closed M5 candle carrying the fresh cross.
+        mux.on_kline_event(
+            "BTC/USDT", "5m", make_candle(m5_times[-1], step, m5_closes[-1])
+        )
+
+        assert _wait_for(lambda: notifier.send_message.call_count >= 1)
+        alert_calls = [
+            c for c in notifier.send_message.call_args_list
+            if "BTC RSI BULLISH CROSS" in c.args[0]
+        ]
+        assert len(alert_calls) == 1
+        assert alert_calls[0].kwargs["topic_id"] == 1007
+
+        # The BTC alert never creates a virtual position or order path.
+        assert runner._vp_store.all_open_by_strategy() == {}
+        assert runner._vp_store.get_for_symbol("btc_rsi_cross_alert", "BTC/USDT") is None
+
+        worker = runner._alert_workers[0]
+        assert len(worker.emitted_event_ids) == 1
+
+        # A duplicate of the same candle cannot duplicate the alert.
+        notifier.reset_mock()
+        mux.on_kline_event(
+            "BTC/USDT", "5m", make_candle(m5_times[-1], step, m5_closes[-1])
+        )
+        time.sleep(0.2)
+        assert notifier.send_message.call_count == 0
+
+        runner.stop()
+        for thread in runner._threads + runner._alert_threads:
+            assert not thread.is_alive()

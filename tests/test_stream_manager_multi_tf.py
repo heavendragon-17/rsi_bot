@@ -164,3 +164,82 @@ class TestFetchInitialData:
             # Must not raise
             mgr.fetch_initial_data()
             mux.on_kline_event.assert_not_called()
+
+
+class TestHistoryCompleteCallback:
+    def test_default_callback_is_none_and_start_unchanged(self):
+        mgr, mux, _ = _mk_multi()
+        assert mgr.history_complete_callback is None
+
+        with patch("app.data.stream_manager.threading.Thread") as MockThread:
+            MockThread.return_value = MagicMock()
+            mgr.start()
+        MockThread.assert_called_once()
+
+    def test_callback_fires_once_after_all_fetches_before_ws_thread(self):
+        events: list[str] = []
+
+        with patch("app.data.stream_manager.ccxt") as MockCcxt:
+            exchange = MagicMock()
+            MockCcxt.binanceusdm.return_value = exchange
+
+            def _record_fetch(*args, **kwargs):
+                events.append("fetch")
+                return [[1_700_000_000_000, 1, 2, 0.5, 1.5, 1.0]]
+
+            exchange.fetch_ohlcv.side_effect = _record_fetch
+
+            with patch("app.data.stream_manager.threading.Thread") as MockThread:
+                MockThread.return_value = MagicMock()
+
+                mgr = BinanceStreamManager(
+                    targets={("BTC/USDT", "1m"), ("ETH/USDT", "5m")},
+                    multiplexer=MagicMock(),
+                    enable_history=True,
+                    history_complete_callback=lambda: events.append("callback"),
+                )
+                mgr.start()
+
+        # Order locked by spec §11: every fetch attempt → callback once → WS.
+        assert events == ["fetch", "fetch", "callback"]
+        MockThread.assert_called_once()  # WS loop starts after the hook
+
+    def test_callback_fires_exactly_once_when_a_fetch_fails(self):
+        calls: list[int] = []
+
+        with patch("app.data.stream_manager.ccxt") as MockCcxt:
+            exchange = MagicMock()
+            MockCcxt.binanceusdm.return_value = exchange
+            exchange.fetch_ohlcv.side_effect = [
+                RuntimeError("first target fails"),
+                [[1_700_000_000_000, 1, 2, 0.5, 1.5, 1.0]],
+            ]
+
+            with patch("app.data.stream_manager.threading.Thread") as MockThread:
+                MockThread.return_value = MagicMock()
+                mgr = BinanceStreamManager(
+                    targets={("BTC/USDT", "1m"), ("ETH/USDT", "5m")},
+                    multiplexer=MagicMock(),
+                    enable_history=True,
+                    history_complete_callback=lambda: calls.append(1),
+                )
+                # Must not raise despite the failed target.
+                mgr.start()
+
+        assert len(calls) == 1
+
+    def test_callback_exception_is_isolated(self):
+        with patch("app.data.stream_manager.ccxt"):
+            with patch("app.data.stream_manager.threading.Thread") as MockThread:
+                MockThread.return_value = MagicMock()
+                mgr = BinanceStreamManager(
+                    targets={("BTC/USDT", "1m")},
+                    multiplexer=MagicMock(),
+                    enable_history=False,
+                    history_complete_callback=lambda: (_ for _ in ()).throw(
+                        RuntimeError("hook boom")
+                    ),
+                )
+                # Must not raise; WS loop still starts.
+                mgr.start()
+        MockThread.assert_called_once()

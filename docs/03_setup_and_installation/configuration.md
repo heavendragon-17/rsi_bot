@@ -304,6 +304,18 @@ strategies:                  # List[dict], required
       # symbols: ["BTC/USDT"]
       # risk:
       #   tp1_close_pct: 0.5 # merges into the global risk block
+    # Alert-only component (Telegram advisory, never places orders).
+    # Not in STRATEGY_MAP; resolved by app/signal/btc_rsi_cross_alert/config.py.
+    - name: btc_rsi_cross_alert
+      active: false          # stays disabled until topic 1007 is operator-verified
+      telegram_topic_id: 1007
+      symbol: "BTC/USDT"     # locked — canonical BTC/USDT only
+      trigger_timeframes: ["5m", "15m"]  # locked — exactly {5m, 15m}
+      trend_timeframe: "4h"  # locked — native Binance H4 (no resampling)
+      rsi_period: 21         # locked
+      rsi_ema_period: 9      # locked
+      rsi_wma_period: 45     # locked
+      context_settle_seconds: 5  # int, locked range [0, 30]
 
 virtual_positions:
     max_age_candles: 50      # int, default: 50 (SIGNAL_MAX_VP_AGE_CANDLES) — auto-expire
@@ -327,11 +339,32 @@ data:
 |------|--------|
 | `telegram.group_id` present | `ValueError` |
 | `telegram.debug_topic_id` present and int-coercible | `ValueError` |
-| Every active strategy declares a `name` that exists in `STRATEGY_MAP` | `ValueError` |
+| Every active strategy declares a `name` that exists in `STRATEGY_MAP` (or is `btc_rsi_cross_alert`) | `ValueError` |
 | Every active strategy declares `telegram_topic_id` | `ValueError` |
-| `telegram_topic_id` values are unique across active strategies | `ValueError` |
-| No strategy uses `debug_topic_id` as its `telegram_topic_id` | `ValueError` |
-| If every strategy is inactive (or the list is empty), runner warn-logs and exits cleanly | (no raise) |
+| `telegram_topic_id` values are unique across active strategies **and** alert components | `ValueError` |
+| No strategy/component uses `debug_topic_id` as its `telegram_topic_id` | `ValueError` |
+| If every strategy and component is inactive (or the list is empty), runner warn-logs and exits cleanly | (no raise) |
+
+#### `btc_rsi_cross_alert` component validation
+
+Resolved by `resolve_btc_rsi_cross_alert_config()` (see
+[docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](../07_trading_strategies/btc-rsi-cross-alert-spec.md)
+§6). All values are explicit in YAML for auditability but **locked** for v1:
+
+| Rule | Raises |
+|------|--------|
+| `symbol` is exactly `"BTC/USDT"` | `ValueError` |
+| `trigger_timeframes` present, duplicate-free, exactly `{5m, 15m}` | `ValueError` |
+| `trend_timeframe == "4h"` | `ValueError` |
+| `rsi_period`, `rsi_ema_period`, `rsi_wma_period` are exactly `21`, `9`, `45` (plain integers; no float/string coercion) | `ValueError` |
+| `context_settle_seconds` is an integer in `[0, 30]` (bools rejected) | `ValueError` |
+| `telegram_topic_id` present and integer-coercible | `ValueError` |
+| At most one active `btc_rsi_cross_alert` entry | `ValueError` |
+| Disabled entries are ignored entirely — their topic is **not** reserved | (no raise) |
+
+An alert-only configuration (zero ordinary strategies + one active BTC alert)
+is valid and starts the full signal runtime. The checked-in default keeps
+`active: false` until the operator verifies that Telegram topic `1007` exists.
 
 ### Merge semantics (global → per-strategy override)
 

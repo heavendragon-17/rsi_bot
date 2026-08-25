@@ -2,10 +2,15 @@
 
 Wires together the pieces from slices 1-6:
   * resolver builds ``StrategyInstanceConfig`` per active strategy (slice 4)
+    plus the optional ``btc_rsi_cross_alert`` component via
+    :func:`resolve_signal_runtime_config`
   * ``TimeframeMultiplexer`` fans out per-``(sym, tf)`` closes (slice 1)
   * ``BinanceStreamManager`` multi-TF path feeds the multiplexer (slice 2)
+    and fires ``history_complete_callback`` after REST hydration
   * ``VirtualPositionStore`` holds the advisory positions (slice 5)
   * ``StrategyWorker`` per strategy runs analyze + exit monitor (slice 6)
+  * ``BtcRsiCrossAlertWorker`` evaluates BTC M5/M15 crosses against H4
+    context and alerts Telegram-only (no orders, no virtual positions)
   * ``NotificationService`` carries every message (slice 3) including the
     SIGTERM shutdown broadcast formatted here (slice 6's
     :func:`format_shutdown_broadcast`).
@@ -30,11 +35,12 @@ from app.core.events import Candle
 from app.data.multiplexer import TimeframeMultiplexer
 from app.data.stream_manager import BinanceStreamManager
 from app.notification.notification_service import NotificationService
+from app.signal.btc_rsi_cross_alert.config import BtcRsiCrossAlertConfig
+from app.signal.btc_rsi_cross_alert.worker import BtcRsiCrossAlertWorker
 from app.signal.signal_formatter import format_shutdown_broadcast
 from app.signal.strategy_config import (
     StrategyInstanceConfig,
-    resolve_strategy_configs,
-    validate_telegram_config,
+    resolve_signal_runtime_config,
 )
 from app.signal.strategy_worker import StrategyWorker
 from app.signal.virtual_position import VirtualPositionStore
@@ -60,8 +66,11 @@ class SignalRunner:
         self._install_signal_handlers = install_signal_handlers
 
         self._instance_cfgs: list[StrategyInstanceConfig] = []
+        self._alert_cfgs: tuple[BtcRsiCrossAlertConfig, ...] = ()
         self._workers: list[StrategyWorker] = []
+        self._alert_workers: list[BtcRsiCrossAlertWorker] = []
         self._threads: list[threading.Thread] = []
+        self._alert_threads: list[threading.Thread] = []
         self._multiplexer: TimeframeMultiplexer | None = None
         self._stream: BinanceStreamManager | None = None
         self._vp_store = VirtualPositionStore()
@@ -79,8 +88,18 @@ class SignalRunner:
 
     @property
     def strategies(self) -> list[StrategyInstanceConfig]:
-        """Resolved active strategies (populated after :meth:`start`)."""
+        """Resolved active ordinary strategies (populated after start).
+
+        Deliberately limited to ordinary single-frame strategy configs so
+        ``/test_signal`` never fabricates a virtual-position card for the
+        BTC RSI cross alert component.
+        """
         return list(self._instance_cfgs)
+
+    @property
+    def alert_components(self) -> tuple[BtcRsiCrossAlertConfig, ...]:
+        """Active typed alert-only signal components (defensive copy)."""
+        return tuple(self._alert_cfgs)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -91,22 +110,27 @@ class SignalRunner:
             logger.debug("signal_runner_start_noop")
             return
 
-        self._instance_cfgs = resolve_strategy_configs(self._raw)
-        if not self._instance_cfgs:
+        runtime_cfg = resolve_signal_runtime_config(self._raw)
+        self._instance_cfgs = list(runtime_cfg.strategies)
+        self._alert_cfgs = (
+            (runtime_cfg.btc_rsi_cross_alert,)
+            if runtime_cfg.btc_rsi_cross_alert is not None
+            else ()
+        )
+        self._debug_topic_id = runtime_cfg.debug_topic_id
+        if not self._instance_cfgs and not self._alert_cfgs:
             logger.warning("signal_runner_no_active_strategies")
             # Set the stop event so ``wait()`` returns immediately rather
             # than blocking forever on a never-started runner.
             self._stop_event.set()
             return
 
-        self._debug_topic_id = validate_telegram_config(self._raw)
-
         data_cfg = self._raw.get("data") or {}
         self._max_candles_per_tf = dict(
             data_cfg.get("max_candles_per_timeframe") or {}
         )
 
-        union = frozenset().union(*(cfg.targets for cfg in self._instance_cfgs))
+        union = runtime_cfg.targets
 
         # Set the running flag AND register signal handlers BEFORE spawning
         # any threads or opening the WebSocket. If SIGTERM arrives during the
@@ -130,12 +154,14 @@ class SignalRunner:
             targets=set(union),
             multiplexer=self._multiplexer,
             history_limit=self._history_limit,
+            history_complete_callback=self._notify_history_complete,
         )
         self._stream.start()
 
         logger.info(
             "signal_runner_started",
             strategies=[c.name for c in self._instance_cfgs],
+            alert_components=[c.name for c in self._alert_cfgs],
             targets=sorted(union),
         )
 
@@ -162,12 +188,14 @@ class SignalRunner:
         except Exception:
             logger.exception("signal_runner_shutdown_broadcast_failed")
 
-        # 3. Request stop on every worker (clears its event + enqueues sentinel).
+        # 3. Request stop on every worker (clears its event + unblocks waits).
         for worker in self._workers:
             worker.request_stop()
+        for worker in self._alert_workers:
+            worker.request_stop()
 
-        # 4. Join worker threads with a bounded timeout.
-        for thread in self._threads:
+        # 4. Join worker threads with a bounded timeout (ordinary + alert).
+        for thread in self._threads + self._alert_threads:
             thread.join(timeout=SIGNAL_SHUTDOWN_JOIN_SECONDS)
             if thread.is_alive():
                 logger.warning("signal_runner_worker_join_timeout", thread=thread.name)
@@ -188,20 +216,35 @@ class SignalRunner:
         when :meth:`stop` sets the event, vs. sleeping out the full second.
         """
         last_heartbeat = 0
+        all_threads = lambda: self._threads + self._alert_threads  # noqa: E731
         while not self._stop_event.wait(timeout=1):
             now = int(time.time())
             if now - last_heartbeat >= 60:
-                alive = sum(1 for t in self._threads if t.is_alive())
+                threads = all_threads()
+                alive = sum(1 for t in threads if t.is_alive())
                 logger.info(
                     "signal_runner_heartbeat",
                     workers_alive=alive,
-                    total=len(self._threads),
+                    total=len(threads),
                 )
                 last_heartbeat = now
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+    def _notify_history_complete(self) -> None:
+        """Stream-manager hook: arm every alert worker after REST hydration.
+
+        Runs exactly once after all fetch attempts return, before the
+        WebSocket loop starts. Ordinary StrategyWorkers need no hook — their
+        startup behavior is unchanged.
+        """
+        for worker in self._alert_workers:
+            try:
+                worker.on_history_complete()
+            except Exception:
+                logger.exception("btc_rsi_cross_history_ready_failed")
+
     def _build_workers(self) -> None:
         assert self._multiplexer is not None
         for cfg in self._instance_cfgs:
@@ -236,6 +279,31 @@ class SignalRunner:
                 targets=sorted(cfg.targets),
             )
 
+        for cfg in self._alert_cfgs:
+            worker = BtcRsiCrossAlertWorker(
+                config=cfg,
+                multiplexer=self._multiplexer,
+                notifier=self._notifier,
+                debug_topic_id=self._debug_topic_id,
+            )
+            self._multiplexer.register_close_callback(
+                _make_alert_callback(worker)
+            )
+            thread = threading.Thread(
+                target=worker.run,
+                name=f"signal-alert-worker-{cfg.name}",
+                daemon=True,
+            )
+            self._alert_workers.append(worker)
+            self._alert_threads.append(thread)
+            thread.start()
+            logger.info(
+                "signal_alert_worker_spawned",
+                component=cfg.name,
+                topic_id=cfg.telegram_topic_id,
+                targets=sorted(cfg.targets),
+            )
+
     def _send_shutdown_broadcasts(self) -> None:
         grouped = self._vp_store.all_open_by_strategy()
         for cfg in self._instance_cfgs:
@@ -261,5 +329,20 @@ def _make_filtered_callback(
     def cb(symbol: str, timeframe: str, candle: Candle) -> None:
         if (symbol, timeframe) in targets:
             worker.enqueue(symbol, timeframe, candle)
+
+    return cb
+
+
+def _make_alert_callback(
+    worker: BtcRsiCrossAlertWorker,
+) -> Callable[[str, str, Candle], None]:
+    """One closure for the BTC alert worker.
+
+    The worker itself routes H4 closes to synchronous confirmation and
+    M5/M15 closes to its evaluation queue.
+    """
+
+    def cb(symbol: str, timeframe: str, candle: Candle) -> None:
+        worker.handle_closed_candle(symbol, timeframe, candle)
 
     return cb
