@@ -12,7 +12,7 @@
 - [x] Correct the seven reported type-check errors.
 - [x] Run focused and CI-equivalent validation.
 - [x] Commit and push the fixes to the PR branch.
-- [ ] Confirm the final PR checks pass.
+- [x] Confirm the final PR checks pass.
 
 #### Review
 
@@ -27,6 +27,8 @@
 - The repository-wide Windows coverage run was stopped after a CPU-bound
   backtest remained at 27%; GitHub's Linux coverage job will provide the final
   required full-suite result after push.
+- GitHub Actions run `32879002023` passed all nine jobs on pushed head
+  `3394b00`, including Architecture Lint, Type Check, and Tests + Coverage.
 
 ### BTC RSI Cross Alert (`btc_rsi_cross_alert`) — branch `codex/btc-rsi-cross-alert`
 
