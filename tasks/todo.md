@@ -11,7 +11,8 @@
 - [x] Split the two oversized modules without changing runtime behavior.
 - [x] Correct the seven reported type-check errors.
 - [x] Run focused and CI-equivalent validation.
-- [ ] Commit, push, and confirm the PR checks pass.
+- [x] Commit and push the fixes to the PR branch.
+- [ ] Confirm the final PR checks pass.
 
 #### Review
 
