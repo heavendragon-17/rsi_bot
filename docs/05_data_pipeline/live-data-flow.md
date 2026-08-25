@@ -349,3 +349,53 @@ callback on the multiplexer that routes only the worker's own `(sym, tf)`
 targets into the queue — other events are dropped at callback time, not
 after queue ingest. On overflow, the enqueue side drops with a
 `strategy_worker_queue_full` warn-log so WebSocket ingest never stalls.
+
+### BTC RSI cross alert branch (5m + 15m + native 4h)
+
+The `btc_rsi_cross_alert` component extends the same multi-TF pipeline with a
+**three-stream** target union: native Binance `btcusdt@kline_5m`,
+`btcusdt@kline_15m` and `btcusdt@kline_4h` (H4 is subscribed natively — M5/M15
+are never resampled into H4).
+
+```
+BinanceStreamManager(targets ∪ {(BTC/USDT,5m),(BTC/USDT,15m),(BTC/USDT,4h)})
+        |
+        v  fetch_initial_data(): REST history per target → multiplexer
+        |  (close callbacks fire for historical rows too — see gate below)
+        v
+history_complete_callback()  -- exactly once, after all fetch attempts,
+        |                      before the WebSocket loop starts
+        v
+BtcRsiCrossAlertWorker.on_history_complete():
+    records UTC history-ready instant + per-timeframe REST watermark
+    (newest closed candle close hydrated per 5m/15m)
+        |
+        v  multiplexer close callbacks:
+        ├─ 5m/15m closed candle → worker queue (evaluation trigger)
+        ├─ 4h closed candle   → synchronous Condition confirmation
+        |                       (observed-live set; NEVER queued)
+        └─ open candles       → ignored entirely
+        |
+        v  worker thread, per event:
+    1. bootstrap gate: discard while history-ready unset; ignore closes
+       <= timeframe watermark OR <= history-ready instant (covers delayed
+       WS duplicates and candles that closed during hydration)
+    2. dedupe: per-timeframe cursor + deterministic event id (no cooldown)
+    3. point-in-time preparation over defensive get_dataframe() copies:
+       naive stored opens = fixed UTC+07:00 → UTC close = open + tf duration;
+       maximal contiguous cadence suffix ending at the exact expected row;
+       >=67 trigger rows / >=66 H4 rows; finite values only; post-bootstrap
+       H4 closes require live observation; one settle/retry at shared H4
+       boundaries (context_settle_seconds), then fail closed
+    4. pure decision: fresh EMA9(RSI21)↑WMA45(RSI21) cross AND strict
+       H4 RSI21 > EMA9 > WMA45
+        |
+        v  on ALERT only:
+NotificationService.send_message(html-escaped card, topic_id=btc topic)
+```
+
+The bootstrap gate makes historical REST replay silent by construction: no
+alert can originate from the hydration window regardless of how many crosses
+it contains. See
+[docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](../07_trading_strategies/btc-rsi-cross-alert-spec.md)
+§7/§11 for the locked semantics.

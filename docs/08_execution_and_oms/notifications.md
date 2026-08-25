@@ -304,6 +304,8 @@ ns.send_message("🤖 RSI Bot Started")
 | ⏰ VP age expiry                           | `telegram.debug_topic_id`        |
 | ⚠ Invariant violation (invalid action)    | `telegram.debug_topic_id`        |
 | ⚠ Strategy thread dead after N failures   | `telegram.debug_topic_id`        |
+| 🟢 BTC RSI bullish cross alert            | component's `telegram_topic_id`  |
+| ⚠ BTC alert worker dead after N failures  | `telegram.debug_topic_id`        |
 
 ### Implementation notes
 
@@ -312,6 +314,18 @@ ns.send_message("🤖 RSI Bot Started")
   **plain text** (no HTML, no parse_mode escaping needed) so user-facing
   strings like `strategy_name` and `symbol` cannot cause Telegram markup
   injection.
+* **Exception:** the `btc_rsi_cross_alert` card is rendered by the pure
+  formatter in `app/signal/btc_rsi_cross_alert/formatter.py`. Because
+  `TelegramBot` always sends with `parse_mode="HTML"`, that card escapes all
+  dynamic text (`html.escape`) and renders a fixed template: trigger RSI21 /
+  EMA9 / WMA45, H4 trend line with the same triple to two decimals, UTC close
+  time, candle close price and a short event-ID suffix. It never contains
+  entry/SL/TP/leverage/position fields. No message is sent for not-ready data,
+  no-cross decisions, H4 rejections, bootstrap history, duplicates or retries.
+* Topic uniqueness is validated across ordinary strategies, the BTC alert
+  component and the debug topic together at startup; a collision raises
+  `ValueError` before any stream starts. A disabled component reserves no
+  topic.
 * The typed events (`on_entry`, `on_fill`, `on_error`, `on_funding`,
   `on_toggle`) deliberately do **not** carry a `topic_id`. They are the
   live-bot surface and always post to the main chat.

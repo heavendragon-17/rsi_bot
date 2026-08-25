@@ -48,6 +48,7 @@ class BinanceStreamManager:
         multiplexer=None,
         history_limit: int = 300,
         enable_history: bool = True,
+        history_complete_callback: Callable[[], None] | None = None,
     ):
         legacy_given = symbols is not None and timeframe is not None and store is not None
         multi_given = targets is not None and multiplexer is not None
@@ -64,6 +65,11 @@ class BinanceStreamManager:
 
         self.history_limit = int(history_limit)
         self.enable_history = bool(enable_history)
+        # Optional hook fired exactly once after all REST fetch attempts
+        # return and before the WebSocket loop starts. Used by the signal
+        # runtime to arm bootstrap-suppression gates (e.g. the BTC RSI
+        # cross alert). Optional, so every existing caller is unchanged.
+        self.history_complete_callback = history_complete_callback
 
         self.ws: websocket.WebSocketApp | None = None
         self.keep_running = True
@@ -224,10 +230,29 @@ class BinanceStreamManager:
     # ----------------------------
     # lifecycle
     # ----------------------------
+    def _notify_history_complete(self) -> None:
+        """Fire the optional history-complete hook exactly once.
+
+        Runs after every target fetch attempt returned (failures swallowed
+        by ``fetch_initial_data`` included) and before the WebSocket loop
+        starts. Callback exceptions are isolated so the stream still starts.
+        """
+        if self.history_complete_callback is None:
+            return
+        try:
+            self.history_complete_callback()
+        except Exception as e:
+            logger.exception("history_complete_callback_error", error=str(e))
+
     def start(self) -> None:
-        # Fetch history first
+        # 1. Fetch REST history for every target.
         self.fetch_initial_data()
 
+        # 2. Declare history loading complete (exactly once) — alert-only
+        #    components arm their bootstrap gates here.
+        self._notify_history_complete()
+
+        # 3. Start the WebSocket loop.
         def run():
             while self.keep_running:
                 try:

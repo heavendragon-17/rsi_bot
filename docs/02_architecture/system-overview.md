@@ -104,6 +104,26 @@ WebSocket (fstream.binance.com, multi-TF URL)
 See [docs/07_trading_strategies/signal-bot.md](../07_trading_strategies/signal-bot.md)
 for the full spec.
 
+**Alert-only branch:** the optional `btc_rsi_cross_alert` component hooks into
+the same multiplexer with a dedicated multi-timeframe worker. Native BTC
+`5m`/`15m` closed candles are evaluation triggers; native `4h` closes confirm
+context synchronously; a fresh EMA9(RSI21)↑WMA45(RSI21) trigger cross gated by
+strict bullish H4 alignment emits one Telegram advisory. It never creates
+virtual positions or orders and is not registered in `STRATEGY_MAP`.
+
+```
+TimeframeMultiplexer close callbacks
+  -> BtcRsiCrossAlertWorker
+       5m/15m closed candle -> queue -> pure preparation (point-in-time,
+                              contiguous-suffix RSI21/EMA9/WMA45 via Core
+                              V2.1 primitives) -> pure evaluator
+       4h closed candle     -> synchronous Condition confirmation (no queue)
+  -> NotificationService.send_message(html-escaped card, topic_id=btc topic)
+```
+
+See [docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](../07_trading_strategies/btc-rsi-cross-alert-spec.md)
+for the authoritative contract.
+
 ### Backtest UI Data Flow (simplified)
 
 ```

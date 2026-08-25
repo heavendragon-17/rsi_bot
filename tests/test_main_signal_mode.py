@@ -180,3 +180,90 @@ class TestMissingConfig:
         with pytest.raises(SystemExit) as exc:
             main.main(config_path="/tmp/does-not-exist-a8f92.yaml")
         assert exc.value.code == 1
+
+
+class TestBtcAlertStartupText:
+    def _raw(self, strategies: list[dict]) -> dict:
+        return {
+            "bot": {"mode": "signal"},
+            "telegram": {"group_id": -100, "debug_topic_id": 99},
+            "timeframe": "15m",
+            "symbols": ["ETH/USDT", "SOL/USDT"],
+            "strategies": strategies,
+        }
+
+    def test_mixed_config_reports_btc_component_accurately(self):
+        import main
+
+        raw = self._raw(
+            [
+                {"name": "rsi_no_retest", "active": True, "telegram_topic_id": 42},
+                {
+                    "name": "btc_rsi_cross_alert",
+                    "active": True,
+                    "telegram_topic_id": 1007,
+                    "symbol": "BTC/USDT",
+                    "trigger_timeframes": ["5m", "15m"],
+                    "trend_timeframe": "4h",
+                    "rsi_period": 21,
+                    "rsi_ema_period": 9,
+                    "rsi_wma_period": 45,
+                    "context_settle_seconds": 5,
+                },
+            ]
+        )
+        body = main._build_signal_startup_message(raw)
+        assert "btc_rsi_cross_alert — topic 1007 · BTC/USDT · 5m,15m · H4 filter" in body
+        # The BTC line must not borrow global timeframe/symbol-count fields.
+        assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
+        assert "Active strategies: 2" in body
+
+    def test_alert_only_mode_skips_fake_test_signal_callback(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "fake-token")
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "123")
+
+        path = tmp_path / "alert_only.yaml"
+        path.write_text(
+            yaml.safe_dump(
+                {
+                    "bot": {"mode": "signal"},
+                    "telegram": {"group_id": -100, "debug_topic_id": 99},
+                    "strategies": [
+                        {
+                            "name": "btc_rsi_cross_alert",
+                            "active": True,
+                            "telegram_topic_id": 1007,
+                            "symbol": "BTC/USDT",
+                            "trigger_timeframes": ["5m", "15m"],
+                            "trend_timeframe": "4h",
+                            "rsi_period": 21,
+                            "rsi_ema_period": 9,
+                            "rsi_wma_period": 45,
+                            "context_settle_seconds": 5,
+                        }
+                    ],
+                }
+            )
+        )
+
+        import main
+
+        with (
+            patch("main.NotificationService") as MockNS,
+            patch("app.notification.telegram_notifier.TelegramBot") as MockBot,
+            patch("app.signal.runner.SignalRunner") as MockRunner,
+            patch("app.trading.status_writer.StatusWriter") as MockWriter,
+        ):
+            MockBot.return_value = MagicMock()
+            ns_instance = MagicMock()
+            MockNS.return_value = ns_instance
+            runner_instance = MagicMock()
+            # Alert-only runtime: no ordinary strategies resolved.
+            runner_instance.strategies = []
+            MockRunner.return_value = runner_instance
+            MockWriter.return_value = MagicMock()
+
+            main.main(config_path=str(path))
+
+            ns_instance.start_command_polling.assert_called_once()
+            assert ns_instance.start_command_polling.call_args.kwargs["extra_callbacks"] is None

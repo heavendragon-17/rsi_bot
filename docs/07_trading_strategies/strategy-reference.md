@@ -12,8 +12,11 @@
 | `rsi_wma_retest` | `app/trading/strategy/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
 | `rsi_momentum` | `app/trading/strategy/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
 | `rsi_alert` | `app/trading/strategy/rsi_alert/` | Alert-only | Telegram alert when RSI14 (live, intra-candle) hits 8.5 / 8 — no trading |
+| `btc_rsi_cross_alert` | `app/signal/btc_rsi_cross_alert/` + `app/trading/strategy/btc_rsi_cross_alert/` | Alert-only component | Signal-bot BTC M5/M15 EMA9↑WMA45-of-RSI21 cross gated by strict bullish H4 — no trading, **not** in `STRATEGY_MAP` |
 
-Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`.
+Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`
+(`btc_rsi_cross_alert` excepted: it is a signal-runtime component resolved by
+`app/signal/btc_rsi_cross_alert/config.py`).
 
 ---
 
@@ -225,6 +228,86 @@ symbols: [BTC/USDT, ETH/USDT, ...]
 To tune thresholds or cooldown, edit the `RsiAlertConfig` defaults in
 `app/trading/strategy/rsi_alert/strategy.py`, or pass overrides through the
 top-level config dict (keys are filtered by `merge_config`).
+
+---
+
+## btc_rsi_cross_alert — Multi-Timeframe Telegram Alert Component
+
+BTC-only, alert-only signal component of the **signal bot** (not a live-bot
+strategy). Unlike `rsi_alert`, it deliberately does **not** implement the
+single-frame `IStrategy.analyze()` contract: it needs point-in-time access to
+M5, M15 and H4 simultaneously, so it runs as a dedicated worker orchestrated by
+`SignalRunner`. It is not registered in `STRATEGY_MAP`, the backtest database
+seed, or the UI strategy list.
+
+**Authoritative spec**:
+[docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](btc-rsi-cross-alert-spec.md)
+
+### Signal semantics
+
+On each fully closed native Binance M5 or M15 candle:
+
+1. Compute Wilder RSI(21) on closes, then EMA(9) and WMA(45) of that RSI —
+   reusing the Core V2.1 primitives (`rsi_wilder`, `ema`, `wma`) unchanged.
+2. A **fresh bullish cross** is `EMA9(RSI) ≤ WMA45(RSI)` on the previous
+   candle AND `EMA9(RSI) > WMA45(RSI)` on the current one (previous equality
+   counts as below; current equality is not a cross).
+3. The exact latest fully closed H4 context must be strictly bullish:
+   `RSI21 > EMA9 > WMA45` (any equality fails).
+4. Alert only when both hold. M5 and M15 evaluate independently and can both
+   fire at the same timestamp. No short/bearish alerts in v1.
+
+### Data rules
+
+* Closed candles only; forming candles never trigger.
+* Naive stored opens are interpreted as fixed UTC+07:00, converted to UTC,
+  advanced by the timeframe once to get close times.
+* Indicators run over the maximal contiguous cadence suffix ending at the
+  expected row; ≥67 contiguous trigger rows and ≥66 H4 rows are required,
+  with finite values only. Older gaps are allowed; recent gaps fail closed.
+* The H4 row must be the latest native UTC four-hour boundary at/before the
+  trigger close; post-bootstrap H4 closes require a live closed WebSocket
+  confirmation (one `context_settle_seconds` retry at shared boundaries).
+
+### Parameters (locked v1)
+
+| Parameter | Locked value | Description |
+|-----------|--------------|-------------|
+| `symbol` | `BTC/USDT` | Only symbol supported |
+| `trigger_timeframes` | `[5m, 15m]` | Exactly this set |
+| `trend_timeframe` | `4h` | Native Binance H4 stream |
+| `rsi_period` | 21 | Wilder RSI length |
+| `rsi_ema_period` | 9 | Recursive EMA over RSI21 |
+| `rsi_wma_period` | 45 | Linear WMA over RSI21 |
+| `context_settle_seconds` | `0..30` | Single H4 boundary retry wait |
+
+### Alert message
+
+Deterministic HTML-escaped card: timeframe label (M5/M15), UTC candle close,
+BTC close price, trigger RSI21/EMA9/WMA45 and H4 RSI21/EMA9/WMA45 (two
+decimals), `H4 trend: BULLISH ✅` and an 8-char event-ID suffix derived from
+`SHA-256("btc-rsi-cross-v1|BTC/USDT|tf|UTC close")`. No entry / SL / TP /
+leverage / position fields exist.
+
+### Config
+
+```yaml
+strategies:
+  - name: btc_rsi_cross_alert
+    active: false            # enable only after verifying topic 1007 exists
+    telegram_topic_id: 1007
+    symbol: "BTC/USDT"
+    trigger_timeframes: ["5m", "15m"]
+    trend_timeframe: "4h"
+    rsi_period: 21
+    rsi_ema_period: 9
+    rsi_wma_period: 45
+    context_settle_seconds: 5
+```
+
+Non-goals: no orders, virtual positions, SL/TP or PnL logic; no intrabar or
+historical (bootstrap) alerts; no exactly-once delivery guarantee across
+restarts (in-memory dedupe + best-effort asynchronous Telegram).
 
 ---
 

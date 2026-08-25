@@ -74,6 +74,8 @@ def _build_notifier(
 
 def _build_signal_startup_message(raw: dict) -> str:
     """Compose the start-up announcement sent to the debug topic."""
+    from app.signal.btc_rsi_cross_alert.config import COMPONENT_NAME
+
     strategies = raw.get("strategies") or []
     active = [s for s in strategies if s.get("active") is True]
     global_tf = raw.get("timeframe", "?")
@@ -85,6 +87,14 @@ def _build_signal_startup_message(raw: dict) -> str:
         f"Active strategies: {len(active)}",
     ]
     for s in active:
+        if s.get("name") == COMPONENT_NAME:
+            # Alert-only component: fixed BTC/USDT scope across M5/M15 with
+            # an H4 filter — never show the global symbol count/timeframe.
+            lines.append(
+                f"  • {COMPONENT_NAME} — topic {s.get('telegram_topic_id')}"
+                f" · BTC/USDT · 5m,15m · H4 filter"
+            )
+            continue
         tf = s.get("timeframe", global_tf)
         syms = s.get("symbols") or global_symbols
         lines.append(
