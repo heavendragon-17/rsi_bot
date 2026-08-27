@@ -372,6 +372,6 @@ trade-like `/test_signal` command.
 
 - [x] Add release notes for `/topics`.
 - [x] Commit the intended source, tests, docs, and release metadata.
-- [ ] Push `mua-tren-the-nang` and confirm source-branch CI.
+- [x] Push `mua-tren-the-nang` and confirm source-branch CI (`33089386050` passed).
 - [ ] Push `v1.2.3` to trigger the production workflow.
 - [ ] Confirm production promotion and VPS health.
