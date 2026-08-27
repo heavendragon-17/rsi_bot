@@ -327,7 +327,7 @@ ns.send_message("🤖 RSI Bot Started")
   formatter in `app/signal/btc_rsi_cross_alert/formatter.py`. Because
   `TelegramBot` always sends with `parse_mode="HTML"`, that card escapes all
   dynamic text (`html.escape`) and renders a fixed point-in-time template:
-  chart symbol/timeframe, UTC trigger and H4 candle close times, trigger BTC
+  chart timeframe, UTC+7 trigger candle close time, trigger BTC
   close and price EMA21 values, trigger RSI21 / EMA9(RSI21) / WMA45(RSI21),
   previous/current RSI EMA/WMA values for M15 cross verification, every
   timeframe-specific comparison with a pass/fail marker, and a short event-ID

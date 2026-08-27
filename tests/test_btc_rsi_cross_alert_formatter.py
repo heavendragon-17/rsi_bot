@@ -48,47 +48,43 @@ class TestLabelsAndValues:
         body = _format()
         assert "🟢 BTC RSI BULLISH ALIGNMENT" in body
         assert "Timeframe: 5m" in body
-        assert "M5 RSI21: 53.42" in body
-        assert "M5 EMA9(RSI21): 48.76" in body
-        assert "M5 WMA45(RSI21): 46.55" in body
+        assert "Current M5 RSI21: 53.42" in body
+        assert "Current M5 EMA9(RSI21): 48.76" in body
+        assert "Current M5 WMA45(RSI21): 46.55" in body
 
     def test_m15_labels(self):
         body = _format(_input("15m"))
         assert "🟢 BTC RSI BULLISH CROSS" in body
         assert "Timeframe: 15m" in body
-        assert "M15 RSI21: 53.42" in body
-        assert "M15 EMA9(RSI21): 48.76" in body
-        assert "M15 WMA45(RSI21): 46.55" in body
+        assert "Current M15 RSI21: 53.42" in body
+        assert "Current M15 EMA9(RSI21): 48.76" in body
+        assert "Current M15 WMA45(RSI21): 46.55" in body
 
     def test_all_required_values_present(self):
         body = _format()
         assert "🟢 BTC RSI BULLISH ALIGNMENT" in body
-        assert "Chart candle: BTC/USDT M5 (close below)" in body
-        assert "Candle close: 2026-08-24 09:35:00 UTC" in body
+        assert "Candle close: 2026-08-24 16:35:00 UTC+7" in body
         assert "BTC close: 64,321.50" in body
         assert "M5 EMA21(price): 63,000.00" in body
-        assert "M5 close > M5 EMA21(price): 64,321.50 > 63,000.00 ✅" in body
-        assert "H4 price trend: BULLISH ✅" in body
-        assert "H4 candle close: 2026-08-24 08:00:00 UTC" in body
+        assert "M5 close > EMA21(price): 64,321.50 > 63,000.00 ✅" in body
         assert "H4 close: 65,012.34" in body
         assert "H4 EMA21(price): 64,001.23" in body
+        assert "H4 close > EMA21(price): 65,012.34 > 64,001.23 ✅" in body
 
     def test_m5_check_snapshot_is_explicit(self):
         body = _format()
         assert "M5 RSI alignment: 53.42 > 48.76 > 46.55 ✅" in body
-        assert "M5 RSI spread (EMA9 − WMA45): 2.21 (required > 2.00) ✅" in body
+        assert "M5 EMA9(RSI21) - WMA45(RSI21): 2.21 > 2.00 ✅" in body
         assert "M5 WMA45(RSI21) > 45.00: 46.55 > 45.00 ✅" in body
         assert "Duplicate check: NEW event ✅" in body
 
     def test_m15_cross_snapshot_is_explicit(self):
         body = _format(_input("15m"))
-        assert "Previous M15 RSI21: 42.00" in body
         assert "Previous M15 EMA9(RSI21): 40.00" in body
         assert "Previous M15 WMA45(RSI21): 50.00" in body
-        assert "Fresh bullish cross: ✅" in body
-        assert "Previous EMA9(RSI21) <= WMA45(RSI21): 40.00 <= 50.00 ✅" in body
-        assert "Current EMA9(RSI21) > WMA45(RSI21): 48.76 > 46.55 ✅" in body
-        assert "M15 close > M15 EMA21(price): 64,321.50 > 63,000.00 ✅" in body
+        assert "Current M15 RSI21: 53.42" in body
+        assert "Fresh bullish cross: 40.00 <= 50.00 and 48.76 > 46.55 ✅" in body
+        assert "M15 close > EMA21(price): 64,321.50 > 63,000.00 ✅" in body
 
     def test_short_event_suffix_displayed(self):
         event_id = build_event_id(
@@ -107,8 +103,8 @@ class TestLabelsAndValues:
 
 
 class TestStability:
-    def test_timestamp_is_utc_and_stable(self):
-        assert "2026-08-24 09:35:00 UTC" in _format()
+    def test_timestamp_is_utc_plus_7_and_stable(self):
+        assert "2026-08-24 16:35:00 UTC+7" in _format()
 
     def test_chart_timestamp_converts_to_utc(self):
         local_time = datetime(
@@ -120,7 +116,7 @@ class TestStability:
             tzinfo=timezone(timedelta(hours=7)),
         )
         body = _format(replace(_input(), trigger_close_time=local_time))
-        assert "Candle close: 2026-08-24 09:35:00 UTC" in body
+        assert "Candle close: 2026-08-24 16:35:00 UTC+7" in body
 
     def test_numeric_formatting_is_stable(self):
         first = _format()

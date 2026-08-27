@@ -662,28 +662,22 @@ Use deterministic HTML-safe formatting. A valid M5 example is:
 🟢 BTC RSI BULLISH ALIGNMENT
 
 Timeframe: 5m
-Chart candle: BTC/USDT M5 (close below)
-Candle close: 2026-08-24 09:35:00 UTC
+Candle close: 2026-08-24 16:35:00 UTC+7
 BTC close: 64,321.50
 M5 EMA21(price): 64,000.00
+M5 close > EMA21(price): 64,321.50 > 64,000.00 ✅
 
-M5 indicators at candle close:
-M5 RSI21: 53.42
-M5 EMA9(RSI21): 50.80
-M5 WMA45(RSI21): 48.55
+Current M5 RSI21: 53.42
+Current M5 EMA9(RSI21): 50.80
+Current M5 WMA45(RSI21): 48.55
 
-Signal checks:
 M5 RSI alignment: 53.42 > 50.80 > 48.55 ✅
-M5 RSI spread (EMA9 − WMA45): 2.25 (required > 2.00) ✅
+M5 EMA9(RSI21) - WMA45(RSI21): 2.25 > 2.00 ✅
 M5 WMA45(RSI21) > 45.00: 48.55 > 45.00 ✅
-M5 close > M5 EMA21(price): 64,321.50 > 64,000.00 ✅
 
-H4 price filter:
-H4 candle close: 2026-08-24 08:00:00 UTC
 H4 close: 65,012.34
 H4 EMA21(price): 64,001.23
-H4 close > H4 EMA21(price): 65,012.34 > 64,001.23 ✅
-H4 price trend: BULLISH ✅
+H4 close > EMA21(price): 65,012.34 > 64,001.23 ✅
 
 Duplicate check: NEW event ✅
 Event: a1b2c3d4
@@ -692,12 +686,12 @@ Event: a1b2c3d4
 For an M15 trigger, the title remains `BTC RSI BULLISH CROSS` and labels must
 say `15m` and `M15`. Requirements:
 
-- show the chart symbol/timeframe and UTC trigger close time;
+- show the chart timeframe and UTC+7 trigger candle close time;
 - show the trigger candle BTC close price;
 - show trigger-timeframe price EMA21 and the strict close > EMA21 comparison;
 - show current trigger RSI21, EMA9(RSI21), and WMA45(RSI21) to two decimals;
 - show previous and current EMA9/WMA45 values to verify the fresh bullish cross;
-- show H4 candle close time, H4 close, and H4 EMA21(price) to two decimals;
+- show H4 close and H4 EMA21(price) to two decimals;
 - show each signal condition with the values compared and a pass/fail marker;
 - include the short event ID;
 - escape all dynamic text before HTML delivery; and

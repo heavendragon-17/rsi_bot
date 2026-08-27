@@ -390,7 +390,7 @@ trade-like `/test_signal` command.
 
 ### BTC RSI alert card verification snapshot (2026-08-27)
 
-- [x] Add an explicit chart candle symbol/timeframe and UTC close timestamp.
+- [x] Add the chart candle close timestamp in UTC+7 alongside the timeframe.
 - [x] Show trigger-timeframe price EMA21 and all M5/M15 condition values.
 - [x] Show previous/current RSI EMA/WMA values needed to verify an M15 cross.
 - [x] Add formatter regression coverage and update the authoritative alert spec.
