@@ -32,3 +32,9 @@
 - **Correction**: The 400-line architecture threshold was too restrictive for the current BTC RSI alert modules; relax the enforcement rule rather than restructuring behavior solely to satisfy the threshold.
 - **Rule**: When changing a CI quality threshold, update the executable rule, repository guidance, and enforcement documentation together, then rerun the same CI check before deployment.
 - **Files affected**: `scripts/arch_lint.py`, `CLAUDE.md`, and architecture enforcement documentation.
+
+## 2026-08-27: Route distinct BTC checkers to distinct Telegram topics
+
+- **Correction**: The ordinary `rsi_no_retest` strategy is disabled; topic `1003` is reserved for the BTC M15 checker, while topic `1147` is reserved for the BTC M5 checker.
+- **Rule**: Keep M5 and M15 evaluation logic in their existing checker modules and make topic selection explicit at the worker routing boundary.
+- **Files affected**: `app/signal/btc_rsi_cross_alert/`, `config.yaml`, and BTC alert tests/documentation.

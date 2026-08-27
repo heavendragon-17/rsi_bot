@@ -66,6 +66,7 @@ def _config(**overrides) -> BtcRsiCrossAlertConfig:
     values = dict(
         name="btc_rsi_cross_alert",
         telegram_topic_id=1007,
+        m15_telegram_topic_id=1008,
         symbol=SYMBOL,
         trigger_timeframes=("5m", "15m"),
         trend_timeframe="4h",
@@ -596,8 +597,19 @@ class TestMultiTimeframeIndependence:
         )
         assert worker.last_evaluated["5m"] == shared_t
         assert worker.last_evaluated["15m"] == shared_t
-        topics = {c.kwargs["topic_id"] for c in notifier.send_message.call_args_list}
-        assert topics == {1007}
+        alerts_by_title = {
+            "m5": next(
+                c.kwargs["topic_id"]
+                for c in notifier.send_message.call_args_list
+                if "BTC RSI BULLISH ALIGNMENT" in c.args[0]
+            ),
+            "m15": next(
+                c.kwargs["topic_id"]
+                for c in notifier.send_message.call_args_list
+                if "BTC RSI BULLISH CROSS" in c.args[0]
+            ),
+        }
+        assert alerts_by_title == {"m5": 1007, "m15": 1008}
 
         _stop(worker, thread)
 

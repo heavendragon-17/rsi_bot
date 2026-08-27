@@ -205,6 +205,7 @@ class TestBtcAlertStartupText:
                     "name": "btc_rsi_cross_alert",
                     "active": True,
                     "telegram_topic_id": 1007,
+                    "m15_telegram_topic_id": 1008,
                     "symbol": "BTC/USDT",
                     "trigger_timeframes": ["5m", "15m"],
                     "trend_timeframe": "4h",
@@ -216,7 +217,7 @@ class TestBtcAlertStartupText:
             ]
         )
         body = main._build_signal_startup_message(raw)
-        assert "btc_rsi_cross_alert — topic 1007 · BTC/USDT · 5m,15m · H4 filter" in body
+        assert "btc_rsi_cross_alert — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H4 filter" in body
         # The BTC line must not borrow global timeframe/symbol-count fields.
         assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
         assert "Active strategies: 2" in body
@@ -237,6 +238,28 @@ class TestBtcAlertStartupText:
             ("debug", 99, "always"),
         ]
 
+    def test_topic_entries_split_btc_component_by_timeframe(self):
+        import main
+
+        raw = self._raw(
+            [
+                {
+                    "name": "btc_rsi_cross_alert",
+                    "active": True,
+                    "telegram_topic_id": 1147,
+                    "m15_telegram_topic_id": 1003,
+                },
+                {"name": "rsi_no_retest", "active": False, "telegram_topic_id": 1003},
+            ]
+        )
+
+        assert main._build_signal_topic_entries(raw, 1006) == [
+            ("btc_rsi_cross_alert (M5)", 1147, "active"),
+            ("btc_rsi_cross_alert (M15)", 1003, "active"),
+            ("rsi_no_retest", 1003, "inactive"),
+            ("debug", 1006, "always"),
+        ]
+
     def test_alert_only_mode_skips_fake_test_signal_callback(self, tmp_path, monkeypatch):
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "fake-token")
         monkeypatch.setenv("TELEGRAM_CHAT_ID", "123")
@@ -252,6 +275,7 @@ class TestBtcAlertStartupText:
                             "name": "btc_rsi_cross_alert",
                             "active": True,
                             "telegram_topic_id": 1007,
+                            "m15_telegram_topic_id": 1008,
                             "symbol": "BTC/USDT",
                             "trigger_timeframes": ["5m", "15m"],
                             "trend_timeframe": "4h",

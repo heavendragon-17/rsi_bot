@@ -3,13 +3,13 @@
 Locked v1 values (spec §6) are explicit in ``config.yaml`` for auditability
 but validated exactly — no other symbol, timeframes, periods, or settle range
 is silently accepted. Topic uniqueness is enforced across ordinary strategies,
-this component, and the debug topic together.
+both timeframe routes of this component, and the debug topic together.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 import structlog
 
@@ -32,6 +32,7 @@ class BtcRsiCrossAlertConfig:
 
     name: str
     telegram_topic_id: int
+    m15_telegram_topic_id: int
     symbol: str
     trigger_timeframes: tuple[str, ...]
     trend_timeframe: str
@@ -49,15 +50,84 @@ class BtcRsiCrossAlertConfig:
             | {(self.symbol, self.trend_timeframe)}
         )
 
+    @property
+    def telegram_topic_ids(self) -> Mapping[str, int]:
+        """Return the configured topic per trigger timeframe.
 
-def _coerce_topic_id(raw: Any) -> int:
+        ``telegram_topic_id`` remains the M5 field for compatibility with the
+        original single-topic config surface. The M15 route is explicit so
+        the two timeframe-specific checkers cannot silently share a topic.
+        """
+
+        return {"5m": self.telegram_topic_id, "15m": self.m15_telegram_topic_id}
+
+    def topic_id_for(self, timeframe: str) -> int:
+        """Return the Telegram topic configured for one trigger timeframe."""
+
+        try:
+            return self.telegram_topic_ids[timeframe]
+        except KeyError as exc:
+            raise ValueError(
+                f"unsupported BTC RSI cross trigger timeframe: {timeframe!r}"
+            ) from exc
+
+
+def _coerce_topic_id(raw: Any, *, field_name: str) -> int:
     try:
         return int(raw)
     except (TypeError, ValueError) as exc:
         raise ValueError(
-            f"{COMPONENT_NAME} telegram_topic_id must be an integer-coercible "
+            f"{COMPONENT_NAME} {field_name} must be an integer-coercible "
             f"value, got {raw!r}"
         ) from exc
+
+
+def _resolve_topic_ids(
+    entry: dict,
+    *,
+    debug_topic_id: int,
+    seen_topics: dict[int, str],
+) -> tuple[int, int]:
+    """Validate and reserve the M5 and M15 Telegram topics."""
+
+    m5_raw = entry.get("telegram_topic_id")
+    if m5_raw is None:
+        raise ValueError(f"{COMPONENT_NAME} must declare telegram_topic_id for M5")
+    m15_raw = entry.get("m15_telegram_topic_id")
+    if m15_raw is None:
+        raise ValueError(
+            f"{COMPONENT_NAME} must declare m15_telegram_topic_id for M15"
+        )
+
+    topic_ids = {
+        "5m": _coerce_topic_id(m5_raw, field_name="telegram_topic_id"),
+        "15m": _coerce_topic_id(m15_raw, field_name="m15_telegram_topic_id"),
+    }
+    if len(set(topic_ids.values())) != len(topic_ids):
+        raise ValueError(
+            f"{COMPONENT_NAME} M5 and M15 Telegram topics must be different"
+        )
+
+    for timeframe, topic_id in topic_ids.items():
+        field_name = (
+            "telegram_topic_id"
+            if timeframe == "5m"
+            else "m15_telegram_topic_id"
+        )
+        if topic_id == debug_topic_id:
+            raise ValueError(
+                f"{COMPONENT_NAME} {field_name}={topic_id} collides with "
+                "debug_topic_id"
+            )
+        if topic_id in seen_topics:
+            raise ValueError(
+                f"{COMPONENT_NAME} {field_name}={topic_id} is already used by "
+                f"`{seen_topics[topic_id]}`"
+            )
+
+    for timeframe, topic_id in topic_ids.items():
+        seen_topics[topic_id] = f"{COMPONENT_NAME} ({timeframe})"
+    return topic_ids["5m"], topic_ids["15m"]
 
 
 def _validate_locked_values(entry: dict) -> None:
@@ -139,7 +209,8 @@ def resolve_btc_rsi_cross_alert_config(
     Disabled entries are ignored entirely — their topic is NOT reserved.
     Raises ``ValueError`` on any spec §6 violation. ``seen_topics`` maps
     already-reserved topic ids to owner names (ordinary strategies resolved
-    earlier); this component's own topic is registered there on success.
+    earlier); both of this component's topic routes are registered there on
+    success.
     """
 
     active_entries = [
@@ -172,24 +243,16 @@ def resolve_btc_rsi_cross_alert_config(
             f"component name must be {COMPONENT_NAME!r}, got {name!r}"
         )
 
-    topic_raw = entry.get("telegram_topic_id")
-    if topic_raw is None:
-        raise ValueError(f"{COMPONENT_NAME} must declare telegram_topic_id")
-    topic_id = _coerce_topic_id(topic_raw)
-    if topic_id == debug_topic_id:
-        raise ValueError(
-            f"{COMPONENT_NAME} telegram_topic_id={topic_id} collides with debug_topic_id"
-        )
-    if topic_id in seen_topics:
-        raise ValueError(
-            f"{COMPONENT_NAME} telegram_topic_id={topic_id} is already used by "
-            f"`{seen_topics[topic_id]}`"
-        )
-    seen_topics[topic_id] = COMPONENT_NAME
+    m5_topic_id, m15_topic_id = _resolve_topic_ids(
+        entry,
+        debug_topic_id=debug_topic_id,
+        seen_topics=seen_topics,
+    )
 
     config = BtcRsiCrossAlertConfig(
         name=COMPONENT_NAME,
-        telegram_topic_id=topic_id,
+        telegram_topic_id=m5_topic_id,
+        m15_telegram_topic_id=m15_topic_id,
         symbol=CANONICAL_SYMBOL,
         trigger_timeframes=("5m", "15m"),
         trend_timeframe=LOCKED_TREND_TIMEFRAME,
@@ -200,7 +263,7 @@ def resolve_btc_rsi_cross_alert_config(
     )
     logger.info(
         "btc_rsi_cross_alert_resolved",
-        topic=config.telegram_topic_id,
+        topics=config.telegram_topic_ids,
         targets=sorted(config.targets),
         context_settle_seconds=config.context_settle_seconds,
     )

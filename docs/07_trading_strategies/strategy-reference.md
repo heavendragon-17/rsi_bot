@@ -244,6 +244,10 @@ Runtime evaluation is split into two explicit pure entry-point modules:
 `m5_checker.py` handles only M5 candles and `m15_checker.py` handles only M15
 candles. Both reuse the shared preparation and RSI/H4 decision algorithm in
 `evaluator.py`, and each rejects prepared input from the other timeframe.
+Telegram routing is also timeframe-specific: the M5 checker sends to topic
+`1147`, while the M15 checker sends to topic `1003`. The `rsi_no_retest`
+strategy entry is disabled in the deployed signal configuration; topic `1003`
+is used as the M15 BTC alert topic, not for ordinary strategy signals.
 
 **Authoritative spec**:
 [docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](btc-rsi-cross-alert-spec.md)
@@ -317,8 +321,9 @@ leverage / position fields exist.
 ```yaml
 strategies:
   - name: btc_rsi_cross_alert
-    active: false            # enable only after verifying topic 1007 exists
-    telegram_topic_id: 1007
+    active: true
+    telegram_topic_id: 1147          # M5 checker topic
+    m15_telegram_topic_id: 1003      # M15 checker topic
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
     trend_timeframe: "4h"

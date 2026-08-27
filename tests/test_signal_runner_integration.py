@@ -298,6 +298,7 @@ def _btc_raw_config() -> dict:
             "name": "btc_rsi_cross_alert",
             "active": True,
             "telegram_topic_id": 1007,
+            "m15_telegram_topic_id": 1008,
             "symbol": "BTC/USDT",
             "trigger_timeframes": ["5m", "15m"],
             "trend_timeframe": "4h",

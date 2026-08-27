@@ -81,7 +81,7 @@ runtime contract.
   RSI21/EMA9/WMA45 alignment on M5.
 - Gate every M5/M15 signal using the latest fully closed H4 candle available at
   the trigger candle's close time.
-- Deliver a clear Telegram message to one configured topic.
+- Deliver M5 and M15 alerts to separate configured Telegram topics.
 - Suppress all alerts while initial REST history is loading.
 - Deduplicate repeated callbacks for the same trigger candle.
 - Remain backward compatible with every existing SignalRunner strategy.
@@ -102,15 +102,17 @@ runtime contract.
 
 ## 6. Locked configuration
 
-Add the following disabled component entry to `config.yaml`. Topic `1007` is the
-current proposed value because it does not collide with the checked-in active
-topic or debug topic; startup validation remains authoritative.
+Add the following component entry to `config.yaml`. The M5 and M15 topic IDs
+are intentionally separate because their checker logic is different. The
+ordinary `rsi_no_retest` entry remains disabled, so topic `1003` is available
+for M15 BTC alerts.
 
 ```yaml
 strategies:
   - name: btc_rsi_cross_alert
-    active: false
-    telegram_topic_id: 1007
+    active: true
+    telegram_topic_id: 1147          # M5 checker
+    m15_telegram_topic_id: 1003      # M15 checker
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
     trend_timeframe: "4h"
@@ -129,17 +131,17 @@ violated:
 - `trend_timeframe != "4h"`;
 - indicator periods are not exactly `21`, `9`, and `45`;
 - `context_settle_seconds` is not an integer in the inclusive range `0..30`;
-- `telegram_topic_id` is missing, is not integer-coercible, collides with the
-  debug topic, or collides with another active strategy topic; or
+- `telegram_topic_id` (M5) or `m15_telegram_topic_id` (M15) is missing, is not
+  integer-coercible, collides with the debug topic, collides with another
+  active strategy topic, or the two topic IDs are equal; or
 - more than one active `btc_rsi_cross_alert` entry exists.
 
 These values are explicit in configuration for auditability, but they are
 locked for v1. Do not silently accept other values.
 
-The checked-in default must remain `active: false` until the operator verifies
-that Telegram topic `1007` exists in the configured supergroup. Once enabled,
-a configuration containing only this component and no ordinary strategies is
-valid and must still start the signal runtime.
+The checked-in configuration uses the operator-verified topics `1147` and
+`1003`. A configuration containing only this component and no ordinary
+strategies is valid and must still start the signal runtime.
 
 ## 7. Market identity and candle semantics
 
@@ -492,8 +494,10 @@ The worker must:
    A suppressed candle remains terminally evaluated but is not added to the
    emitted-event-ID set and does not move the last-M5-alert timestamp.
 10. Send one message through
-   `NotificationService.send_message(formatted_message,
-   topic_id=config.telegram_topic_id)` when `should_alert` is true.
+    `NotificationService.send_message(formatted_message,
+    topic_id=config.topic_id_for(trigger_timeframe))` when `should_alert` is
+    true. M5 therefore routes to topic `1147` and M15 to topic `1003` in the
+    checked-in configuration.
 11. Remember the last evaluated trigger close and emitted event IDs separately
    for M5 and M15.
 12. Remember the last successfully emitted M5 trigger close separately from
@@ -853,7 +857,8 @@ the condition being tested.
 - simultaneous valid M5/M15 closes produce two alerts;
 - M5 alerts at +5m and +10m are cooldown-suppressed while +15m is allowed;
 - the M5 cooldown does not suppress a simultaneous valid M15 alert;
-- Telegram uses the configured topic;
+- M5 Telegram alerts use the configured M5 topic and M15 alerts use the
+  configured M15 topic;
 - no virtual position is opened;
 - per-event exception budget and debug notification work; and
 - stop is bounded and idempotent.
@@ -966,8 +971,9 @@ The feature is accepted only when all statements are true:
 
 ### Rollout
 
-1. Deploy with `active: false` and verify the existing signal bot is unchanged.
-2. Confirm that topic `1007` exists, then enable the component.
+1. Keep the ordinary `rsi_no_retest` strategy disabled and enable the BTC
+   component with M5 topic `1147` and M15 topic `1003`.
+2. Verify that topics `1147` and `1003` exist in the configured supergroup.
 3. Verify the target-union log contains BTC M5, M15, and H4.
 4. Confirm history readiness without any historical alert burst.
 5. Run an offline synthetic integration smoke test.

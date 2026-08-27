@@ -300,7 +300,7 @@ class SignalRunner:
             logger.info(
                 "signal_alert_worker_spawned",
                 component=alert_cfg.name,
-                topic_id=alert_cfg.telegram_topic_id,
+                topics=alert_cfg.telegram_topic_ids,
                 targets=sorted(alert_cfg.targets),
             )
 

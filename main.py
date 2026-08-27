@@ -89,10 +89,12 @@ def _build_signal_startup_message(raw: dict) -> str:
     for s in active:
         if s.get("name") == COMPONENT_NAME:
             # Alert-only component: fixed BTC/USDT scope across M5/M15 with
-            # an H4 filter — never show the global symbol count/timeframe.
+            # separate Telegram topics and an H4 filter — never show the
+            # global symbol count/timeframe.
             lines.append(
-                f"  • {COMPONENT_NAME} — topic {s.get('telegram_topic_id')}"
-                f" · BTC/USDT · 5m,15m · H4 filter"
+                f"  • {COMPONENT_NAME} — M5 topic {s.get('telegram_topic_id')}"
+                f" · M15 topic {s.get('m15_telegram_topic_id')}"
+                f" · BTC/USDT · H4 filter"
             )
             continue
         tf = s.get("timeframe", global_tf)
@@ -111,8 +113,11 @@ def _build_signal_topic_entries(
 
     The raw config is used instead of resolved runtime objects so inactive
     strategy entries remain visible while operators prepare a new strategy.
+    BTC alert routes are expanded into separate M5/M15 entries.
     ``runner.start()`` validates the entries before this helper is called.
     """
+    from app.signal.btc_rsi_cross_alert.config import COMPONENT_NAME
+
     entries: list[tuple[str, int, str]] = []
     for entry in raw.get("strategies") or []:
         if not isinstance(entry, dict):
@@ -122,6 +127,12 @@ def _build_signal_topic_entries(
         if name is None or topic_id is None:
             continue
         status = "active" if entry.get("active", True) else "inactive"
+        if name == COMPONENT_NAME:
+            entries.append((f"{name} (M5)", int(topic_id), status))
+            m15_topic_id = entry.get("m15_telegram_topic_id")
+            if m15_topic_id is not None:
+                entries.append((f"{name} (M15)", int(m15_topic_id), status))
+            continue
         entries.append((str(name), int(topic_id), status))
 
     entries.append(("debug", debug_topic_id, "always"))

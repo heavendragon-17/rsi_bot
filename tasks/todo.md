@@ -373,5 +373,15 @@ trade-like `/test_signal` command.
 - [x] Add release notes for `/topics`.
 - [x] Commit the intended source, tests, docs, and release metadata.
 - [x] Push `mua-tren-the-nang` and confirm source-branch CI (`33089386050` passed).
-- [ ] Push `v1.2.3` to trigger the production workflow.
-- [ ] Confirm production promotion and VPS health.
+- [x] Push `v1.2.3` to trigger the production workflow.
+- [x] Confirm production promotion and VPS health handoff (`33090032939`; GitHub deployment success).
+
+---
+
+## BTC RSI alert per-timeframe Telegram topics
+
+- [x] Route M5 BTC alerts to topic `1147`.
+- [x] Route M15 BTC alerts to topic `1003`.
+- [x] Keep the ordinary `rsi_no_retest` strategy disabled.
+- [x] Update `/topics`, startup output, tests, and strategy documentation.
+- [ ] Run CI and deploy the verified configuration.

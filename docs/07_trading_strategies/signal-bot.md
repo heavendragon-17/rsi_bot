@@ -137,7 +137,7 @@ TimeframeMultiplexer close callbacks
         │            ↑ point-in-time H4 context read from the same multiplexer
         └─ 4h closed candle  → synchronous Condition confirmation (never queued)
         ↓
-NotificationService.send(card, topic_id=btc topic)   [only on ALERT decisions]
+NotificationService.send(card, topic_id=M5/M15 route topic) [only on ALERT decisions]
 ```
 
 Key properties (full contract:
@@ -170,6 +170,9 @@ Key properties (full contract:
   existing `signal_runner.max_consecutive_failures` budget; exhaustion
   advances the cursor, notifies the debug topic once and terminates only this
   alert worker thread.
+* **Timeframe-specific Telegram routing** — M5 alerts use topic `1147` and M15
+  alerts use topic `1003` in the checked-in configuration. The M5 and M15
+  checker modules remain separate because their signal rules differ.
 * **Non-goals** — no orders, no virtual positions, no SL/TP, no PnL claims;
   M5/M15/H4 are native Binance streams (no resampling); v1 state is in
   memory, so restart bootstraps again and delivery remains best-effort
@@ -240,6 +243,9 @@ risk:                            # global defaults (used for SL/TP computation)
 - `mode == "signal"` requires `telegram.group_id`, `telegram.debug_topic_id`.
 - Every active strategy must declare a `telegram_topic_id`.
 - `telegram_topic_id` must be **unique** across strategies and differ from `debug_topic_id`.
+- The `btc_rsi_cross_alert` component must declare separate M5
+  `telegram_topic_id` and M15 `m15_telegram_topic_id` values; both must be
+  unique and differ from `debug_topic_id`.
 - Strategy `name` must exist in `STRATEGY_MAP` (see `app/trading/strategy/loader.py`).
 - If no active strategies, log warning and exit cleanly.
 
@@ -498,6 +504,8 @@ def run(self) -> None:
 | Strategy failed N times on a symbol    | `debug_topic_id`              |
 | Strategy thread dead                   | `debug_topic_id`              |
 | Internal warnings (invalid action, etc)| `debug_topic_id`              |
+| BTC M5 bullish alignment                 | component's `telegram_topic_id` |
+| BTC M15 bullish cross                    | component's `m15_telegram_topic_id` |
 
 ---
 

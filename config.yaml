@@ -73,7 +73,7 @@ telegram:
 
 strategies:
   - name: rsi_no_retest
-    active: true
+    active: false
     telegram_topic_id: 1003
     # strategy_params:
     #   max_holding_enabled: true   # force-close stale positions
@@ -93,10 +93,13 @@ strategies:
     #   max_holding_bars: 96
   # BTC RSI cross alert (Telegram-only, never places orders). All values are
   # locked for v1 — see docs/07_trading_strategies/btc-rsi-cross-alert-spec.md.
-  # Telegram topic 1147 was verified by the operator before enabling.
+  # Telegram topics 1147 (M5) and 1003 (M15) were verified by the operator
+  # before enabling. The ordinary rsi_no_retest strategy above is disabled;
+  # topic 1003 is dedicated to the BTC M15 checker.
   - name: btc_rsi_cross_alert
     active: true
-    telegram_topic_id: 1147
+    telegram_topic_id: 1147 # M5 checker topic
+    m15_telegram_topic_id: 1003 # M15 checker topic
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
     trend_timeframe: "4h"

@@ -22,6 +22,7 @@ def _locked_entry(**overrides) -> dict:
         "name": COMPONENT_NAME,
         "active": True,
         "telegram_topic_id": 1007,
+        "m15_telegram_topic_id": 1008,
         "symbol": "BTC/USDT",
         "trigger_timeframes": ["5m", "15m"],
         "trend_timeframe": "4h",
@@ -53,6 +54,10 @@ class TestLockedConfigAccepted:
         assert isinstance(cfg, BtcRsiCrossAlertConfig)
         assert cfg.name == COMPONENT_NAME
         assert cfg.telegram_topic_id == 1007
+        assert cfg.m15_telegram_topic_id == 1008
+        assert cfg.telegram_topic_ids == {"5m": 1007, "15m": 1008}
+        assert cfg.topic_id_for("5m") == 1007
+        assert cfg.topic_id_for("15m") == 1008
         assert cfg.symbol == "BTC/USDT"
         assert cfg.trigger_timeframes == ("5m", "15m")
         assert cfg.trend_timeframe == "4h"
@@ -101,6 +106,8 @@ class TestLockedValueRejections:
             ({"context_settle_seconds": True}, "must be an integer"),
             ({"telegram_topic_id": None}, "must declare telegram_topic_id"),
             ({"telegram_topic_id": "abc"}, "integer-coercible"),
+            ({"m15_telegram_topic_id": None}, "must declare m15_telegram_topic_id"),
+            ({"m15_telegram_topic_id": "abc"}, "integer-coercible"),
             ({"name": "something_else"}, "component name must be"),
         ],
     )
@@ -110,6 +117,11 @@ class TestLockedValueRejections:
             entry.pop("trigger_timeframes", None)
         if override.get("telegram_topic_id") is None and "telegram_topic_id" in override:
             entry.pop("telegram_topic_id")
+        if (
+            override.get("m15_telegram_topic_id") is None
+            and "m15_telegram_topic_id" in override
+        ):
+            entry.pop("m15_telegram_topic_id")
         with pytest.raises(ValueError, match=match):
             resolve_btc_rsi_cross_alert_config(
                 [entry], debug_topic_id=DEBUG_TOPIC, seen_topics={}
@@ -134,6 +146,22 @@ class TestTopicCollisions:
                 seen_topics={},
             )
 
+    def test_m15_debug_topic_collision_rejected(self):
+        with pytest.raises(ValueError, match="collides with debug_topic_id"):
+            resolve_btc_rsi_cross_alert_config(
+                [_locked_entry(m15_telegram_topic_id=DEBUG_TOPIC)],
+                debug_topic_id=DEBUG_TOPIC,
+                seen_topics={},
+            )
+
+    def test_m5_and_m15_topics_must_be_distinct(self):
+        with pytest.raises(ValueError, match="must be different"):
+            resolve_btc_rsi_cross_alert_config(
+                [_locked_entry(m15_telegram_topic_id=1007)],
+                debug_topic_id=DEBUG_TOPIC,
+                seen_topics={},
+            )
+
     def test_ordinary_strategy_topic_collision_rejected(self):
         raw = _raw(
             _locked_entry(telegram_topic_id=42),
@@ -144,10 +172,20 @@ class TestTopicCollisions:
         with pytest.raises(ValueError, match="already used by"):
             resolve_signal_runtime_config(raw)
 
+    def test_ordinary_strategy_m15_topic_collision_rejected(self):
+        raw = _raw(
+            _locked_entry(m15_telegram_topic_id=42),
+            extra_strategies=[
+                {"name": "rsi_no_retest", "active": True, "telegram_topic_id": 42}
+            ],
+        )
+        with pytest.raises(ValueError, match="already used by"):
+            resolve_signal_runtime_config(raw)
+
     def test_duplicate_active_components_rejected(self):
         with pytest.raises(ValueError, match="at most one active"):
             resolve_btc_rsi_cross_alert_config(
-                [_locked_entry(), _locked_entry(telegram_topic_id=1008)],
+                [_locked_entry(), _locked_entry(telegram_topic_id=1009)],
                 debug_topic_id=DEBUG_TOPIC,
                 seen_topics={},
             )

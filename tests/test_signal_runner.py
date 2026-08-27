@@ -324,6 +324,7 @@ def _btc_entry(**overrides) -> dict:
         "name": "btc_rsi_cross_alert",
         "active": True,
         "telegram_topic_id": 1007,
+        "m15_telegram_topic_id": 1008,
         "symbol": "BTC/USDT",
         "trigger_timeframes": ["5m", "15m"],
         "trend_timeframe": "4h",
@@ -402,9 +403,25 @@ class TestBtcAlertComponentIntegration:
             with patch("app.signal.runner.BinanceStreamManager"):
                 runner.start()
 
+    def test_m15_topic_collision_between_ordinary_and_btc_rejected(self):
+        raw = _base_raw_config()
+        raw["strategies"].append(_btc_entry(m15_telegram_topic_id=42))
+        runner, _, _ = _mk_runner(raw)
+        with pytest.raises(ValueError, match="already used by"):
+            with patch("app.signal.runner.BinanceStreamManager"):
+                runner.start()
+
     def test_btc_topic_colliding_with_debug_topic_rejected(self):
         raw = _base_raw_config()
         raw["strategies"] = [_btc_entry(telegram_topic_id=99)]
+        runner, _, _ = _mk_runner(raw)
+        with pytest.raises(ValueError, match="debug_topic_id"):
+            with patch("app.signal.runner.BinanceStreamManager"):
+                runner.start()
+
+    def test_btc_m15_topic_colliding_with_debug_topic_rejected(self):
+        raw = _base_raw_config()
+        raw["strategies"] = [_btc_entry(m15_telegram_topic_id=99)]
         runner, _, _ = _mk_runner(raw)
         with pytest.raises(ValueError, match="debug_topic_id"):
             with patch("app.signal.runner.BinanceStreamManager"):

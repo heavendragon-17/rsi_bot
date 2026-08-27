@@ -312,7 +312,8 @@ ns.send_message("🤖 RSI Bot Started")
 | ⏰ VP age expiry                           | `telegram.debug_topic_id`        |
 | ⚠ Invariant violation (invalid action)    | `telegram.debug_topic_id`        |
 | ⚠ Strategy thread dead after N failures   | `telegram.debug_topic_id`        |
-| 🟢 BTC RSI bullish cross alert            | component's `telegram_topic_id`  |
+| 🟢 BTC RSI bullish M5 alignment           | component's `telegram_topic_id` (M5 route) |
+| 🟢 BTC RSI bullish M15 cross              | component's `m15_telegram_topic_id` (M15 route) |
 | ⚠ BTC alert worker dead after N failures  | `telegram.debug_topic_id`        |
 
 ### Implementation notes

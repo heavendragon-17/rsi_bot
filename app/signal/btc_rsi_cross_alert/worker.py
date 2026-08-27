@@ -118,6 +118,8 @@ class BtcRsiCrossAlertWorker:
     # ------------------------------------------------------------------
     @property
     def topic_id(self) -> int:
+        """Return the legacy M5 topic id for the worker introspection API."""
+
         return self.config.telegram_topic_id
 
     @property
@@ -234,7 +236,7 @@ class BtcRsiCrossAlertWorker:
     def run(self) -> None:
         logger.info(
             "btc_rsi_cross_worker_started",
-            topic=self.config.telegram_topic_id,
+            topics=self.config.telegram_topic_ids,
             targets=sorted(self.config.targets),
         )
         while self._running.is_set():
@@ -382,8 +384,9 @@ class BtcRsiCrossAlertWorker:
             )
             return
 
+        topic_id = self.config.topic_id_for(timeframe)
         message = format_btc_rsi_cross_alert(preparation.input, decision.event_id)
-        self.notifier.send_message(message, topic_id=self.config.telegram_topic_id)
+        self.notifier.send_message(message, topic_id=topic_id)
         self._emitted_event_ids.add(decision.event_id)
         if timeframe == M5_TIMEFRAME:
             self._last_m5_alert_close = trigger_close
@@ -392,7 +395,7 @@ class BtcRsiCrossAlertWorker:
             timeframe=timeframe,
             trigger_close=_iso(trigger_close),
             event_id=decision.event_id,
-            topic=self.config.telegram_topic_id,
+            topic=topic_id,
         )
 
     # ------------------------------------------------------------------
