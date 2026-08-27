@@ -102,6 +102,7 @@ Signal mode also starts `StatusWriter` (so the deploy health check sees the new 
 | `/deploy_status` | Reads the deploy state file |
 | `/cancel_deploy` | Cancels a pending (waiting) deploy |
 | `/help` | Lists commands |
+| `/topics` | Lists configured strategy topic names and IDs, including inactive entries and the debug topic |
 | `/status`, `/history`, `/report`, `/winrate`, `/reset` | Reply "Not available in signal mode" (require a live exchange) |
 
 ### Data flow (signal mode)

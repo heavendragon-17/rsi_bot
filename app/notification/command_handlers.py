@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 from decimal import Decimal
+from html import escape
 
 import structlog
 
@@ -248,6 +249,7 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
         "/history        Last 10 closed trades",
         "/report         Full performance dashboard",
         "/reset          Reset balance & trades (sim)",
+        "/topics         Configured strategy topic names and IDs (signal)",
         "",
         "/force_deploy   Trigger immediate deploy",
         "/deploy_status  Current deploy state",
@@ -256,4 +258,24 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
         "",
         "/test_signal    Post a fake entry to every strategy topic (signal mode)",
     ]
+    send(mono("\n".join(lines)), chat_id=chat_id)
+
+
+def handle_topics(
+    topics: list[tuple[str, int, str]], prefix: str, send, chat_id: str
+) -> None:
+    """Show configured signal topic labels, IDs, and activation state."""
+    lines = [
+        f"{prefix} | 🗂 TOPICS",
+        "",
+        "Configured topic IDs:",
+    ]
+    if topics:
+        for name, topic_id, status in topics:
+            lines.append(
+                f"• {escape(name)} — topic ID: {topic_id} ({escape(status)})"
+            )
+    else:
+        lines.append("No configured topics.")
+
     send(mono("\n".join(lines)), chat_id=chat_id)

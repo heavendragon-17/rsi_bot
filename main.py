@@ -104,12 +104,37 @@ def _build_signal_startup_message(raw: dict) -> str:
     return "\n".join(lines)
 
 
+def _build_signal_topic_entries(
+    raw: dict, debug_topic_id: int
+) -> list[tuple[str, int, str]]:
+    """Return configured signal topic labels and IDs for ``/topics``.
+
+    The raw config is used instead of resolved runtime objects so inactive
+    strategy entries remain visible while operators prepare a new strategy.
+    ``runner.start()`` validates the entries before this helper is called.
+    """
+    entries: list[tuple[str, int, str]] = []
+    for entry in raw.get("strategies") or []:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        topic_id = entry.get("telegram_topic_id")
+        if name is None or topic_id is None:
+            continue
+        status = "active" if entry.get("active", True) else "inactive"
+        entries.append((str(name), int(topic_id), status))
+
+    entries.append(("debug", debug_topic_id, "always"))
+    return entries
+
+
 def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     """Start and run the SignalRunner lifecycle.
 
     Imports are lazy so unit tests that patch only the live-bot path don't
     pay the cost of loading the multiplexer / stream manager / VP store.
     """
+    from app.notification.command_handlers import handle_topics
     from app.signal.runner import SignalRunner
     from app.signal.strategy_config import validate_telegram_config
     from app.signal.test_command import make_test_signal_callback
@@ -131,18 +156,27 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     # operators can verify Telegram routing without waiting for a real signal.
     underlying = getattr(ns, "_notifier", None)
     extra_callbacks: dict | None = None
-    if runner.strategies and underlying is not None:
+    if underlying is not None:
         verify = getattr(underlying, "verify_chat_id", None)
         send_reply = getattr(getattr(underlying, "_bot", None), "send_message", None)
-        extra_callbacks = {
-            "/test_signal": make_test_signal_callback(
+        prefix = getattr(underlying, "_prefix", "🤖 BOT")
+        topic_entries = _build_signal_topic_entries(raw, debug_topic_id)
+
+        def _topics_callback(chat_id: str) -> None:
+            if verify is not None and not verify(chat_id):
+                return
+            if send_reply is not None:
+                handle_topics(topic_entries, prefix, send_reply, chat_id)
+
+        extra_callbacks = {"/topics": _topics_callback}
+        if runner.strategies:
+            extra_callbacks["/test_signal"] = make_test_signal_callback(
                 runner.strategies,
                 ns,
                 debug_topic_id,
                 verify_chat_id=verify,
                 send_reply=send_reply,
-            ),
-        }
+            )
 
     # Enable Telegram command polling (/bot_version, /force_deploy, ...).
     # Exchange-scoped commands (/status, /history, ...) reply with a

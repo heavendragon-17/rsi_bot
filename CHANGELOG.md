@@ -27,6 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Updated `CLAUDE.md` to reference new folder structure
 - Updated `README.md` with expanded documentation links
 
+## [1.2.3] - 2026-08-27
+
+### Added
+- Signal-mode Telegram `/topics` command listing configured strategy topic names and IDs, including inactive entries and the debug topic
+
+### Changed
+- Refined BTC RSI alert timeframe checking and worker integration
+
 ---
 
 ## Historical Milestones

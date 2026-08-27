@@ -9,6 +9,7 @@ from app.notification.command_handlers import (
     handle_report,
     handle_reset,
     handle_status,
+    handle_topics,
 )
 
 
@@ -191,3 +192,31 @@ class TestHandleHelp:
         assert "/history" in msg
         assert "/report" in msg
         assert "/force_deploy" in msg
+        assert "/topics" in msg
+
+
+class TestHandleTopics:
+    def test_lists_active_inactive_and_debug_topics(self):
+        send = MagicMock()
+        topics = [
+            ("rsi_no_retest", 1003, "active"),
+            ("rsi_wma_retest", 43, "inactive"),
+            ("debug", 1006, "always"),
+        ]
+
+        handle_topics(topics, "P", send, chat_id="c")
+
+        msg = send.call_args[0][0]
+        assert "TOPICS" in msg
+        assert "rsi_no_retest" in msg
+        assert "topic ID: 1003 (active)" in msg
+        assert "rsi_wma_retest" in msg
+        assert "topic ID: 43 (inactive)" in msg
+        assert "topic ID: 1006 (always)" in msg
+
+    def test_escapes_topic_names_for_html(self):
+        send = MagicMock()
+
+        handle_topics([("<strategy>", 7, "active")], "P", send, chat_id="c")
+
+        assert "&lt;strategy&gt;" in send.call_args[0][0]

@@ -71,6 +71,14 @@ tests/
 - Partial close: amount calculations, SL moves
 - Error handling: exchange exceptions mapped correctly
 
+### Telegram command layer
+- `tests/test_command_handlers.py` verifies `/topics` renders active,
+  inactive, and debug topic IDs and escapes configured labels for Telegram's
+  HTML parse mode.
+- `tests/test_main_signal_mode.py` verifies `/topics` is registered for
+  signal mode, including alert-only configurations where `/test_signal` is
+  intentionally unavailable.
+
 ### Backtest Engine
 - Complete run produces valid metrics
 - Round-trip construction (multiple partial fills grouped)

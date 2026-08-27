@@ -257,11 +257,19 @@ The following commands are wired up via `notification_service.attach_exchange(ex
 | `/winrate` | Shows total trades, wins, losses, and the overall win rate percentage.                                                |
 | `/report`  | Shows lifetime metrics: net PnL, gross PnL, total fees paid, and total funding paid.                                  |
 | `/reset`   | **DANGEROUS**: Clears all closed trades and resets the bot's standard balance. This is primarily for paper/sim mode.  |
+| `/topics`  | Signal mode only: lists configured strategy topic names and IDs, including inactive entries and the debug topic.       |
 
 To add a new command:
 
 1. Define a handler method in `TelegramNotifier` (e.g., `_handle_mycmd(self, chat_id: str)`).
 2. Register it in `start_command_polling()` dictionary mapping (`callbacks = {"/mycmd": self._handle_mycmd}`).
+
+Signal-mode commands that depend on runtime strategy configuration, such as
+`/topics`, are registered through `start_command_polling(extra_callbacks=...)`
+by `main.py` after the signal configuration has been validated. `/topics`
+lists the configured strategy names as topic labels; inactive entries are
+included to make assigning a new strategy topic straightforward. The debug
+topic is listed separately with `always` status.
 
 ---
 

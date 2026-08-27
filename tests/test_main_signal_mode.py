@@ -92,6 +92,9 @@ class TestSignalBranch:
             runner_instance.start.assert_called_once()
             runner_instance.wait.assert_called_once()
             runner_instance.stop.assert_called_once()
+            callbacks = ns_instance.start_command_polling.call_args.kwargs["extra_callbacks"]
+            assert "/topics" in callbacks
+            assert "/test_signal" in callbacks
 
     def test_signal_mode_missing_telegram_token_exits(
         self, signal_config, monkeypatch
@@ -218,6 +221,22 @@ class TestBtcAlertStartupText:
         assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
         assert "Active strategies: 2" in body
 
+    def test_topic_entries_include_inactive_strategies_and_debug_topic(self):
+        import main
+
+        raw = self._raw(
+            [
+                {"name": "rsi_no_retest", "active": True, "telegram_topic_id": 42},
+                {"name": "rsi_wma_retest", "active": False, "telegram_topic_id": 43},
+            ]
+        )
+
+        assert main._build_signal_topic_entries(raw, 99) == [
+            ("rsi_no_retest", 42, "active"),
+            ("rsi_wma_retest", 43, "inactive"),
+            ("debug", 99, "always"),
+        ]
+
     def test_alert_only_mode_skips_fake_test_signal_callback(self, tmp_path, monkeypatch):
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "fake-token")
         monkeypatch.setenv("TELEGRAM_CHAT_ID", "123")
@@ -266,4 +285,6 @@ class TestBtcAlertStartupText:
             main.main(config_path=str(path))
 
             ns_instance.start_command_polling.assert_called_once()
-            assert ns_instance.start_command_polling.call_args.kwargs["extra_callbacks"] is None
+            callbacks = ns_instance.start_command_polling.call_args.kwargs["extra_callbacks"]
+            assert "/topics" in callbacks
+            assert "/test_signal" not in callbacks

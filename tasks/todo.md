@@ -339,3 +339,39 @@ close suffix as the RSI bundle.
 | Compileall (`app tests`) | exit 0 |
 | Focused mypy (both BTC RSI cross packages) | **Success: 10 source files** |
 | `git diff --check` | clean; Git emitted only LF→CRLF checkout warnings |
+
+---
+
+### Signal-mode Telegram topic listing command
+
+- [x] Add `/topics` to display configured strategy/topic names and IDs.
+- [x] Register the command for ordinary and alert-only signal configurations.
+- [x] Add focused command and entry-point regression tests.
+- [x] Update Telegram and signal-bot documentation.
+- [ ] Run focused/full tests and static verification.
+
+## Review — Signal-mode Telegram topic listing command
+
+`/topics` is registered through the existing signal-mode runtime callback path.
+It lists every configured strategy entry (including inactive entries) plus the
+debug topic, and escapes labels before wrapping the response in Telegram HTML
+`<pre>` markup. Alert-only signal mode receives `/topics` but not the
+trade-like `/test_signal` command.
+
+| Check | Result |
+|---|---|
+| Focused pytest suite | **Not run** — `pytest` is unavailable in the system Python, fallback `tele` environment, and bundled desktop Python |
+| Isolated `/topics` handler smoke | **Passed** — active/inactive/debug output and HTML escaping |
+| Topic-entry builder smoke | **Passed** — active/inactive/debug ordering and IDs |
+| Compilation | **Passed** — `python -m compileall -q app tests main.py` |
+| Whitespace | **Passed** — `git diff --check` (only existing LF→CRLF warnings) |
+
+---
+
+### Production release `v1.2.3`
+
+- [ ] Add release notes for `/topics`.
+- [ ] Commit the intended source, tests, docs, and release metadata.
+- [ ] Push `mua-tren-the-nang` and confirm source-branch CI.
+- [ ] Push `v1.2.3` to trigger the production workflow.
+- [ ] Confirm production promotion and VPS health.
