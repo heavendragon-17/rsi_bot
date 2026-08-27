@@ -148,7 +148,7 @@ app/repository/   → ALL database: ORM models, queries, connections
 
 ### File Size Limits
 
-- **Max 400 lines per file.** If a file grows past 400 lines, decompose it.
+- **Max 450 lines per file.** If a file grows past 450 lines, decompose it.
 - **Max 1 class with real logic per file.** Small dataclasses/enums can share a file.
 
 ### No Magic Numbers

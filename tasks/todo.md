@@ -370,8 +370,8 @@ trade-like `/test_signal` command.
 
 ### Production release `v1.2.3`
 
-- [ ] Add release notes for `/topics`.
-- [ ] Commit the intended source, tests, docs, and release metadata.
+- [x] Add release notes for `/topics`.
+- [x] Commit the intended source, tests, docs, and release metadata.
 - [ ] Push `mua-tren-the-nang` and confirm source-branch CI.
 - [ ] Push `v1.2.3` to trigger the production workflow.
 - [ ] Confirm production promotion and VPS health.

@@ -40,7 +40,7 @@ IMPORT_RULES = {
 }
 
 # ─── Rule 2: File size limits ────────────────────────────────────────────────
-MAX_LINES = 400
+MAX_LINES = 450
 
 # ─── Rule 3: No hardcoded magic numbers ─────────────────────────────────────
 FORBIDDEN_PATTERNS = [

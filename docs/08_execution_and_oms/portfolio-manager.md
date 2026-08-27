@@ -20,7 +20,7 @@
 | `app/trading/portfolio/sl_tp_manager.py` | `SLTPManager` | SL/TP placement, trailing SL, SL moves, TP fill sync |
 | `app/trading/portfolio/notification_dispatch.py` | `NotificationDispatcher` | Telegram notification dispatch for trade events |
 
-The facade pattern keeps each component under 400 lines and with a single responsibility. `PortfolioManager` creates the delegates on init and routes calls to them.
+The facade pattern keeps each component under 450 lines and with a single responsibility. `PortfolioManager` creates the delegates on init and routes calls to them.
 
 ---
 

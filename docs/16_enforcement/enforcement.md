@@ -27,7 +27,7 @@ This project enforces 73+ coding rules through 3 layers:
 | Rule | arch_lint | Ruff | mypy | bandit | CI | pre-commit |
 |------|-----------|------|------|--------|-----|------------|
 | Import boundaries | ✅ | | | | ✅ | ✅ |
-| File size (400 lines) | ✅ | | | | ✅ | ✅ |
+| File size (450 lines) | ✅ | | | | ✅ | ✅ |
 | No magic numbers | ✅ | | | | ✅ | ✅ |
 | Fee constants | ✅ | | | | ✅ | ✅ |
 | Directory whitelist | ✅ | | | | ✅ | ✅ |
