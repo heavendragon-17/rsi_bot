@@ -29,7 +29,9 @@ git clone https://github.com/heavendragon-17/rsi_bot.git /opt/rsi_bot
 
 # 2. Edit the ONE config file
 nano deploy/deploy_env.sh
-# Change: BOT_DIR="/opt/rsi_bot"
+# Set the production paths:
+# BOT_DIR="/opt/rsi_bot"
+# SERVICE_USER="botuser"
 
 # 3. Install services (generates systemd files from deploy_env.sh)
 sudo deploy/install.sh

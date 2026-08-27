@@ -2,11 +2,11 @@
 # deploy_env.sh — Single source of truth for all deploy paths and variables.
 # Sourced by deploy.sh, check_deploy.sh, and force_deploy.sh.
 #
-# To change the install location (e.g. /opt/rsi_bot), edit BOT_DIR here
-# and re-run: deploy/install.sh
+# Production VPS installation paths. Keep these aligned with the systemd units.
+# If either value changes, re-run: sudo deploy/install.sh
 
 # ── Core paths ────────────────────────────────────────────────────
-BOT_DIR="/home/cut_lap/rsi_bot"
+BOT_DIR="/opt/rsi_bot"
 VENV_DIR="$BOT_DIR/venv"
 VERSION_FILE="$BOT_DIR/VERSION"
 
@@ -28,7 +28,7 @@ HEALTH_CHECK_INTERVAL=5  # seconds between health check attempts
 HEALTH_CHECK_ATTEMPTS=12  # total attempts (interval * attempts = timeout)
 
 # ── Service user (for systemd) ───────────────────────────────────
-SERVICE_USER="${USER:-cut_lap}"
+SERVICE_USER="botuser"
 
 # ── Shared helper ─────────────────────────────────────────────────
 log() { echo "[$(date -Iseconds)] $*" | tee -a "$LOG_FILE"; }
