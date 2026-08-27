@@ -15,9 +15,22 @@ from app.signal.btc_rsi_cross_alert.config import BtcRsiCrossAlertConfig
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     TRIGGER_DURATION_BY_TIMEFRAME,
     candle_close_time,
-    prepare_btc_rsi_cross_input,
 )
-from app.trading.strategy.btc_rsi_cross_alert.models import BtcRsiCrossPreparation
+from app.trading.strategy.btc_rsi_cross_alert.m5_checker import (
+    M5_TIMEFRAME,
+    evaluate_m5_cross,
+    prepare_m5_cross_input,
+)
+from app.trading.strategy.btc_rsi_cross_alert.m15_checker import (
+    M15_TIMEFRAME,
+    evaluate_m15_cross,
+    prepare_m15_cross_input,
+)
+from app.trading.strategy.btc_rsi_cross_alert.models import (
+    BtcRsiCrossDecision,
+    BtcRsiCrossInput,
+    BtcRsiCrossPreparation,
+)
 
 logger = structlog.get_logger()
 
@@ -58,15 +71,38 @@ def prepare_from_multiplexer(
     h4_df = multiplexer.get_dataframe(config.symbol, config.trend_timeframe)
     if trigger_df is None or trigger_df.empty or h4_df is None or h4_df.empty:
         raise RuntimeError(f"multiplexer frames unavailable for {timeframe} evaluation")
-    return prepare_btc_rsi_cross_input(
-        trigger_df,
-        h4_df,
-        symbol=config.symbol,
-        trigger_timeframe=timeframe,
-        trigger_open_time=trigger_open_time,
-        history_ready_at=ready_at,
-        observed_live_h4_closes=observed_h4_closes,
-    )
+    if timeframe == M5_TIMEFRAME:
+        return prepare_m5_cross_input(
+            trigger_df,
+            h4_df,
+            symbol=config.symbol,
+            trigger_open_time=trigger_open_time,
+            history_ready_at=ready_at,
+            observed_live_h4_closes=observed_h4_closes,
+        )
+    if timeframe == M15_TIMEFRAME:
+        return prepare_m15_cross_input(
+            trigger_df,
+            h4_df,
+            symbol=config.symbol,
+            trigger_open_time=trigger_open_time,
+            history_ready_at=ready_at,
+            observed_live_h4_closes=observed_h4_closes,
+        )
+    raise ValueError(f"unsupported BTC RSI cross trigger timeframe: {timeframe!r}")
+
+
+def evaluate_prepared_input(
+    timeframe: str,
+    data: BtcRsiCrossInput,
+) -> BtcRsiCrossDecision:
+    """Dispatch one prepared input to its timeframe-specific checker."""
+
+    if timeframe == M5_TIMEFRAME:
+        return evaluate_m5_cross(data)
+    if timeframe == M15_TIMEFRAME:
+        return evaluate_m15_cross(data)
+    raise ValueError(f"unsupported BTC RSI cross trigger timeframe: {timeframe!r}")
 
 
 class WorkerProcessingContext(Protocol):

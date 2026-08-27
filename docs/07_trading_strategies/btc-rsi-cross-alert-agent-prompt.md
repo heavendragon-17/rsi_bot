@@ -23,9 +23,14 @@ Mandatory reading order:
 Objective:
 
 Add a BTC-only, Telegram-only signal component to the existing SignalRunner.
-On each fully closed native Binance 5m or 15m candle, alert only when EMA9 of
-RSI21 freshly crosses above WMA45 of RSI21 and the exact latest fully closed H4
-context has RSI21 > EMA9(RSI21) > WMA45(RSI21).
+On M15, require a fresh EMA9(RSI21) cross above WMA45(RSI21). On M5, do not
+require a fresh cross; require current `RSI21 > EMA9 > WMA45`. Both require the
+exact latest fully closed H4 candle price to be strictly above EMA21(price).
+Do not calculate an RSI bundle for the H4 gate. For M5 only, also require
+EMA9(RSI21) − WMA45(RSI21) > 2,
+and WMA45(RSI21) > 45. Require both M5 close > M5 EMA21(price) and M15 close >
+M15 EMA21(price); equality fails. Do not apply the two M5-only RSI filters to
+M15.
 
 Non-negotiable boundaries:
 
@@ -47,8 +52,9 @@ Non-negotiable boundaries:
   maximal contiguous suffix remains long enough for exact readiness.
 - Suppress every historical bootstrap alert. The first eligible public signal
   is a subsequent live M5/M15 candle close.
-- Keep M5 and M15 independent and deduplicate by deterministic event identity,
-  not by a wall-clock cooldown.
+- Keep M5 and M15 independent and deduplicate by deterministic event identity.
+  Apply the fixed 15-minute cooldown only to emitted M5 alerts, measured by
+  candle close time rather than the process wall clock; M15 has no cooldown.
 - Preserve all existing single-timeframe SignalRunner behavior and tests.
 - Keep /test_signal trade-like fake cards scoped to ordinary strategies; the
   BTC alert must never fabricate a virtual position.

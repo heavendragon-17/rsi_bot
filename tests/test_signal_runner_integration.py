@@ -315,10 +315,10 @@ class TestBtcAlertEndToEnd:
         from btc_alert_fixtures import (
             BASE,
             READY_AT,
-            bullish_h4_closes,
             h4_close_times,
+            h4_price_above_ema21_closes,
             make_candle,
-            qualifying_trigger,
+            qualifying_m5_trigger,
         )
 
         notifier = MagicMock()
@@ -333,7 +333,10 @@ class TestBtcAlertEndToEnd:
 
         # REST-style hydration: trusted H4 history through 08:00 UTC and the
         # trigger frame through one candle before the live cross.
-        m5_times, m5_closes = qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        m5_times, m5_closes = qualifying_m5_trigger(
+            step,
+            BASE.replace(hour=9, minute=45),
+        )
         for position in range(len(m5_times) - 1):
             mux.on_kline_event(
                 "BTC/USDT",
@@ -341,7 +344,7 @@ class TestBtcAlertEndToEnd:
                 make_candle(m5_times[position], step, m5_closes[position]),
             )
         h4_times = h4_close_times(BASE.replace(hour=8))
-        h4_closes = bullish_h4_closes()
+        h4_closes = h4_price_above_ema21_closes()
         for position in range(len(h4_times)):
             mux.on_kline_event(
                 "BTC/USDT",
@@ -363,7 +366,7 @@ class TestBtcAlertEndToEnd:
         with patch.object(btc_worker_module, "datetime", _FrozenDatetime):
             history_hook()
 
-        # Live closed M5 candle carrying the fresh cross.
+        # Live closed M5 candle carrying the qualifying bullish alignment.
         mux.on_kline_event(
             "BTC/USDT", "5m", make_candle(m5_times[-1], step, m5_closes[-1])
         )
@@ -371,7 +374,7 @@ class TestBtcAlertEndToEnd:
         assert _wait_for(lambda: notifier.send_message.call_count >= 1)
         alert_calls = [
             c for c in notifier.send_message.call_args_list
-            if "BTC RSI BULLISH CROSS" in c.args[0]
+            if "BTC RSI BULLISH ALIGNMENT" in c.args[0]
         ]
         assert len(alert_calls) == 1
         assert alert_calls[0].kwargs["topic_id"] == 1007

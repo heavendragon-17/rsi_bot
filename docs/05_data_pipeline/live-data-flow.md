@@ -380,15 +380,21 @@ BtcRsiCrossAlertWorker.on_history_complete():
     1. bootstrap gate: discard while history-ready unset; ignore closes
        <= timeframe watermark OR <= history-ready instant (covers delayed
        WS duplicates and candles that closed during hydration)
-    2. dedupe: per-timeframe cursor + deterministic event id (no cooldown)
+    2. dedupe: per-timeframe cursor + deterministic event id; after an M5
+       alert, suppress qualifying M5 closes at +5m/+10m and allow +15m;
+       M15 has no cooldown
     3. point-in-time preparation over defensive get_dataframe() copies:
        naive stored opens = fixed UTC+07:00 → UTC close = open + tf duration;
        maximal contiguous cadence suffix ending at the exact expected row;
-       >=67 trigger rows / >=66 H4 rows; finite values only; post-bootstrap
+       >=67 trigger rows / >=21 H4 rows; finite values only; post-bootstrap
        H4 closes require live observation; one settle/retry at shared H4
        boundaries (context_settle_seconds), then fail closed
-    4. pure decision: fresh EMA9(RSI21)↑WMA45(RSI21) cross AND strict
-       H4 RSI21 > EMA9 > WMA45
+    4. timeframe decision:
+       M5 = current RSI21 > EMA9 > WMA45 alignment
+       M15 = fresh EMA9(RSI21)↑WMA45(RSI21) cross
+       both require H4 close > EMA21(price)
+    5. both triggers require their own close > EMA21(price); M5 additionally
+       requires RSI EMA/WMA spread > 2 and RSI WMA45 > 45
         |
         v  on ALERT only:
 NotificationService.send_message(html-escaped card, topic_id=btc topic)

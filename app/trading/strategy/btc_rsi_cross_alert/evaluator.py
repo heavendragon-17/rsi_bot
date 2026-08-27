@@ -6,7 +6,7 @@ Two pure functions (spec §10):
   slicing, bootstrap eligibility, continuity, finite-value checks, recursive
   indicator preparation over the maximal contiguous suffix, exact current
   trigger selection, and exact H4 context selection.
-* :func:`evaluate_btc_rsi_cross` — only the fresh-cross / H4 boolean decision.
+* :func:`evaluate_btc_rsi_cross` — only the fresh-cross / H4 price decision.
 
 Both are deterministic: identical inputs produce identical outputs with no
 clock, network, filesystem, database, logging, Telegram, sleep, thread, or
@@ -28,7 +28,7 @@ import pandas as pd
 
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
-    DECISION_H4_NOT_BULLISH,
+    DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_NO_FRESH_BULLISH_CROSS,
     H4_DUPLICATE_OR_NON_INCREASING_TIME,
     H4_EXPECTED_CLOSE_MISSING,
@@ -63,6 +63,8 @@ H4_DURATION: Final[timedelta] = timedelta(hours=4)
 RSI_PERIOD: Final[int] = 21
 RSI_EMA_PERIOD: Final[int] = 9
 RSI_WMA_PERIOD: Final[int] = 45
+PRICE_EMA_PERIOD: Final[int] = 21
+H4_PRICE_EMA_MINIMUM_ROWS: Final[int] = PRICE_EMA_PERIOD
 
 #: RSI21 first becomes finite at row 21; WMA45 needs 45 consecutive finite RSI
 #: values, so the complete bundle is finite at row 65 (0-based) — 66 rows.
@@ -292,6 +294,14 @@ def prepare_btc_rsi_cross_input(
     trigger_close_price = _close_price_decimal(
         trig_closes, close_dec_series, kept[current_position]
     )
+    price_ema21_series = ema(
+        pd.Series(tuple(suffix_closes), dtype="float64"),
+        PRICE_EMA_PERIOD,
+    )
+    price_ema21_value = float(price_ema21_series.iloc[-1])
+    if not math.isfinite(price_ema21_value):
+        return _not_ready(TRIGGER_NON_FINITE_DATA)
+    trigger_price_ema21 = Decimal(str(price_ema21_value))
 
     # ---------------- H4 frame ----------------
     h4_opens, h4_closed_flags, h4_closes = _frame_columns(h4_df)
@@ -327,7 +337,7 @@ def prepare_btc_rsi_cross_input(
 
     h4_suffix_start = _suffix_start(h4_kept_times, H4_DURATION)
     h4_suffix_len = len(h4_kept_times) - h4_suffix_start
-    if h4_suffix_len < RSI_BUNDLE_MINIMUM_ROWS:
+    if h4_suffix_len < H4_PRICE_EMA_MINIMUM_ROWS:
         return _not_ready(H4_INSUFFICIENT_CONTIGUOUS_HISTORY)
 
     h4_suffix_closes = _finite_closes(
@@ -336,18 +346,32 @@ def prepare_btc_rsi_cross_input(
     if h4_suffix_closes is None:
         return _not_ready(H4_NON_FINITE_DATA)
 
-    h4_point, _ = _bundle_points(h4_suffix_closes)
-    if h4_point is None:
+    h4_price_ema21_series = ema(
+        pd.Series(tuple(h4_suffix_closes), dtype="float64"),
+        PRICE_EMA_PERIOD,
+    )
+    h4_price_ema21_value = float(h4_price_ema21_series.iloc[-1])
+    if not math.isfinite(h4_price_ema21_value):
         return _not_ready(H4_NON_FINITE_DATA)
+    h4_close_dec_series = (
+        list(h4_df["close_dec"]) if "close_dec" in h4_df.columns else None
+    )
+    h4_close_price = _close_price_decimal(
+        h4_closes,
+        h4_close_dec_series,
+        h4_kept[selected_offset],
+    )
 
     prepared_input = BtcRsiCrossInput(
         symbol=symbol,
         trigger_timeframe=trigger_timeframe,
         trigger_close_time=trigger_close,
         trigger_close_price=trigger_close_price,
+        trigger_price_ema21=trigger_price_ema21,
         previous_trigger=previous_trigger,
         current_trigger=current_trigger,
-        h4=h4_point,
+        h4_close_price=h4_close_price,
+        h4_price_ema21=Decimal(str(h4_price_ema21_value)),
         h4_close_time=expected_h4_close,
     )
     return BtcRsiCrossPreparation(input=prepared_input, reason=PREPARATION_READY)
@@ -357,7 +381,7 @@ def prepare_btc_rsi_cross_input(
 # Decision (spec §9 locked precedence)
 # ---------------------------------------------------------------------------
 def evaluate_btc_rsi_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
-    """Pure fresh-cross + H4-gate decision for one prepared input."""
+    """Pure fresh-cross + H4 price-gate decision for one prepared input."""
 
     event_id = build_event_id(
         symbol=data.symbol,
@@ -378,15 +402,11 @@ def evaluate_btc_rsi_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
             reason=DECISION_NO_FRESH_BULLISH_CROSS,
         )
 
-    # Every H4 comparison is strict; equality anywhere fails the gate.
-    h4_bullish = (
-        data.h4.rsi21 > data.h4.rsi_ema9 and data.h4.rsi_ema9 > data.h4.rsi_wma45
-    )
-    if not h4_bullish:
+    if data.h4_close_price <= data.h4_price_ema21:
         return BtcRsiCrossDecision(
             should_alert=False,
             event_id=event_id,
-            reason=DECISION_H4_NOT_BULLISH,
+            reason=DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
         )
 
     return BtcRsiCrossDecision(

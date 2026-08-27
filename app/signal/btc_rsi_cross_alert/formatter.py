@@ -46,9 +46,14 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
 
     tf_label = _label(data.trigger_timeframe)
     candle_close = data.trigger_close_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+    title = (
+        "🟢 BTC RSI BULLISH ALIGNMENT"
+        if data.trigger_timeframe == "5m"
+        else "🟢 BTC RSI BULLISH CROSS"
+    )
 
     lines = [
-        "🟢 BTC RSI BULLISH CROSS",
+        title,
         "",
         f"Timeframe: {escape(data.trigger_timeframe)}",
         f"Candle close: {escape(candle_close)}",
@@ -58,13 +63,9 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
         f"{tf_label} EMA9(RSI): {_fmt_indicator(data.current_trigger.rsi_ema9)}",
         f"{tf_label} WMA45(RSI): {_fmt_indicator(data.current_trigger.rsi_wma45)}",
         "",
-        "H4 trend: BULLISH ✅",
-        (
-            "H4 RSI21 / EMA9 / WMA45: "
-            f"{_fmt_indicator(data.h4.rsi21)} / "
-            f"{_fmt_indicator(data.h4.rsi_ema9)} / "
-            f"{_fmt_indicator(data.h4.rsi_wma45)}"
-        ),
+        "H4 price trend: BULLISH ✅",
+        f"H4 close: {_fmt_price(data.h4_close_price)}",
+        f"H4 EMA21(price): {_fmt_price(data.h4_price_ema21)}",
         f"Event: {escape(event_id_suffix(event_id))}",
     ]
     return "\n".join(lines)

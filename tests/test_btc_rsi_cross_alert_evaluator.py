@@ -12,7 +12,7 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
 )
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
-    DECISION_H4_NOT_BULLISH,
+    DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_NO_FRESH_BULLISH_CROSS,
     BtcRsiCrossInput,
     RsiBundlePoint,
@@ -32,29 +32,33 @@ def _input(
     *,
     previous: RsiBundlePoint,
     current: RsiBundlePoint,
-    h4: RsiBundlePoint,
     timeframe: str = "5m",
     close_time: datetime = CLOSE_T,
+    close_price: Decimal = Decimal("64321.50"),
+    price_ema21: Decimal = Decimal("63000"),
+    h4_close_price: Decimal = Decimal("65000"),
+    h4_price_ema21: Decimal = Decimal("64000"),
 ) -> BtcRsiCrossInput:
     return BtcRsiCrossInput(
         symbol="BTC/USDT",
         trigger_timeframe=timeframe,
         trigger_close_time=close_time,
-        trigger_close_price=Decimal("64321.50"),
+        trigger_close_price=close_price,
+        trigger_price_ema21=price_ema21,
         previous_trigger=previous,
         current_trigger=current,
-        h4=h4,
+        h4_close_price=h4_close_price,
+        h4_price_ema21=h4_price_ema21,
         h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),
     )
 
 
 def _fresh_cross_input(**kwargs) -> BtcRsiCrossInput:
-    """Fresh upward cross (EMA9 40→55 over WMA45 50) with strictly bullish H4."""
+    """Fresh upward cross with H4 close strictly above H4 price EMA21."""
 
     return _input(
         previous=_point(42.0, 40.0, 50.0),
         current=_point(58.0, 55.0, 50.0),
-        h4=_point(61.20, 57.40, 54.80),
         **kwargs,
     )
 
@@ -70,7 +74,6 @@ class TestFreshCrossDetection:
             _input(
                 previous=_point(44.0, 50.0, 50.0),  # EMA == WMA counts as below
                 current=_point(52.0, 50.1, 50.0),
-                h4=_point(61.0, 57.0, 54.0),
             )
         )
         assert decision.should_alert is True
@@ -80,7 +83,6 @@ class TestFreshCrossDetection:
             _input(
                 previous=_point(60.0, 51.0, 49.0),  # already above
                 current=_point(62.0, 52.0, 49.5),
-                h4=_point(61.0, 57.0, 54.0),
             )
         )
         assert decision.should_alert is False
@@ -91,7 +93,6 @@ class TestFreshCrossDetection:
             _input(
                 previous=_point(44.0, 48.0, 50.0),
                 current=_point(52.0, 50.0, 50.0),  # EMA == WMA on current
-                h4=_point(61.0, 57.0, 54.0),
             )
         )
         assert decision.should_alert is False
@@ -102,7 +103,6 @@ class TestFreshCrossDetection:
             _input(
                 previous=_point(56.0, 52.0, 48.0),  # above before
                 current=_point(40.0, 46.0, 49.0),  # crosses downward
-                h4=_point(61.0, 57.0, 54.0),
             )
         )
         assert decision.should_alert is False
@@ -110,37 +110,36 @@ class TestFreshCrossDetection:
 
 
 class TestH4Gate:
-    def test_strict_h4_alignment_passes(self):
+    def test_h4_close_above_price_ema21_passes(self):
         decision = evaluate_btc_rsi_cross(_fresh_cross_input())
         assert decision.should_alert is True
 
     @pytest.mark.parametrize(
-        "h4",
+        "h4_close_price",
         [
-            _point(57.40, 57.40, 54.80),  # RSI21 == EMA9
-            _point(61.20, 57.40, 57.40),  # EMA9 == WMA45
-            _point(50.0, 55.0, 58.0),  # fully bearish ordering
-            _point(55.0, 55.1, 54.9),  # neutral wobble
+            Decimal("64000"),
+            Decimal("63999.99"),
         ],
     )
-    def test_non_strictly_bullish_h4_suppresses_valid_cross(self, h4):
+    def test_h4_close_not_above_price_ema21_suppresses_valid_cross(
+        self, h4_close_price
+    ):
         decision = evaluate_btc_rsi_cross(_input(
             previous=_point(42.0, 40.0, 50.0),
             current=_point(58.0, 55.0, 50.0),
-            h4=h4,
+            h4_close_price=h4_close_price,
         ))
         assert decision.should_alert is False
-        assert decision.reason == DECISION_H4_NOT_BULLISH
+        assert decision.reason == DECISION_H4_CLOSE_NOT_ABOVE_EMA21
 
 
 class TestDecisionPrecedenceAndScope:
-    def test_no_cross_reason_takes_precedence_over_h4_alignment(self):
-        # H4 is strictly bullish but there is no fresh cross.
+    def test_no_cross_reason_takes_precedence_over_h4_price_gate(self):
         decision = evaluate_btc_rsi_cross(
             _input(
                 previous=_point(60.0, 51.0, 49.0),
                 current=_point(62.0, 52.0, 49.5),
-                h4=_point(70.0, 65.0, 60.0),
+                h4_close_price=Decimal("63000"),
             )
         )
         assert decision.should_alert is False
@@ -153,7 +152,6 @@ class TestDecisionPrecedenceAndScope:
             _input(
                 previous=_point(30.0, 34.0, 40.0),
                 current=_point(31.0, 35.2, 35.0),  # rsi21 < both EMAs
-                h4=_point(61.0, 57.0, 54.0),
             )
         )
         assert decision.should_alert is True

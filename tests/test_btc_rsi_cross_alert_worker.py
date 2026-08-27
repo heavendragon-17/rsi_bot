@@ -15,13 +15,16 @@ from btc_alert_fixtures import (
     SYMBOL,
 )
 from btc_alert_fixtures import (
-    assert_bullish_bundle as _assert_bullish_bundle,
+    assert_h4_close_above_ema21 as _assert_bullish_bundle,
 )
 from btc_alert_fixtures import (
-    bullish_h4_closes as _bullish_h4_closes,
+    h4_price_above_ema21_closes as _bullish_h4_closes,
 )
 from btc_alert_fixtures import (
     make_candle as _candle,
+)
+from btc_alert_fixtures import (
+    qualifying_m5_trigger as _qualifying_m5_trigger,
 )
 from btc_alert_fixtures import (
     qualifying_trigger as _qualifying_trigger,
@@ -124,7 +127,7 @@ class TestBootstrapGate:
         worker, mux, notifier = _make_worker()
         thread = _start(worker)
 
-        close_times, closes = _qualifying_trigger(timedelta(minutes=5), BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(timedelta(minutes=5), BASE.replace(hour=9, minute=45))
         _hydrate(mux, "5m", timedelta(minutes=5), close_times, closes)
         # Fire several live-looking closed candles pre-ready.
         mux.on_kline_event(SYMBOL, "5m", _candle(close_times[-1], timedelta(minutes=5), closes[-1]))
@@ -137,7 +140,7 @@ class TestBootstrapGate:
 
     def test_history_ready_transition_sends_no_alert(self):
         worker, mux, notifier = _make_worker()
-        close_times, closes = _qualifying_trigger(timedelta(minutes=5), BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(timedelta(minutes=5), BASE.replace(hour=9, minute=45))
         _hydrate(mux, "5m", timedelta(minutes=5), close_times, closes)
 
         _bootstrap(worker)
@@ -147,7 +150,7 @@ class TestBootstrapGate:
     def test_delayed_duplicate_at_watermark_stays_silent(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
-        close_times, closes = _qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(step, BASE.replace(hour=9, minute=45))
         _hydrate(mux, "5m", step, close_times, closes)
         _bootstrap(worker)
         assert worker._bootstrap_watermarks["5m"] == close_times[-2]
@@ -160,7 +163,7 @@ class TestBootstrapGate:
     def test_candle_after_watermark_but_not_after_ready_suppressed(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
-        close_times, closes = _qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(step, BASE.replace(hour=9, minute=45))
         _hydrate(mux, "5m", step, close_times, closes)
 
         # Live candle closed during hydration: after REST watermark
@@ -176,7 +179,7 @@ class TestBootstrapGate:
     def test_bootstrap_gate_does_not_advance_cursor(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
-        close_times, closes = _qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(step, BASE.replace(hour=9, minute=45))
         _hydrate(mux, "5m", step, close_times, closes)
         mux.on_kline_event(SYMBOL, "5m", _candle(close_times[-1], step, closes[-1]))
         _bootstrap(worker)
@@ -187,7 +190,7 @@ class TestClosedCandleEvaluation:
     def test_qualifying_m5_close_alerts_configured_topic(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
-        close_times, closes = _qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(step, BASE.replace(hour=9, minute=45))
 
         h4_closes = _bullish_h4_closes()
         _assert_bullish_bundle(h4_closes)
@@ -204,9 +207,66 @@ class TestClosedCandleEvaluation:
 
         call = notifier.send_message.call_args
         assert call.kwargs["topic_id"] == worker.config.telegram_topic_id
-        assert "BTC RSI BULLISH CROSS" in call.args[0]
+        assert "BTC RSI BULLISH ALIGNMENT" in call.args[0]
         assert len(worker.emitted_event_ids) == 1
         assert worker.last_evaluated["5m"] == close_times[-1]
+
+        _stop(worker, thread)
+
+    def test_m5_cooldown_suppresses_five_and_ten_minutes_then_allows_fifteen(self):
+        worker, mux, notifier = _make_worker()
+        step = timedelta(minutes=5)
+        first_close = BASE.replace(hour=9, minute=45)
+        close_times, closes = _qualifying_m5_trigger(step, first_close)
+
+        h4_closes = _bullish_h4_closes()
+        h4_end = BASE.replace(hour=8)
+        h4_times = [
+            h4_end - timedelta(hours=4) * (70 - 1 - i) for i in range(70)
+        ]
+        _hydrate(
+            mux,
+            "4h",
+            timedelta(hours=4),
+            h4_times,
+            h4_closes,
+            include_last=True,
+        )
+        _hydrate(mux, "5m", step, close_times, closes)
+        _bootstrap(worker)
+        thread = _start(worker)
+
+        mux.on_kline_event(
+            SYMBOL,
+            "5m",
+            _candle(first_close, step, closes[-1]),
+        )
+        assert _wait_for(lambda: notifier.send_message.call_count == 1)
+        assert worker.last_m5_alert_close == first_close
+
+        for minutes, price_increment in ((5, 10.0), (10, 20.0)):
+            suppressed_close = first_close + timedelta(minutes=minutes)
+            mux.on_kline_event(
+                SYMBOL,
+                "5m",
+                _candle(suppressed_close, step, closes[-1] + price_increment),
+            )
+            assert _wait_for(
+                lambda expected=suppressed_close: worker.last_evaluated["5m"]
+                == expected
+            )
+            assert notifier.send_message.call_count == 1
+            assert worker.last_m5_alert_close == first_close
+
+        eligible_close = first_close + timedelta(minutes=15)
+        mux.on_kline_event(
+            SYMBOL,
+            "5m",
+            _candle(eligible_close, step, closes[-1] + 30.0),
+        )
+        assert _wait_for(lambda: notifier.send_message.call_count == 2)
+        assert worker.last_m5_alert_close == eligible_close
+        assert len(worker.emitted_event_ids) == 2
 
         _stop(worker, thread)
 
@@ -235,9 +295,9 @@ class TestClosedCandleEvaluation:
         worker, mux, notifier = _make_worker()
         worker.config = _config(context_settle_seconds=0)
         step = timedelta(minutes=5)
-        # Continuous timeline whose FINAL row is the fresh cross at 12:10.
+        # Continuous timeline whose final row is qualifying M5 alignment at 12:10.
         end = BASE.replace(hour=12, minute=10)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
 
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
@@ -273,12 +333,12 @@ class TestClosedCandleEvaluation:
         _stop(worker, thread)
 
     def test_exact_h4_context_selected_as_of_trigger_close(self):
-        """A newer bearish H4 row must suppress even though the older row
-        was bullish — proving exact as-of-T selection."""
+        """A newer H4 close below EMA21 must suppress even though the older
+        row passed — proving exact as-of-T selection."""
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12, minute=35)  # inside [12:00, 16:00)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
 
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
@@ -289,11 +349,9 @@ class TestClosedCandleEvaluation:
         _bootstrap(worker)
 
         thread = _start(worker)
-        # Confirm the live 12:00 H4 close as BEARISH (price collapse).
-        bearish_close = 20.0
-        series_probe = None  # bearishness verified by suppression outcome
-        mux.on_kline_event(SYMBOL, "4h", _candle(BASE.replace(hour=12), timedelta(hours=4), bearish_close))
-        del series_probe
+        # Confirm the live 12:00 H4 close with a price collapse below EMA21.
+        below_ema_close = 20.0
+        mux.on_kline_event(SYMBOL, "4h", _candle(BASE.replace(hour=12), timedelta(hours=4), below_ema_close))
 
         mux.on_kline_event(SYMBOL, "5m", _candle(close_times[-1], step, closes[-1]))
         assert _wait_for(lambda: worker.last_evaluated["5m"] == close_times[-1])
@@ -308,7 +366,7 @@ class TestClosedCandleEvaluation:
         worker.max_failures = 5
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12)  # exactly on the H4 boundary
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
 
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
@@ -337,7 +395,7 @@ class TestClosedCandleEvaluation:
         worker.config = _config(context_settle_seconds=30)  # would exceed timeout
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
 
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
@@ -369,7 +427,7 @@ class TestClosedCandleEvaluation:
         worker.config = _config(context_settle_seconds=0)
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
 
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
@@ -390,7 +448,7 @@ class TestDeduplication:
     def test_duplicate_and_backward_callbacks_ignored(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
-        close_times, closes = _qualifying_trigger(step, BASE.replace(hour=9, minute=45))
+        close_times, closes = _qualifying_m5_trigger(step, BASE.replace(hour=9, minute=45))
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
         h4_times = [h4_end - timedelta(hours=4) * (70 - 1 - i) for i in range(70)]
@@ -412,12 +470,12 @@ class TestDeduplication:
 
         _stop(worker, thread)
 
-    def test_consumed_cross_not_reemitted_when_only_h4_turns_bullish(self):
+    def test_same_m5_alignment_not_reemitted_when_h4_turns_bullish(self):
         worker, mux, notifier = _make_worker()
         worker.config = _config(context_settle_seconds=0)
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
         h4_times = [h4_end - timedelta(hours=4) * (70 - 1 - i) for i in range(70)]
@@ -426,7 +484,7 @@ class TestDeduplication:
         _bootstrap(worker)
 
         thread = _start(worker)
-        # Cross evaluated once while exact H4 context unavailable → consumed.
+        # Alignment evaluated once while exact H4 context unavailable → consumed.
         mux.on_kline_event(SYMBOL, "5m", _candle(close_times[-1], step, closes[-1]))
         assert _wait_for(lambda: worker.last_evaluated["5m"] == end)
         assert notifier.send_message.call_count == 0
@@ -522,7 +580,7 @@ class TestMultiTimeframeIndependence:
         m5_step = timedelta(minutes=5)
         m15_step = timedelta(minutes=15)
         shared_t = BASE.replace(hour=9, minute=45)  # aligned for both
-        m5_times, m5_closes = _qualifying_trigger(m5_step, shared_t)
+        m5_times, m5_closes = _qualifying_m5_trigger(m5_step, shared_t)
         m15_times, m15_closes = _qualifying_trigger(m15_step, shared_t)
         _hydrate(mux, "5m", m5_step, m5_times, m5_closes)
         _hydrate(mux, "15m", m15_step, m15_times, m15_closes)
@@ -558,7 +616,7 @@ class TestBoundariesAndSafety:
         worker.config = _config(context_settle_seconds=30)
         step = timedelta(minutes=5)
         end = BASE.replace(hour=12)
-        close_times, closes = _qualifying_trigger(step, end)
+        close_times, closes = _qualifying_m5_trigger(step, end)
         h4_closes = _bullish_h4_closes()
         h4_end = BASE.replace(hour=8)
         h4_times = [h4_end - timedelta(hours=4) * (70 - 1 - i) for i in range(70)]

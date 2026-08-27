@@ -219,7 +219,8 @@ class TestTimestampNormalization:
         aware_prep = _prepare(_trigger_frame(aware_index=True), _h4_frame(aware_index=True))
         assert naive_prep.input.current_trigger == aware_prep.input.current_trigger
         assert naive_prep.input.previous_trigger == aware_prep.input.previous_trigger
-        assert naive_prep.input.h4 == aware_prep.input.h4
+        assert naive_prep.input.h4_close_price == aware_prep.input.h4_close_price
+        assert naive_prep.input.h4_price_ema21 == aware_prep.input.h4_price_ema21
 
     def test_expected_h4_close_is_native_utc_boundary(self):
         assert expected_h4_close_for(TRIGGER_CLOSE) == EXPECTED_H4_CLOSE
@@ -251,6 +252,10 @@ class TestExactRowSelection:
         current = prep.input.current_trigger
         previous = prep.input.previous_trigger
         assert (current.rsi21, current.rsi_ema9, current.rsi_wma45) == pytest.approx(expected_current)
+        expected_price_ema21 = ema(pd.Series(closes, dtype="float64"), 21).iloc[-1]
+        assert float(prep.input.trigger_price_ema21) == pytest.approx(
+            float(expected_price_ema21)
+        )
         assert (
             previous.rsi21,
             previous.rsi_ema9,
@@ -290,9 +295,9 @@ class TestExactRowSelection:
     def test_exact_h4_selected_as_of_t(self):
         prep = _prepare(_trigger_frame(), _h4_frame())
         h4_closes = [float(v) for v in _h4_frame()["close"]]
-        expected = _bundle_of(h4_closes)
-        h4 = prep.input.h4
-        assert (h4.rsi21, h4.rsi_ema9, h4.rsi_wma45) == pytest.approx(expected)
+        expected_ema21 = ema(pd.Series(h4_closes, dtype="float64"), 21).iloc[-1]
+        assert float(prep.input.h4_close_price) == pytest.approx(h4_closes[-1])
+        assert float(prep.input.h4_price_ema21) == pytest.approx(expected_ema21)
 
     def test_future_forming_h4_candle_never_used(self):
         # A later H4 row exists (closes 12:00 > T) and the expected 08:00 row
@@ -314,7 +319,9 @@ class TestExactRowSelection:
         prep = _prepare(_trigger_frame(), frame)
         assert prep.reason == "READY"
         h4_closes = [float(v) for v in _h4_frame()["close"]]
-        assert (prep.input.h4.rsi21,) == pytest.approx((_bundle_of(h4_closes)[0],))
+        expected_ema21 = ema(pd.Series(h4_closes, dtype="float64"), 21).iloc[-1]
+        assert float(prep.input.h4_close_price) == pytest.approx(h4_closes[-1])
+        assert float(prep.input.h4_price_ema21) == pytest.approx(expected_ema21)
 
 
 class TestLiveH4Confirmation:
@@ -361,7 +368,7 @@ class TestReadinessBoundaries:
         if not ready:
             assert prep.reason == "TRIGGER_INSUFFICIENT_CONTIGUOUS_HISTORY"
 
-    @pytest.mark.parametrize("rows, ready", [(65, False), (66, True)])
+    @pytest.mark.parametrize("rows, ready", [(20, False), (21, True)])
     def test_h4_boundary(self, rows, ready):
         prep = _prepare(_trigger_frame(count=90), _h4_frame(count=rows))
         assert (prep.reason == "READY") is ready

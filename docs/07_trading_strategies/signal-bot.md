@@ -131,7 +131,8 @@ BinanceStreamManager ── history_complete_callback ──→ BtcRsiCrossAlert
         │                                              (arms bootstrap watermarks; no evaluation)
         ↓
 TimeframeMultiplexer close callbacks
-        ├─ 5m/15m closed candle → worker queue → pure preparation → pure evaluator
+        ├─ 5m closed candle → worker queue → m5_checker alignment + filters
+        ├─ 15m closed candle → worker queue → m15_checker cross + price filter
         │            ↑ point-in-time H4 context read from the same multiplexer
         └─ 4h closed candle  → synchronous Condition confirmation (never queued)
         ↓
@@ -159,9 +160,11 @@ Key properties (full contract:
   under a `threading.Condition`; when a trigger needs an unconfirmed H4
   context the worker waits at most `context_settle_seconds` once, then
   re-prepares exactly once more. Retry exhaustion fails closed silently.
-* **Deduplication & failure budget** — per-timeframe cursor + deterministic
+* **Deduplication, M5 cooldown & failure budget** — per-timeframe cursor + deterministic
   event identity (SHA-256 of
-  `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`); no wall-clock cooldown.
+  `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`). After an M5 alert, qualifying M5
+  closes before +15 minutes are suppressed using candle-close time; M15 has no
+  cooldown.
   Unexpected exceptions requeue the same event ahead of newer ones within the
   existing `signal_runner.max_consecutive_failures` budget; exhaustion
   advances the cursor, notifies the debug topic once and terminates only this

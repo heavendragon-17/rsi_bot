@@ -106,18 +106,19 @@ Telegram, no sleeps beyond bounded shutdown waits.
 | Module | Covers |
 |---|---|
 | `tests/test_btc_rsi_cross_alert_config.py` | Locked config acceptance/rejection, canonical target set, topic collisions (debug / ordinary / duplicate component), disabled entries reserve nothing, alert-only aggregate |
-| `tests/test_btc_rsi_cross_alert_preparation.py` | UTC+7 naive-index interpretation (advanced exactly once), aware passthrough, exact current/H4 row selection as-of T, forming/future exclusion, live-H4 confirmation set, 66/67-row readiness boundaries, duplicate/backward/non-finite reasons, maximal-contiguous-suffix rules (old gap allowed, recent gap not ready), full-window indicator determinism |
-| `tests/test_btc_rsi_cross_alert_evaluator.py` | Fresh-cross truth table (equality boundaries both sides), strict H4 gate, decision precedence, no undocumented RSI filters, deterministic SHA-256 event identity per (symbol, tf, close), frozen models |
+| `tests/test_btc_rsi_cross_alert_preparation.py` | UTC+7 naive-index interpretation (advanced exactly once), aware passthrough, exact current/H4 row selection as-of T, forming/future exclusion, live-H4 confirmation set, 21-H4/67-trigger-row readiness boundaries, duplicate/backward/non-finite reasons, maximal-contiguous-suffix rules (old gap allowed, recent gap not ready), full-window indicator determinism |
+| `tests/test_btc_rsi_cross_alert_evaluator.py` | Fresh-cross truth table (equality boundaries both sides), strict H4 close>EMA21(price) gate, decision precedence, no undocumented trigger filters, deterministic SHA-256 event identity per (symbol, tf, close), frozen models |
+| `tests/test_btc_rsi_cross_alert_timeframe_checkers.py` | M5 current RSI21>EMA9>WMA45 alignment without a fresh cross, M15 fresh-cross parity plus strict close>EMA21(price), strict shared H4 close>EMA21(price), wrong-timeframe rejection, worker dispatch, strict M5 spread>2 / WMA45>45 / close>EMA21(price) boundaries, and M15 isolation from M5-only RSI filters |
 | `tests/test_btc_rsi_cross_alert_formatter.py` | M5/M15 labels, all required values + event suffix, UTC timestamp, stable numeric formatting, HTML escaping, no trade-lifecycle fields |
-| `tests/test_btc_rsi_cross_alert_worker.py` | Bootstrap suppression (pre-ready discard, watermark duplicates, during-hydration closes), closed-candle evaluation to the configured topic, open candles ignored, H4 sync confirmation waking a waiting trigger without queue transit, boundary race retry-once, retry exhaustion failing closed, duplicate/backward/consumed-cross dedupe, cursor precedence per terminal state, failure budget with requeue-ahead + debug notification + worker-only death, simultaneous M5+M15 alerts, no virtual-position surface, bounded idempotent stop |
+| `tests/test_btc_rsi_cross_alert_worker.py` | Bootstrap suppression (pre-ready discard, watermark duplicates, during-hydration closes), closed-candle evaluation to the configured topic, strict M5 cooldown boundary (+5m/+10m suppressed, +15m allowed), M15 independence, open candles ignored, H4 sync confirmation waking a waiting trigger without queue transit, boundary race retry-once, retry exhaustion failing closed, duplicate/backward/consumed-cross dedupe, cursor precedence per terminal state, failure budget with requeue-ahead + debug notification + worker-only death, simultaneous M5+M15 alerts, no virtual-position surface, bounded idempotent stop |
 | `tests/test_stream_manager_multi_tf.py` | `history_complete_callback` order (all fetches → once → WS thread), exactly-once despite a failed fetch, exception isolation, default-None backward compatibility |
 | `tests/test_signal_runner.py` | Mixed ordinary/BTC worker groups, union stream targets, alert-only startup, disabled no-op, topic collisions, alert-thread join on stop, no BTC shutdown broadcast |
 | `tests/test_signal_runner_integration.py` | Real multiplexer + real worker + mocked stream/notifier: qualifying candle reaches the BTC topic, virtual positions stay empty, duplicates silent |
 | `tests/test_main_signal_mode.py` | Startup text renders `BTC/USDT · 5m,15m · H4 filter`, alert-only mode registers no `/test_signal` fake card |
 
 Shared deterministic fixtures live in `tests/btc_alert_fixtures.py`
-(synthetic candle shapes engineered so the fresh cross and bullish H4 bundle
-land at known rows via the real Core V2.1 primitives).
+(synthetic candle shapes engineered so the trigger condition and H4
+close-above-price-EMA21 gate land at known rows via the real primitives).
 
 Focused command:
 
@@ -126,6 +127,7 @@ python -m pytest \
   tests/test_btc_rsi_cross_alert_config.py \
   tests/test_btc_rsi_cross_alert_preparation.py \
   tests/test_btc_rsi_cross_alert_evaluator.py \
+  tests/test_btc_rsi_cross_alert_timeframe_checkers.py \
   tests/test_btc_rsi_cross_alert_formatter.py \
   tests/test_btc_rsi_cross_alert_worker.py \
   tests/test_stream_manager_multi_tf.py \

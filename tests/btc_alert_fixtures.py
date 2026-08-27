@@ -73,20 +73,39 @@ def qualifying_trigger(step: timedelta, end: datetime, rise_rows: int = 70):
     return close_times, closes
 
 
-def bullish_h4_closes(count: int = 70) -> list[float]:
-    """H4 closes whose final RSI bundle is strictly rsi21 > ema9 > wma45."""
+def qualifying_m5_trigger(step: timedelta, end: datetime):
+    """M5 bullish alignment that passes every mandatory M5 filter."""
+
+    head = [100.0 + (1.0 if i % 2 == 0 else -1.0) for i in range(80)]
+    closes = head + [head[-1] + 30.0, head[-1] + 40.0]
+    series = pd.Series(closes, dtype="float64")
+    rsi21 = rsi_wilder(series, 21)
+    ema9 = ema(rsi21, 9)
+    wma45 = wma(rsi21, 45)
+    price_ema21 = ema(series, 21)
+
+    assert float(ema9.iloc[-2]) > float(wma45.iloc[-2])
+    assert float(rsi21.iloc[-1]) > float(ema9.iloc[-1])
+    assert float(ema9.iloc[-1]) - float(wma45.iloc[-1]) > 2.0
+    assert float(wma45.iloc[-1]) > 45.0
+    assert closes[-1] > float(price_ema21.iloc[-1])
+
+    count = len(closes)
+    close_times = [end - step * (count - 1 - i) for i in range(count)]
+    return close_times, closes
+
+
+def h4_price_above_ema21_closes(count: int = 70) -> list[float]:
+    """H4 closes whose final close is strictly above EMA21(price)."""
     decline = [90.0 - 0.4 * i for i in range(25)]
     rise = [decline[-1] + 2.0 * (i + 1) for i in range(count - 25)]
     return decline + rise
 
 
-def assert_bullish_bundle(closes: list[float]) -> None:
+def assert_h4_close_above_ema21(closes: list[float]) -> None:
     series = pd.Series(closes, dtype="float64")
-    rsi21 = rsi_wilder(series, 21)
-    rsi_values = float(rsi21.iloc[-1])
-    ema_values = float(ema(rsi21, 9).iloc[-1])
-    wma_values = float(wma(rsi21, 45).iloc[-1])
-    assert rsi_values > ema_values > wma_values
+    price_ema21 = float(ema(series, 21).iloc[-1])
+    assert closes[-1] > price_ema21
 
 
 def h4_close_times(end: datetime, count: int = 70) -> list[datetime]:

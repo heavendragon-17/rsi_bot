@@ -107,16 +107,19 @@ for the full spec.
 **Alert-only branch:** the optional `btc_rsi_cross_alert` component hooks into
 the same multiplexer with a dedicated multi-timeframe worker. Native BTC
 `5m`/`15m` closed candles are evaluation triggers; native `4h` closes confirm
-context synchronously; a fresh EMA9(RSI21)↑WMA45(RSI21) trigger cross gated by
-strict bullish H4 alignment emits one Telegram advisory. It never creates
+context synchronously. M5 uses current RSI21>EMA9>WMA45 alignment while M15
+uses a fresh EMA9↑WMA45 cross; both require H4 close > EMA21(price). It never creates
 virtual positions or orders and is not registered in `STRATEGY_MAP`.
+Both trigger checkers require their candle close > EMA21(price). M5 additionally
+requires RSI EMA/WMA spread > 2 and RSI WMA45 > 45. A successfully emitted M5
+alert starts a fixed 15-minute candle-close cooldown; M15 does not apply those
+two RSI filters or the cooldown.
 
 ```
 TimeframeMultiplexer close callbacks
   -> BtcRsiCrossAlertWorker
-       5m/15m closed candle -> queue -> pure preparation (point-in-time,
-                              contiguous-suffix RSI21/EMA9/WMA45 via Core
-                              V2.1 primitives) -> pure evaluator
+       5m closed candle     -> queue -> pure preparation -> M5 alignment/filters
+       15m closed candle    -> queue -> pure preparation -> M15 fresh-cross/price filter
        4h closed candle     -> synchronous Condition confirmation (no queue)
   -> NotificationService.send_message(html-escaped card, topic_id=btc topic)
 ```

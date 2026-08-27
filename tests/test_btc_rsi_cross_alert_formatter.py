@@ -23,9 +23,11 @@ def _input(timeframe: str = "5m") -> BtcRsiCrossInput:
         trigger_timeframe=timeframe,
         trigger_close_time=datetime(2026, 8, 24, 9, 35, tzinfo=UTC),
         trigger_close_price=Decimal("64321.5"),
+        trigger_price_ema21=Decimal("63000"),
         previous_trigger=RsiBundlePoint(42.0, 40.0, 50.0),
         current_trigger=RsiBundlePoint(53.423, 48.762, 48.551),
-        h4=RsiBundlePoint(61.204, 57.396, 54.799),
+        h4_close_price=Decimal("65012.34"),
+        h4_price_ema21=Decimal("64001.23"),
         h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),
     )
 
@@ -43,6 +45,7 @@ def _format(data=None, event_id: str | None = None) -> str:
 class TestLabelsAndValues:
     def test_m5_labels(self):
         body = _format()
+        assert "🟢 BTC RSI BULLISH ALIGNMENT" in body
         assert "Timeframe: 5m" in body
         assert "M5 RSI21: 53.42" in body
         assert "M5 EMA9(RSI): 48.76" in body
@@ -50,6 +53,7 @@ class TestLabelsAndValues:
 
     def test_m15_labels(self):
         body = _format(_input("15m"))
+        assert "🟢 BTC RSI BULLISH CROSS" in body
         assert "Timeframe: 15m" in body
         assert "M15 RSI21: 53.42" in body
         assert "M15 EMA9(RSI): 48.76" in body
@@ -57,11 +61,12 @@ class TestLabelsAndValues:
 
     def test_all_required_values_present(self):
         body = _format()
-        assert "🟢 BTC RSI BULLISH CROSS" in body
+        assert "🟢 BTC RSI BULLISH ALIGNMENT" in body
         assert "Candle close: 2026-08-24 09:35:00 UTC" in body
         assert "BTC close: 64,321.50" in body
-        assert "H4 trend: BULLISH ✅" in body
-        assert "H4 RSI21 / EMA9 / WMA45: 61.20 / 57.40 / 54.80" in body
+        assert "H4 price trend: BULLISH ✅" in body
+        assert "H4 close: 65,012.34" in body
+        assert "H4 EMA21(price): 64,001.23" in body
 
     def test_short_event_suffix_displayed(self):
         event_id = build_event_id(
@@ -107,9 +112,11 @@ class TestHtmlEscaping:
             trigger_timeframe="1h",
             trigger_close_time=datetime(2026, 8, 24, 9, 35, tzinfo=UTC),
             trigger_close_price=Decimal("64321.5"),
+            trigger_price_ema21=Decimal("63000"),
             previous_trigger=RsiBundlePoint(42.0, 40.0, 50.0),
             current_trigger=RsiBundlePoint(53.4, 48.7, 48.5),
-            h4=RsiBundlePoint(61.2, 57.4, 54.8),
+            h4_close_price=Decimal("65000"),
+            h4_price_ema21=Decimal("64000"),
             h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),
         )
         event_id = build_event_id(
