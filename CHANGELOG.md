@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Enhanced `docs/INDEX.md` with task-based routing table
 - Updated `CLAUDE.md` to reference new folder structure
 - Updated `README.md` with expanded documentation links
+- BTC RSI alert cards now include the chart candle locator and the complete
+  point-in-time M5/M15 indicator and price-filter checks.
 
 ## [1.2.4] - 2026-08-27
 

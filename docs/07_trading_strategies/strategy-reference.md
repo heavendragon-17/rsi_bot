@@ -258,8 +258,8 @@ On each fully closed native Binance M5 or M15 candle:
 
 1. Compute Wilder RSI(21) on closes, then EMA(9) and WMA(45) of that RSI —
    reusing the Core V2.1 primitives (`rsi_wilder`, `ema`, `wma`) unchanged.
-2. M15 requires a **fresh bullish cross**: `EMA9(RSI) ≤ WMA45(RSI)` on the
-   previous candle AND `EMA9(RSI) > WMA45(RSI)` on the current one.
+2. M15 requires a **fresh bullish cross**: `EMA9(RSI21) ≤ WMA45(RSI21)` on the
+   previous candle AND `EMA9(RSI21) > WMA45(RSI21)` on the current one.
 3. M5 does not require a fresh cross. Its current closed candle must satisfy
    strict `RSI21 > EMA9(RSI21) > WMA45(RSI21)`.
 4. The exact latest fully closed H4 candle must satisfy strict
