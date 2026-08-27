@@ -119,3 +119,11 @@ pytest 9.0.2. Baseline before changes: focused existing tests
 * In-memory dedupe/state; restart re-bootstraps silently; delivery is best-effort async Telegram
   (no durable outbox). Exactly-once delivery is NOT promised.
 * Binance BTC/USDT only; fixed M5/M15/H4 rule set; no short alerts.
+
+### Production rollout — BTC RSI cross alert
+
+- [ ] Verify active BTC alert configuration and release diff
+- [ ] Run local config and safety checks
+- [ ] Commit and push configuration to `mua-tren-the-nang`
+- [ ] Tag and push the release for production promotion
+- [ ] Verify GitHub Deploy and VPS `rsi-bot` health

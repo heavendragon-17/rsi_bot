@@ -95,7 +95,7 @@ strategies:
   # locked for v1 — see docs/07_trading_strategies/btc-rsi-cross-alert-spec.md.
   # Stays disabled until the operator verifies topic 1007 exists.
   - name: btc_rsi_cross_alert
-    active: false
+    active: true
     telegram_topic_id: 1007
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
