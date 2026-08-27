@@ -93,10 +93,10 @@ strategies:
     #   max_holding_bars: 96
   # BTC RSI cross alert (Telegram-only, never places orders). All values are
   # locked for v1 — see docs/07_trading_strategies/btc-rsi-cross-alert-spec.md.
-  # Stays disabled until the operator verifies topic 1007 exists.
+  # Telegram topic 1147 was verified by the operator before enabling.
   - name: btc_rsi_cross_alert
     active: true
-    telegram_topic_id: 1007
+    telegram_topic_id: 1147
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
     trend_timeframe: "4h"
