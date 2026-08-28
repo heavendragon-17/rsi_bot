@@ -316,6 +316,7 @@ strategies:                  # List[dict], required
       m15_telegram_topic_id: 1003   # M15 checker topic
       symbol: "BTC/USDT"     # locked — canonical BTC/USDT only
       trigger_timeframes: ["5m", "15m"]  # locked — exactly {5m, 15m}
+      confirmation_timeframe: "1h"  # locked — native Binance H1 EMA21 gate
       trend_timeframe: "4h"  # locked — native Binance H4 (no resampling)
       rsi_period: 21         # locked
       rsi_ema_period: 9      # locked
@@ -360,6 +361,7 @@ Resolved by `resolve_btc_rsi_cross_alert_config()` (see
 |------|--------|
 | `symbol` is exactly `"BTC/USDT"` | `ValueError` |
 | `trigger_timeframes` present, duplicate-free, exactly `{5m, 15m}` | `ValueError` |
+| `confirmation_timeframe == "1h"` | `ValueError` |
 | `trend_timeframe == "4h"` | `ValueError` |
 | `rsi_period`, `rsi_ema_period`, `rsi_wma_period` are exactly `21`, `9`, `45` (plain integers; no float/string coercion) | `ValueError` |
 | `context_settle_seconds` is an integer in `[0, 30]` (bools rejected) | `ValueError` |

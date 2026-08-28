@@ -2,7 +2,7 @@
 
 One worker per active ``btc_rsi_cross_alert`` config. The SignalRunner
 registers :meth:`handle_closed_candle` as a multiplexer close callback;
-M5/M15 closed candles become queued evaluation events while H4 closed
+M5/M15 closed candles become queued evaluation events while H1/H4 closed
 candles are confirmed synchronously under a :class:`threading.Condition`
 (they never pass through the worker queue and never emit alerts).
 
@@ -12,10 +12,10 @@ Guarantees implemented here (spec §11):
   :meth:`on_history_complete`; historical closes at/before the per-timeframe
   REST watermark or the history-ready instant stay silent forever;
 * point-in-time evaluation through the pure preparation/evaluator pair;
-* exactly one H4 boundary settle/retry per trigger event, bounded by
-  ``context_settle_seconds`` and interrupted promptly by shutdown;
+* exactly one H1/H4 context-boundary settle/retry per trigger event, bounded
+  by ``context_settle_seconds`` and interrupted promptly by shutdown;
 * deterministic deduplication by per-timeframe cursor and emitted event
-  identity, plus a 15-minute M5 cooldown measured by candle close time;
+  identity, plus a one-hour M5 cooldown measured by candle close time;
 * consecutive-failure budget with requeue-ahead semantics and a terminal
   debug-topic notification matching the existing StrategyWorker policy;
 * bounded, idempotent shutdown via :meth:`request_stop`.
@@ -50,10 +50,12 @@ from app.signal.btc_rsi_cross_alert.worker_support import (
     iso_timestamp as _iso,
 )
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
+    H1_DURATION,
     H4_DURATION,
     RETRYABLE_PREPARATION_REASONS,
     TRIGGER_DURATION_BY_TIMEFRAME,
     candle_close_time,
+    expected_h1_close_for,
     expected_h4_close_for,
 )
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
@@ -61,6 +63,7 @@ from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
     DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
+    DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     M5_ALERT_COOLDOWN,
     PREPARATION_READY,
     build_event_id,
@@ -70,11 +73,11 @@ logger = structlog.get_logger()
 
 UTC = UTC
 
-_MAX_OBSERVED_H4_CLOSES = 512
+_MAX_OBSERVED_CONTEXT_CLOSES = 512
 
 
 class BtcRsiCrossAlertWorker:
-    """Evaluates closed BTC trigger candles against the live H4 context."""
+    """Evaluates closed BTC trigger candles against live H1/H4 context."""
 
     def __init__(
         self,
@@ -95,7 +98,9 @@ class BtcRsiCrossAlertWorker:
         self._queue_size = queue_size
         self._pending: deque[tuple[str, str, Candle]] = deque()
         self._queue_cond = threading.Condition()
+        # One condition keeps H1/H4 observation and retry wakeups atomic.
         self._h4_cond = threading.Condition()
+        self._observed_h1_closes: set[datetime] = set()
         self._observed_h4_closes: set[datetime] = set()
 
         self._running = threading.Event()
@@ -147,7 +152,7 @@ class BtcRsiCrossAlertWorker:
     def handle_closed_candle(self, symbol: str, timeframe: str, candle: Candle) -> None:
         """Single multiplexer close-callback entry point.
 
-        H4 events are confirmed synchronously (never enqueued); trigger
+        H1/H4 events are confirmed synchronously (never enqueued); trigger
         events are queued for the worker thread. Everything else is dropped.
         """
 
@@ -158,8 +163,22 @@ class BtcRsiCrossAlertWorker:
         if timeframe == self.config.trend_timeframe:
             self.observe_h4_close(symbol, timeframe, candle)
             return
+        if timeframe == self.config.confirmation_timeframe:
+            self.observe_h1_close(symbol, timeframe, candle)
+            return
         if timeframe in self.config.trigger_timeframes:
             self.enqueue(symbol, timeframe, candle)
+
+    def observe_h1_close(self, symbol: str, timeframe: str, candle: Candle) -> None:
+        """Record a live closed H1 candle and wake any waiting trigger eval."""
+
+        if not candle.closed:
+            return
+        close = candle_close_time(candle.timestamp, H1_DURATION)
+        with self._h4_cond:
+            self._observed_h1_closes.add(close)
+            self._trim_observed_context_closes(self._observed_h1_closes)
+            self._h4_cond.notify_all()
 
     def observe_h4_close(self, symbol: str, timeframe: str, candle: Candle) -> None:
         """Record a live closed H4 candle and wake any waiting trigger eval."""
@@ -169,14 +188,17 @@ class BtcRsiCrossAlertWorker:
         close = candle_close_time(candle.timestamp, H4_DURATION)
         with self._h4_cond:
             self._observed_h4_closes.add(close)
-            if len(self._observed_h4_closes) > _MAX_OBSERVED_H4_CLOSES:
-                # Keep the newest half; old confirms can never be needed
-                # again because pre-ready rows are trusted unconditionally.
-                keep = sorted(self._observed_h4_closes)[
-                    len(self._observed_h4_closes) // 2 :
-                ]
-                self._observed_h4_closes = set(keep)
+            self._trim_observed_context_closes(self._observed_h4_closes)
             self._h4_cond.notify_all()
+
+    @staticmethod
+    def _trim_observed_context_closes(observed: set[datetime]) -> None:
+        """Bound context confirmations; old closes cannot be needed again."""
+
+        if len(observed) > _MAX_OBSERVED_CONTEXT_CLOSES:
+            keep = sorted(observed)[len(observed) // 2 :]
+            observed.clear()
+            observed.update(keep)
 
     def enqueue(self, symbol: str, timeframe: str, candle: Candle) -> None:
         """Queue a closed trigger candle. Drops new events on overflow."""
@@ -308,14 +330,16 @@ class BtcRsiCrossAlertWorker:
         # --- first preparation ------------------------------------------
         preparation = self._prepare(timeframe, candle.timestamp, ready_at)
 
-        # --- single H4 boundary settle/retry -----------------------------
+        # --- single H1/H4 context-boundary settle/retry ------------------
         if preparation.reason in RETRYABLE_PREPARATION_REASONS:
+            expected_h1 = expected_h1_close_for(trigger_close)
             expected_h4 = expected_h4_close_for(trigger_close)
             # Do not advance last_evaluated while waiting (spec §11).
             logger.warning(
-                "btc_rsi_cross_h4_retry",
+                "btc_rsi_cross_context_retry",
                 timeframe=timeframe,
                 trigger_close=_iso(trigger_close),
+                expected_h1_close=_iso(expected_h1),
                 expected_h4_close=_iso(expected_h4),
             )
             with self._h4_cond:
@@ -345,6 +369,7 @@ class BtcRsiCrossAlertWorker:
                 DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
                 DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
                 DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
+                DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
             )
             else "debug"
         )
@@ -407,6 +432,7 @@ class BtcRsiCrossAlertWorker:
         ready_at: datetime,
     ):
         with self._h4_cond:
+            observed_h1_closes = frozenset(self._observed_h1_closes)
             observed_h4_closes = frozenset(self._observed_h4_closes)
         return prepare_from_multiplexer(
             self.multiplexer,
@@ -414,6 +440,7 @@ class BtcRsiCrossAlertWorker:
             timeframe,
             trigger_open_time,
             ready_at,
+            observed_h1_closes,
             observed_h4_closes,
         )
 

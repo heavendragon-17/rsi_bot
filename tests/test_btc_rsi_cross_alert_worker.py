@@ -57,6 +57,20 @@ def _hydrate(
             timeframe,
             _candle(close_times[position], step, closes[position]),
         )
+    if timeframe == "4h" and close_times:
+        # The live worker now requires a native H1 price context as well as
+        # H4. Keep the existing worker scenarios focused by hydrating a
+        # deterministic bullish H1 context alongside their H4 fixture.
+        h1_end = max(close_times) + timedelta(hours=4)
+        h1_step = timedelta(hours=1)
+        h1_start = h1_end - h1_step * 69
+        for position in range(70):
+            h1_close = h1_start + h1_step * position
+            mux.on_kline_event(
+                SYMBOL,
+                "1h",
+                _candle(h1_close, h1_step, 100.0 + position),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +83,7 @@ def _config(**overrides) -> BtcRsiCrossAlertConfig:
         m15_telegram_topic_id=1008,
         symbol=SYMBOL,
         trigger_timeframes=("5m", "15m"),
+        confirmation_timeframe="1h",
         trend_timeframe="4h",
         rsi_period=21,
         rsi_ema_period=9,
@@ -214,7 +229,7 @@ class TestClosedCandleEvaluation:
 
         _stop(worker, thread)
 
-    def test_m5_cooldown_suppresses_five_and_ten_minutes_then_allows_fifteen(self):
+    def test_m5_cooldown_suppresses_until_fifty_five_minutes_then_allows_one_hour(self):
         worker, mux, notifier = _make_worker()
         step = timedelta(minutes=5)
         first_close = BASE.replace(hour=9, minute=45)
@@ -245,12 +260,12 @@ class TestClosedCandleEvaluation:
         assert _wait_for(lambda: notifier.send_message.call_count == 1)
         assert worker.last_m5_alert_close == first_close
 
-        for minutes, price_increment in ((5, 10.0), (10, 20.0)):
+        for minutes in range(5, 60, 5):
             suppressed_close = first_close + timedelta(minutes=minutes)
             mux.on_kline_event(
                 SYMBOL,
                 "5m",
-                _candle(suppressed_close, step, closes[-1] + price_increment),
+                _candle(suppressed_close, step, closes[-1] + minutes),
             )
             assert _wait_for(
                 lambda expected=suppressed_close: worker.last_evaluated["5m"]
@@ -259,11 +274,11 @@ class TestClosedCandleEvaluation:
             assert notifier.send_message.call_count == 1
             assert worker.last_m5_alert_close == first_close
 
-        eligible_close = first_close + timedelta(minutes=15)
+        eligible_close = first_close + timedelta(hours=1)
         mux.on_kline_event(
             SYMBOL,
             "5m",
-            _candle(eligible_close, step, closes[-1] + 30.0),
+            _candle(eligible_close, step, closes[-1] + 50.0),
         )
         assert _wait_for(lambda: notifier.send_message.call_count == 2)
         assert worker.last_m5_alert_close == eligible_close
@@ -271,7 +286,7 @@ class TestClosedCandleEvaluation:
 
         _stop(worker, thread)
 
-    def test_open_candles_never_trigger_and_h4_only_marks_context(self):
+    def test_open_candles_never_trigger_and_h1_h4_only_mark_context(self):
         worker, mux, notifier = _make_worker()
         _bootstrap(worker)
         thread = _start(worker)

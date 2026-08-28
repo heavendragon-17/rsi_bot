@@ -134,8 +134,8 @@ BinanceStreamManager ── history_complete_callback ──→ BtcRsiCrossAlert
 TimeframeMultiplexer close callbacks
         ├─ 5m closed candle → worker queue → m5_checker alignment + filters
         ├─ 15m closed candle → worker queue → m15_checker cross + price filter
-        │            ↑ point-in-time H4 context read from the same multiplexer
-        └─ 4h closed candle  → synchronous Condition confirmation (never queued)
+        │            ↑ point-in-time H1/H4 context from the same multiplexer
+        └─ 1h/4h closed candle → synchronous Condition confirmation (never queued)
         ↓
 NotificationService.send(card, topic_id=M5/M15 route topic) [only on ALERT decisions]
 ```
@@ -157,14 +157,14 @@ Key properties (full contract:
   attempts return and before the WebSocket loop starts. The worker discards
   every callback until then and permanently ignores trigger closes at/before
   the per-timeframe REST watermark or the history-ready instant.
-* **H4 boundary coordination** — live H4 closes are confirmed synchronously
-  under a `threading.Condition`; when a trigger needs an unconfirmed H4
-  context the worker waits at most `context_settle_seconds` once, then
+* **H1/H4 boundary coordination** — live H1/H4 closes are confirmed
+  synchronously under a `threading.Condition`; when a trigger needs an
+  unconfirmed context the worker waits at most `context_settle_seconds` once, then
   re-prepares exactly once more. Retry exhaustion fails closed silently.
 * **Deduplication, M5 cooldown & failure budget** — per-timeframe cursor + deterministic
   event identity (SHA-256 of
   `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`). After an M5 alert, qualifying M5
-  closes before +15 minutes are suppressed using candle-close time; M15 has no
+  closes before +1 hour are suppressed using candle-close time; M15 has no
   cooldown.
   Unexpected exceptions requeue the same event ahead of newer ones within the
   existing `signal_runner.max_consecutive_failures` budget; exhaustion
@@ -174,7 +174,7 @@ Key properties (full contract:
   alerts use topic `1003` in the checked-in configuration. The M5 and M15
   checker modules remain separate because their signal rules differ.
 * **Non-goals** — no orders, no virtual positions, no SL/TP, no PnL claims;
-  M5/M15/H4 are native Binance streams (no resampling); v1 state is in
+  M5/M15/H1/H4 are native Binance streams (no resampling); v1 state is in
   memory, so restart bootstraps again and delivery remains best-effort
   asynchronous Telegram (not the Core V2.1 durable outbox).
 

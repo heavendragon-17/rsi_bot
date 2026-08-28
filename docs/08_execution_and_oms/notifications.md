@@ -330,9 +330,10 @@ ns.send_message("🤖 RSI Bot Started")
   chart timeframe, UTC+7 trigger candle close time, trigger BTC
   close and price EMA21 values, trigger RSI21 / EMA9(RSI21) / WMA45(RSI21),
   previous/current RSI EMA/WMA values for M15 cross verification, every
-  timeframe-specific comparison with a pass/fail marker, and a short event-ID
+  timeframe-specific comparison with a pass/fail marker, including native H1
+  and H4 price gates and the M5 RSI21 < 60 ceiling, and a short event-ID
   suffix. It never contains entry/SL/TP/leverage/position fields. No message
-  is sent for not-ready data, no-cross decisions, H4 rejections, bootstrap
+  is sent for not-ready data, no-cross decisions, H1/H4 rejections, bootstrap
   history, duplicates or retries.
 * Topic uniqueness is validated across ordinary strategies, the BTC alert
   component and the debug topic together at startup; a collision raises

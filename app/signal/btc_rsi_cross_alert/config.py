@@ -20,6 +20,7 @@ COMPONENT_NAME: str = "btc_rsi_cross_alert"
 CANONICAL_SYMBOL: str = "BTC/USDT"
 LOCKED_TRIGGER_TIMEFRAMES: frozenset[str] = frozenset({"5m", "15m"})
 LOCKED_TREND_TIMEFRAME: str = "4h"
+LOCKED_CONFIRMATION_TIMEFRAME: str = "1h"
 LOCKED_RSI_PERIOD: int = 21
 LOCKED_RSI_EMA_PERIOD: int = 9
 LOCKED_RSI_WMA_PERIOD: int = 45
@@ -37,6 +38,7 @@ class BtcRsiCrossAlertConfig:
     symbol: str
     trigger_timeframes: tuple[str, ...]
     trend_timeframe: str
+    confirmation_timeframe: str
     rsi_period: int
     rsi_ema_period: int
     rsi_wma_period: int
@@ -44,11 +46,12 @@ class BtcRsiCrossAlertConfig:
 
     @property
     def targets(self) -> frozenset[tuple[str, str]]:
-        """Stream targets: both trigger timeframes plus the H4 trend frame."""
+        """Stream targets: triggers plus native H1 and H4 context frames."""
 
         return frozenset(
             {(self.symbol, tf) for tf in self.trigger_timeframes}
             | {(self.symbol, self.trend_timeframe)}
+            | {(self.symbol, self.confirmation_timeframe)}
         )
 
     @property
@@ -159,6 +162,12 @@ def _validate_locked_values(entry: dict) -> None:
         raise ValueError(
             f"{COMPONENT_NAME} trend_timeframe must be {LOCKED_TREND_TIMEFRAME!r}, got {trend!r}"
         )
+    confirmation = entry.get("confirmation_timeframe")
+    if confirmation != LOCKED_CONFIRMATION_TIMEFRAME:
+        raise ValueError(
+            f"{COMPONENT_NAME} confirmation_timeframe must be "
+            f"{LOCKED_CONFIRMATION_TIMEFRAME!r}, got {confirmation!r}"
+        )
 
     locked_periods = {
         "rsi_period": LOCKED_RSI_PERIOD,
@@ -257,6 +266,7 @@ def resolve_btc_rsi_cross_alert_config(
         symbol=CANONICAL_SYMBOL,
         trigger_timeframes=("5m", "15m"),
         trend_timeframe=LOCKED_TREND_TIMEFRAME,
+        confirmation_timeframe=LOCKED_CONFIRMATION_TIMEFRAME,
         rsi_period=LOCKED_RSI_PERIOD,
         rsi_ema_period=LOCKED_RSI_EMA_PERIOD,
         rsi_wma_period=LOCKED_RSI_WMA_PERIOD,

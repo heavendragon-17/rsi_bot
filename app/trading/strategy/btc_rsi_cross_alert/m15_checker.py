@@ -29,20 +29,24 @@ def prepare_m15_cross_input(
     trigger_df: pd.DataFrame,
     h4_df: pd.DataFrame,
     *,
+    h1_df: pd.DataFrame,
     symbol: str,
     trigger_open_time: datetime,
     history_ready_at: datetime,
+    observed_live_h1_closes: frozenset[datetime],
     observed_live_h4_closes: frozenset[datetime],
 ) -> BtcRsiCrossPreparation:
-    """Prepare one closed M15 candle against its exact eligible H4 context."""
+    """Prepare one closed M15 candle against its exact eligible H1/H4 context."""
 
     return prepare_btc_rsi_cross_input(
         trigger_df,
         h4_df,
+        h1_df=h1_df,
         symbol=symbol,
         trigger_timeframe=M15_TIMEFRAME,
         trigger_open_time=trigger_open_time,
         history_ready_at=history_ready_at,
+        observed_live_h1_closes=observed_live_h1_closes,
         observed_live_h4_closes=observed_live_h4_closes,
     )
 

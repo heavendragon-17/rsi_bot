@@ -74,10 +74,14 @@ def qualifying_trigger(step: timedelta, end: datetime, rise_rows: int = 70):
 
 
 def qualifying_m5_trigger(step: timedelta, end: datetime):
-    """M5 bullish alignment that passes every mandatory M5 filter."""
+    """M5 bullish alignment that passes every mandatory M5 filter.
+
+    The final RSI21 is deliberately below 60 so this shared fixture remains a
+    valid signal after the anti-buy-the-top ceiling is applied.
+    """
 
     head = [100.0 + (1.0 if i % 2 == 0 else -1.0) for i in range(80)]
-    closes = head + [head[-1] + 30.0, head[-1] + 40.0]
+    closes = head + [head[-1] + 5.0, head[-1] + 8.0, head[-1] + 6.0]
     series = pd.Series(closes, dtype="float64")
     rsi21 = rsi_wilder(series, 21)
     ema9 = ema(rsi21, 9)

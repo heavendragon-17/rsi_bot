@@ -208,6 +208,7 @@ class TestBtcAlertStartupText:
                     "m15_telegram_topic_id": 1008,
                     "symbol": "BTC/USDT",
                     "trigger_timeframes": ["5m", "15m"],
+                    "confirmation_timeframe": "1h",
                     "trend_timeframe": "4h",
                     "rsi_period": 21,
                     "rsi_ema_period": 9,
@@ -217,7 +218,7 @@ class TestBtcAlertStartupText:
             ]
         )
         body = main._build_signal_startup_message(raw)
-        assert "btc_rsi_cross_alert — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H4 filter" in body
+        assert "btc_rsi_cross_alert — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H1/H4 filter" in body
         # The BTC line must not borrow global timeframe/symbol-count fields.
         assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
         assert "Active strategies: 2" in body
@@ -278,6 +279,7 @@ class TestBtcAlertStartupText:
                             "m15_telegram_topic_id": 1008,
                             "symbol": "BTC/USDT",
                             "trigger_timeframes": ["5m", "15m"],
+                            "confirmation_timeframe": "1h",
                             "trend_timeframe": "4h",
                             "rsi_period": 21,
                             "rsi_ema_period": 9,

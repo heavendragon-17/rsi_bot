@@ -16,10 +16,12 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
 )
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
+    DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_M5_CLOSE_NOT_ABOVE_EMA21,
     DECISION_M5_EMA_WMA_SPREAD_NOT_ABOVE_2,
     DECISION_M5_RSI_ALIGNMENT_NOT_BULLISH,
+    DECISION_M5_RSI21_NOT_BELOW_60,
     DECISION_M5_WMA45_NOT_ABOVE_45,
     BtcRsiCrossDecision,
     BtcRsiCrossInput,
@@ -30,27 +32,32 @@ from app.trading.strategy.btc_rsi_cross_alert.models import (
 M5_TIMEFRAME: Final[str] = "5m"
 M5_MIN_RSI_EMA_WMA_SPREAD: Final[float] = 2.0
 M5_MIN_RSI_WMA45: Final[float] = 45.0
+M5_MAX_RSI21_EXCLUSIVE: Final[float] = 60.0
 
 
 def prepare_m5_cross_input(
     trigger_df: pd.DataFrame,
     h4_df: pd.DataFrame,
     *,
+    h1_df: pd.DataFrame,
     symbol: str,
     trigger_open_time: datetime,
     history_ready_at: datetime,
+    observed_live_h1_closes: frozenset[datetime],
     observed_live_h4_closes: frozenset[datetime],
 ) -> BtcRsiCrossPreparation:
-    """Prepare one closed M5 candle against its exact eligible H4 context."""
+    """Prepare one closed M5 candle against its exact eligible H1/H4 context."""
 
     return prepare_btc_rsi_cross_input(
         trigger_df,
         h4_df,
+        h1_df=h1_df,
         symbol=symbol,
         trigger_timeframe=M5_TIMEFRAME,
         trigger_open_time=trigger_open_time,
         history_ready_at=history_ready_at,
         observed_live_h4_closes=observed_live_h4_closes,
+        observed_live_h1_closes=observed_live_h1_closes,
     )
 
 
@@ -84,6 +91,20 @@ def evaluate_m5_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
             should_alert=False,
             event_id=event_id,
             reason=DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
+        )
+
+    if data.h1_close_price <= data.h1_price_ema21:
+        return BtcRsiCrossDecision(
+            should_alert=False,
+            event_id=event_id,
+            reason=DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
+        )
+
+    if data.current_trigger.rsi21 >= M5_MAX_RSI21_EXCLUSIVE:
+        return BtcRsiCrossDecision(
+            should_alert=False,
+            event_id=event_id,
+            reason=DECISION_M5_RSI21_NOT_BELOW_60,
         )
 
     rsi_spread = data.current_trigger.rsi_ema9 - data.current_trigger.rsi_wma45

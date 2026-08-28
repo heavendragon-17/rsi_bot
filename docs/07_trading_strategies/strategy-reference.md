@@ -12,7 +12,7 @@
 | `rsi_wma_retest` | `app/trading/strategy/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
 | `rsi_momentum` | `app/trading/strategy/rsi_momentum/` | Active | SHORT-only entries via RSI momentum + bearish divergence |
 | `rsi_alert` | `app/trading/strategy/rsi_alert/` | Alert-only | Telegram alert when RSI14 (live, intra-candle) hits 8.5 / 8 — no trading |
-| `btc_rsi_cross_alert` | `app/signal/btc_rsi_cross_alert/` + `app/trading/strategy/btc_rsi_cross_alert/` | Alert-only component | Signal-bot BTC M5 bullish alignment / M15 fresh cross gated by H4 close>EMA21(price) — no trading, **not** in `STRATEGY_MAP` |
+| `btc_rsi_cross_alert` | `app/signal/btc_rsi_cross_alert/` + `app/trading/strategy/btc_rsi_cross_alert/` | Alert-only component | Signal-bot BTC M5 bullish alignment / M15 fresh cross gated by H1/H4 close>EMA21(price) — no trading, **not** in `STRATEGY_MAP` |
 
 Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`
 (`btc_rsi_cross_alert` excepted: it is a signal-runtime component resolved by
@@ -237,13 +237,13 @@ top-level config dict (keys are filtered by `merge_config`).
 BTC-only, alert-only signal component of the **signal bot** (not a live-bot
 strategy). Unlike `rsi_alert`, it deliberately does **not** implement the
 single-frame `IStrategy.analyze()` contract: it needs point-in-time access to
-M5, M15 and H4 simultaneously, so it runs as a dedicated worker orchestrated by
+M5, M15, H1 and H4 simultaneously, so it runs as a dedicated worker orchestrated by
 `SignalRunner`. It is not registered in `STRATEGY_MAP`, the backtest database
 seed, or the UI strategy list.
 
 Runtime evaluation is split into two explicit pure entry-point modules:
 `m5_checker.py` handles only M5 candles and `m15_checker.py` handles only M15
-candles. Both reuse the shared preparation and RSI/H4 decision algorithm in
+candles. Both reuse the shared preparation and RSI/H1/H4 decision algorithm in
 `evaluator.py`, and each rejects prepared input from the other timeframe.
 Telegram routing is also timeframe-specific: the M5 checker sends to topic
 `1147`, while the M15 checker sends to topic `1003`. The `rsi_no_retest`
@@ -263,26 +263,28 @@ On each fully closed native Binance M5 or M15 candle:
    previous candle AND `EMA9(RSI21) > WMA45(RSI21)` on the current one.
 3. M5 does not require a fresh cross. Its current closed candle must satisfy
    strict `RSI21 > EMA9(RSI21) > WMA45(RSI21)`.
-4. The exact latest fully closed H4 candle must satisfy strict
-   `close > EMA21(price)`. Equality fails; the H4 RSI bundle is not calculated
-   or evaluated by this component.
+4. The exact latest fully closed H1 and H4 candles must satisfy strict
+   `close > EMA21(price)`. Equality fails; context RSI bundles are not
+   calculated or evaluated by this component.
 5. The trigger candle must satisfy strict `close > EMA21(price)` on its own
    timeframe for both M5 and M15.
-6. Alert only when the timeframe-specific trigger, trigger price gate, and H4
+6. Alert only when the timeframe-specific trigger, trigger price gate, and H1/H4
    gate all hold. M5 and M15 evaluate independently. No short/bearish alerts.
 
-For M5 only, a qualifying alignment must additionally satisfy these two
+For M5 only, a qualifying alignment must additionally satisfy these three
 RSI filters:
 
-1. `EMA9(RSI21) - WMA45(RSI21) > 2`;
-2. `WMA45(RSI21) > 45`.
+1. `RSI21 < 60`;
+2. `EMA9(RSI21) - WMA45(RSI21) >= 2`;
+3. `WMA45(RSI21) > 45`.
 
-Equality fails each comparison. These two RSI filters are not applied by
+Equality fails each comparison. These M5-only RSI filters are not applied by
 `m15_checker.py`; M15 adds only its own close > EMA21(price) filter after the
-shared fresh-cross and H4 gates pass.
-After an M5 alert, the worker applies a fixed 15-minute cooldown measured from
-that alert candle's close. Qualifying closes at +5m and +10m are suppressed;
-equality at +15m is eligible. M15 remains independent and has no cooldown.
+shared fresh-cross and H1/H4 gates pass.
+After an M5 alert, the worker applies a fixed one-hour cooldown measured from
+that alert candle's close. Qualifying closes from +5m through +55m are
+suppressed; equality at +60m is eligible. M15 remains independent and has no
+cooldown.
 Duplicate callbacks for the same candle remain suppressed.
 
 ### Data rules
@@ -291,10 +293,10 @@ Duplicate callbacks for the same candle remain suppressed.
 * Naive stored opens are interpreted as fixed UTC+07:00, converted to UTC,
   advanced by the timeframe once to get close times.
 * Indicators run over the maximal contiguous cadence suffix ending at the
-  expected row; ≥67 contiguous trigger rows and ≥21 H4 rows are required,
+  expected row; ≥67 contiguous trigger rows and ≥21 H1/H4 rows are required,
   with finite values only. Older gaps are allowed; recent gaps fail closed.
-* The H4 row must be the latest native UTC four-hour boundary at/before the
-  trigger close; post-bootstrap H4 closes require a live closed WebSocket
+* H1 and H4 rows must be the latest native UTC boundaries at/before the
+  trigger close; post-bootstrap context closes require a live closed WebSocket
   confirmation (one `context_settle_seconds` retry at shared boundaries).
 
 ### Parameters (locked v1)
@@ -303,17 +305,18 @@ Duplicate callbacks for the same candle remain suppressed.
 |-----------|--------------|-------------|
 | `symbol` | `BTC/USDT` | Only symbol supported |
 | `trigger_timeframes` | `[5m, 15m]` | Exactly this set |
+| `confirmation_timeframe` | `1h` | Native Binance H1 EMA21 gate |
 | `trend_timeframe` | `4h` | Native Binance H4 stream |
 | `rsi_period` | 21 | Wilder RSI length |
 | `rsi_ema_period` | 9 | Recursive EMA over RSI21 |
 | `rsi_wma_period` | 45 | Linear WMA over RSI21 |
-| `context_settle_seconds` | `0..30` | Single H4 boundary retry wait |
+| `context_settle_seconds` | `0..30` | Single H1/H4 boundary retry wait |
 
 ### Alert message
 
 Deterministic HTML-escaped card: timeframe label (M5/M15), UTC candle close,
-BTC close price, trigger RSI21/EMA9/WMA45, H4 close and H4 EMA21(price) (two
-decimals), `H4 price trend: BULLISH ✅` and an 8-char event-ID suffix derived from
+BTC close price, trigger RSI21/EMA9/WMA45, M5 RSI21 ceiling when applicable,
+H1/H4 close and EMA21(price) values (two decimals), and an 8-char event-ID suffix derived from
 `SHA-256("btc-rsi-cross-v1|BTC/USDT|tf|UTC close")`. No entry / SL / TP /
 leverage / position fields exist.
 
@@ -327,6 +330,7 @@ strategies:
     m15_telegram_topic_id: 1003      # M15 checker topic
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
+    confirmation_timeframe: "1h"
     trend_timeframe: "4h"
     rsi_period: 21
     rsi_ema_period: 9

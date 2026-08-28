@@ -327,6 +327,7 @@ def _btc_entry(**overrides) -> dict:
         "m15_telegram_topic_id": 1008,
         "symbol": "BTC/USDT",
         "trigger_timeframes": ["5m", "15m"],
+        "confirmation_timeframe": "1h",
         "trend_timeframe": "4h",
         "rsi_period": 21,
         "rsi_ema_period": 9,
@@ -354,7 +355,7 @@ class TestBtcAlertComponentIntegration:
         assert [c.name for c in runner.alert_components] == ["btc_rsi_cross_alert"]
 
         stream_kwargs = Stream.call_args.kwargs
-        assert {("BTC/USDT", "5m"), ("BTC/USDT", "15m"), ("BTC/USDT", "4h")} <= set(
+        assert {("BTC/USDT", "5m"), ("BTC/USDT", "15m"), ("BTC/USDT", "1h"), ("BTC/USDT", "4h")} <= set(
             stream_kwargs["targets"]
         )
         assert callable(stream_kwargs["history_complete_callback"])

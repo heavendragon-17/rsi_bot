@@ -5,8 +5,8 @@ Two pure functions (spec §10):
 * :func:`prepare_btc_rsi_cross_input` — timestamp normalization, point-in-time
   slicing, bootstrap eligibility, continuity, finite-value checks, recursive
   indicator preparation over the maximal contiguous suffix, exact current
-  trigger selection, and exact H4 context selection.
-* :func:`evaluate_btc_rsi_cross` — only the fresh-cross / H4 price decision.
+  trigger selection, and exact H1/H4 context selection.
+* :func:`evaluate_btc_rsi_cross` — only the fresh-cross / H1/H4 price decision.
 
 Both are deterministic: identical inputs produce identical outputs with no
 clock, network, filesystem, database, logging, Telegram, sleep, thread, or
@@ -20,6 +20,7 @@ Indicator primitives are imported unchanged from Core V2.1
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Final, cast
@@ -28,8 +29,14 @@ import pandas as pd
 
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
+    DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_NO_FRESH_BULLISH_CROSS,
+    H1_DUPLICATE_OR_NON_INCREASING_TIME,
+    H1_EXPECTED_CLOSE_MISSING,
+    H1_INSUFFICIENT_CONTIGUOUS_HISTORY,
+    H1_LIVE_CLOSE_UNCONFIRMED,
+    H1_NON_FINITE_DATA,
     H4_DUPLICATE_OR_NON_INCREASING_TIME,
     H4_EXPECTED_CLOSE_MISSING,
     H4_INSUFFICIENT_CONTIGUOUS_HISTORY,
@@ -59,12 +66,14 @@ TRIGGER_DURATION_BY_TIMEFRAME: Final[dict[str, timedelta]] = {
     "15m": timedelta(minutes=15),
 }
 H4_DURATION: Final[timedelta] = timedelta(hours=4)
+H1_DURATION: Final[timedelta] = timedelta(hours=1)
 
 RSI_PERIOD: Final[int] = 21
 RSI_EMA_PERIOD: Final[int] = 9
 RSI_WMA_PERIOD: Final[int] = 45
 PRICE_EMA_PERIOD: Final[int] = 21
 H4_PRICE_EMA_MINIMUM_ROWS: Final[int] = PRICE_EMA_PERIOD
+H1_PRICE_EMA_MINIMUM_ROWS: Final[int] = PRICE_EMA_PERIOD
 
 #: RSI21 first becomes finite at row 21; WMA45 needs 45 consecutive finite RSI
 #: values, so the complete bundle is finite at row 65 (0-based) — 66 rows.
@@ -72,10 +81,15 @@ RSI_BUNDLE_MINIMUM_ROWS: Final[int] = 66
 #: Trigger evaluation also needs the immediately previous complete bundle.
 TRIGGER_MINIMUM_ROWS: Final[int] = RSI_BUNDLE_MINIMUM_ROWS + 1
 
-#: Preparation reasons that mean "the exact H4 context for this shared
+#: Preparation reasons that mean "the exact H1/H4 context for this shared
 #: boundary may still arrive" and therefore justify the single settle retry.
 RETRYABLE_PREPARATION_REASONS: Final[frozenset[str]] = frozenset(
-    {H4_EXPECTED_CLOSE_MISSING, H4_LIVE_CLOSE_UNCONFIRMED}
+    {
+        H4_EXPECTED_CLOSE_MISSING,
+        H4_LIVE_CLOSE_UNCONFIRMED,
+        H1_EXPECTED_CLOSE_MISSING,
+        H1_LIVE_CLOSE_UNCONFIRMED,
+    }
 )
 
 
@@ -120,8 +134,20 @@ def _require_aware(value: datetime, field_name: str) -> datetime:
 def expected_h4_close_for(trigger_close_time: datetime) -> datetime:
     """Latest native Binance UTC four-hour boundary close at or before ``T``."""
 
+    return _expected_context_close_for(trigger_close_time, H4_DURATION)
+
+
+def expected_h1_close_for(trigger_close_time: datetime) -> datetime:
+    """Latest native Binance UTC one-hour boundary close at or before ``T``."""
+
+    return _expected_context_close_for(trigger_close_time, H1_DURATION)
+
+
+def _expected_context_close_for(
+    trigger_close_time: datetime, duration: timedelta
+) -> datetime:
     t = _require_aware(trigger_close_time, "trigger_close_time")
-    seconds = int(H4_DURATION.total_seconds())
+    seconds = int(duration.total_seconds())
     floored = (int(t.timestamp()) // seconds) * seconds
     return datetime.fromtimestamp(floored, tz=UTC)
 
@@ -215,6 +241,79 @@ def _not_ready(reason: str) -> BtcRsiCrossPreparation:
     return BtcRsiCrossPreparation(input=None, reason=reason)
 
 
+@dataclass(frozen=True)
+class _PriceContext:
+    close_price: Decimal
+    price_ema21: Decimal
+    close_time: datetime
+
+
+def _prepare_price_context(
+    frame: pd.DataFrame,
+    *,
+    duration: timedelta,
+    expected_close: datetime,
+    as_of: datetime,
+    history_ready_at: datetime,
+    observed_live_closes: frozenset[datetime],
+    minimum_rows: int,
+    duplicate_reason: str,
+    expected_missing_reason: str,
+    live_unconfirmed_reason: str,
+    insufficient_reason: str,
+    non_finite_reason: str,
+) -> _PriceContext | str:
+    """Prepare one native price-EMA context frame at a trigger close."""
+
+    opens, closed_flags, closes = _frame_columns(frame)
+    all_times = [o + duration for o in opens]
+    if not _strictly_increasing(all_times):
+        return duplicate_reason
+
+    kept = [
+        pos
+        for pos in range(len(all_times))
+        if closed_flags[pos] and all_times[pos] <= as_of
+    ]
+    kept_times = [all_times[pos] for pos in kept]
+    if not kept_times or kept_times[-1] != expected_close:
+        return expected_missing_reason
+
+    selected_offset = next(
+        (offset for offset, close_time in enumerate(kept_times) if close_time == expected_close),
+        None,
+    )
+    if selected_offset is None:
+        return expected_missing_reason
+    if expected_close > history_ready_at and expected_close not in observed_live_closes:
+        return live_unconfirmed_reason
+
+    suffix_start = _suffix_start(kept_times, duration)
+    if len(kept_times) - suffix_start < minimum_rows:
+        return insufficient_reason
+
+    suffix_closes = _finite_closes(
+        [closes[pos] for pos in kept[suffix_start:]]
+    )
+    if suffix_closes is None:
+        return non_finite_reason
+
+    price_ema21_series = ema(
+        pd.Series(tuple(suffix_closes), dtype="float64"),
+        PRICE_EMA_PERIOD,
+    )
+    price_ema21_value = float(price_ema21_series.iloc[-1])
+    if not math.isfinite(price_ema21_value):
+        return non_finite_reason
+
+    close_dec_series = list(frame["close_dec"]) if "close_dec" in frame.columns else None
+    return _PriceContext(
+        close_price=_close_price_decimal(closes, close_dec_series, kept[selected_offset]),
+        price_ema21=Decimal(str(price_ema21_value)),
+        close_time=expected_close,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Preparation (spec §8 window locking + §7 selection rules)
 # ---------------------------------------------------------------------------
@@ -222,22 +321,25 @@ def prepare_btc_rsi_cross_input(
     trigger_df: pd.DataFrame,
     h4_df: pd.DataFrame,
     *,
+    h1_df: pd.DataFrame,
     symbol: str,
     trigger_timeframe: str,
     trigger_open_time: datetime,
     history_ready_at: datetime,
+    observed_live_h1_closes: frozenset[datetime],
     observed_live_h4_closes: frozenset[datetime],
 ) -> BtcRsiCrossPreparation:
     """Build the exact point-in-time evaluation input, failing closed.
 
-    ``history_ready_at`` and every element of ``observed_live_h4_closes`` must
-    be aware datetimes; comparisons happen exclusively between aware UTC
-    instants.
+    ``history_ready_at`` and every observed context close must be aware
+    datetimes; comparisons happen exclusively between aware UTC instants.
     """
 
-    if not isinstance(trigger_df, pd.DataFrame) or not isinstance(h4_df, pd.DataFrame):
-        raise TypeError("trigger_df and h4_df must be pandas DataFrames")
+    if not all(isinstance(frame, pd.DataFrame) for frame in (trigger_df, h1_df, h4_df)):
+        raise TypeError("trigger_df, h1_df, and h4_df must be pandas DataFrames")
     ready_at = _require_aware(history_ready_at, "history_ready_at")
+    for observed in observed_live_h1_closes:
+        _require_aware(observed, "observed_live_h1_closes element")
     for observed in observed_live_h4_closes:
         _require_aware(observed, "observed_live_h4_closes element")
 
@@ -303,64 +405,40 @@ def prepare_btc_rsi_cross_input(
         return _not_ready(TRIGGER_NON_FINITE_DATA)
     trigger_price_ema21 = Decimal(str(price_ema21_value))
 
-    # ---------------- H4 frame ----------------
-    h4_opens, h4_closed_flags, h4_closes = _frame_columns(h4_df)
-    h4_all_times = [o + H4_DURATION for o in h4_opens]
-    if not _strictly_increasing(h4_all_times):
-        return _not_ready(H4_DUPLICATE_OR_NON_INCREASING_TIME)
-
-    expected_h4_close = expected_h4_close_for(trigger_close)
-    h4_kept = [
-        pos
-        for pos in range(len(h4_all_times))
-        if h4_closed_flags[pos] and h4_all_times[pos] <= trigger_close
-    ]
-    h4_kept_times = [h4_all_times[pos] for pos in h4_kept]
-
-    selected_offset = None
-    for offset, close_time in enumerate(h4_kept_times):
-        if close_time == expected_h4_close:
-            selected_offset = offset
-            break
-    if selected_offset is None:
-        return _not_ready(H4_EXPECTED_CLOSE_MISSING)
-
-    # A post-bootstrap H4 close is eligible only once its live closed
-    # WebSocket callback has been observed (spec §11.4).
-    if expected_h4_close > ready_at and expected_h4_close not in observed_live_h4_closes:
-        return _not_ready(H4_LIVE_CLOSE_UNCONFIRMED)
-
-    # The selected row carries the latest eligible close, so it ends the
-    # filtered sequence; the contiguous suffix must end exactly there.
-    if h4_kept_times[-1] != expected_h4_close:
-        return _not_ready(H4_EXPECTED_CLOSE_MISSING)
-
-    h4_suffix_start = _suffix_start(h4_kept_times, H4_DURATION)
-    h4_suffix_len = len(h4_kept_times) - h4_suffix_start
-    if h4_suffix_len < H4_PRICE_EMA_MINIMUM_ROWS:
-        return _not_ready(H4_INSUFFICIENT_CONTIGUOUS_HISTORY)
-
-    h4_suffix_closes = _finite_closes(
-        [h4_closes[pos] for pos in h4_kept[h4_suffix_start:]]
+    # ---------------- native H4 and H1 price contexts ----------------
+    h4_context = _prepare_price_context(
+        h4_df,
+        duration=H4_DURATION,
+        expected_close=expected_h4_close_for(trigger_close),
+        as_of=trigger_close,
+        history_ready_at=ready_at,
+        observed_live_closes=observed_live_h4_closes,
+        minimum_rows=H4_PRICE_EMA_MINIMUM_ROWS,
+        duplicate_reason=H4_DUPLICATE_OR_NON_INCREASING_TIME,
+        expected_missing_reason=H4_EXPECTED_CLOSE_MISSING,
+        live_unconfirmed_reason=H4_LIVE_CLOSE_UNCONFIRMED,
+        insufficient_reason=H4_INSUFFICIENT_CONTIGUOUS_HISTORY,
+        non_finite_reason=H4_NON_FINITE_DATA,
     )
-    if h4_suffix_closes is None:
-        return _not_ready(H4_NON_FINITE_DATA)
+    if isinstance(h4_context, str):
+        return _not_ready(h4_context)
 
-    h4_price_ema21_series = ema(
-        pd.Series(tuple(h4_suffix_closes), dtype="float64"),
-        PRICE_EMA_PERIOD,
+    h1_context = _prepare_price_context(
+        h1_df,
+        duration=H1_DURATION,
+        expected_close=expected_h1_close_for(trigger_close),
+        as_of=trigger_close,
+        history_ready_at=ready_at,
+        observed_live_closes=observed_live_h1_closes,
+        minimum_rows=H1_PRICE_EMA_MINIMUM_ROWS,
+        duplicate_reason=H1_DUPLICATE_OR_NON_INCREASING_TIME,
+        expected_missing_reason=H1_EXPECTED_CLOSE_MISSING,
+        live_unconfirmed_reason=H1_LIVE_CLOSE_UNCONFIRMED,
+        insufficient_reason=H1_INSUFFICIENT_CONTIGUOUS_HISTORY,
+        non_finite_reason=H1_NON_FINITE_DATA,
     )
-    h4_price_ema21_value = float(h4_price_ema21_series.iloc[-1])
-    if not math.isfinite(h4_price_ema21_value):
-        return _not_ready(H4_NON_FINITE_DATA)
-    h4_close_dec_series = (
-        list(h4_df["close_dec"]) if "close_dec" in h4_df.columns else None
-    )
-    h4_close_price = _close_price_decimal(
-        h4_closes,
-        h4_close_dec_series,
-        h4_kept[selected_offset],
-    )
+    if isinstance(h1_context, str):
+        return _not_ready(h1_context)
 
     prepared_input = BtcRsiCrossInput(
         symbol=symbol,
@@ -370,9 +448,12 @@ def prepare_btc_rsi_cross_input(
         trigger_price_ema21=trigger_price_ema21,
         previous_trigger=previous_trigger,
         current_trigger=current_trigger,
-        h4_close_price=h4_close_price,
-        h4_price_ema21=Decimal(str(h4_price_ema21_value)),
-        h4_close_time=expected_h4_close,
+        h1_close_price=h1_context.close_price,
+        h1_price_ema21=h1_context.price_ema21,
+        h1_close_time=h1_context.close_time,
+        h4_close_price=h4_context.close_price,
+        h4_price_ema21=h4_context.price_ema21,
+        h4_close_time=h4_context.close_time,
     )
     return BtcRsiCrossPreparation(input=prepared_input, reason=PREPARATION_READY)
 
@@ -381,7 +462,7 @@ def prepare_btc_rsi_cross_input(
 # Decision (spec §9 locked precedence)
 # ---------------------------------------------------------------------------
 def evaluate_btc_rsi_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
-    """Pure fresh-cross + H4 price-gate decision for one prepared input."""
+    """Pure fresh-cross + H1/H4 price-gate decision for one input."""
 
     event_id = build_event_id(
         symbol=data.symbol,
@@ -407,6 +488,13 @@ def evaluate_btc_rsi_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
             should_alert=False,
             event_id=event_id,
             reason=DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
+        )
+
+    if data.h1_close_price <= data.h1_price_ema21:
+        return BtcRsiCrossDecision(
+            should_alert=False,
+            event_id=event_id,
+            reason=DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
         )
 
     return BtcRsiCrossDecision(

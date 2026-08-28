@@ -12,6 +12,7 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
 )
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
+    DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_NO_FRESH_BULLISH_CROSS,
     BtcRsiCrossInput,
@@ -36,6 +37,8 @@ def _input(
     close_time: datetime = CLOSE_T,
     close_price: Decimal = Decimal("64321.50"),
     price_ema21: Decimal = Decimal("63000"),
+    h1_close_price: Decimal = Decimal("65000"),
+    h1_price_ema21: Decimal = Decimal("64000"),
     h4_close_price: Decimal = Decimal("65000"),
     h4_price_ema21: Decimal = Decimal("64000"),
 ) -> BtcRsiCrossInput:
@@ -47,6 +50,9 @@ def _input(
         trigger_price_ema21=price_ema21,
         previous_trigger=previous,
         current_trigger=current,
+        h1_close_price=h1_close_price,
+        h1_price_ema21=h1_price_ema21,
+        h1_close_time=datetime(2026, 8, 27, 10, tzinfo=UTC),
         h4_close_price=h4_close_price,
         h4_price_ema21=h4_price_ema21,
         h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),
@@ -54,7 +60,7 @@ def _input(
 
 
 def _fresh_cross_input(**kwargs) -> BtcRsiCrossInput:
-    """Fresh upward cross with H4 close strictly above H4 price EMA21."""
+    """Fresh upward cross with bullish H1/H4 price contexts."""
 
     return _input(
         previous=_point(42.0, 40.0, 50.0),
@@ -131,6 +137,25 @@ class TestH4Gate:
         ))
         assert decision.should_alert is False
         assert decision.reason == DECISION_H4_CLOSE_NOT_ABOVE_EMA21
+
+
+class TestH1Gate:
+    @pytest.mark.parametrize(
+        "h1_close_price",
+        [Decimal("64000"), Decimal("63999.99")],
+    )
+    def test_h1_close_not_above_price_ema21_suppresses_valid_cross(
+        self, h1_close_price
+    ):
+        decision = evaluate_btc_rsi_cross(
+            _input(
+                previous=_point(42.0, 40.0, 50.0),
+                current=_point(58.0, 55.0, 50.0),
+                h1_close_price=h1_close_price,
+            )
+        )
+        assert decision.should_alert is False
+        assert decision.reason == DECISION_H1_CLOSE_NOT_ABOVE_EMA21
 
 
 class TestDecisionPrecedenceAndScope:

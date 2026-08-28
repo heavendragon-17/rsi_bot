@@ -350,15 +350,15 @@ targets into the queue — other events are dropped at callback time, not
 after queue ingest. On overflow, the enqueue side drops with a
 `strategy_worker_queue_full` warn-log so WebSocket ingest never stalls.
 
-### BTC RSI cross alert branch (5m + 15m + native 4h)
+### BTC RSI cross alert branch (5m + 15m + native 1h + 4h)
 
 The `btc_rsi_cross_alert` component extends the same multi-TF pipeline with a
-**three-stream** target union: native Binance `btcusdt@kline_5m`,
-`btcusdt@kline_15m` and `btcusdt@kline_4h` (H4 is subscribed natively — M5/M15
-are never resampled into H4).
+**four-stream** target union: native Binance `btcusdt@kline_5m`,
+`btcusdt@kline_15m`, `btcusdt@kline_1h`, and `btcusdt@kline_4h` (H1/H4 are
+subscribed natively — M5/M15 are never resampled into context timeframes).
 
 ```
-BinanceStreamManager(targets ∪ {(BTC/USDT,5m),(BTC/USDT,15m),(BTC/USDT,4h)})
+BinanceStreamManager(targets ∪ {(BTC/USDT,5m),(BTC/USDT,15m),(BTC/USDT,1h),(BTC/USDT,4h)})
         |
         v  fetch_initial_data(): REST history per target → multiplexer
         |  (close callbacks fire for historical rows too — see gate below)
@@ -372,7 +372,7 @@ BtcRsiCrossAlertWorker.on_history_complete():
         |
         v  multiplexer close callbacks:
         ├─ 5m/15m closed candle → worker queue (evaluation trigger)
-        ├─ 4h closed candle   → synchronous Condition confirmation
+        ├─ 1h/4h closed candle → synchronous Condition confirmation
         |                       (observed-live set; NEVER queued)
         └─ open candles       → ignored entirely
         |
@@ -380,21 +380,21 @@ BtcRsiCrossAlertWorker.on_history_complete():
     1. bootstrap gate: discard while history-ready unset; ignore closes
        <= timeframe watermark OR <= history-ready instant (covers delayed
        WS duplicates and candles that closed during hydration)
-    2. dedupe: per-timeframe cursor + deterministic event id; after an M5
-       alert, suppress qualifying M5 closes at +5m/+10m and allow +15m;
+     2. dedupe: per-timeframe cursor + deterministic event id; after an M5
+        alert, suppress qualifying M5 closes through +55m and allow +60m;
        M15 has no cooldown
     3. point-in-time preparation over defensive get_dataframe() copies:
        naive stored opens = fixed UTC+07:00 → UTC close = open + tf duration;
        maximal contiguous cadence suffix ending at the exact expected row;
-       >=67 trigger rows / >=21 H4 rows; finite values only; post-bootstrap
-       H4 closes require live observation; one settle/retry at shared H4
-       boundaries (context_settle_seconds), then fail closed
+       >=67 trigger rows / >=21 H1/H4 rows; finite values only; post-bootstrap
+       H1/H4 closes require live observation; one settle/retry at shared
+       context boundaries (context_settle_seconds), then fail closed
     4. timeframe decision:
        M5 = current RSI21 > EMA9 > WMA45 alignment
        M15 = fresh EMA9(RSI21)↑WMA45(RSI21) cross
-       both require H4 close > EMA21(price)
+       both require H1 and H4 close > EMA21(price)
     5. both triggers require their own close > EMA21(price); M5 additionally
-       requires RSI EMA/WMA spread >= 2 and RSI WMA45 > 45
+       requires RSI21 < 60, RSI EMA/WMA spread >= 2, and RSI WMA45 > 45
         |
         v  on ALERT only:
 NotificationService.send_message(html-escaped card, topic_id=btc topic)

@@ -59,6 +59,7 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
     current = data.current_trigger
     previous = data.previous_trigger
     trigger_above_ema21 = data.trigger_close_price > data.trigger_price_ema21
+    h1_above_ema21 = data.h1_close_price > data.h1_price_ema21
     h4_above_ema21 = data.h4_close_price > data.h4_price_ema21
     title = (
         "🟢 BTC RSI BULLISH ALIGNMENT"
@@ -100,6 +101,8 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
                 f"M5 WMA45(RSI21) > 45.00: "
                 f"{_fmt_indicator(current.rsi_wma45)} > 45.00 "
                 f"{_status(current.rsi_wma45 > 45.0)}",
+                f"M5 RSI21 < 60.00: {_fmt_indicator(current.rsi21)} < 60.00 "
+                f"{_status(current.rsi21 < 60.0)}",
             ]
         )
     else:
@@ -130,6 +133,12 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
 
     lines.extend(
         [
+            "",
+            f"H1 close: {_fmt_price(data.h1_close_price)}",
+            f"H1 EMA21(price): {_fmt_price(data.h1_price_ema21)}",
+            f"H1 close > EMA21(price): "
+            f"{_fmt_price(data.h1_close_price)} > "
+            f"{_fmt_price(data.h1_price_ema21)} {_status(h1_above_ema21)}",
             "",
             f"H4 close: {_fmt_price(data.h4_close_price)}",
             f"H4 EMA21(price): {_fmt_price(data.h4_price_ema21)}",

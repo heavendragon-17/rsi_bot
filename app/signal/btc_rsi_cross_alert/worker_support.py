@@ -63,30 +63,47 @@ def prepare_from_multiplexer(
     timeframe: str,
     trigger_open_time: datetime,
     ready_at: datetime,
+    observed_h1_closes: frozenset[datetime],
     observed_h4_closes: frozenset[datetime],
 ) -> BtcRsiCrossPreparation:
     """Build one point-in-time evaluator input from synchronized frames."""
 
     trigger_df = multiplexer.get_dataframe(config.symbol, timeframe)
+    h1_df = multiplexer.get_dataframe(
+        config.symbol, config.confirmation_timeframe
+    )
     h4_df = multiplexer.get_dataframe(config.symbol, config.trend_timeframe)
-    if trigger_df is None or trigger_df.empty or h4_df is None or h4_df.empty:
-        raise RuntimeError(f"multiplexer frames unavailable for {timeframe} evaluation")
+    if (
+        trigger_df is None
+        or trigger_df.empty
+        or h1_df is None
+        or h1_df.empty
+        or h4_df is None
+        or h4_df.empty
+    ):
+        raise RuntimeError(
+            f"multiplexer frames unavailable for {timeframe} evaluation"
+        )
     if timeframe == M5_TIMEFRAME:
         return prepare_m5_cross_input(
             trigger_df,
             h4_df,
+            h1_df=h1_df,
             symbol=config.symbol,
             trigger_open_time=trigger_open_time,
             history_ready_at=ready_at,
+            observed_live_h1_closes=observed_h1_closes,
             observed_live_h4_closes=observed_h4_closes,
         )
     if timeframe == M15_TIMEFRAME:
         return prepare_m15_cross_input(
             trigger_df,
             h4_df,
+            h1_df=h1_df,
             symbol=config.symbol,
             trigger_open_time=trigger_open_time,
             history_ready_at=ready_at,
+            observed_live_h1_closes=observed_h1_closes,
             observed_live_h4_closes=observed_h4_closes,
         )
     raise ValueError(f"unsupported BTC RSI cross trigger timeframe: {timeframe!r}")

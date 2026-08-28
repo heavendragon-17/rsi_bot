@@ -27,6 +27,9 @@ def _input(timeframe: str = "5m") -> BtcRsiCrossInput:
         trigger_price_ema21=Decimal("63000"),
         previous_trigger=RsiBundlePoint(42.0, 40.0, 50.0),
         current_trigger=RsiBundlePoint(53.423, 48.762, 46.551),
+        h1_close_price=Decimal("65000"),
+        h1_price_ema21=Decimal("64000"),
+        h1_close_time=datetime(2026, 8, 24, 10, tzinfo=UTC),
         h4_close_price=Decimal("65012.34"),
         h4_price_ema21=Decimal("64001.23"),
         h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),
@@ -51,6 +54,7 @@ class TestLabelsAndValues:
         assert "Current M5 RSI21: 53.42" in body
         assert "Current M5 EMA9(RSI21): 48.76" in body
         assert "Current M5 WMA45(RSI21): 46.55" in body
+        assert "M5 RSI21 < 60.00: 53.42 < 60.00 ✅" in body
 
     def test_m15_labels(self):
         body = _format(_input("15m"))
@@ -70,6 +74,9 @@ class TestLabelsAndValues:
         assert "H4 close: 65,012.34" in body
         assert "H4 EMA21(price): 64,001.23" in body
         assert "H4 close > EMA21(price): 65,012.34 > 64,001.23 ✅" in body
+        assert "H1 close: 65,000.00" in body
+        assert "H1 EMA21(price): 64,000.00" in body
+        assert "H1 close > EMA21(price): 65,000.00 > 64,000.00 ✅" in body
 
     def test_m5_check_snapshot_is_explicit(self):
         body = _format()
@@ -145,6 +152,9 @@ class TestHtmlEscaping:
             trigger_price_ema21=Decimal("63000"),
             previous_trigger=RsiBundlePoint(42.0, 40.0, 50.0),
             current_trigger=RsiBundlePoint(53.4, 48.7, 48.5),
+            h1_close_price=Decimal("65000"),
+            h1_price_ema21=Decimal("64000"),
+            h1_close_time=datetime(2026, 8, 24, 10, tzinfo=UTC),
             h4_close_price=Decimal("65000"),
             h4_price_ema21=Decimal("64000"),
             h4_close_time=datetime(2026, 8, 24, 8, tzinfo=UTC),

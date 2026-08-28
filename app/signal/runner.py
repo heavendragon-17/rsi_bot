@@ -9,8 +9,8 @@ Wires together the pieces from slices 1-6:
     and fires ``history_complete_callback`` after REST hydration
   * ``VirtualPositionStore`` holds the advisory positions (slice 5)
   * ``StrategyWorker`` per strategy runs analyze + exit monitor (slice 6)
-  * ``BtcRsiCrossAlertWorker`` evaluates BTC M5 alignments / M15 crosses against H4
-    context and alerts Telegram-only (no orders, no virtual positions)
+  * ``BtcRsiCrossAlertWorker`` evaluates BTC M5 alignments / M15 crosses against
+    native H1/H4 context and alerts Telegram-only (no orders, no virtual positions)
   * ``NotificationService`` carries every message (slice 3) including the
     SIGTERM shutdown broadcast formatted here (slice 6's
     :func:`format_shutdown_broadcast`).
@@ -338,7 +338,7 @@ def _make_alert_callback(
 ) -> Callable[[str, str, Candle], None]:
     """One closure for the BTC alert worker.
 
-    The worker itself routes H4 closes to synchronous confirmation and
+    The worker itself routes H1/H4 closes to synchronous confirmation and
     M5/M15 closes to its evaluation queue.
     """
 

@@ -56,7 +56,7 @@ def _parse_cli_boundary(raw: str, field_name: str, *, is_start: bool) -> datetim
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    default_m5, default_m15, default_h4 = _default_paths()
+    default_m5, default_m15, default_h1, default_h4 = _default_paths()
     parser = argparse.ArgumentParser(
         description="Replay historical BTC RSI alert signals into a Markdown chart-review log"
     )
@@ -71,6 +71,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=default_m15,
         help=f"M15 OHLCV CSV (default: {default_m15})",
+    )
+    parser.add_argument(
+        "--h1",
+        type=Path,
+        default=default_h1,
+        help=f"H1 OHLCV CSV (default: {default_h1})",
     )
     parser.add_argument(
         "--h4",
@@ -123,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
             args.m5,
             args.m15,
             args.h4,
+            h1_path=args.h1,
             start_utc7=args.start,
             end_utc7=args.end,
             output_path=args.output,

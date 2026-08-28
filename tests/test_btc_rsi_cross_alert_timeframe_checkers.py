@@ -16,10 +16,12 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import evaluate_btc_rsi_
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
     DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
+    DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_M5_CLOSE_NOT_ABOVE_EMA21,
     DECISION_M5_EMA_WMA_SPREAD_NOT_ABOVE_2,
     DECISION_M5_RSI_ALIGNMENT_NOT_BULLISH,
+    DECISION_M5_RSI21_NOT_BELOW_60,
     DECISION_M5_WMA45_NOT_ABOVE_45,
     DECISION_M15_CLOSE_NOT_ABOVE_EMA21,
     PREPARATION_READY,
@@ -49,6 +51,9 @@ def _input(timeframe: str) -> BtcRsiCrossInput:
             rsi_ema9=50.0,
             rsi_wma45=47.0,
         ),
+        h1_close_price=Decimal("65000"),
+        h1_price_ema21=Decimal("64000"),
+        h1_close_time=datetime(2026, 8, 27, 10, tzinfo=UTC),
         h4_close_price=Decimal("65000"),
         h4_price_ema21=Decimal("64000"),
         h4_close_time=datetime(2026, 8, 27, 8, 0, tzinfo=UTC),
@@ -105,6 +110,15 @@ class TestM5MandatoryFilters:
 
         assert decision.should_alert is False
         assert decision.reason == DECISION_H4_CLOSE_NOT_ABOVE_EMA21
+
+    @pytest.mark.parametrize("h1_close", [Decimal("64000"), Decimal("63999.99")])
+    def test_h1_close_must_be_strictly_above_h1_price_ema21(self, h1_close):
+        decision = m5_checker.evaluate_m5_cross(
+            replace(_input("5m"), h1_close_price=h1_close)
+        )
+
+        assert decision.should_alert is False
+        assert decision.reason == DECISION_H1_CLOSE_NOT_ABOVE_EMA21
 
     @pytest.mark.parametrize(
         "current",
@@ -167,6 +181,28 @@ class TestM5MandatoryFilters:
 
         assert decision.should_alert is False
         assert decision.reason == DECISION_M5_WMA45_NOT_ABOVE_45
+
+    @pytest.mark.parametrize("rsi21", [60.0, 60.01])
+    def test_m5_rsi21_must_stay_strictly_below_60(self, rsi21):
+        data = _input("5m")
+        current = replace(data.current_trigger, rsi21=rsi21)
+
+        decision = m5_checker.evaluate_m5_cross(
+            replace(data, current_trigger=current)
+        )
+
+        assert decision.should_alert is False
+        assert decision.reason == DECISION_M5_RSI21_NOT_BELOW_60
+
+    def test_m5_rsi21_below_60_is_allowed(self):
+        data = _input("5m")
+        current = replace(data.current_trigger, rsi21=59.99)
+
+        decision = m5_checker.evaluate_m5_cross(
+            replace(data, current_trigger=current)
+        )
+
+        assert decision.should_alert is True
 
     @pytest.mark.parametrize("close_price", [Decimal("63000"), Decimal("62999.99")])
     def test_close_must_be_strictly_above_price_ema21(self, close_price):
@@ -231,6 +267,7 @@ def test_prepare_entry_point_locks_its_timeframe(
         symbol="BTC/USDT",
         trigger_open_time=TRIGGER_OPEN,
         history_ready_at=HISTORY_READY_AT,
+        observed_live_h1_closes=frozenset(),
         observed_live_h4_closes=frozenset(),
     )
 
@@ -269,7 +306,11 @@ def test_worker_support_dispatches_to_matching_checker(
 
     monkeypatch.setattr(worker_support, selected_name, selected)
     monkeypatch.setattr(worker_support, other_name, unexpected)
-    config = SimpleNamespace(symbol="BTC/USDT", trend_timeframe="4h")
+    config = SimpleNamespace(
+        symbol="BTC/USDT",
+        confirmation_timeframe="1h",
+        trend_timeframe="4h",
+    )
 
     result = worker_support.prepare_from_multiplexer(
         MultiplexerStub(),
@@ -277,6 +318,7 @@ def test_worker_support_dispatches_to_matching_checker(
         timeframe,
         TRIGGER_OPEN,
         HISTORY_READY_AT,
+        frozenset(),
         frozenset(),
     )
 

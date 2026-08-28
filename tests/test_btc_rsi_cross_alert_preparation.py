@@ -10,10 +10,12 @@ import pandas as pd
 import pytest
 
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
+    H1_DURATION,
     H4_DURATION,
     TRIGGER_DURATION_BY_TIMEFRAME,
     candle_close_time,
     expected_h4_close_for,
+    expected_h1_close_for,
     normalize_candle_open,
     prepare_btc_rsi_cross_input,
 )
@@ -29,6 +31,7 @@ TRIGGER_TF = "5m"
 TRIGGER_DURATION = TRIGGER_DURATION_BY_TIMEFRAME[TRIGGER_TF]
 TRIGGER_CLOSE = BASE_DATE.replace(hour=9, minute=35)
 EXPECTED_H4_CLOSE = BASE_DATE.replace(hour=8)
+EXPECTED_H1_CLOSE = BASE_DATE.replace(hour=9)
 READY_AT = BASE_DATE.replace(hour=9)  # after 08:00 H4 close, before 09:35
 
 
@@ -115,10 +118,30 @@ def _h4_frame(
     )
 
 
+def _h1_frame(
+    *,
+    end: datetime = EXPECTED_H1_CLOSE,
+    count: int = 70,
+    closes: list[float] | None = None,
+    closed: list[bool] | None = None,
+    aware_index: bool = False,
+    extra_rows=None,
+) -> pd.DataFrame:
+    return _frame(
+        _utc_close_times(end, count, H1_DURATION),
+        step=H1_DURATION,
+        closes=closes,
+        closed=closed,
+        aware_index=aware_index,
+        extra_rows=extra_rows,
+    )
+
+
 def _prepare(
     trigger_df,
     h4_df,
     *,
+    h1_df=None,
     timeframe=TRIGGER_TF,
     observed=frozenset(),
     open_value=None,
@@ -126,10 +149,12 @@ def _prepare(
     return prepare_btc_rsi_cross_input(
         trigger_df,
         h4_df,
+        h1_df=h1_df if h1_df is not None else _h1_frame(),
         symbol="BTC/USDT",
         trigger_timeframe=timeframe,
         trigger_open_time=open_value if open_value is not None else trigger_df.index[-1],
         history_ready_at=READY_AT,
+        observed_live_h1_closes=frozenset(),
         observed_live_h4_closes=observed,
     )
 
@@ -153,6 +178,7 @@ class TestReadyBaseline:
         assert prep.input is not None
         assert prep.input.trigger_close_time == TRIGGER_CLOSE
         assert prep.input.h4_close_time == EXPECTED_H4_CLOSE
+        assert prep.input.h1_close_time == EXPECTED_H1_CLOSE
         assert prep.input.symbol == "BTC/USDT"
         assert prep.input.trigger_timeframe == "5m"
         assert isinstance(prep.input.trigger_close_price, Decimal)
@@ -180,10 +206,12 @@ class TestReadyBaseline:
         prep = prepare_btc_rsi_cross_input(
             trigger,
             _h4_frame(),
+            h1_df=_h1_frame(),
             symbol="BTC/USDT",
             trigger_timeframe=tf,
             trigger_open_time=trigger.index[-1],
             history_ready_at=READY_AT,
+            observed_live_h1_closes=frozenset(),
             observed_live_h4_closes=frozenset(),
         )
         assert prep.reason == "READY"
@@ -221,6 +249,8 @@ class TestTimestampNormalization:
         assert naive_prep.input.previous_trigger == aware_prep.input.previous_trigger
         assert naive_prep.input.h4_close_price == aware_prep.input.h4_close_price
         assert naive_prep.input.h4_price_ema21 == aware_prep.input.h4_price_ema21
+        assert naive_prep.input.h1_close_price == aware_prep.input.h1_close_price
+        assert naive_prep.input.h1_price_ema21 == aware_prep.input.h1_price_ema21
 
     def test_expected_h4_close_is_native_utc_boundary(self):
         assert expected_h4_close_for(TRIGGER_CLOSE) == EXPECTED_H4_CLOSE
@@ -228,16 +258,19 @@ class TestTimestampNormalization:
         assert expected_h4_close_for(EXPECTED_H4_CLOSE - timedelta(seconds=1)) == (
             EXPECTED_H4_CLOSE - H4_DURATION
         )
+        assert expected_h1_close_for(TRIGGER_CLOSE) == EXPECTED_H1_CLOSE
 
     def test_naive_history_ready_or_observed_rejected(self):
         with pytest.raises(ValueError, match="timezone-aware"):
             prepare_btc_rsi_cross_input(
                 _trigger_frame(),
                 _h4_frame(),
+                h1_df=_h1_frame(),
                 symbol="BTC/USDT",
                 trigger_timeframe="5m",
                 trigger_open_time=_trigger_frame().index[-1],
                 history_ready_at=READY_AT.replace(tzinfo=None),
+                observed_live_h1_closes=frozenset(),
                 observed_live_h4_closes=frozenset(),
             )
 
@@ -333,12 +366,15 @@ class TestLiveH4Confirmation:
         common = dict(
             symbol="BTC/USDT",
             trigger_timeframe="5m",
+            h1_df=_h1_frame(end=BASE_DATE.replace(hour=12), count=70),
             history_ready_at=READY_AT,
+            observed_live_h1_closes=frozenset({BASE_DATE.replace(hour=12)}),
         )
         unconfirmed = prepare_btc_rsi_cross_input(
             trigger,
             h4,
             trigger_open_time=trigger.index[-1],
+            observed_live_h1_closes=common.pop("observed_live_h1_closes"),
             observed_live_h4_closes=frozenset(),
             **common,
         )
@@ -348,6 +384,7 @@ class TestLiveH4Confirmation:
             trigger,
             h4,
             trigger_open_time=trigger.index[-1],
+            observed_live_h1_closes=frozenset({BASE_DATE.replace(hour=12)}),
             observed_live_h4_closes=frozenset({late_h4_close}),
             **common,
         )
@@ -356,6 +393,37 @@ class TestLiveH4Confirmation:
     def test_pre_bootstrap_h4_trusted_without_observation(self):
         prep = _prepare(_trigger_frame(), _h4_frame(), observed=frozenset())
         assert prep.reason == "READY"
+
+
+class TestLiveH1Confirmation:
+    def test_post_bootstrap_h1_requires_observed_membership(self):
+        late_h1_close = BASE_DATE.replace(hour=10)
+        trigger_end = BASE_DATE.replace(hour=10, minute=5)
+        trigger = _trigger_frame(end=trigger_end)
+        h1 = _h1_frame(end=late_h1_close, count=70)
+        common = dict(
+            h1_df=h1,
+            symbol="BTC/USDT",
+            trigger_timeframe="5m",
+            trigger_open_time=trigger.index[-1],
+            history_ready_at=READY_AT,
+            observed_live_h1_closes=frozenset(),
+            observed_live_h4_closes=frozenset({EXPECTED_H4_CLOSE}),
+        )
+
+        unconfirmed = prepare_btc_rsi_cross_input(
+            trigger,
+            _h4_frame(),
+            **common,
+        )
+        assert unconfirmed.reason == "H1_LIVE_CLOSE_UNCONFIRMED"
+
+        confirmed = prepare_btc_rsi_cross_input(
+            trigger,
+            _h4_frame(),
+            **{**common, "observed_live_h1_closes": frozenset({late_h1_close})},
+        )
+        assert confirmed.reason == "READY"
 
 
 class TestReadinessBoundaries:

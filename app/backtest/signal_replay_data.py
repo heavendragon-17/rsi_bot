@@ -14,6 +14,7 @@ from app.backtest.signal_replay_models import (
     SignalReplayInputError,
 )
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
+    H1_DURATION,
     H4_DURATION,
     TRIGGER_DURATION_BY_TIMEFRAME,
     normalize_candle_open,
@@ -156,3 +157,9 @@ def all_h4_close_times(frame: pd.DataFrame) -> frozenset[datetime]:
     """Return every historical H4 close as a confirmed UTC instant."""
 
     return frozenset(open_time + H4_DURATION for open_time in _utc_open_times(frame))
+
+
+def all_h1_close_times(frame: pd.DataFrame) -> frozenset[datetime]:
+    """Return every historical H1 close as a confirmed UTC instant."""
+
+    return frozenset(open_time + H1_DURATION for open_time in _utc_open_times(frame))

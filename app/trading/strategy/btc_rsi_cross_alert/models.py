@@ -19,7 +19,7 @@ COMPONENT_NAME: Final[str] = "btc_rsi_cross_alert"
 EVENT_ID_PREFIX: Final[str] = "btc-rsi-cross-v1"
 EVENT_ID_SEPARATOR: Final[str] = "|"
 EVENT_ID_SUFFIX_LENGTH: Final[int] = 8
-M5_ALERT_COOLDOWN: Final[timedelta] = timedelta(minutes=15)
+M5_ALERT_COOLDOWN: Final[timedelta] = timedelta(hours=1)
 
 # ---------------------------------------------------------------------------
 # Exact preparation reasons (spec §10)
@@ -43,6 +43,15 @@ H4_DUPLICATE_OR_NON_INCREASING_TIME: Final[str] = (
     "H4_DUPLICATE_OR_NON_INCREASING_TIME"
 )
 H4_NON_FINITE_DATA: Final[str] = "H4_NON_FINITE_DATA"
+H1_EXPECTED_CLOSE_MISSING: Final[str] = "H1_EXPECTED_CLOSE_MISSING"
+H1_LIVE_CLOSE_UNCONFIRMED: Final[str] = "H1_LIVE_CLOSE_UNCONFIRMED"
+H1_INSUFFICIENT_CONTIGUOUS_HISTORY: Final[str] = (
+    "H1_INSUFFICIENT_CONTIGUOUS_HISTORY"
+)
+H1_DUPLICATE_OR_NON_INCREASING_TIME: Final[str] = (
+    "H1_DUPLICATE_OR_NON_INCREASING_TIME"
+)
+H1_NON_FINITE_DATA: Final[str] = "H1_NON_FINITE_DATA"
 
 PREPARATION_REASONS: Final[frozenset[str]] = frozenset(
     {
@@ -57,6 +66,11 @@ PREPARATION_REASONS: Final[frozenset[str]] = frozenset(
         H4_INSUFFICIENT_CONTIGUOUS_HISTORY,
         H4_DUPLICATE_OR_NON_INCREASING_TIME,
         H4_NON_FINITE_DATA,
+        H1_EXPECTED_CLOSE_MISSING,
+        H1_LIVE_CLOSE_UNCONFIRMED,
+        H1_INSUFFICIENT_CONTIGUOUS_HISTORY,
+        H1_DUPLICATE_OR_NON_INCREASING_TIME,
+        H1_NON_FINITE_DATA,
     }
 )
 
@@ -78,6 +92,8 @@ DECISION_M5_EMA_WMA_SPREAD_NOT_ABOVE_2: Final[str] = (
 DECISION_M5_WMA45_NOT_ABOVE_45: Final[str] = "M5_WMA45_NOT_ABOVE_45"
 DECISION_M5_CLOSE_NOT_ABOVE_EMA21: Final[str] = "M5_CLOSE_NOT_ABOVE_EMA21"
 DECISION_M15_CLOSE_NOT_ABOVE_EMA21: Final[str] = "M15_CLOSE_NOT_ABOVE_EMA21"
+DECISION_H1_CLOSE_NOT_ABOVE_EMA21: Final[str] = "H1_CLOSE_NOT_ABOVE_EMA21"
+DECISION_M5_RSI21_NOT_BELOW_60: Final[str] = "M5_RSI21_NOT_BELOW_60"
 
 DECISION_REASONS: Final[frozenset[str]] = frozenset(
     {
@@ -90,6 +106,8 @@ DECISION_REASONS: Final[frozenset[str]] = frozenset(
         DECISION_M5_WMA45_NOT_ABOVE_45,
         DECISION_M5_CLOSE_NOT_ABOVE_EMA21,
         DECISION_M15_CLOSE_NOT_ABOVE_EMA21,
+        DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
+        DECISION_M5_RSI21_NOT_BELOW_60,
     }
 )
 
@@ -114,6 +132,9 @@ class BtcRsiCrossInput:
     trigger_price_ema21: Decimal
     previous_trigger: RsiBundlePoint
     current_trigger: RsiBundlePoint
+    h1_close_price: Decimal
+    h1_price_ema21: Decimal
+    h1_close_time: datetime
     h4_close_price: Decimal
     h4_price_ema21: Decimal
     h4_close_time: datetime

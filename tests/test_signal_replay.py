@@ -53,6 +53,23 @@ def _write_ohlcv_csv(
         }
     )
     frame.to_csv(path, index=False)
+    if "4h" in path.name or path.stem == "h4":
+        h1_path = (
+            path.with_name(path.name.replace("4h", "1h"))
+            if "4h" in path.name
+            else path.with_name("h1.csv")
+        )
+        h1_step = timedelta(hours=1)
+        h1_end = max(close_times) + timedelta(hours=4)
+        h1_times = [
+            h1_end - h1_step * (69 - position) for position in range(70)
+        ]
+        _write_ohlcv_csv(
+            h1_path,
+            h1_times,
+            [100.0 + position for position in range(70)],
+            h1_step,
+        )
 
 
 def _write_qualifying_csvs(tmp_path):
@@ -114,6 +131,10 @@ class TestBtcAlertReplay:
         assert "M5 RSI alignment:" in m5_card
         assert "M5 EMA9(RSI21) - WMA45(RSI21):" in m5_card
         assert "M5 WMA45(RSI21) > 45.00:" in m5_card
+        assert "M5 RSI21 < 60.00:" in m5_card
+        assert "H1 close:" in m5_card
+        assert "H1 EMA21(price):" in m5_card
+        assert "H1 close > EMA21(price):" in m5_card
         assert "H4 close:" in m5_card
         assert "H4 EMA21(price):" in m5_card
         assert "H4 close > EMA21(price):" in m5_card
@@ -133,6 +154,9 @@ class TestBtcAlertReplay:
         assert "Current M15 RSI21:" in m15_card
         assert "Current M15 EMA9(RSI21):" in m15_card
         assert "Current M15 WMA45(RSI21):" in m15_card
+        assert "H1 close:" in m15_card
+        assert "H1 EMA21(price):" in m15_card
+        assert "H1 close > EMA21(price):" in m15_card
         assert "H4 close:" in m15_card
         assert "H4 EMA21(price):" in m15_card
         assert "H4 close > EMA21(price):" in m15_card
@@ -304,13 +328,19 @@ class TestBtcAlertReplay:
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
         m5_frame = signal_replay._load_ohlcv_csv(m5_path, "5m")
         m15_frame = signal_replay._load_ohlcv_csv(m15_path, "15m")
+        h1_frame = signal_replay._load_ohlcv_csv(
+            h4_path.with_name(h4_path.name.replace("4h", "1h")), "1h"
+        )
         h4_frame = signal_replay._load_ohlcv_csv(h4_path, "4h")
+        observed_h1_closes = signal_replay._all_h1_close_times(h1_frame)
         observed_h4_closes = signal_replay._all_h4_close_times(h4_frame)
         cache = ReplayPreparationCache(
             m5_frame,
             m15_frame,
             h4_frame,
+            h1_frame,
             history_ready_at=signal_replay.HISTORICAL_READY_AT,
+            observed_h1_closes=observed_h1_closes,
             observed_h4_closes=observed_h4_closes,
         )
         result = run_btc_alert_replay(
@@ -330,7 +360,6 @@ class TestBtcAlertReplay:
                 open_time=signal.data.trigger_close_time - duration,
                 close_time=signal.data.trigger_close_time,
             )
-            fast = cache.prepare(event, symbol="BTC/USDT")
             preparer = (
                 prepare_m5_cross_input
                 if signal.timeframe == "5m"
@@ -340,24 +369,33 @@ class TestBtcAlertReplay:
             slow = preparer(
                 trigger_frame,
                 h4_frame,
+                h1_df=h1_frame,
                 symbol="BTC/USDT",
                 trigger_open_time=event.open_time,
                 history_ready_at=signal_replay.HISTORICAL_READY_AT,
+                observed_live_h1_closes=observed_h1_closes,
                 observed_live_h4_closes=observed_h4_closes,
             )
+            fast = cache.prepare(event, symbol="BTC/USDT")
             assert fast == slow
 
     def test_candidate_scan_never_drops_an_exact_signal(self, tmp_path):
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
         m5_frame = signal_replay._load_ohlcv_csv(m5_path, "5m")
         m15_frame = signal_replay._load_ohlcv_csv(m15_path, "15m")
+        h1_frame = signal_replay._load_ohlcv_csv(
+            h4_path.with_name(h4_path.name.replace("4h", "1h")), "1h"
+        )
         h4_frame = signal_replay._load_ohlcv_csv(h4_path, "4h")
+        observed_h1_closes = signal_replay._all_h1_close_times(h1_frame)
         observed_h4_closes = signal_replay._all_h4_close_times(h4_frame)
         cache = ReplayPreparationCache(
             m5_frame,
             m15_frame,
             h4_frame,
+            h1_frame,
             history_ready_at=signal_replay.HISTORICAL_READY_AT,
+            observed_h1_closes=observed_h1_closes,
             observed_h4_closes=observed_h4_closes,
         )
         events = signal_replay._events_for_frame(m5_frame, "5m", None, None)
@@ -431,21 +469,22 @@ class TestBtcAlertReplay:
             signal.telegram_card for signal in future.signals
         ]
 
-    def test_m5_cooldown_suppresses_only_intermediate_confirmations(self, tmp_path, monkeypatch):
+    def test_m5_cooldown_suppresses_until_one_hour(self, tmp_path, monkeypatch):
         close_times = [
-            BASE.replace(hour=9, minute=minute) for minute in (0, 5, 10, 15)
+            BASE.replace(hour=9, minute=minute) for minute in (0, 5, 10, 15, 55)
         ]
+        close_times.append(BASE.replace(hour=10))
         m5_path = tmp_path / "m5.csv"
         m15_path = tmp_path / "m15.csv"
         h4_path = tmp_path / "h4.csv"
-        _write_ohlcv_csv(m5_path, close_times, [100.0] * 4, timedelta(minutes=5))
+        _write_ohlcv_csv(m5_path, close_times, [100.0] * len(close_times), timedelta(minutes=5))
         _write_ohlcv_csv(m15_path, [BASE.replace(hour=1)], [100.0], timedelta(minutes=15))
         _write_ohlcv_csv(h4_path, [BASE.replace(hour=0)], [100.0], timedelta(hours=4))
 
         def fake_prepare(event, *_frames):
             decision = BtcRsiCrossDecision(
                 should_alert=True,
-                event_id=f"event-{event.close_time.minute}",
+                event_id=f"event-{(event.close_time - BASE) // timedelta(minutes=1)}",
                 reason="TEST_ALERT",
             )
             return object(), decision, "READY"
@@ -467,14 +506,14 @@ class TestBtcAlertReplay:
             m15_path,
             h4_path,
             start_utc7=datetime(2026, 8, 24, 16, 0),
-            end_utc7=datetime(2026, 8, 24, 16, 20),
+            end_utc7=datetime(2026, 8, 24, 17, 0),
             output_path=tmp_path / "cooldown.md",
             generated_at_utc7=datetime(2026, 8, 28, tzinfo=UTC),
         )
 
         assert len(result.signals) == 2
-        assert result.counts.m5_cooldown_suppressed == 2
-        assert [signal.decision.event_id for signal in result.signals] == ["event-0", "event-15"]
+        assert result.counts.m5_cooldown_suppressed == 4
+        assert [signal.decision.event_id for signal in result.signals] == ["event-540", "event-600"]
 
     def test_duplicate_event_ids_are_suppressed_before_cooldown(self, tmp_path, monkeypatch):
         close_times = [BASE.replace(hour=9, minute=minute) for minute in (0, 5)]

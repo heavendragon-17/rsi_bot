@@ -25,6 +25,7 @@ def _locked_entry(**overrides) -> dict:
         "m15_telegram_topic_id": 1008,
         "symbol": "BTC/USDT",
         "trigger_timeframes": ["5m", "15m"],
+        "confirmation_timeframe": "1h",
         "trend_timeframe": "4h",
         "rsi_period": 21,
         "rsi_ema_period": 9,
@@ -60,6 +61,7 @@ class TestLockedConfigAccepted:
         assert cfg.topic_id_for("15m") == 1008
         assert cfg.symbol == "BTC/USDT"
         assert cfg.trigger_timeframes == ("5m", "15m")
+        assert cfg.confirmation_timeframe == "1h"
         assert cfg.trend_timeframe == "4h"
         assert (cfg.rsi_period, cfg.rsi_ema_period, cfg.rsi_wma_period) == (21, 9, 45)
         assert cfg.context_settle_seconds == 5
@@ -72,6 +74,7 @@ class TestLockedConfigAccepted:
             {
                 ("BTC/USDT", "5m"),
                 ("BTC/USDT", "15m"),
+                ("BTC/USDT", "1h"),
                 ("BTC/USDT", "4h"),
             }
         )
@@ -81,7 +84,7 @@ class TestLockedConfigAccepted:
         assert aggregate.btc_rsi_cross_alert is not None
         assert aggregate.strategies == ()
         assert aggregate.targets == frozenset(
-            {("BTC/USDT", tf) for tf in ("5m", "15m", "4h")}
+            {("BTC/USDT", tf) for tf in ("5m", "15m", "1h", "4h")}
         )
 
 
@@ -96,6 +99,7 @@ class TestLockedValueRejections:
             ({"trigger_timeframes": []}, "requires trigger_timeframes"),
             ({"trigger_timeframes": None}, "requires trigger_timeframes"),
             ({"trend_timeframe": "1h"}, "trend_timeframe must be"),
+            ({"confirmation_timeframe": "4h"}, "confirmation_timeframe must be"),
             ({"rsi_period": 14}, "locked to 21"),
             ({"rsi_ema_period": 12}, "locked to 9"),
             ({"rsi_wma_period": 45.5}, "exact integer"),

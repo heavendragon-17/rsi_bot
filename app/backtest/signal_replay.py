@@ -2,7 +2,7 @@
 
 This module deliberately sits beside the ordinary order-oriented backtest
 engine. ``btc_rsi_cross_alert`` is a multi-timeframe, Telegram-only signal
-component, so replaying it requires M5, M15, and H4 data to be available at
+component, so replaying it requires M5, M15, H1, and H4 data to be available at
 each trigger close but does not require an exchange, portfolio, database, or
 Telegram connection.
 
@@ -20,6 +20,9 @@ from typing import Final
 
 import structlog
 
+from app.backtest.signal_replay_data import (
+    all_h1_close_times as _all_h1_close_times,
+)
 from app.backtest.signal_replay_data import (
     all_h4_close_times as _all_h4_close_times,
 )
@@ -198,10 +201,11 @@ def _counts_for_timeframe(counts: ReplayCounts, timeframe: str) -> ReplayCounts:
     )
 
 
-def _default_paths() -> tuple[Path, Path, Path]:
+def _default_paths() -> tuple[Path, Path, Path, Path]:
     return (
         DEFAULT_DATA_DIR / "BTCUSDT_5m.csv",
         DEFAULT_DATA_DIR / "BTCUSDT_15m.csv",
+        DEFAULT_DATA_DIR / "BTCUSDT_1h.csv",
         DEFAULT_DATA_DIR / "BTCUSDT_4h.csv",
     )
 
@@ -228,6 +232,21 @@ def _default_split_output_paths(
     )
 
 
+def _resolve_h1_path(h4_path: str | Path, h1_path: str | Path | None) -> Path:
+    """Resolve H1 input while keeping legacy callers source-compatible."""
+
+    if h1_path is not None:
+        return Path(h1_path)
+    h4_candidate = Path(h4_path)
+    sibling_name = h4_candidate.name.replace("4h", "1h")
+    if sibling_name == h4_candidate.name and h4_candidate.stem.lower() == "h4":
+        sibling_name = f"h1{h4_candidate.suffix}"
+    sibling = h4_candidate.with_name(sibling_name)
+    if sibling != h4_candidate and sibling.exists():
+        return sibling
+    return DEFAULT_DATA_DIR / "BTCUSDT_1h.csv"
+
+
 def run_btc_alert_replay(
     m5_path: str | Path,
     m15_path: str | Path,
@@ -238,7 +257,9 @@ def run_btc_alert_replay(
     *,
     output_m5_path: str | Path | None = None,
     output_m15_path: str | Path | None = None,
+    h1_path: str | Path | None = None,
     generated_at_utc7: datetime | None = None,
+    write_output: bool = True,
 ) -> ReplayResult:
     """Replay historical BTC M5/M15 alerts and write a Markdown log.
 
@@ -260,15 +281,20 @@ def run_btc_alert_replay(
     if (output_m5_path is None) != (output_m15_path is None):
         raise ValueError("output_m5_path and output_m15_path must be provided together")
 
+    resolved_h1_path = _resolve_h1_path(h4_path, h1_path)
     m5_frame = _load_ohlcv_csv(m5_path, M5_TIMEFRAME)
     m15_frame = _load_ohlcv_csv(m15_path, M15_TIMEFRAME)
+    h1_frame = _load_ohlcv_csv(resolved_h1_path, "1h")
     h4_frame = _load_ohlcv_csv(h4_path, "4h")
+    observed_h1_closes = _all_h1_close_times(h1_frame)
     observed_h4_closes = _all_h4_close_times(h4_frame)
     replay_cache = ReplayPreparationCache(
         m5_frame,
         m15_frame,
         h4_frame,
+        h1_frame,
         history_ready_at=HISTORICAL_READY_AT,
+        observed_h1_closes=observed_h1_closes,
         observed_h4_closes=observed_h4_closes,
     )
     warmup_ready_at = replay_cache.warmup_ready_at_by_timeframe
@@ -398,10 +424,10 @@ def run_btc_alert_replay(
         output_m15_path=split_paths[1],
     )
 
-    if result.output_path is not None:
+    if write_output and result.output_path is not None:
         result.output_path.parent.mkdir(parents=True, exist_ok=True)
         result.output_path.write_text(render_replay_markdown(result), encoding="utf-8")
-    else:
+    elif write_output:
         for path, timeframe in (
             (result.output_m5_path, M5_TIMEFRAME),
             (result.output_m15_path, M15_TIMEFRAME),
@@ -415,7 +441,7 @@ def run_btc_alert_replay(
             )
     logger.info(
         "btc_signal_replay_completed",
-        output_paths=[str(path) for path in result.output_paths],
+        output_paths=[str(path) for path in result.output_paths] if write_output else [],
         confirmed_signals=len(result.signals),
         m5_signals=sum(signal.timeframe == M5_TIMEFRAME for signal in result.signals),
         m15_signals=sum(signal.timeframe == M15_TIMEFRAME for signal in result.signals),

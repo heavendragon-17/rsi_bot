@@ -25,12 +25,11 @@ Objective:
 Add a BTC-only, Telegram-only signal component to the existing SignalRunner.
 On M15, require a fresh EMA9(RSI21) cross above WMA45(RSI21). On M5, do not
 require a fresh cross; require current `RSI21 > EMA9 > WMA45`. Both require the
-exact latest fully closed H4 candle price to be strictly above EMA21(price).
-Do not calculate an RSI bundle for the H4 gate. For M5 only, also require
-EMA9(RSI21) − WMA45(RSI21) > 2,
-and WMA45(RSI21) > 45. Require both M5 close > M5 EMA21(price) and M15 close >
-M15 EMA21(price); equality fails. Do not apply the two M5-only RSI filters to
-M15.
+exact latest fully closed native H1 and H4 candles to close strictly above their
+price EMA21 values. Do not calculate an RSI bundle for the context gates. For
+M5 only, also require RSI21 < 60, EMA9(RSI21) − WMA45(RSI21) >= 2, and
+WMA45(RSI21) > 45. Require both M5 close > M5 EMA21(price) and M15 close >
+M15 EMA21(price); equality fails. Do not apply the M5-only RSI filters to M15.
 
 Non-negotiable boundaries:
 
@@ -46,15 +45,15 @@ Non-negotiable boundaries:
 - Do not repurpose the existing rsi_alert strategy.
 - Do not place orders, create virtual positions, calculate SL/TP, or make PnL
   or profitability claims.
-- Use only fully closed candles and point-in-time H4 context. Missing, stale,
+- Use only fully closed candles and point-in-time H1/H4 context. Missing, stale,
   forming, duplicated, backward, non-finite, or recently gapped data must fail
   closed. An older gap is allowed only when the authoritative specification's
   maximal contiguous suffix remains long enough for exact readiness.
 - Suppress every historical bootstrap alert. The first eligible public signal
   is a subsequent live M5/M15 candle close.
 - Keep M5 and M15 independent and deduplicate by deterministic event identity.
-  Apply the fixed 15-minute cooldown only to emitted M5 alerts, measured by
-  candle close time rather than the process wall clock; M15 has no cooldown.
+  Apply the fixed one-hour cooldown only to emitted M5 alerts, measured by
+   candle close time rather than the process wall clock; M15 has no cooldown.
 - Preserve all existing single-timeframe SignalRunner behavior and tests.
 - Keep /test_signal trade-like fake cards scoped to ordinary strategies; the
   BTC alert must never fabricate a virtual position.
@@ -95,7 +94,7 @@ Required execution sequence:
    validation.
 4. Implement the pure models, indicator preparation, decision evaluator, and
    deterministic event identity.
-5. Implement the queue-backed alert worker, point-in-time slicing, H4 boundary
+5. Implement the queue-backed alert worker, point-in-time slicing, H1/H4 boundary
    settle/retry, bootstrap gate, per-timeframe deduplication, failure budget,
    and bounded shutdown.
 6. Integrate the worker into SignalRunner, including alert-only startup, target

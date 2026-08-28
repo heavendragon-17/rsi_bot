@@ -89,12 +89,12 @@ def _build_signal_startup_message(raw: dict) -> str:
     for s in active:
         if s.get("name") == COMPONENT_NAME:
             # Alert-only component: fixed BTC/USDT scope across M5/M15 with
-            # separate Telegram topics and an H4 filter — never show the
+            # separate Telegram topics and H1/H4 filters — never show the
             # global symbol count/timeframe.
             lines.append(
                 f"  • {COMPONENT_NAME} — M5 topic {s.get('telegram_topic_id')}"
                 f" · M15 topic {s.get('m15_telegram_topic_id')}"
-                f" · BTC/USDT · H4 filter"
+                f" · BTC/USDT · H1/H4 filter"
             )
             continue
         tf = s.get("timeframe", global_tf)

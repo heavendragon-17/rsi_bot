@@ -102,6 +102,7 @@ strategies:
     m15_telegram_topic_id: 1003 # M15 checker topic
     symbol: "BTC/USDT"
     trigger_timeframes: ["5m", "15m"]
+    confirmation_timeframe: "1h" # locked — native Binance H1 EMA21 gate
     trend_timeframe: "4h"
     rsi_period: 21
     rsi_ema_period: 9
