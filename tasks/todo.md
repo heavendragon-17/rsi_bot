@@ -29,6 +29,35 @@ functional run, while the JIT-enabled backtest fixture exceeded the local
 15-minute CI-equivalent boundary. Hosted GitHub execution, branch protection,
 production approvals, and a real VPS rollback still require an external run.
 
+### BTC historical replay — second performance pass
+
+- [x] Benchmark and profile a two-year-scale replay on the current cached implementation.
+- [x] Remove measured per-event overhead without changing point-in-time signal behavior.
+- [x] Add output-parity and performance-regression coverage for the optimized path.
+- [x] Update replay documentation with the final execution model and benchmark result.
+- [x] Run focused tests, full tests, Ruff, compilation, architecture lint, and diff checks.
+
+#### Review
+
+- Real 2024-08-28 through 2026-08-28 data: 280,510 candidate candles and
+  8,047 confirmed signals completed in 3.87 seconds versus 12.43 seconds
+  before this pass (3.2x faster); fixed-generation Markdown was byte-identical.
+- Vectorized homogeneous timestamp parsing, source-position/H4 array mapping,
+  and NumPy WMA candidate scanning remove repeated hot-loop conversion and
+  allocation. The scan is a conservative superset; exact locked WMA arithmetic
+  and the existing M5/M15 evaluator remain authoritative for every possible
+  signal.
+- `tests/test_signal_replay.py`: 14 passed. Related BTC/replay suite: 222 passed.
+  Full repository suite: 1,100 passed, 12 skipped. Changed-file Ruff,
+  `py_compile`, focused mypy, and `git diff --check` pass.
+- Architecture lint reports only the same four pre-existing violations in
+  `app/core/constants.py` and `app/core/logging.py`; no changed replay module
+  violates its file-size or architecture checks. The documented Markdown-link
+  checker is not present on this branch, and this change adds no Markdown links.
+- Intel Arc B580 supports oneAPI, but this replay remains CPU-only; at a
+  sub-four-second two-year runtime, a GPU backend would add more complexity
+  than practical benefit.
+
 ### PR #148 CI remediation
 
 - [x] Inspect the live PR head and all status checks.
@@ -429,3 +458,23 @@ trade-like `/test_signal` command.
 - [x] Update architecture/data-flow documentation and release notes.
 - [ ] Run focused and repository validation.
 - [ ] Merge into `mua-tren-the-nang` and promote tag `v1.2.6` through production.
+
+---
+
+### Historical BTC replay warmup and performance (2026-08-28)
+
+- [x] Reproduce the H4 insufficient-contiguous-history messages at the replay window start.
+- [x] Skip initial M5/M15 events until trigger and H4 indicator history is ready.
+- [x] Precompute indicators once per contiguous segment for long replay performance.
+- [x] Add warmup-skip and cached-preparation parity regression coverage.
+- [x] Update replay and backtest documentation.
+- [x] Run replay-focused tests, full regression tests, Ruff, compilation, and diff checks.
+
+#### Review
+
+The two-year replay previously called the pure preparation path for every
+candle, repeatedly recalculating the full historical prefix. The replay now
+precomputes RSI21, EMA9/WMA45 of RSI21, and price EMA21 once per contiguous
+segment, then reuses the existing M5/M15 decision functions. Initial events
+before the 67-row trigger and 21-row H4 minimums are skipped and counted as
+warmup rather than logged as repeated not-ready failures.

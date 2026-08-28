@@ -104,8 +104,8 @@ runtime contract.
 
 The live alert component has a separate offline replay entry point for manual
 chart review: `app.backtest.signal_replay.run_btc_alert_replay()`. It consumes
-native BTC/USDT `5m`, `15m`, and `4h` OHLCV CSV files, reuses the pure
-timeframe-specific preparation and decision functions, and writes only
+native BTC/USDT `5m`, `15m`, and `4h` OHLCV CSV files, reuses the locked
+indicator rules and timeframe-specific decision functions, and writes only
 confirmed M5/M15 alerts to a human-readable Markdown file.
 
 This replay is not part of the live bootstrap gate and does not send Telegram
@@ -113,9 +113,17 @@ messages, create virtual positions, place orders, calculate PnL, or calculate
 win rate. Historical H4 rows are treated as confirmed context; M5 cooldown
 and deterministic event identity rules remain active. The requested replay
 window is applied to trigger-candle close times in UTC+7 while earlier rows
-remain available for indicator warmup. Each report entry contains the exact
-Telegram card fields plus blank `WIN`, `LOSS`, and `SKIP` fields for manual
-chart classification.
+remain available for indicator warmup. Initial events are skipped until the
+67-row trigger and 21-row H4 contiguous-history minimums are available; the
+report counts these separately. Indicators are precomputed once per
+contiguous segment so long replays do not recalculate the full prefix for
+every candle. CSV timestamp normalization and trigger/H4 position mapping use
+vectorized arrays. An allocation-light candidate scan may admit extra candles
+within a small floating-point safety margin, but it may not reject a valid
+signal. Every admitted candle is rebuilt with the exact locked WMA arithmetic
+and passed through the existing M5/M15 evaluator, which remains the sole final
+signal authority. Each report entry contains the exact Telegram card fields
+plus blank `WIN`, `LOSS`, and `SKIP` fields for manual chart classification.
 
 ## 6. Locked configuration
 

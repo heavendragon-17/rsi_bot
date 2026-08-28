@@ -17,6 +17,16 @@ class SignalReplayInputError(ValueError):
 
 
 @dataclass(frozen=True)
+class ReplayTriggerEvent:
+    """One M5 or M15 candle-close event in chronological replay order."""
+
+    timeframe: str
+    open_time: datetime
+    close_time: datetime
+    position: int | None = None
+
+
+@dataclass(frozen=True)
 class ReplaySignal:
     """One confirmed replay signal and its exact Telegram card snapshot."""
 
@@ -39,6 +49,8 @@ class ReplayCounts:
     m15_rejected: int
     m5_cooldown_suppressed: int
     duplicate_suppressed: int
+    m5_warmup_skipped: int = 0
+    m15_warmup_skipped: int = 0
 
     @property
     def candidates(self) -> int:
@@ -57,6 +69,12 @@ class ReplayCounts:
         """Total prepared candles that did not satisfy their signal rules."""
 
         return self.m5_rejected + self.m15_rejected
+
+    @property
+    def warmup_skipped(self) -> int:
+        """Total initial candles skipped before all indicators were ready."""
+
+        return self.m5_warmup_skipped + self.m15_warmup_skipped
 
 
 @dataclass(frozen=True)

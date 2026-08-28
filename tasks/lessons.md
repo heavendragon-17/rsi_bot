@@ -44,3 +44,15 @@
 - **Correction**: A BTC alert must list the exact indicator and price values used at the signal candle, including the trigger-timeframe price EMA21; the chart candle close timestamp must be easy to locate in UTC+7.
 - **Rule**: Treat every condition in the M5/M15 signal contract as a visible card check, include previous/current RSI EMA/WMA values when proving an M15 cross, and label the UTC+7 candle timestamp as a chart locator.
 - **Files affected**: `app/signal/btc_rsi_cross_alert/formatter.py`, formatter tests, and BTC RSI alert documentation.
+
+## 2026-08-28: Replay warmup must be explicit and linear
+
+- **Correction**: A two-year replay reported every initial trigger as `H4_INSUFFICIENT_CONTIGUOUS_HISTORY` and recalculated indicators for each candle.
+- **Rule**: Derive readiness from the existing contiguous-history minimums, skip only the initial warmup events, and precompute recursive/rolling indicators once per contiguous segment while preserving point-in-time lookups.
+- **Files affected**: `app/backtest/signal_replay*.py`, replay tests, and backtest documentation.
+
+## 2026-08-28: Profile replay allocations before adding hardware backends
+
+- **Correction**: The cached two-year replay still needed another speed pass, and the available Intel Arc B580 raised the question of GPU acceleration.
+- **Rule**: Profile real replay data first; vectorize timestamp and rolling-array work, prefilter a conservative candidate superset, and defer domain/event-card allocation until the exact evaluator is needed. Do not add a GPU backend when the measured CPU path already completes interactively.
+- **Files affected**: `app/backtest/signal_replay*.py`, replay performance tests, and backtest documentation.
