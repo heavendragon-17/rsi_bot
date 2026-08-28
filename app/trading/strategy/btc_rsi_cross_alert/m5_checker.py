@@ -87,7 +87,7 @@ def evaluate_m5_cross(data: BtcRsiCrossInput) -> BtcRsiCrossDecision:
         )
 
     rsi_spread = data.current_trigger.rsi_ema9 - data.current_trigger.rsi_wma45
-    if rsi_spread < M5_MIN_RSI_EMA_WMA_SPREAD:
+    if rsi_spread <= M5_MIN_RSI_EMA_WMA_SPREAD:
         return BtcRsiCrossDecision(
             should_alert=False,
             event_id=event_id,
