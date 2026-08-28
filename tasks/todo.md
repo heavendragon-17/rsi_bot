@@ -294,7 +294,7 @@ unchanged.
 ## Review — Replace M5 Fresh Cross with Bullish Alignment
 
 M5 now evaluates the current closed candle independently using strict
-`RSI21 > EMA9 > WMA45`, followed by the H4 gate, spread>2, WMA45>45, and
+`RSI21 > EMA9 > WMA45`, followed by the H4 gate, spread>=2, WMA45>45, and
 close>EMA21(price). It never checks the previous M5 point. M15 continues to
 delegate to the unchanged shared fresh-cross evaluator. At that revision M5
 had no cooldown; this is superseded by the later fixed 15-minute M5 cooldown.
@@ -317,7 +317,7 @@ The M5 Telegram title is now `BTC RSI BULLISH ALIGNMENT`; M15 retains
 ### Add Mandatory M5-Only BTC RSI Cross Filters (2026-08-27)
 
 - [x] Add trigger price EMA21 to the point-in-time prepared input.
-- [x] Require current M5 EMA9(RSI21) − WMA45(RSI21) > 2.
+- [x] Require current M5 EMA9(RSI21) − WMA45(RSI21) >= 2.
 - [x] Require current M5 WMA45(RSI21) > 45.
 - [x] Require current M5 BTC close > EMA21(price).
 - [x] Keep `m15_checker.py` decision behavior unchanged.

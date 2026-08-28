@@ -122,8 +122,8 @@ class TestM5MandatoryFilters:
         assert decision.should_alert is False
         assert decision.reason == DECISION_M5_RSI_ALIGNMENT_NOT_BULLISH
 
-    @pytest.mark.parametrize("spread", [2.0, 1.99])
-    def test_rsi_ema_wma_spread_must_be_strictly_above_two(self, spread):
+    @pytest.mark.parametrize("spread", [1.99])
+    def test_rsi_ema_wma_spread_must_be_at_least_two(self, spread):
         data = _input("5m")
         current = replace(
             data.current_trigger,
@@ -136,6 +136,21 @@ class TestM5MandatoryFilters:
 
         assert decision.should_alert is False
         assert decision.reason == DECISION_M5_EMA_WMA_SPREAD_NOT_ABOVE_2
+
+    @pytest.mark.parametrize("spread", [2.0, 2.01])
+    def test_rsi_ema_wma_spread_equal_to_two_is_allowed(self, spread):
+        data = _input("5m")
+        current = replace(
+            data.current_trigger,
+            rsi_ema9=data.current_trigger.rsi_wma45 + spread,
+        )
+
+        decision = m5_checker.evaluate_m5_cross(
+            replace(data, current_trigger=current)
+        )
+
+        assert decision.should_alert is True
+        assert decision.reason == DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH
 
     @pytest.mark.parametrize("wma45", [45.0, 44.99])
     def test_rsi_wma45_must_be_strictly_above_45(self, wma45):

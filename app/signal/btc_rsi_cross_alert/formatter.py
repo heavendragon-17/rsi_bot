@@ -96,7 +96,7 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
                 f"{_fmt_indicator(current.rsi_ema9)} > "
                 f"{_fmt_indicator(current.rsi_wma45)} {_status(alignment)}",
                 f"M5 EMA9(RSI21) - WMA45(RSI21): {_fmt_indicator(spread)} "
-                f"> 2.00 {_status(spread > 2.0)}",
+                f">= 2.00 {_status(spread >= 2.0)}",
                 f"M5 WMA45(RSI21) > 45.00: "
                 f"{_fmt_indicator(current.rsi_wma45)} > 45.00 "
                 f"{_status(current.rsi_wma45 > 45.0)}",

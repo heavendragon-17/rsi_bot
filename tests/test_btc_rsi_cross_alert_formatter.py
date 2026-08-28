@@ -74,7 +74,7 @@ class TestLabelsAndValues:
     def test_m5_check_snapshot_is_explicit(self):
         body = _format()
         assert "M5 RSI alignment: 53.42 > 48.76 > 46.55 ✅" in body
-        assert "M5 EMA9(RSI21) - WMA45(RSI21): 2.21 > 2.00 ✅" in body
+        assert "M5 EMA9(RSI21) - WMA45(RSI21): 2.21 >= 2.00 ✅" in body
         assert "M5 WMA45(RSI21) > 45.00: 46.55 > 45.00 ✅" in body
         assert "Duplicate check: NEW event ✅" in body
 

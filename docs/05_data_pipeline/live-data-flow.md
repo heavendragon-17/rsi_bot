@@ -394,7 +394,7 @@ BtcRsiCrossAlertWorker.on_history_complete():
        M15 = fresh EMA9(RSI21)↑WMA45(RSI21) cross
        both require H4 close > EMA21(price)
     5. both triggers require their own close > EMA21(price); M5 additionally
-       requires RSI EMA/WMA spread > 2 and RSI WMA45 > 45
+       requires RSI EMA/WMA spread >= 2 and RSI WMA45 > 45
         |
         v  on ALERT only:
 NotificationService.send_message(html-escaped card, topic_id=btc topic)

@@ -111,7 +111,7 @@ context synchronously. M5 uses current RSI21>EMA9>WMA45 alignment while M15
 uses a fresh EMA9↑WMA45 cross; both require H4 close > EMA21(price). It never creates
 virtual positions or orders and is not registered in `STRATEGY_MAP`.
 Both trigger checkers require their candle close > EMA21(price). M5 additionally
-requires RSI EMA/WMA spread > 2 and RSI WMA45 > 45. A successfully emitted M5
+requires RSI EMA/WMA spread >= 2 and RSI WMA45 > 45. A successfully emitted M5
 alert starts a fixed 15-minute candle-close cooldown; M15 does not apply those
 two RSI filters or the cooldown.
 

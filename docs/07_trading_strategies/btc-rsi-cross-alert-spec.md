@@ -34,7 +34,7 @@ The requested behavior, normalized from the product conversation, is:
    EMA21 of H4 close price.
 6. Do not calculate or evaluate EMA9(RSI21) or WMA45(RSI21) for the H4 gate.
 7. Send the alert to Telegram.
-8. For M5 only, also require an RSI smoothing-line spread greater than 2 and
+8. For M5 only, also require an RSI smoothing-line spread of at least 2 and
    WMA45(RSI21) greater than 45. On both trigger timeframes, require the trigger
    candle close to be strictly above EMA21(price) of that same timeframe.
 9. After an M5 alert is emitted, suppress further qualifying M5 alerts for 15
@@ -293,13 +293,14 @@ M5 emits an alert if and only if `m5_bullish_alignment`, `h4_bullish`, and all
 three additional conditions below are true:
 
 ```text
-current.rsi_ema9 - current.rsi_wma45 > 2
+current.rsi_ema9 - current.rsi_wma45 >= 2
 current.rsi_wma45 > 45
 trigger_close_price > trigger_price_ema21
 ```
 
-All comparisons are strict. Equality with spread `2`, WMA45 value `45`, or
-price EMA21 fails. The spread and WMA45-level conditions do not apply to M15;
+The M5 spread comparison is inclusive: equality with spread `2` passes. The
+WMA45-level and price EMA21 comparisons remain strict; equality with WMA45
+value `45` or price EMA21 fails. The spread and WMA45-level conditions do not apply to M15;
 the trigger close/EMA21(price) condition applies independently to both M5 and
 M15.
 
@@ -335,7 +336,7 @@ Important boundary rules:
 - The H4 close/EMA21(price) comparison is strict; equality fails the H4 gate.
 - H4 RSI21, EMA9(RSI21), and WMA45(RSI21) are not calculated or evaluated by
   this feature.
-- M5 alone requires EMA9(RSI21) − WMA45(RSI21) > 2 and WMA45(RSI21) > 45.
+- M5 alone requires EMA9(RSI21) − WMA45(RSI21) >= 2 and WMA45(RSI21) > 45.
 - Both M5 and M15 require their trigger close > EMA21(price) on the same
   trigger timeframe. Equality fails.
 - M5 requires strict current-candle `RSI21 > EMA9 > WMA45`; M15 does not add
@@ -672,7 +673,7 @@ Current M5 EMA9(RSI21): 50.80
 Current M5 WMA45(RSI21): 48.55
 
 M5 RSI alignment: 53.42 > 50.80 > 48.55 ✅
-M5 EMA9(RSI21) - WMA45(RSI21): 2.25 > 2.00 ✅
+M5 EMA9(RSI21) - WMA45(RSI21): 2.25 >= 2.00 ✅
 M5 WMA45(RSI21) > 45.00: 48.55 > 45.00 ✅
 
 H4 close: 65,012.34
@@ -829,7 +830,7 @@ the condition being tested.
 - each checker rejects a prepared input belonging to the other timeframe;
 - each preparation entry point locks its own timeframe;
 - worker preparation dispatch selects exactly the matching checker;
-- M5 rejects spread equal to or below 2, WMA45 equal to or below 45, and BTC
+- M5 rejects spread below 2, WMA45 equal to or below 45, and BTC
   close equal to or below EMA21(price);
 - M5 alerts when all three additional filters pass;
 - M15 rejects its close equal to or below M15 EMA21(price); and
@@ -957,7 +958,7 @@ The feature is accepted only when all statements are true:
 - The same crossover enqueues no message when H4 close is less than or equal
   to EMA21(price), or when H4 context is missing, forming, stale, unconfirmed
   at a live boundary, or not price-EMA-ready.
-- An M5 alignment enqueues no message when its RSI spread is <= 2, its RSI
+- An M5 alignment enqueues no message when its RSI spread is < 2, its RSI
   WMA45 is <= 45, or its BTC close is <= EMA21(price).
 - M5 and M15 operate independently and can both alert at one timestamp.
 - After a qualifying M5 alert, qualifying closes at +5m and +10m enqueue no
