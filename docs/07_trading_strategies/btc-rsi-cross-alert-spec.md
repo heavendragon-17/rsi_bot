@@ -106,7 +106,9 @@ The live alert component has a separate offline replay entry point for manual
 chart review: `app.backtest.signal_replay.run_btc_alert_replay()`. It consumes
 native BTC/USDT `5m`, `15m`, and `4h` OHLCV CSV files, reuses the locked
 indicator rules and timeframe-specific decision functions, and writes only
-confirmed M5/M15 alerts to a human-readable Markdown file.
+confirmed M5/M15 alerts to separate human-readable Markdown files: one file
+for M5 and one file for M15. A combined Markdown file remains available when
+the API or CLI receives an explicit output path.
 
 This replay is not part of the live bootstrap gate and does not send Telegram
 messages, create virtual positions, place orders, calculate PnL, or calculate
@@ -124,6 +126,8 @@ signal. Every admitted candle is rebuilt with the exact locked WMA arithmetic
 and passed through the existing M5/M15 evaluator, which remains the sole final
 signal authority. Each report entry contains the exact Telegram card fields
 plus blank `WIN`, `LOSS`, and `SKIP` fields for manual chart classification.
+Each split report renumbers its own signals from `0001` and contains no cards
+from the other timeframe.
 
 ## 6. Locked configuration
 

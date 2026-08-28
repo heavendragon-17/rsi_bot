@@ -96,12 +96,12 @@ def _scan_event(
     return replay_cache.scan(event)
 
 
-def _render_signal(signal: ReplaySignal) -> str:
+def _render_signal(signal: ReplaySignal, *, sequence: int | None = None) -> str:
     label = "M5" if signal.timeframe == M5_TIMEFRAME else "M15"
     return "\n".join(
         (
             "=" * 60,
-            f"Signal {signal.sequence:04d} — CONFIRMED — {label}",
+            f"Signal {(sequence or signal.sequence):04d} — CONFIRMED — {label}",
             "",
             "Manual review: UNREVIEWED",
             "Chart result: [ ] WIN   [ ] LOSS   [ ] SKIP",
@@ -119,24 +119,48 @@ def render_replay_markdown(
     result: ReplayResult,
     *,
     generated_at: datetime | None = None,
+    timeframe: str | None = None,
 ) -> str:
-    """Render a replay result as a chart-review Markdown document."""
+    """Render a combined or timeframe-specific chart-review Markdown document."""
+
+    if timeframe not in (None, M5_TIMEFRAME, M15_TIMEFRAME):
+        raise ValueError(f"unsupported replay report timeframe: {timeframe}")
 
     generated = _as_utc(generated_at, "generated_at") or result.generated_at_utc7.astimezone(UTC)
-    counts = result.counts
+    signals = tuple(
+        signal
+        for signal in result.signals
+        if timeframe is None or signal.timeframe == timeframe
+    )
+    counts = (
+        result.counts
+        if timeframe is None
+        else _counts_for_timeframe(result.counts, timeframe)
+    )
     lines = [
         "# BTC RSI Cross Alert — Historical Replay",
         "",
         "Strategy: btc_rsi_cross_alert",
         f"Symbol: {SYMBOL}",
+        *(
+            (f"Timeframe: {timeframe}",)
+            if timeframe is not None
+            else ()
+        ),
         "Data window: "
         f"{_format_window_boundary(result.start_utc7, is_start=True)} → "
         f"{_format_window_boundary(result.end_utc7, is_start=False)}",
         f"Generated: {_format_utc7(generated)}",
         "",
-        f"Confirmed signals: {len(result.signals)}",
-        f"M5 signals: {sum(signal.timeframe == M5_TIMEFRAME for signal in result.signals)}",
-        f"M15 signals: {sum(signal.timeframe == M15_TIMEFRAME for signal in result.signals)}",
+        f"Confirmed signals: {len(signals)}",
+        *(
+            [
+                f"M5 signals: {sum(signal.timeframe == M5_TIMEFRAME for signal in signals)}",
+                f"M15 signals: {sum(signal.timeframe == M15_TIMEFRAME for signal in signals)}",
+            ]
+            if timeframe is None
+            else [f"{timeframe} signals: {len(signals)}"]
+        ),
         "",
         f"Trigger candles evaluated: {counts.candidates}",
         f"Warmup candles skipped: {counts.warmup_skipped}",
@@ -151,9 +175,27 @@ def render_replay_markdown(
         "Review each signal against the historical chart.",
         "",
     ]
-    for signal in result.signals:
-        lines.append(_render_signal(signal))
+    for sequence, signal in enumerate(signals, start=1):
+        lines.append(_render_signal(signal, sequence=sequence))
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _counts_for_timeframe(counts: ReplayCounts, timeframe: str) -> ReplayCounts:
+    """Keep only counters relevant to one split report."""
+
+    is_m5 = timeframe == M5_TIMEFRAME
+    return ReplayCounts(
+        m5_candidates=counts.m5_candidates if is_m5 else 0,
+        m15_candidates=counts.m15_candidates if not is_m5 else 0,
+        m5_not_ready=counts.m5_not_ready if is_m5 else 0,
+        m15_not_ready=counts.m15_not_ready if not is_m5 else 0,
+        m5_rejected=counts.m5_rejected if is_m5 else 0,
+        m15_rejected=counts.m15_rejected if not is_m5 else 0,
+        m5_cooldown_suppressed=counts.m5_cooldown_suppressed if is_m5 else 0,
+        duplicate_suppressed=counts.duplicate_suppressed if is_m5 else 0,
+        m5_warmup_skipped=counts.m5_warmup_skipped if is_m5 else 0,
+        m15_warmup_skipped=counts.m15_warmup_skipped if not is_m5 else 0,
+    )
 
 
 def _default_paths() -> tuple[Path, Path, Path]:
@@ -173,6 +215,19 @@ def _default_output_path(
     return DEFAULT_REPORT_DIR / f"signal_replay_{start_label}_{end_label}.md"
 
 
+def _default_split_output_paths(
+    start_utc: datetime | None,
+    end_utc: datetime | None,
+) -> tuple[Path, Path]:
+    """Return the default M5 and M15 report paths."""
+
+    combined_path = _default_output_path(start_utc, end_utc)
+    return (
+        combined_path.with_name(f"{combined_path.stem}_m5{combined_path.suffix}"),
+        combined_path.with_name(f"{combined_path.stem}_m15{combined_path.suffix}"),
+    )
+
+
 def run_btc_alert_replay(
     m5_path: str | Path,
     m15_path: str | Path,
@@ -181,6 +236,8 @@ def run_btc_alert_replay(
     end_utc7: datetime | None = None,
     output_path: str | Path | None = None,
     *,
+    output_m5_path: str | Path | None = None,
+    output_m15_path: str | Path | None = None,
     generated_at_utc7: datetime | None = None,
 ) -> ReplayResult:
     """Replay historical BTC M5/M15 alerts and write a Markdown log.
@@ -196,6 +253,12 @@ def run_btc_alert_replay(
     end_utc = _as_utc(end_utc7, "end_utc7")
     if start_utc is not None and end_utc is not None and start_utc > end_utc:
         raise ValueError("start_utc7 must be before or equal to end_utc7")
+    if output_path is not None and (
+        output_m5_path is not None or output_m15_path is not None
+    ):
+        raise ValueError("choose output_path or output_m5_path/output_m15_path, not both")
+    if (output_m5_path is None) != (output_m15_path is None):
+        raise ValueError("output_m5_path and output_m15_path must be provided together")
 
     m5_frame = _load_ohlcv_csv(m5_path, M5_TIMEFRAME)
     m15_frame = _load_ohlcv_csv(m15_path, M15_TIMEFRAME)
@@ -306,6 +369,13 @@ def run_btc_alert_replay(
         )
 
     generated_at = _as_utc(generated_at_utc7, "generated_at_utc7") or datetime.now(UTC)
+    split_paths = (
+        (Path(output_m5_path), Path(output_m15_path))
+        if output_m5_path is not None and output_m15_path is not None
+        else _default_split_output_paths(start_utc, end_utc)
+        if output_path is None
+        else (None, None)
+    )
     result = ReplayResult(
         signals=tuple(confirmed),
         counts=ReplayCounts(
@@ -323,18 +393,29 @@ def run_btc_alert_replay(
         start_utc7=start_utc.astimezone(UTC_PLUS_7) if start_utc else None,
         end_utc7=end_utc.astimezone(UTC_PLUS_7) if end_utc else None,
         generated_at_utc7=generated_at.astimezone(UTC_PLUS_7),
-        output_path=(
-            Path(output_path)
-            if output_path is not None
-            else _default_output_path(start_utc, end_utc)
-        ),
+        output_path=Path(output_path) if output_path is not None else None,
+        output_m5_path=split_paths[0],
+        output_m15_path=split_paths[1],
     )
 
-    result.output_path.parent.mkdir(parents=True, exist_ok=True)
-    result.output_path.write_text(render_replay_markdown(result), encoding="utf-8")
+    if result.output_path is not None:
+        result.output_path.parent.mkdir(parents=True, exist_ok=True)
+        result.output_path.write_text(render_replay_markdown(result), encoding="utf-8")
+    else:
+        for path, timeframe in (
+            (result.output_m5_path, M5_TIMEFRAME),
+            (result.output_m15_path, M15_TIMEFRAME),
+        ):
+            if path is None:
+                raise RuntimeError(f"missing output path for {timeframe} report")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                render_replay_markdown(result, timeframe=timeframe),
+                encoding="utf-8",
+            )
     logger.info(
         "btc_signal_replay_completed",
-        output_path=str(result.output_path),
+        output_paths=[str(path) for path in result.output_paths],
         confirmed_signals=len(result.signals),
         m5_signals=sum(signal.timeframe == M5_TIMEFRAME for signal in result.signals),
         m15_signals=sum(signal.timeframe == M15_TIMEFRAME for signal in result.signals),

@@ -56,3 +56,9 @@
 - **Correction**: The cached two-year replay still needed another speed pass, and the available Intel Arc B580 raised the question of GPU acceleration.
 - **Rule**: Profile real replay data first; vectorize timestamp and rolling-array work, prefilter a conservative candidate superset, and defer domain/event-card allocation until the exact evaluator is needed. Do not add a GPU backend when the measured CPU path already completes interactively.
 - **Files affected**: `app/backtest/signal_replay*.py`, replay performance tests, and backtest documentation.
+
+## 2026-08-28: Match replay output to manual review workflow
+
+- **Correction**: A combined report made it harder to review M5 and M15 signals against their respective charts.
+- **Rule**: Make the default replay output one file per timeframe, while retaining an explicit combined-report option for compatibility.
+- **Files affected**: `app/backtest/signal_replay*.py`, replay tests, and backtest documentation.

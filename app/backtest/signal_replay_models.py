@@ -86,4 +86,16 @@ class ReplayResult:
     start_utc7: datetime | None
     end_utc7: datetime | None
     generated_at_utc7: datetime
-    output_path: Path
+    output_path: Path | None = None
+    output_m5_path: Path | None = None
+    output_m15_path: Path | None = None
+
+    @property
+    def output_paths(self) -> tuple[Path, ...]:
+        """Paths written by the replay, in deterministic display order."""
+
+        return tuple(
+            path
+            for path in (self.output_path, self.output_m5_path, self.output_m15_path)
+            if path is not None
+        )
