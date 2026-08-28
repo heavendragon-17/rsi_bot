@@ -80,9 +80,16 @@ python -m app.backtest.signal_replay \
     --m15 app/backtest/data/BTCUSDT_15m.csv \
     --h4 app/backtest/data/BTCUSDT_4h.csv \
     --start 2026-08-01 \
-    --end 2026-08-28 \
-    --output app/backtest/report/signal_replay_2026-08-01_2026-08-28.md
+    --end 2026-08-28
 ```
+
+By default this writes two independent manual-review files:
+`app/backtest/report/signal_replay_2026-08-01_2026-08-28_m5.md` and
+`app/backtest/report/signal_replay_2026-08-01_2026-08-28_m15.md`. Each file
+contains only its own timeframe's confirmed cards, with the full Telegram
+card fields and blank manual-review fields. To choose the paths explicitly,
+use both `--output-m5 <path>` and `--output-m15 <path>`. The legacy combined
+file remains available with `--output <path>`.
 
 The public Python entry point is:
 
@@ -94,8 +101,16 @@ run_btc_alert_replay(
     start_utc7=None,
     end_utc7=None,
     output_path=None,
+    *,
+    output_m5_path=None,
+    output_m15_path=None,
 )
 ```
+
+When `output_path` is omitted, the API writes the default M5 and M15 files.
+When `output_path` is provided, it writes one combined report for backward
+compatibility. Explicit split paths must be supplied together, and cannot be
+combined with `output_path`.
 
 Each input CSV must contain `timestamp, open, high, low, close, volume`.
 Naive source timestamps use the repository's fixed UTC+07:00 storage
@@ -130,7 +145,7 @@ the development machine, the 280,510-candle 2024-08-28 through 2026-08-28
 replay improved from 12.43 seconds to 3.87 seconds; this is a local benchmark,
 not a runtime guarantee.
 
-The Markdown report includes a confirmed-signal count and blank `WIN`,
+Each Markdown report includes a confirmed-signal count and blank `WIN`,
 `LOSS`, and `SKIP` review fields. It does not calculate win rate, PnL, SL/TP,
 orders, or any automated outcome because the alert card has no trade-lifecycle
 levels; outcomes remain manual chart-review decisions.

@@ -92,7 +92,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         default=None,
-        help="Markdown output path (default: app/backtest/report/signal_replay_<start>_<end>.md)",
+        help="Combined Markdown output path; omit for separate default M5/M15 files",
+    )
+    parser.add_argument(
+        "--output-m5",
+        type=Path,
+        default=None,
+        help="M5-only Markdown output path (must be used with --output-m15)",
+    )
+    parser.add_argument(
+        "--output-m15",
+        type=Path,
+        default=None,
+        help="M15-only Markdown output path (must be used with --output-m5)",
     )
     return parser
 
@@ -100,6 +112,12 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    if args.output is not None and (
+        args.output_m5 is not None or args.output_m15 is not None
+    ):
+        parser.error("--output cannot be combined with --output-m5/--output-m15")
+    if (args.output_m5 is None) != (args.output_m15 is None):
+        parser.error("--output-m5 and --output-m15 must be used together")
     try:
         result = run_btc_alert_replay(
             args.m5,
@@ -108,14 +126,17 @@ def main(argv: list[str] | None = None) -> int:
             start_utc7=args.start,
             end_utc7=args.end,
             output_path=args.output,
+            output_m5_path=args.output_m5,
+            output_m15_path=args.output_m15,
         )
     except (FileNotFoundError, SignalReplayInputError, TypeError, ValueError) as exc:
         logger.error("btc_signal_replay_failed", error=str(exc))
         return 2
 
-    logger.info(
-        "btc_signal_replay_log_written",
-        path=str(result.output_path),
-        signal_count=len(result.signals),
-    )
+    for path in result.output_paths:
+        logger.info(
+            "btc_signal_replay_log_written",
+            path=str(path),
+            signal_count=len(result.signals),
+        )
     return 0

@@ -58,6 +58,17 @@ production approvals, and a real VPS rollback still require an external run.
   sub-four-second two-year runtime, a GPU backend would add more complexity
   than practical benefit.
 
+### BTC historical replay — split timeframe reports
+
+- [x] Verify the default replay output produces separate M5 and M15 files.
+- [x] Preserve the explicit combined `--output` compatibility path.
+- [x] Add regression coverage and document the split-file review workflow.
+
+#### Review
+
+- Focused replay suite: 17 passed. Full repository suite: 1,103 passed,
+  12 skipped, 58 warnings. Ruff, mypy, compilation, and diff checks pass.
+
 ### PR #148 CI remediation
 
 - [x] Inspect the live PR head and all status checks.

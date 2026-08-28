@@ -140,6 +140,75 @@ class TestBtcAlertReplay:
         assert "Event:" in m15_card
         assert "M15 close > EMA21(price):" in m15_card
 
+    def test_split_reports_contain_only_their_timeframe_cards(self, tmp_path):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+        m5_output = tmp_path / "replay_m5.md"
+        m15_output = tmp_path / "replay_m15.md"
+
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            start_utc7=datetime(2026, 8, 24, 16, 40),
+            end_utc7=datetime(2026, 8, 24, 17, 10),
+            output_m5_path=m5_output,
+            output_m15_path=m15_output,
+            generated_at_utc7=datetime(2026, 8, 28, 18, 30, tzinfo=UTC),
+        )
+
+        assert result.output_path is None
+        assert result.output_paths == (m5_output, m15_output)
+        m5_body = m5_output.read_text(encoding="utf-8")
+        m15_body = m15_output.read_text(encoding="utf-8")
+
+        assert "Timeframe: 5m" in m5_body
+        assert "5m signals: 1" in m5_body
+        assert "Signal 0001 — CONFIRMED — M5" in m5_body
+        assert "🟢 BTC RSI BULLISH ALIGNMENT" in m5_body
+        assert "BTC RSI BULLISH CROSS" not in m5_body
+        assert "M15 close > EMA21(price):" not in m5_body
+
+        assert "Timeframe: 15m" in m15_body
+        assert "15m signals: 1" in m15_body
+        assert "Signal 0001 — CONFIRMED — M15" in m15_body
+        assert "🟢 BTC RSI BULLISH CROSS" in m15_body
+        assert "BTC RSI BULLISH ALIGNMENT" not in m15_body
+        assert "M5 close > EMA21(price):" not in m15_body
+
+        for signal in result.signals:
+            body = m5_body if signal.timeframe == "5m" else m15_body
+            assert signal.telegram_card in body
+
+    def test_split_report_paths_must_be_provided_together(self, tmp_path):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+
+        with pytest.raises(ValueError, match="must be provided together"):
+            run_btc_alert_replay(
+                m5_path,
+                m15_path,
+                h4_path,
+                output_m5_path=tmp_path / "replay_m5.md",
+            )
+
+    def test_default_output_is_split_by_timeframe(self, tmp_path, monkeypatch):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+        monkeypatch.setattr(signal_replay, "DEFAULT_REPORT_DIR", tmp_path / "report")
+
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            start_utc7=datetime(2026, 8, 24, 16, 40),
+            end_utc7=datetime(2026, 8, 24, 17, 10),
+            generated_at_utc7=datetime(2026, 8, 28, 18, 30, tzinfo=UTC),
+        )
+
+        assert result.output_paths == (
+            tmp_path / "report" / "signal_replay_2026-08-24_2026-08-24_m5.md",
+            tmp_path / "report" / "signal_replay_2026-08-24_2026-08-24_m15.md",
+        )
+        assert all(path.exists() for path in result.output_paths)
+
     def test_naive_csv_open_is_shifted_once_and_rendered_in_utc_plus_7(self, tmp_path):
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
         output_path = tmp_path / "replay.md"
