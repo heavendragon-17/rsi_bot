@@ -4,6 +4,31 @@
 
 ## Current Tasks
 
+### Repository documentation, CI/CD, and infrastructure review (2026-08-28)
+
+- [x] Read repository workflow, documentation routing, onboarding, and prior lessons.
+- [x] Inventory every documentation artifact and validate links, commands, and ownership.
+- [x] Audit every CI/CD workflow and local enforcement configuration.
+- [x] Implement focused documentation cleanup and consistency improvements.
+- [x] Implement focused CI/CD reliability, security, and maintainability improvements.
+- [x] Run documentation, workflow, lint, test, and diff validation.
+- [x] Record a prioritized infrastructure improvement roadmap and final review evidence.
+
+#### Review
+
+Completed with a repository-wide documentation, CI/CD, and infrastructure review.
+The active docs are routed through `docs/INDEX.md`; obsolete root specifications
+are archived; generated `ui/build/` output is ignored and removed from the
+working tree; CI uses least-privilege permissions, immutable action pins,
+exact-ref checks, dependency auditing, coverage, documentation-link checks,
+and frontend build validation; pinned pip-audit reports no known runtime
+vulnerabilities; deployment scripts fail closed and verify
+candidate identity plus rollback health. Local checks are green, including
+1,089 tests and 71.74% coverage with Numba JIT disabled for the Windows
+functional run, while the JIT-enabled backtest fixture exceeded the local
+15-minute CI-equivalent boundary. Hosted GitHub execution, branch protection,
+production approvals, and a real VPS rollback still require an external run.
+
 ### BTC historical replay — split timeframe reports
 
 - [x] Verify the default replay output produces separate M5 and M15 files.
