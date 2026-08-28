@@ -14,8 +14,8 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     H4_DURATION,
     TRIGGER_DURATION_BY_TIMEFRAME,
     candle_close_time,
-    expected_h4_close_for,
     expected_h1_close_for,
+    expected_h4_close_for,
     normalize_candle_open,
     prepare_btc_rsi_cross_input,
 )

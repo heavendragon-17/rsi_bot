@@ -41,6 +41,9 @@ from app.backtest.signal_replay_models import (
 from app.backtest.signal_replay_models import (
     SignalReplayInputError as SignalReplayInputError,
 )
+from app.backtest.signal_replay_paths import (
+    default_split_output_paths as _default_split_output_paths,
+)
 from app.backtest.signal_replay_preparation import ReplayPreparationCache
 from app.signal.btc_rsi_cross_alert.formatter import format_btc_rsi_cross_alert
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
@@ -210,28 +213,6 @@ def _default_paths() -> tuple[Path, Path, Path, Path]:
     )
 
 
-def _default_output_path(
-    start_utc: datetime | None,
-    end_utc: datetime | None,
-) -> Path:
-    start_label = _as_utc7(start_utc).strftime("%Y-%m-%d") if start_utc else "earliest"
-    end_label = _as_utc7(end_utc).strftime("%Y-%m-%d") if end_utc else "latest"
-    return DEFAULT_REPORT_DIR / f"signal_replay_{start_label}_{end_label}.md"
-
-
-def _default_split_output_paths(
-    start_utc: datetime | None,
-    end_utc: datetime | None,
-) -> tuple[Path, Path]:
-    """Return the default M5 and M15 report paths."""
-
-    combined_path = _default_output_path(start_utc, end_utc)
-    return (
-        combined_path.with_name(f"{combined_path.stem}_m5{combined_path.suffix}"),
-        combined_path.with_name(f"{combined_path.stem}_m15{combined_path.suffix}"),
-    )
-
-
 def _resolve_h1_path(h4_path: str | Path, h1_path: str | Path | None) -> Path:
     """Resolve H1 input while keeping legacy callers source-compatible."""
 
@@ -398,7 +379,7 @@ def run_btc_alert_replay(
     split_paths = (
         (Path(output_m5_path), Path(output_m15_path))
         if output_m5_path is not None and output_m15_path is not None
-        else _default_split_output_paths(start_utc, end_utc)
+        else _default_split_output_paths(start_utc, end_utc, DEFAULT_REPORT_DIR)
         if output_path is None
         else (None, None)
     )

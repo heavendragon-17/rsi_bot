@@ -20,13 +20,13 @@ Indicator primitives are imported unchanged from Core V2.1
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Final, cast
 
 import pandas as pd
 
+from app.trading.strategy.btc_rsi_cross_alert._price_context import prepare_price_context
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
     DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
@@ -241,79 +241,6 @@ def _not_ready(reason: str) -> BtcRsiCrossPreparation:
     return BtcRsiCrossPreparation(input=None, reason=reason)
 
 
-@dataclass(frozen=True)
-class _PriceContext:
-    close_price: Decimal
-    price_ema21: Decimal
-    close_time: datetime
-
-
-def _prepare_price_context(
-    frame: pd.DataFrame,
-    *,
-    duration: timedelta,
-    expected_close: datetime,
-    as_of: datetime,
-    history_ready_at: datetime,
-    observed_live_closes: frozenset[datetime],
-    minimum_rows: int,
-    duplicate_reason: str,
-    expected_missing_reason: str,
-    live_unconfirmed_reason: str,
-    insufficient_reason: str,
-    non_finite_reason: str,
-) -> _PriceContext | str:
-    """Prepare one native price-EMA context frame at a trigger close."""
-
-    opens, closed_flags, closes = _frame_columns(frame)
-    all_times = [o + duration for o in opens]
-    if not _strictly_increasing(all_times):
-        return duplicate_reason
-
-    kept = [
-        pos
-        for pos in range(len(all_times))
-        if closed_flags[pos] and all_times[pos] <= as_of
-    ]
-    kept_times = [all_times[pos] for pos in kept]
-    if not kept_times or kept_times[-1] != expected_close:
-        return expected_missing_reason
-
-    selected_offset = next(
-        (offset for offset, close_time in enumerate(kept_times) if close_time == expected_close),
-        None,
-    )
-    if selected_offset is None:
-        return expected_missing_reason
-    if expected_close > history_ready_at and expected_close not in observed_live_closes:
-        return live_unconfirmed_reason
-
-    suffix_start = _suffix_start(kept_times, duration)
-    if len(kept_times) - suffix_start < minimum_rows:
-        return insufficient_reason
-
-    suffix_closes = _finite_closes(
-        [closes[pos] for pos in kept[suffix_start:]]
-    )
-    if suffix_closes is None:
-        return non_finite_reason
-
-    price_ema21_series = ema(
-        pd.Series(tuple(suffix_closes), dtype="float64"),
-        PRICE_EMA_PERIOD,
-    )
-    price_ema21_value = float(price_ema21_series.iloc[-1])
-    if not math.isfinite(price_ema21_value):
-        return non_finite_reason
-
-    close_dec_series = list(frame["close_dec"]) if "close_dec" in frame.columns else None
-    return _PriceContext(
-        close_price=_close_price_decimal(closes, close_dec_series, kept[selected_offset]),
-        price_ema21=Decimal(str(price_ema21_value)),
-        close_time=expected_close,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Preparation (spec §8 window locking + §7 selection rules)
 # ---------------------------------------------------------------------------
@@ -406,7 +333,7 @@ def prepare_btc_rsi_cross_input(
     trigger_price_ema21 = Decimal(str(price_ema21_value))
 
     # ---------------- native H4 and H1 price contexts ----------------
-    h4_context = _prepare_price_context(
+    h4_context = prepare_price_context(
         h4_df,
         duration=H4_DURATION,
         expected_close=expected_h4_close_for(trigger_close),
@@ -419,11 +346,16 @@ def prepare_btc_rsi_cross_input(
         live_unconfirmed_reason=H4_LIVE_CLOSE_UNCONFIRMED,
         insufficient_reason=H4_INSUFFICIENT_CONTIGUOUS_HISTORY,
         non_finite_reason=H4_NON_FINITE_DATA,
+        frame_columns=_frame_columns,
+        strictly_increasing=_strictly_increasing,
+        suffix_start=_suffix_start,
+        finite_closes=_finite_closes,
+        close_price_decimal=_close_price_decimal,
     )
     if isinstance(h4_context, str):
         return _not_ready(h4_context)
 
-    h1_context = _prepare_price_context(
+    h1_context = prepare_price_context(
         h1_df,
         duration=H1_DURATION,
         expected_close=expected_h1_close_for(trigger_close),
@@ -436,6 +368,11 @@ def prepare_btc_rsi_cross_input(
         live_unconfirmed_reason=H1_LIVE_CLOSE_UNCONFIRMED,
         insufficient_reason=H1_INSUFFICIENT_CONTIGUOUS_HISTORY,
         non_finite_reason=H1_NON_FINITE_DATA,
+        frame_columns=_frame_columns,
+        strictly_increasing=_strictly_increasing,
+        suffix_start=_suffix_start,
+        finite_closes=_finite_closes,
+        close_price_decimal=_close_price_decimal,
     )
     if isinstance(h1_context, str):
         return _not_ready(h1_context)

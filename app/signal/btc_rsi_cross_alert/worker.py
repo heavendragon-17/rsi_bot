@@ -62,16 +62,14 @@ from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
     DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
-    DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
+    DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
     M5_ALERT_COOLDOWN,
     PREPARATION_READY,
     build_event_id,
 )
 
 logger = structlog.get_logger()
-
-UTC = UTC
 
 _MAX_OBSERVED_CONTEXT_CLOSES = 512
 
@@ -422,9 +420,6 @@ class BtcRsiCrossAlertWorker:
             topic=topic_id,
         )
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
     def _prepare(
         self,
         timeframe: str,

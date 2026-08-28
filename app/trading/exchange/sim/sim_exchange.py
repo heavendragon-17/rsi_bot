@@ -329,4 +329,6 @@ class SimExchange(IExchange):
             "timestamp": int(time.time() * 1000),
         }
 
-    _po_to_dict = _order_to_dict
+    @staticmethod
+    def _po_to_dict(po: PendingOrder) -> dict[str, Any]:
+        return SimExchange._order_to_dict(po)
