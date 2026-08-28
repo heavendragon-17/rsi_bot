@@ -14,7 +14,6 @@ assigns a win/loss outcome or calculates a performance metric.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Final
@@ -27,8 +26,10 @@ from app.backtest.signal_replay_models import (
     ReplayCounts,
     ReplayResult,
     ReplaySignal,
+    ReplayTriggerEvent,
     SignalReplayInputError,
 )
+from app.backtest.signal_replay_preparation import ReplayPreparationCache
 from app.signal.btc_rsi_cross_alert.formatter import format_btc_rsi_cross_alert
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     H4_DURATION,
@@ -38,13 +39,9 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
 )
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import (
     M5_TIMEFRAME,
-    evaluate_m5_cross,
-    prepare_m5_cross_input,
 )
 from app.trading.strategy.btc_rsi_cross_alert.m15_checker import (
     M15_TIMEFRAME,
-    evaluate_m15_cross,
-    prepare_m15_cross_input,
 )
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     M5_ALERT_COOLDOWN,
@@ -68,13 +65,6 @@ REQUIRED_COLUMNS: Final[tuple[str, ...]] = (
     "volume",
 )
 TIMEFRAME_ORDER: Final[dict[str, int]] = {M5_TIMEFRAME: 0, M15_TIMEFRAME: 1}
-
-
-@dataclass(frozen=True)
-class _TriggerEvent:
-    timeframe: str
-    open_time: datetime
-    close_time: datetime
 
 
 def _as_utc(value: datetime | None, field_name: str) -> datetime | None:
@@ -169,9 +159,9 @@ def _events_for_frame(
     timeframe: str,
     start_utc: datetime | None,
     end_utc: datetime | None,
-) -> list[_TriggerEvent]:
+) -> list[ReplayTriggerEvent]:
     duration = TRIGGER_DURATION_BY_TIMEFRAME[timeframe]
-    events: list[_TriggerEvent] = []
+    events: list[ReplayTriggerEvent] = []
     for raw_open in frame.index:
         open_time = normalize_candle_open(raw_open)
         close_time = open_time + duration
@@ -180,7 +170,7 @@ def _events_for_frame(
         if end_utc is not None and close_time > end_utc:
             continue
         events.append(
-            _TriggerEvent(
+            ReplayTriggerEvent(
                 timeframe=timeframe,
                 open_time=open_time,
                 close_time=close_time,
@@ -196,37 +186,14 @@ def _all_h4_close_times(frame: pd.DataFrame) -> frozenset[datetime]:
 
 
 def _prepare_and_evaluate(
-    event: _TriggerEvent,
-    m5_frame: pd.DataFrame,
-    m15_frame: pd.DataFrame,
-    h4_frame: pd.DataFrame,
-    observed_h4_closes: frozenset[datetime],
+    event: ReplayTriggerEvent,
+    _m5_frame: pd.DataFrame,
+    _m15_frame: pd.DataFrame,
+    _h4_frame: pd.DataFrame,
+    _observed_h4_closes: frozenset[datetime],
+    replay_cache: ReplayPreparationCache,
 ) -> tuple[BtcRsiCrossInput | None, BtcRsiCrossDecision | None, str]:
-    trigger_frame = m5_frame if event.timeframe == M5_TIMEFRAME else m15_frame
-    if event.timeframe == M5_TIMEFRAME:
-        preparation = prepare_m5_cross_input(
-            trigger_frame,
-            h4_frame,
-            symbol=SYMBOL,
-            trigger_open_time=event.open_time,
-            history_ready_at=HISTORICAL_READY_AT,
-            observed_live_h4_closes=observed_h4_closes,
-        )
-        if preparation.input is None:
-            return None, None, preparation.reason
-        return preparation.input, evaluate_m5_cross(preparation.input), preparation.reason
-
-    preparation = prepare_m15_cross_input(
-        trigger_frame,
-        h4_frame,
-        symbol=SYMBOL,
-        trigger_open_time=event.open_time,
-        history_ready_at=HISTORICAL_READY_AT,
-        observed_live_h4_closes=observed_h4_closes,
-    )
-    if preparation.input is None:
-        return None, None, preparation.reason
-    return preparation.input, evaluate_m15_cross(preparation.input), preparation.reason
+    return replay_cache.prepare_and_evaluate(event, symbol=SYMBOL)
 
 
 def _render_signal(signal: ReplaySignal) -> str:
@@ -272,6 +239,9 @@ def render_replay_markdown(
         f"M15 signals: {sum(signal.timeframe == M15_TIMEFRAME for signal in result.signals)}",
         "",
         f"Trigger candles evaluated: {counts.candidates}",
+        f"Warmup candles skipped: {counts.warmup_skipped}",
+        f"M5 warmup skipped: {counts.m5_warmup_skipped}",
+        f"M15 warmup skipped: {counts.m15_warmup_skipped}",
         f"Not ready: {counts.not_ready}",
         f"Rejected by signal rules: {counts.rejected}",
         f"M5 cooldown suppressed: {counts.m5_cooldown_suppressed}",
@@ -331,6 +301,14 @@ def run_btc_alert_replay(
     m15_frame = _load_ohlcv_csv(m15_path, M15_TIMEFRAME)
     h4_frame = _load_ohlcv_csv(h4_path, "4h")
     observed_h4_closes = _all_h4_close_times(h4_frame)
+    replay_cache = ReplayPreparationCache(
+        m5_frame,
+        m15_frame,
+        h4_frame,
+        history_ready_at=HISTORICAL_READY_AT,
+        observed_h4_closes=observed_h4_closes,
+    )
+    warmup_ready_at = replay_cache.warmup_ready_at_by_timeframe
 
     events = _events_for_frame(m5_frame, M5_TIMEFRAME, start_utc, end_utc)
     events.extend(_events_for_frame(m15_frame, M15_TIMEFRAME, start_utc, end_utc))
@@ -344,17 +322,28 @@ def run_btc_alert_replay(
     m15_rejected = 0
     m5_cooldown_suppressed = 0
     duplicate_suppressed = 0
+    m5_warmup_skipped = 0
+    m15_warmup_skipped = 0
     emitted_event_ids: set[str] = set()
     last_m5_alert_close: datetime | None = None
     confirmed: list[ReplaySignal] = []
 
     for event in events:
+        event_warmup_ready_at = warmup_ready_at[event.timeframe]
+        if event_warmup_ready_at is not None and event.close_time < event_warmup_ready_at:
+            if event.timeframe == M5_TIMEFRAME:
+                m5_warmup_skipped += 1
+            else:
+                m15_warmup_skipped += 1
+            continue
+
         data, decision, preparation_reason = _prepare_and_evaluate(
             event,
             m5_frame,
             m15_frame,
             h4_frame,
             observed_h4_closes,
+            replay_cache,
         )
         if data is None or decision is None:
             if event.timeframe == M5_TIMEFRAME:
@@ -413,6 +402,8 @@ def run_btc_alert_replay(
             m15_rejected=m15_rejected,
             m5_cooldown_suppressed=m5_cooldown_suppressed,
             duplicate_suppressed=duplicate_suppressed,
+            m5_warmup_skipped=m5_warmup_skipped,
+            m15_warmup_skipped=m15_warmup_skipped,
         ),
         start_utc7=start_utc.astimezone(UTC_PLUS_7) if start_utc else None,
         end_utc7=end_utc.astimezone(UTC_PLUS_7) if end_utc else None,

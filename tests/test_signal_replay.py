@@ -20,6 +20,11 @@ from app.backtest.signal_replay import (
     render_replay_markdown,
     run_btc_alert_replay,
 )
+from app.backtest.signal_replay_models import ReplayTriggerEvent
+from app.backtest.signal_replay_preparation import ReplayPreparationCache
+from app.trading.strategy.btc_rsi_cross_alert.evaluator import TRIGGER_DURATION_BY_TIMEFRAME
+from app.trading.strategy.btc_rsi_cross_alert.m5_checker import prepare_m5_cross_input
+from app.trading.strategy.btc_rsi_cross_alert.m15_checker import prepare_m15_cross_input
 from app.trading.strategy.btc_rsi_cross_alert.models import BtcRsiCrossDecision
 
 STORAGE_SHIFT = timedelta(hours=7)
@@ -168,6 +173,102 @@ class TestBtcAlertReplay:
         assert result.counts.m15_candidates == 1
         assert result.counts.m15_rejected == 1
         assert result.counts.m5_not_ready == 0
+
+    def test_initial_warmup_events_are_skipped_from_evaluation(self, tmp_path, monkeypatch):
+        close_times = [BASE.replace(hour=9, minute=minute) for minute in (0, 5)]
+        m5_path = tmp_path / "m5.csv"
+        m15_path = tmp_path / "m15.csv"
+        h4_path = tmp_path / "h4.csv"
+        _write_ohlcv_csv(m5_path, close_times, [100.0] * 2, timedelta(minutes=5))
+        _write_ohlcv_csv(m15_path, [BASE.replace(hour=9, minute=5)], [100.0], timedelta(minutes=15))
+        _write_ohlcv_csv(h4_path, [BASE.replace(hour=0)], [100.0], timedelta(hours=4))
+
+        warmup_ready_at = datetime(2026, 8, 24, 9, 5, tzinfo=UTC)
+        monkeypatch.setattr(
+            ReplayPreparationCache,
+            "warmup_ready_at_by_timeframe",
+            property(lambda _cache: {"5m": warmup_ready_at, "15m": warmup_ready_at}),
+        )
+
+        def fake_prepare(event, *_frames):
+            decision = BtcRsiCrossDecision(
+                should_alert=True,
+                event_id=f"{event.timeframe}-{event.close_time.isoformat()}",
+                reason="TEST_ALERT",
+            )
+            return object(), decision, "READY"
+
+        monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fake_prepare)
+        monkeypatch.setattr(
+            signal_replay,
+            "format_btc_rsi_cross_alert",
+            lambda _data, event_id: f"Event: {event_id}",
+        )
+
+        output_path = tmp_path / "warmup-skip.md"
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            start_utc7=datetime(2026, 8, 24, 16, 0),
+            end_utc7=datetime(2026, 8, 24, 16, 10),
+            output_path=output_path,
+            generated_at_utc7=datetime(2026, 8, 28, tzinfo=UTC),
+        )
+
+        assert len(result.signals) == 2
+        assert result.counts.warmup_skipped == 1
+        assert result.counts.m5_warmup_skipped == 1
+        assert result.counts.m15_warmup_skipped == 0
+        assert result.counts.not_ready == 0
+        assert "Warmup candles skipped: 1" in output_path.read_text(encoding="utf-8")
+
+    def test_precomputed_preparation_matches_existing_checker(self, tmp_path):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+        m5_frame = signal_replay._load_ohlcv_csv(m5_path, "5m")
+        m15_frame = signal_replay._load_ohlcv_csv(m15_path, "15m")
+        h4_frame = signal_replay._load_ohlcv_csv(h4_path, "4h")
+        observed_h4_closes = signal_replay._all_h4_close_times(h4_frame)
+        cache = ReplayPreparationCache(
+            m5_frame,
+            m15_frame,
+            h4_frame,
+            history_ready_at=signal_replay.HISTORICAL_READY_AT,
+            observed_h4_closes=observed_h4_closes,
+        )
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            start_utc7=datetime(2026, 8, 24, 16, 40),
+            end_utc7=datetime(2026, 8, 24, 17, 10),
+            output_path=tmp_path / "parity.md",
+            generated_at_utc7=datetime(2026, 8, 28, tzinfo=UTC),
+        )
+
+        for signal in result.signals:
+            duration = TRIGGER_DURATION_BY_TIMEFRAME[signal.timeframe]
+            event = ReplayTriggerEvent(
+                timeframe=signal.timeframe,
+                open_time=signal.data.trigger_close_time - duration,
+                close_time=signal.data.trigger_close_time,
+            )
+            fast = cache.prepare(event, symbol="BTC/USDT")
+            preparer = (
+                prepare_m5_cross_input
+                if signal.timeframe == "5m"
+                else prepare_m15_cross_input
+            )
+            trigger_frame = m5_frame if signal.timeframe == "5m" else m15_frame
+            slow = preparer(
+                trigger_frame,
+                h4_frame,
+                symbol="BTC/USDT",
+                trigger_open_time=event.open_time,
+                history_ready_at=signal_replay.HISTORICAL_READY_AT,
+                observed_live_h4_closes=observed_h4_closes,
+            )
+            assert fast == slow
 
     def test_future_rows_do_not_change_an_earlier_replay(self, tmp_path):
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)

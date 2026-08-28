@@ -13,6 +13,7 @@ app/backtest/
 ├── signal_replay.py       # Offline BTC alert replay and Markdown audit log
 ├── signal_replay_cli.py   # Replay command-line argument parsing
 ├── signal_replay_models.py # Typed replay result models
+├── signal_replay_preparation.py # Cached point-in-time indicator preparation
 ├── engine/          # Core engines and event sources
 │   ├── backtest_engine.py      # Single-symbol BacktestEngine
 │   ├── portfolio_engine.py     # Multi-symbol PortfolioEngine
@@ -100,8 +101,13 @@ convention and are converted to UTC exactly once before evaluation. CLI dates
 and naive Python datetimes are interpreted as UTC+7; date-only `--end` values
 include the entire local day.
 
-The runner keeps the full frames available for indicator warmup, evaluates M5
-and M15 trigger candles chronologically, selects only point-in-time H4 data,
+The runner keeps the full frames available for indicator warmup, skips initial
+M5/M15 candles until both the trigger and H4 contiguous-history minimums are
+available, and reports those skipped warmup candles separately from later
+not-ready data. It precomputes the locked indicators once per contiguous
+segment, then evaluates M5 and M15 trigger candles chronologically with
+constant-time point-in-time lookups. This avoids recalculating the complete
+historical prefix for every candle. It selects only point-in-time H4 data,
 applies the live 15-minute M5 cooldown and event deduplication, and writes
 only confirmed alerts. Every written alert reuses the exact Telegram card
 formatter, including its indicator snapshot and UTC+7 candle-close time.

@@ -404,3 +404,23 @@ trade-like `/test_signal` command.
 - [x] Update architecture/data-flow documentation and release notes.
 - [ ] Run focused and repository validation.
 - [ ] Merge into `mua-tren-the-nang` and promote tag `v1.2.6` through production.
+
+---
+
+### Historical BTC replay warmup and performance (2026-08-28)
+
+- [x] Reproduce the H4 insufficient-contiguous-history messages at the replay window start.
+- [x] Skip initial M5/M15 events until trigger and H4 indicator history is ready.
+- [x] Precompute indicators once per contiguous segment for long replay performance.
+- [x] Add warmup-skip and cached-preparation parity regression coverage.
+- [x] Update replay and backtest documentation.
+- [x] Run replay-focused tests, full regression tests, Ruff, compilation, and diff checks.
+
+#### Review
+
+The two-year replay previously called the pure preparation path for every
+candle, repeatedly recalculating the full historical prefix. The replay now
+precomputes RSI21, EMA9/WMA45 of RSI21, and price EMA21 once per contiguous
+segment, then reuses the existing M5/M15 decision functions. Initial events
+before the 67-row trigger and 21-row H4 minimums are skipped and counted as
+warmup rather than logged as repeated not-ready failures.
