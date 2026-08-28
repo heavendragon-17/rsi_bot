@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 
 from app.backtest.signal_replay_indicators import (
+    RSI_WMA_PERIOD as _INDICATOR_RSI_WMA_PERIOD,
+)
+from app.backtest.signal_replay_indicators import (
     _build_context,
     _bundle_point,
     _IndicatorContext,
@@ -58,6 +61,7 @@ from app.trading.strategy.btc_rsi_cross_alert.models import (
 )
 
 PREFILTER_TOLERANCE = 1e-10
+RSI_WMA_PERIOD = _INDICATOR_RSI_WMA_PERIOD
 
 
 def _fast_wma(values: np.ndarray, period: int) -> np.ndarray:

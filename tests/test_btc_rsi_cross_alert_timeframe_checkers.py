@@ -264,6 +264,7 @@ def test_prepare_entry_point_locks_its_timeframe(
     result = getattr(module, prepare_name)(
         pd.DataFrame(),
         pd.DataFrame(),
+        h1_df=pd.DataFrame(),
         symbol="BTC/USDT",
         trigger_open_time=TRIGGER_OPEN,
         history_ready_at=HISTORY_READY_AT,

@@ -121,7 +121,7 @@ class TestBtcAlertReplay:
         m5_card = next(signal.telegram_card for signal in result.signals if signal.timeframe == "5m")
         assert "🟢 BTC RSI BULLISH ALIGNMENT" in m5_card
         assert "Timeframe: 5m" in m5_card
-        assert "Candle close: 2026-08-24 16:40:00 UTC+7" in m5_card
+        assert "Candle close: 2026-08-24 16:45:00 UTC+7" in m5_card
         assert "BTC close:" in m5_card
         assert "M5 EMA21(price):" in m5_card
         assert "M5 close > EMA21(price):" in m5_card
@@ -247,10 +247,10 @@ class TestBtcAlertReplay:
         )
 
         assert result.signals[0].data.trigger_close_time == datetime(
-            2026, 8, 24, 9, 40, tzinfo=UTC
+            2026, 8, 24, 9, 45, tzinfo=UTC
         )
         assert "UTC+7" in output_path.read_text(encoding="utf-8")
-        assert "2026-08-24 16:40:00 UTC+7" in output_path.read_text(encoding="utf-8")
+        assert "2026-08-24 16:45:00 UTC+7" in output_path.read_text(encoding="utf-8")
 
     def test_indicator_warmup_is_kept_before_requested_start(self, tmp_path):
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)

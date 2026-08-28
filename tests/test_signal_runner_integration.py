@@ -301,6 +301,7 @@ def _btc_raw_config() -> dict:
             "m15_telegram_topic_id": 1008,
             "symbol": "BTC/USDT",
             "trigger_timeframes": ["5m", "15m"],
+            "confirmation_timeframe": "1h",
             "trend_timeframe": "4h",
             "rsi_period": 21,
             "rsi_ema_period": 9,
@@ -351,6 +352,17 @@ class TestBtcAlertEndToEnd:
                 "BTC/USDT",
                 "4h",
                 make_candle(h4_times[position], timedelta(hours=4), h4_closes[position]),
+            )
+        h1_end = BASE.replace(hour=12)
+        h1_times = [
+            h1_end - timedelta(hours=1) * (70 - 1 - position)
+            for position in range(70)
+        ]
+        for position in range(len(h1_times)):
+            mux.on_kline_event(
+                "BTC/USDT",
+                "1h",
+                make_candle(h1_times[position], timedelta(hours=1), 100.0 + position),
             )
 
         # The stream manager fires the captured hook exactly once after all

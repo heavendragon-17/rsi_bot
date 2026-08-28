@@ -265,7 +265,7 @@ class TestClosedCandleEvaluation:
             mux.on_kline_event(
                 SYMBOL,
                 "5m",
-                _candle(suppressed_close, step, closes[-1] + minutes),
+                _candle(suppressed_close, step, closes[-1]),
             )
             assert _wait_for(
                 lambda expected=suppressed_close: worker.last_evaluated["5m"]
@@ -278,7 +278,7 @@ class TestClosedCandleEvaluation:
         mux.on_kline_event(
             SYMBOL,
             "5m",
-            _candle(eligible_close, step, closes[-1] + 50.0),
+            _candle(eligible_close, step, closes[-1]),
         )
         assert _wait_for(lambda: notifier.send_message.call_count == 2)
         assert worker.last_m5_alert_close == eligible_close
