@@ -33,7 +33,11 @@ def test_to_external_symbol():
 def mock_env():
     with patch.dict(
         os.environ,
-        {"HYPERLIQUID_WALLET_ADDRESS": "0xMockWalletAddress", "HYPERLIQUID_PRIVATE_KEY": "MockPrivateKey123"},
+        # This is an intentionally fake credential used only by mocked tests.
+        {
+            "HYPERLIQUID_WALLET_ADDRESS": "0xMockWalletAddress",
+            "HYPERLIQUID_PRIVATE_KEY": "MockPrivateKey123",
+        },  # pragma: allowlist secret
     ):
         yield
 

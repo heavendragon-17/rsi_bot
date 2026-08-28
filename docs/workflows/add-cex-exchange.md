@@ -5,8 +5,10 @@
 
 ## Prerequisites
 
-- Read `docs/architecture.md` — understand `IExchange` and the normalized order vocabulary
-- Read `docs/live-bot.md` — understand exchange adapter section and exchange modes
+- Read `docs/02_architecture/system-overview.md` — understand the layer
+  boundaries
+- Read `docs/08_execution_and_oms/exchange-adapters.md` — understand
+  `IExchange`, normalized orders, and existing adapters
 - Verify the exchange is in CCXT: `python -c "import ccxt; print(ccxt.exchanges)"`
 
 ## Steps
@@ -94,6 +96,10 @@ bot:
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/trading/exchange/` modified → update **`docs/live-bot.md`**: add a row to the Exchange Adapters table for the new adapter, document any exchange-specific quirks
-- `app/trading/exchange/factory.py` modified → update **`docs/live-bot.md`**: note the new `EXCHANGE_CONFIG` entry
-- If `app/core/interfaces.py` was modified → also update **`docs/architecture.md`**
+- `app/trading/exchange/` modified → update
+  **`docs/08_execution_and_oms/exchange-adapters.md`** with the adapter,
+  credentials, capabilities, and exchange-specific behavior
+- `app/trading/exchange/factory.py` modified → document the new factory/config
+  selection in the same adapter reference
+- If `app/core/interfaces.py` changed → also update
+  **`docs/02_architecture/`**

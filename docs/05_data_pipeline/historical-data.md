@@ -41,7 +41,7 @@ python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50
 
 ---
 
-## Tick Data Download (`app/backtest/download_tick_data.py`)
+## Tick Data Download (`app/backtest/data/download_tick.py`)
 
 Downloads aggregated trade (aggTrade) data from Binance Vision public data repository. Used for tick-level paper backtesting.
 
@@ -49,13 +49,13 @@ Downloads aggregated trade (aggTrade) data from Binance Vision public data repos
 
 ```bash
 # Single month
-python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1
+python app/backtest/data/download_tick.py --symbol BTCUSDT --year 2024 --month 1
 
 # Multiple months with merge
-python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1 --months 3 --merge
+python app/backtest/data/download_tick.py --symbol BTCUSDT --year 2024 --month 1 --months 3 --merge
 
 # Recent N months (auto-merges, uses daily files for current month)
-python app/backtest/download_tick_data.py --symbol BTCUSDT --recent 2
+python app/backtest/data/download_tick.py --symbol BTCUSDT --recent 2
 ```
 
 ### Arguments

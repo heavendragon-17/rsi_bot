@@ -1,5 +1,8 @@
 # UI Backtest Sidebar — Bug Report
 
+> **Historical record (March 2026):** Retained for provenance. The paths and
+> implementation state below are not current documentation.
+
 **Date:** 2026-03-11
 **Branch:** `fix/backtest-sl-wrong`
 **Scope:** All bugs found in the backtest sidebar UI and its supporting components.

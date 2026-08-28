@@ -28,9 +28,19 @@ app = FastAPI(title="RSI Bot Backtest API", version="1.0.0")
 ### CORS
 
 ```python
-origins = ["http://localhost:3000", "http://localhost:5173"]
+custom_origins = os.getenv("API_CORS_ORIGINS")
+allow_origins = custom_origins.split(",") if custom_origins else []
+allow_origin_regex = (
+    None
+    if custom_origins
+    else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+)
 allow_methods=["*"], allow_headers=["*"], allow_credentials=True
 ```
+
+The regex is a development default. Set an exact comma-separated
+`API_CORS_ORIGINS` allowlist when the API is placed behind an authenticated
+proxy. CORS does not provide authentication or prevent direct API clients.
 
 ---
 
@@ -58,10 +68,10 @@ Job tracking dicts maintain SSE queues and job state:
 
 ```bash
 # Development (with auto-reload)
-python -m uvicorn app.api.main:app --reload --port 8000
+python -m uvicorn app.api.main:app --reload --port 8100
 
 # Production
-python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --workers 1
+python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8100 --workers 1
 ```
 
 Note: Use `--workers 1` — SQLite does not support concurrent writes from multiple processes.

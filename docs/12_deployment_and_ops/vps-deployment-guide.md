@@ -11,30 +11,21 @@ Step-by-step guide to deploy the RSI Bot on a fresh VPS (Ubuntu/Debian).
 | CPU | 1 vCPU | 2 vCPU |
 | RAM | 1 GB | 2 GB |
 | Disk | 10 GB | 20 GB (for backtest data) |
-| OS | Ubuntu 22.04+ / Debian 12+ | Ubuntu 24.04 LTS |
-| Python | 3.11+ | 3.12 |
+| OS | Linux with systemd | A supported Ubuntu/Debian release |
+| Python | 3.13 | 3.13 |
 
 ---
 
 ## 2. Can I Install in `/opt`?
 
-**Yes**, `/opt` is a perfectly valid location. All deploy paths are centralized in a
-single file: `deploy/deploy_env.sh`. To use `/opt/rsi_bot`:
+**Yes.** Production defaults to `/opt/rsi_bot`; all deployment paths are
+centralized in `deploy/deploy_env.sh`. Complete the user and dependency setup
+below, clone as `botuser`, and change this one file if a different path is
+required:
 
 ```bash
-# 1. Clone to /opt
-sudo mkdir -p /opt/rsi_bot
-sudo chown your-user:your-user /opt/rsi_bot
-git clone https://github.com/heavendragon-17/rsi_bot.git /opt/rsi_bot
-
-# 2. Edit the ONE config file
-nano deploy/deploy_env.sh
-# Set the production paths:
-# BOT_DIR="/opt/rsi_bot"
-# SERVICE_USER="botuser"
-
-# 3. Install services (generates systemd files from deploy_env.sh)
-sudo deploy/install.sh
+BOT_DIR="/opt/rsi_bot"
+SERVICE_USER="botuser"
 ```
 
 That's it — all scripts and systemd services read from `deploy_env.sh` automatically.
@@ -46,17 +37,20 @@ That's it — all scripts and systemd services read from `deploy_env.sh` automat
 ### 3.1 Create a dedicated user (if not using root)
 
 ```bash
-sudo adduser botuser
-sudo usermod -aG sudo botuser
-su - botuser
+sudo adduser --disabled-password --gecos "" botuser
 ```
 
 ### 3.2 Install system dependencies
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3.11 python3.11-venv python3-pip git
+sudo apt install -y git python3-venv python3-pip
+python3 --version  # must report Python 3.13.x
 ```
+
+Distribution packages differ. If `python3` is older than 3.13, install Python
+3.13 from a trusted distribution source before creating the virtual
+environment. Do not replace the operating system's own `/usr/bin/python3`.
 
 ### 3.3 (Optional) Firewall — lock down inbound ports
 
@@ -68,11 +62,9 @@ sudo ufw allow OpenSSH
 sudo ufw enable
 ```
 
-If you want to run the backtest UI remotely, also open port 8000:
-
-```bash
-sudo ufw allow 8000/tcp   # Only if running backtest API
-```
+Do not expose the backtest API directly. It has administrative endpoints and
+does not implement user authentication. Use an SSH tunnel or an authenticated
+TLS reverse proxy if remote UI access is required.
 
 ---
 
@@ -81,25 +73,25 @@ sudo ufw allow 8000/tcp   # Only if running backtest API
 ### 4.1 Clone the repository
 
 ```bash
-cd ~
-git clone https://github.com/heavendragon-17/rsi_bot.git
-cd rsi_bot
+sudo install -d -o botuser -g botuser /opt/rsi_bot
+sudo -u botuser git clone https://github.com/heavendragon-17/rsi_bot.git /opt/rsi_bot
+cd /opt/rsi_bot
 ```
 
 ### 4.2 Create Python virtual environment
 
 ```bash
-python3.11 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+sudo -u botuser python3.13 -m venv venv
+sudo -u botuser venv/bin/python -m pip install --upgrade pip
+sudo -u botuser venv/bin/python -m pip install -r requirements.txt
 ```
 
 ### 4.3 Configure environment variables
 
 ```bash
-cp .env.example .env
-nano .env
+sudo -u botuser cp .env.example .env
+sudo -u botuser chmod 600 .env
+sudo -u botuser nano .env
 ```
 
 Fill in your keys:
@@ -117,32 +109,34 @@ TELEGRAM_CHAT_ID=your_chat_id
 ### 4.4 Configure the bot
 
 ```bash
-nano config.yaml
+sudo -u botuser nano config.yaml
 ```
 
 Key settings to adjust for production:
 
 ```yaml
 bot:
-  active: true
   mode: "live"      # or "paper" for testnet first
   debug: false      # disable verbose logging in production
 
 risk:
   max_position_size_pct: 0.20    # start conservative
   risk_per_trade_pct: 0.01       # 1% risk per trade
-  leverage: 5                     # don't max out leverage
+    leverage: 5                     # don't max out leverage
 ```
+
+`bot.active` is currently a compatibility field, not a stop switch. Use
+`systemctl stop rsi-bot` to stop execution; see the
+[configuration reference](../03_setup_and_installation/configuration.md).
 
 ### 4.5 Smoke test
 
 ```bash
-source venv/bin/activate
-python -c "
+sudo -u botuser venv/bin/python -c "
 from app.core import interfaces, config, constants, actions
 from app.data import indicators
 cfg = config.AppConfig.from_yaml('config.yaml')
-print(f'Config loaded: mode={cfg.bot.mode}, symbols={cfg.symbols}')
+print(f'Config loaded: mode={cfg.exchange.mode}, symbols={cfg.symbols}')
 print('Smoke test PASSED')
 "
 ```
@@ -153,8 +147,10 @@ print('Smoke test PASSED')
 
 ### 5.1 Install services (one command)
 
-The install script reads `deploy/deploy_env.sh` and generates all systemd service
-files with the correct paths, creates the log file, and enables the bot service:
+The install script reads `deploy/deploy_env.sh`, validates ownership and the
+virtual environment, generates the systemd units, installs a narrow sudoers
+rule for this service only, creates the protected deploy log, and enables the
+bot service:
 
 ```bash
 sudo deploy/install.sh
@@ -209,42 +205,38 @@ cat /tmp/rsi_bot_status.json | python3 -m json.tool
 
 ### Manual deploy (SSH)
 
-```bash
-cd ~/rsi_bot
-git pull origin production
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart rsi-bot
-```
-
-Or use the deploy script:
+Use the guarded deploy script from the configured production checkout:
 
 ```bash
-deploy/force_deploy.sh         # auto-detects latest tag
-deploy/force_deploy.sh v1.2.3  # specific version
+cd /opt/rsi_bot
+deploy/force_deploy.sh         # deploy the promoted production commit
+deploy/force_deploy.sh v1.2.5  # assert production is tagged v1.2.5, then deploy
 ```
+
+The optional tag does not select an arbitrary checkout. Promote a rollback tag
+through the GitHub Deploy workflow first, then run the force command if the VPS
+needs immediate recovery. The command refuses an untagged production commit.
 
 ---
 
 ## 7. Running the Backtest UI (Optional)
 
-If you want the backtest web interface on your VPS:
+The checked-in UI bundle can be served by FastAPI without Node.js. Bind it to
+loopback and reach it through an SSH tunnel:
 
 ```bash
-# Terminal 1: Backend API
 source venv/bin/activate
-python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8000
-
-# Terminal 2: Frontend (requires Node.js)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-cd ui
-npm install
-npm run build    # production build
-npx serve build  # serve static files on port 3000
+API_HOST=127.0.0.1 API_PORT=8100 python -m app.api.main
 ```
 
-For production, consider using nginx as a reverse proxy in front of both services.
+From your workstation:
+
+```bash
+ssh -L 8100:127.0.0.1:8100 botuser@your-vps
+```
+
+Open `http://localhost:8100`. If a reverse proxy is required, add TLS and
+authentication before allowing network access.
 
 ---
 
@@ -252,7 +244,7 @@ For production, consider using nginx as a reverse proxy in front of both service
 
 - [ ] API key: Futures only, no withdrawals, IP-whitelisted to VPS IP
 - [ ] `.env` file permissions: `chmod 600 .env`
-- [ ] Firewall: Only SSH open inbound (+ 8000 if running backtest UI)
+- [ ] Firewall: Only SSH open inbound; access the UI through a tunnel or authenticated proxy
 - [ ] SSH: Key-based auth only, disable password login
 - [ ] Bot user: Non-root, minimal sudo privileges
 - [ ] API key rotation: Every 90 days
@@ -270,21 +262,23 @@ Local Development
     ▼
 GitHub Actions (CI)
     │
-    ├── Run tests
-    ├── Merge to production branch
+    ├── Validate the exact tag commit with all CI jobs
+    ├── Promote with a force-with-lease guard to production
     │
     ▼
 VPS (check-deploy.timer — runs every 60s)
     │
     ├── git fetch origin production
     ├── Compare deployed SHA vs remote SHA
-    ├── Check /tmp/rsi_bot_status.json for open positions
+    ├── Fail closed if /tmp/rsi_bot_status.json is stale, missing, or invalid
+    ├── Check for open positions
     ├── If positions clear → deploy.sh
     │   ├── pip install -r requirements.txt
     │   ├── Smoke test
-    │   ├── Write VERSION file
+    │   ├── Stage VERSION atomically
     │   ├── systemctl restart rsi-bot
-    │   └── Health check (60s timeout)
+    │   ├── Verify tag, commit, and process start time
+    │   └── Roll back source, dependencies, VERSION, and service on failure
     └── If positions open → wait and retry next minute
 ```
 
@@ -300,6 +294,9 @@ VPS (check-deploy.timer — runs every 60s)
 | Deploy stuck in "waiting" with `Positions: N > 0` but `/status` shows 0 | Pre-fix this was a stale `PortfolioManager.positions` dict (sync was a no-op). Fixed by `sync_from_exchange()` reconciling via `fetch_positions()` and a `position_closed` callback in sim. If you see this on an old build, force-deploy via `touch /tmp/rsi_bot_force_deploy`. |
 | Deploy stuck in "waiting" with real open positions | Wait for them to close, or `touch /tmp/rsi_bot_force_deploy` to override |
 | Cancel pending deploy | `touch /tmp/rsi_bot_cancel_deploy` |
+| Automatic deploy reports `status_file_unavailable` | Restore bot health/status output, or deliberately use `/force_deploy`; automatic deployment fails closed |
+| Candidate is marked failed and no longer retries | Fix or promote a newer tag; use `/force_deploy` only after reviewing the failure. This prevents one-minute restart loops |
+| Rollback reports failure | Inspect `journalctl -u rsi-bot` and `/var/log/rsi-bot-deploy.log`; keep production disabled until the prior release is healthy |
 | Status file stale | Bot may have crashed — `systemctl restart rsi-bot` |
 | Sim balance reset after deploy | Snapshot at `/tmp/rsi_bot_sim_state.json` should restore it. If missing, check that `StatusWriter` is running and that the configured `sim.initial_balance` matches the snapshot's anchor (a config change discards the snapshot). |
 | Permission denied on `/opt` | `sudo chown -R your-user:your-user /opt/rsi_bot` |

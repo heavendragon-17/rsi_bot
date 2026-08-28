@@ -800,7 +800,8 @@ Failed run appears in History
 
 ## 17. Database Schema
 
-See [DATABASE.md](DATABASE.md) for the full schema.
+See the current generated [database reference](../14_api_reference/database.md)
+for the full schema.
 
 ### Key Design Principles
 

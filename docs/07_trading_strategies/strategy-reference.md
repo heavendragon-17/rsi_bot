@@ -8,9 +8,9 @@
 
 | Name | Module | Status | Description |
 |------|--------|--------|-------------|
-| `rsi_no_retest` | `app/trading/strategy/rsi_no_retest.py` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
+| `rsi_no_retest` | `app/trading/strategy/rsi_no_retest/` | Primary | Entry on EMA21 reclaim + RSI momentum spread |
 | `rsi_wma_retest` | `app/trading/strategy/rsi_wma_retest.py` | Legacy | Requires RSI retest of WMA45 (old stateful API) |
-| `rsi_momentum` | `app/trading/strategy/rsi_momentum.py` | Active | SHORT-only entries via RSI momentum + bearish divergence |
+| `rsi_momentum` | `app/trading/strategy/rsi_momentum/` | Active | SHORT-only entries via RSI momentum + bearish divergence |
 | `rsi_alert` | `app/trading/strategy/rsi_alert/` | Alert-only | Telegram alert when RSI14 (live, intra-candle) hits 8.5 / 8 — no trading |
 | `btc_rsi_cross_alert` | `app/signal/btc_rsi_cross_alert/` + `app/trading/strategy/btc_rsi_cross_alert/` | Alert-only component | Signal-bot BTC M5 bullish alignment / M15 fresh cross gated by H4 close>EMA21(price) — no trading, **not** in `STRATEGY_MAP` |
 
@@ -101,7 +101,8 @@ In priority order (checked each candle):
 
 SHORT-only strategy using RSI momentum crossover with bearish divergence confirmation. Uses `Indicators` (RSI14 + EMA9-of-RSI + WMA45-of-RSI) and the reusable `SLTPCalculator` utility.
 
-**Files**: `app/trading/strategy/rsi_momentum.py`, `app/data/indicators.py`, `app/trading/sl_tp_calculator.py`
+**Files**: `app/trading/strategy/rsi_momentum/`, `app/data/indicators.py`,
+`app/trading/sl_tp_calculator.py`
 
 ### Indicator Settings
 
@@ -342,7 +343,9 @@ restarts (in-memory dedupe + best-effort asynchronous Telegram).
 ## How to Override Parameters
 
 **Option A — Frozen config dataclass (recommended)**:
-Edit the strategy's frozen config dataclass defaults (e.g., `RsiNoRetestConfig` in `app/trading/strategy/rsi_no_retest.py`). Strategy parameters are no longer stored in `config.yaml`.
+Edit the strategy's frozen config dataclass defaults (for example,
+`RsiNoRetestConfig` in `app/trading/strategy/rsi_no_retest/strategy.py`).
+Strategy parameters are no longer stored in `config.yaml`.
 
 **Option B — Backtest UI sidebar (per-run)**:
 Override parameters in the UI for individual backtest runs.

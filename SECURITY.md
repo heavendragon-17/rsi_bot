@@ -1,6 +1,8 @@
 # Security Policy
 
-> This is a private cryptocurrency trading bot that handles real API keys and real money. Security is critical.
+> This public source repository can operate with real API keys and real money.
+> Security controls must assume that code is visible while runtime secrets are
+> never committed or exposed.
 
 ---
 
@@ -73,10 +75,11 @@
 
 ## Vulnerability Reporting
 
-This is a private repository. If you discover a security vulnerability:
+If you discover a security vulnerability:
 
 1. **Do NOT** create a public issue
-2. Contact the repository owner directly
+2. Use GitHub private vulnerability reporting when it is enabled, or contact
+   the repository owner privately
 3. Include: description of vulnerability, steps to reproduce, potential impact
 4. Allow reasonable time for a fix before any disclosure
 
@@ -84,7 +87,31 @@ This is a private repository. If you discover a security vulnerability:
 
 ## Dependency Security
 
-- Regularly update dependencies: `pip install --upgrade -r requirements.txt`
+- Dependabot reviews GitHub Actions, Python, npm, and the pinned Docker base
+  image weekly
+- CI runs `pip-audit` against runtime requirements on every change and release
+- Review and lock runtime dependencies before treating container builds as
+  reproducible production artifacts
 - Review CCXT updates carefully — exchange API changes can affect order behavior
-- Pin critical dependency versions in `requirements.txt`
 - Monitor for CVEs in: `ccxt`, `fastapi`, `sqlalchemy`, `pydantic`
+
+---
+
+## Backtest API Exposure
+
+The FastAPI backtest service has no user authentication and includes mutation
+and deletion endpoints. Bind it to `127.0.0.1` by default. For remote access,
+use an SSH tunnel or an authenticated TLS reverse proxy; never expose the port
+directly to the internet.
+
+## Delivery Controls
+
+- GitHub Actions use read-only repository permissions unless the production
+  promotion job must update the `production` branch.
+- Third-party actions are pinned to immutable commit SHAs and updated through
+  Dependabot.
+- Protect `mua-tren-the-nang` with required CI checks and pull requests.
+- Protect the `production` environment with an approval rule and restrict it to
+  release tags.
+- The host deploy gate fails closed when status is stale/missing and restores
+  the previous release when candidate health verification fails.

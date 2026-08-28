@@ -1,5 +1,8 @@
 # Spec Review: RSI Bot Backend ↔ Frontend Integration
 
+> **Historical review (April 2026):** Retained for provenance; findings may
+> have been superseded by later implementation.
+
 **Reviewer:** Claude Code
 **Date:** 2026-03-30
 **Files Reviewed:** 7 spec documents (`spec_overview.md`, `spec_strategy_schema.md`, `spec_api_contracts.md`, `spec_phase1_backend.md`, `spec_phase1_frontend.md`, `spec_phase2_backend.md`, `spec_phase2_frontend_and_phase3_4.md`)

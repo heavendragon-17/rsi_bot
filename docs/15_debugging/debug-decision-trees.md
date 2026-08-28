@@ -118,7 +118,7 @@ Is backtest process running?
 │
 └── YES → Is SSE connection open?
           ├── NO → Check browser dev tools → EventSource connection
-          │        → Check CORS settings (localhost:5173 allowed?)
+          │        → Check CORS settings (localhost:3100 or configured origin allowed?)
           │
           └── YES → Check thread-to-async bridge
                     ├── Is multiprocessing.Queue receiving events?

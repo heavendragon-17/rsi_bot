@@ -4,90 +4,121 @@ on:
   push:
     tags:
       - "v*"
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to deploy (e.g. v1.0.0)"
+        description: SemVer tag to deploy (for example v1.2.5)
         required: true
+        type: string
 
 permissions:
-  contents: write
-  deployments: write
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
-  # ── Resolve which tag we are deploying ─────────────────────────
   resolve-tag:
-    name: Resolve Tag
+    name: Validate release tag
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
+      tag: ${{ steps.release.outputs.tag }}
+      tag_sha: ${{ steps.release.outputs.tag_sha }}
     steps:
-      - name: Determine tag name
-        id: tag
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve and validate release
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          PUSHED_TAG: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            tag="$REQUESTED_TAG"
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            tag="$PUSHED_TAG"
           fi
 
-  # ── Reuse full CI suite on the tagged commit ─────────────────────
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must match vMAJOR.MINOR.PATCH; received '$tag'."
+            exit 1
+          fi
+
+          git fetch --force origin \
+            "refs/heads/mua-tren-the-nang:refs/remotes/origin/mua-tren-the-nang" \
+            --tags
+          tag_sha="$(git rev-parse --verify "${tag}^{commit}")"
+
+          if ! git merge-base --is-ancestor "$tag_sha" origin/mua-tren-the-nang; then
+            echo "::error::$tag is not reachable from mua-tren-the-nang."
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "tag_sha=$tag_sha" >> "$GITHUB_OUTPUT"
+          echo "Validated $tag at $tag_sha" >> "$GITHUB_STEP_SUMMARY"
+
   ci:
     name: CI
+    needs: resolve-tag
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve-tag.outputs.tag }}
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
 
-  # ── Promote to production branch ─────────────────────────────────
   promote:
     name: Promote to Production
-    needs: [ci, resolve-tag]
+    needs: [resolve-tag, ci]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+    permissions:
+      contents: write
+      deployments: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-tag.outputs.tag }}
           fetch-depth: 0
+          persist-credentials: true
 
-      - name: Configure git
+      - name: Verify checked-out release
+        env:
+          EXPECTED_SHA: ${{ needs.resolve-tag.outputs.tag_sha }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "::error::Checked-out SHA $actual_sha does not match validated SHA $EXPECTED_SHA."
+            exit 1
+          fi
 
-      - name: Fast-forward production to tagged commit
-        run: |
-          TAG_SHA=$(git rev-parse HEAD)
-          echo "Deploying tag ${{ needs.resolve-tag.outputs.tag }} (SHA: $TAG_SHA)"
-          git fetch origin production 2>/dev/null || true
-          git checkout -B production "$TAG_SHA"
-          git push origin production --force
-
-      - name: Create GitHub deployment
-        uses: actions/github-script@v7
+      - name: Promote tag commit with lease protection
         env:
           DEPLOY_TAG: ${{ needs.resolve-tag.outputs.tag }}
-        with:
-          script: |
-            const tag = process.env.DEPLOY_TAG;
-            const deployment = await github.rest.repos.createDeployment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: tag,
-              environment: 'production',
-              auto_merge: false,
-              required_contexts: [],
-              description: `Promote ${tag} to production`
-            });
-            await github.rest.repos.createDeploymentStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              deployment_id: deployment.data.id,
-              state: 'success',
-              description: `${tag} pushed to production. VPS will pick up within 1 min.`
-            });
+          TAG_SHA: ${{ needs.resolve-tag.outputs.tag_sha }}
+        run: |
+          git fetch origin production
+          production_sha="$(git rev-parse origin/production)"
+          echo "Promoting $DEPLOY_TAG ($TAG_SHA) over production $production_sha"
+          git push origin "$TAG_SHA:refs/heads/production" \
+            --force-with-lease="refs/heads/production:$production_sha"
+
+      - name: Record promotion summary
+        env:
+          DEPLOY_TAG: ${{ needs.resolve-tag.outputs.tag }}
+          TAG_SHA: ${{ needs.resolve-tag.outputs.tag_sha }}
+        run: |
+          {
+            echo "## Production promotion"
+            printf -- "- Tag: \`%s\`\n" "$DEPLOY_TAG"
+            printf -- "- Commit: \`%s\`\n" "$TAG_SHA"
+            echo "- Scope: production branch promotion; VPS health is verified by the host deploy gate."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -94,18 +94,18 @@ The bot will:
 
 ```bash
 cd rsi_bot
-python -m uvicorn app.api.main:app --reload --port 8000
+python -m uvicorn app.api.main:app --reload --port 8100
 ```
 
 ### Start the frontend
 
 ```bash
 cd ui
-npm install
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3100` in your browser.
 
 ## Running Backtests (CLI)
 

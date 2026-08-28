@@ -1,5 +1,8 @@
 # Plan: RSI Momentum Short Strategy — Phase 1 (Backend)
 
+> **Historical implementation plan (March 2026):** Retained for provenance;
+> use `docs/INDEX.md` for current system documentation.
+
 **Date:** 2026-03-18
 **Branch:** `claude/add-short-strategy-68UFC`
 **Scope:** Phase 1 — Core refactor for SHORT support + `rsi_momentum` strategy (short-only) + modular SL/TP calculator + strategy unit tests

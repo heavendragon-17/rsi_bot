@@ -14,9 +14,17 @@ Type=simple
 User=__SERVICE_USER__
 WorkingDirectory=__BOT_DIR__
 Environment=PATH=__VENV_DIR__/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
 ExecStart=__VENV_DIR__/bin/python main.py
 Restart=on-failure
 RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
 StandardOutput=journal
 StandardError=journal
 

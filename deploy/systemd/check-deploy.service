@@ -14,5 +14,6 @@ Type=oneshot
 User=__SERVICE_USER__
 WorkingDirectory=__BOT_DIR__
 ExecStart=__BOT_DIR__/deploy/check_deploy.sh
+UMask=0077
 StandardOutput=journal
 StandardError=journal

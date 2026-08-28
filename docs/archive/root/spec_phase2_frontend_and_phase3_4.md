@@ -1,5 +1,8 @@
 # RSI Bot — Phase 2 Frontend + Phase 4 Spec
 
+> **Historical implementation spec (April 2026):** Retained for provenance;
+> use `docs/10_frontend_dashboard/` for the current frontend design.
+
 ## Phase 2 Frontend Scope
 
 Wire batch and portfolio modes, preset management, BatchResultsDashboard with real data.

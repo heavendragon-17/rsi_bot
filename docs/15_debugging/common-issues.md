@@ -13,7 +13,7 @@
 | 5 | Leverage not set | `OrderRejectedError` on entry | Exchange mode mismatch | Verify `bot.mode` matches credentials in `.env` |
 | 6 | WebSocket drops repeatedly | Frequent `stream_disconnected` | Network or Binance issue | Check connectivity, check Binance status page |
 | 7 | Backtest hangs | No progress output | Data loading issue | Check CSV exists, correct format, path is valid |
-| 8 | SSE connection drops | Frontend stops receiving events | CORS or timeout | Check CORS allows `localhost:5173`, check FastAPI keepalive |
+| 8 | SSE connection drops | Frontend stops receiving events | CORS or timeout | Check CORS allows `localhost:3100` or the configured origin; check FastAPI keepalive |
 | 9 | Strategy not found | `KeyError` in strategy loader | Not registered | Check `loader.py` STRATEGY_MAP + run `seed_strategies()` |
 | 10 | Indicators NaN | RSI/EMA values are NaN | Insufficient warmup candles | Increase `warmup_candles` (default 220) |
 | 11 | "Reduce only" rejected | `OrderRejectedError` on exit | Position already closed | Hard SL fired before soft SL; `_handle_soft_sl_exit()` handles this |

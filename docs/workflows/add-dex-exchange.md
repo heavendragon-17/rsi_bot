@@ -5,8 +5,10 @@
 
 ## Prerequisites
 
-- Read `docs/architecture.md` — understand `IExchange` and order vocabulary
-- Read `docs/live-bot.md` — understand exchange adapter section and DEX auto-discovery
+- Read `docs/02_architecture/system-overview.md` — understand the layer
+  boundaries
+- Read `docs/08_execution_and_oms/exchange-adapters.md` — understand
+  `IExchange`, order vocabulary, and DEX adapter behavior
 - Read the DEX's own API/SDK documentation thoroughly before writing code
 - Identify: Does the SDK use async? Does it use different symbol naming (e.g., `BTC-PERP` vs `BTC/USDT`)?
 
@@ -109,5 +111,8 @@ bot:
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- New file in `app/trading/exchange/` → update **`docs/live-bot.md`**: add the new adapter to the DEX Adapters section with its SDK source, required env vars, and any exchange-specific notes
-- If `app/core/interfaces.py` was changed → also update **`docs/architecture.md`**
+- New file in `app/trading/exchange/` → update
+  **`docs/08_execution_and_oms/exchange-adapters.md`** with its SDK source,
+  required environment variables, capabilities, and exchange-specific notes
+- If `app/core/interfaces.py` changed → also update
+  **`docs/02_architecture/`**

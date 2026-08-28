@@ -19,7 +19,7 @@ Strategy parameters are defined in frozen config dataclasses within each strateg
 ## Level 1: Dataclass Defaults
 
 ```python
-# app/trading/strategy/rsi_no_retest.py
+# app/trading/strategy/rsi_no_retest/strategy.py
 @dataclass(frozen=True)
 class RsiNoRetestConfig:
     rsi_period: int = 21

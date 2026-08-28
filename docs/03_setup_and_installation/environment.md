@@ -6,15 +6,28 @@
 
 ## Python Environment
 
-The project requires **Python 3.13+** managed via conda.
+The project requires **Python 3.13+**. A standard virtual environment is the
+portable default; the repository can also be used from a Conda environment.
 
-### Activation
+### Virtual environment
 
 ```bash
-source C:/ProgramData/miniconda3/Scripts/activate rsi
+python -m venv venv
+# Linux/macOS
+source venv/bin/activate
+# PowerShell
+venv\Scripts\Activate.ps1
 ```
 
-The conda environment name is `rsi`. All Python commands in this project assume this environment is active.
+Existing local development commonly uses a Conda environment named `rsi`:
+
+```bash
+conda create -n rsi python=3.13
+conda activate rsi
+```
+
+Whichever environment is selected, invoke tools through `python -m ...` so
+they use the same interpreter as the application.
 
 ### Key Python Dependencies
 
@@ -44,14 +57,29 @@ Defined in `requirements.txt` (project root):
 Install all dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+### Container build
+
+The root `Dockerfile` uses Python 3.13 and runs as an unprivileged `bot` user.
+The build context excludes secrets, databases, logs, caches, and local data via
+`.dockerignore`.
+
+```bash
+docker build -t rsi-bot:local .
+docker run --rm rsi-bot:local python -c "from app.core import config; print('container import OK')"
+```
+
+The container is currently a reproducible local runtime option, not the VPS
+release mechanism. The production path remains the tagged systemd workflow in
+`docs/12_deployment_and_ops/vps-deployment-guide.md`.
 
 ---
 
 ## Node.js Frontend Environment
 
-The frontend lives in `ui/` and requires **Node.js 18+**.
+The frontend lives in `ui/` and requires **Node.js 20+**.
 
 ### Key Frontend Dependencies
 
@@ -110,13 +138,14 @@ cd ui && npm run dev                  # UI on :3100, talks to :8100
 **Production / one-click (no Node.js needed at runtime)**:
 
 ```bash
-cd ui && npm install && npm run build  # one-time, on a machine with Node
+cd ui && npm ci && npm run build       # one-time, on a machine with Node
 python run_backtest_ui.py              # or run_backtest_ui.{sh,bat}
 ```
 
 `run_backtest_ui.py` starts FastAPI, which serves the prebuilt `ui/build/`
 bundle at the same origin (`http://localhost:8100`) and opens a browser tab.
-Once `ui/build/` exists, end users only need Python — Node is not required.
+The generated directory is intentionally ignored by Git. Once it exists, end
+users only need Python — Node is not required while the application runs.
 
 ### Backtest CLI
 
@@ -146,7 +175,8 @@ Notes:
 python scripts/gen_db_docs.py
 ```
 
-Regenerates `docs/database.md` from the ORM models in `app/repository/backtest/models.py`.
+Regenerates `docs/14_api_reference/database.md` from the ORM models in
+`app/repository/backtest/models.py`.
 
 ---
 
@@ -183,4 +213,5 @@ Regenerates `docs/database.md` from the ORM models in `app/repository/backtest/m
 
 The project uses **SQLite** for backtest result persistence. The database file is auto-created at `data/backtest.db` on the first backtest run. No manual database setup is required.
 
-SQLAlchemy ORM models are defined in `app/repository/backtest/models.py`. The schema is documented in `docs/database.md` (auto-generated).
+SQLAlchemy ORM models are defined in `app/repository/backtest/models.py`. The
+schema is documented in `docs/14_api_reference/database.md` (auto-generated).

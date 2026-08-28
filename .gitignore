@@ -16,10 +16,12 @@ __pycache__/
 .coverage
 htmlcov/
 venv/
+/tmp/
 
 # Node.js
 /ui/node_modules/
 /ui/dist/
+/ui/build/
 
 # Data
 *.csv
@@ -48,6 +50,7 @@ desktop.ini
 /.obsidian
 *.base
 *.canvas
+
 # Deploy (VPS-only files)
 VERSION
 deploy/.env.deploy
@@ -56,8 +59,3 @@ deploy/.env.deploy
 /.claude/settings.local.json
 /.claude/arch_baseline.txt
 /app/backtest/report
-/.obsidian
-/ui/node_modules
-/.obsidian
-/ui/node_modules
-/ui/node_modules

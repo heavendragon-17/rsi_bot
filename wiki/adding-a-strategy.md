@@ -48,7 +48,11 @@ The seed runs on every server startup (`app/api/main.py` → `lifespan` → `see
 
 ### SHORT Strategy Note
 
-For SHORT strategies, use `side="SELL"` in `OpenPosition`. SL goes above entry (`stop_market BUY`), TP goes below entry (`limit BUY`). See `app/trading/strategy/rsi_momentum.py` for a complete example. Use `SLTPCalculator` (`app/trading/sl_tp_calculator.py`) for direction-aware SL/TP calculations. For RSI crossover indicators, use `app/data/indicators.py` (consolidated module).
+For SHORT strategies, use `side="SELL"` in `OpenPosition`. SL goes above entry
+(`stop_market BUY`), while TP goes below entry (`limit BUY`). See
+`app/trading/strategy/rsi_momentum/` for a complete example. Use
+`SLTPCalculator` (`app/trading/sl_tp_calculator.py`) for direction-aware SL/TP
+calculations. RSI crossover indicators live in `app/data/indicators.py`.
 
 ### That's it!
 

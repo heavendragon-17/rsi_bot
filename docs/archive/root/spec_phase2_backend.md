@@ -1,5 +1,8 @@
 # RSI Bot — Phase 2 Backend Spec
 
+> **Historical implementation spec (April 2026):** Retained for provenance;
+> use `docs/INDEX.md` for current backend documentation.
+
 ## Scope
 
 Batch mode (N independent runs via single API call), portfolio mode (single balance across all symbols), server-side presets CRUD.

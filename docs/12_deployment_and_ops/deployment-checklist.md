@@ -1,44 +1,78 @@
 # Deployment Checklist
 
-> Step-by-step progression from development to production trading.
+Use this checklist for every production tag. The recommended environment
+progression remains:
 
----
-
-## Recommended Progression
-
-```
-mock → sim → paper → live
+```text
+mock -> sim -> paper -> live
 ```
 
-### Step 1: Mock (Backtesting)
-- [ ] Run backtest with historical data
-- [ ] Verify strategy produces expected metrics (Sharpe > 1.0, drawdown < 20%)
-- [ ] Run grid search to check parameter sensitivity
-- [ ] Run walk-forward to validate out-of-sample performance
-- [ ] Verdict should be "Robust" or "Marginal"
+Longer-term platform work is prioritized in the
+[infrastructure roadmap](infrastructure-roadmap.md).
 
-### Step 2: Sim (Live Ticks, Simulated Fills)
-- [ ] Set `bot.mode: sim` in `config.yaml`
-- [ ] Run for at least 1 week to observe behavior with live data
-- [ ] Check Telegram notifications are accurate
-- [ ] Verify entry/exit logic matches expectations from backtest
+## Strategy readiness
 
-### Step 3: Paper (Testnet)
-- [ ] Set `bot.mode: paper` in `config.yaml`
-- [ ] Configure `BINANCE_TESTNET_API_KEY` and `BINANCE_TESTNET_SECRET_KEY` in `.env`
-- [ ] Run for at least 2-4 weeks
-- [ ] Verify orders are placed and filled correctly on testnet
-- [ ] Monitor for position drift or missed fills
-- [ ] Test manual stop/restart — verify orphan position cleanup works
+- [ ] Backtest assumptions, fees, slippage, and data range are documented.
+- [ ] Walk-forward or other out-of-sample evidence has been reviewed.
+- [ ] `sim` has run against live data without unexplained position drift.
+- [ ] Testnet `paper` orders, partial exits, SL replacement, and restart cleanup
+      have been exercised.
+- [ ] Position sizing, leverage, symbol list, and aggregate exposure are
+      acceptable for the intended capital.
 
-### Step 4: Live (Production)
-- [ ] Set `bot.mode: live` in `config.yaml`
-- [ ] Configure `BINANCE_API_KEY` and `BINANCE_SECRET_KEY` in `.env`
-- [ ] **Double-check**: correct API keys, conservative position sizing
-- [ ] Set `risk.max_position_size_pct` conservatively (start with 0.1-0.3)
-- [ ] Set `risk.risk_per_trade_pct` conservatively (start with 0.01)
-- [ ] IP-whitelist API keys on Binance
-- [ ] Disable withdrawal permissions on API keys
-- [ ] Start with a single symbol
-- [ ] Monitor closely for first 48 hours
-- [ ] Gradually increase position sizes after confirming stability
+Numeric performance thresholds are strategy-specific; do not treat a single
+Sharpe/drawdown cutoff as universal deployment approval.
+
+## Release preflight
+
+- [ ] The release commit is on `mua-tren-the-nang` and the worktree is clean.
+- [ ] Python tests and 70% coverage gate pass.
+- [ ] Architecture, Ruff, mypy, Bandit, dependency, secret, circular-import,
+      documentation, and frontend-build jobs pass.
+- [ ] `python scripts/check_markdown_links.py` passes.
+- [ ] `bash -n deploy/*.sh` passes.
+- [ ] Configuration contains no secrets and `.env` permissions are `0600`.
+- [ ] `/tmp/rsi_bot_status.json` is current and position count is understood.
+- [ ] The previous healthy tag and commit are recorded for rollback.
+- [ ] Release notes identify config, schema, dependency, and operational
+      changes.
+
+## Promotion
+
+- [ ] Create an exact SemVer tag: `vMAJOR.MINOR.PATCH`.
+- [ ] Confirm the Deploy workflow validates CI against that tag, not another
+      branch or caller commit.
+- [ ] Confirm the production environment approval, if configured.
+- [ ] Confirm the production branch moved to the intended SHA.
+- [ ] Watch `journalctl -u check-deploy.service` and
+      `/var/log/rsi-bot-deploy.log` on the VPS.
+- [ ] Confirm the host health gate reports the expected tag, commit SHA, and a
+      process start time after the restart.
+
+## Post-deploy
+
+- [ ] `systemctl is-active rsi-bot` reports `active`.
+- [ ] Market-data timestamps advance for every configured timeframe.
+- [ ] Telegram startup/status commands report the new version.
+- [ ] Exchange positions and local tracked positions agree.
+- [ ] Error rate, reconnect activity, order rejections, and notification
+      failures remain at baseline for at least 15 minutes.
+- [ ] Update the changelog/release record with actual deployment evidence.
+
+## Rollback triggers
+
+Rollback or disable execution immediately when any of these occurs:
+
+- the new process fails the tag/SHA/start-time health gate;
+- exchange and local position state disagree;
+- repeated order rejection, duplicate order, or notification delivery errors
+  appear;
+- market data is stale for more than twice the configured timeframe;
+- loss, exposure, or error thresholds exceed the operator's predeclared limit;
+- a secret, dependency vulnerability, or incorrect production configuration
+  is discovered.
+
+The host deployment script automatically restores the previous source,
+dependencies, `VERSION`, and service when candidate health fails. If automatic
+rollback is unavailable or unhealthy, stop live execution and follow the
+[VPS recovery guidance](vps-deployment-guide.md#10-troubleshooting).

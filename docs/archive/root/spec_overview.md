@@ -1,5 +1,8 @@
 # RSI Bot — Backend ↔ Frontend Integration Spec
 
+> **Historical integration spec (April 2026):** Retained for provenance; use
+> `docs/INDEX.md` for current documentation.
+
 ## Master Overview
 
 **Goal:** Wire the existing React UI (currently mock-data-driven) to the existing FastAPI backend (complete API with SSE, persistence, 6 route groups) so backtests run end-to-end from the browser.

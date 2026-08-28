@@ -3,16 +3,14 @@ Inline data download — downloads CSV if missing, with thread lock + SSE progre
 
 Used by backtest workers when data file doesn't exist.
 
-Note: uses threading.Lock (not fcntl) so it works on both Linux and Windows.
-All workers run inside a single-process ThreadPoolExecutor, so a threading
-lock gives the same "only one download at a time per symbol" guarantee that
-a file lock would, without any OS-specific dependencies.
+All workers run inside a single-process `ThreadPoolExecutor`, so a
+`threading.Lock` provides the required "only one download at a time per
+symbol" guarantee without OS-specific file locking.
 """
 
 from __future__ import annotations
 
 import os
-import sys
 import threading
 from collections.abc import Callable
 
@@ -21,27 +19,6 @@ import structlog
 from app.backtest.data.download import calculate_candle_limit, download_data
 
 logger = structlog.get_logger()
-
-_IS_WIN = sys.platform == "win32"
-
-
-def _lock_file(f) -> None:
-    if _IS_WIN:
-        import msvcrt
-        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # type: ignore[attr-defined]
-    else:
-        import fcntl
-        fcntl.flock(f, fcntl.LOCK_EX)
-
-
-def _unlock_file(f) -> None:
-    if _IS_WIN:
-        import msvcrt
-        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
-    else:
-        import fcntl
-        fcntl.flock(f, fcntl.LOCK_UN)
-
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -78,6 +55,7 @@ def download_if_missing(
             return True  # no upper bound → assume current file is fine
         try:
             import pandas as pd
+
             df_check = pd.read_csv(csv_path, usecols=["timestamp"])
             df_check["timestamp"] = pd.to_datetime(df_check["timestamp"])
             last_ts = df_check["timestamp"].max()
@@ -113,10 +91,17 @@ def download_if_missing(
             days = 365
         limit = calculate_candle_limit(timeframe, days=days)
 
-        publish_event_fn(run_id, loop, "download_progress", {
-            "pct": 0, "symbol": symbol,
-            "candles_fetched": 0, "candles_total": limit,
-        })
+        publish_event_fn(
+            run_id,
+            loop,
+            "download_progress",
+            {
+                "pct": 0,
+                "symbol": symbol,
+                "candles_fetched": 0,
+                "candles_total": limit,
+            },
+        )
 
         output_dir = os.path.dirname(csv_path)
 
@@ -126,15 +111,23 @@ def download_if_missing(
             limit=limit,
             output_dir=output_dir,
             on_progress=lambda fetched, total: publish_event_fn(
-                run_id, loop, "download_progress", {
+                run_id,
+                loop,
+                "download_progress",
+                {
                     "pct": int(fetched / total * 100) if total else 0,
                     "symbol": symbol,
                     "candles_fetched": fetched,
                     "candles_total": total,
-                }
+                },
             ),
         )
 
-        publish_event_fn(run_id, loop, "download_complete", {
-            "symbol": symbol,
-        })
+        publish_event_fn(
+            run_id,
+            loop,
+            "download_complete",
+            {
+                "symbol": symbol,
+            },
+        )

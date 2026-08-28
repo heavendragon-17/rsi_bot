@@ -3,15 +3,19 @@
 > Add a new metric, optimization mode, or quant analysis feature to the backtest system.
 > Reference implementations:
 >   - Engine: `app/trading/engine.py`, `app/backtest/engine/event_source.py`
->   - API (SSE pattern): `app/api/routes/backtest.py`, `app/api/executor.py`
->   - Optimization spec: `docs/optimization.md`
+>   - API: `app/api/routes/backtest_run.py`,
+>     `app/api/routes/backtest_stream.py`, `app/api/executor.py`
+>   - Optimization spec: `docs/11_testing_and_backtesting/optimization.md`
 >   - UI stores: `ui/src/stores/backtestStore.ts`
 
 ## Prerequisites
 
-- Read `docs/backtest-engine.md` — understand the full single-backtest flow
-- Read `docs/optimization.md` — understand grid search and walk-forward patterns
-- Read `docs/api-reference.md` — understand existing endpoints and SSE protocol
+- Read `docs/11_testing_and_backtesting/backtest-engine.md` — understand the
+  full single-backtest flow
+- Read `docs/11_testing_and_backtesting/optimization.md` — understand grid
+  search and walk-forward patterns
+- Read `docs/14_api_reference/rest-endpoints.md` and
+  `docs/14_api_reference/sse-events.md` — understand the API contract
 - Determine your feature type — then follow the appropriate branch below
 
 ---
@@ -38,7 +42,8 @@ File: `app/repository/backtest/models.py`
 
 Add a new column to `RunResult` if the metric should be persisted. If it's a complex metric (multi-value), consider storing as JSON in an existing column.
 
-File: `app/api/routes/backtest.py`
+Files: `app/backtest/persistence.py` and
+`app/api/routes/backtest_results.py`
 
 In the results persistence logic, read the new metric from the results dict and write to the DB. In the detail endpoint, expose it in the response.
 
@@ -64,13 +69,16 @@ The runner:
 - Reports progress via a callback or queue
 - Returns aggregated results
 
-Model on the grid search pattern described in `docs/optimization.md`.
+Model on the grid search pattern described in
+`docs/11_testing_and_backtesting/optimization.md`.
 
 ### B2. Create the API route
 
 File: `app/api/routes/{name}.py`
 
-Follow the SSE pattern from `app/api/routes/backtest.py`:
+Follow the split pattern in `app/api/routes/backtest_run.py`,
+`app/api/routes/backtest_stream.py`, and
+`app/api/routes/backtest_results.py`:
 
 1. **POST endpoint**: Validate request → create DB parent row → submit job to executor (`app/api/executor.py` → `submit_backtest(run_id, fn)`) → return `{"run_id": ..., "status": "running"}`
 2. **GET SSE endpoint**: `/{run_id}/progress` returns `StreamingResponse` consuming from `get_progress_queue(run_id)` → yields `data: {...}\n\n` events
@@ -163,8 +171,11 @@ Follow the same API pattern as Branch B (SSE route + executor). The API routes c
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/trading/engine.py` or `app/backtest/` modified → update **`docs/backtest-engine.md`**
-- New optimization mode → update **`docs/optimization.md`** with the new mode's specification
-- `app/api/` modified → update **`docs/api-reference.md`** with the new endpoints
+- `app/trading/engine.py` or `app/backtest/` modified → update
+  **`docs/11_testing_and_backtesting/backtest-engine.md`**
+- New optimization mode → update
+  **`docs/11_testing_and_backtesting/optimization.md`**
+- `app/api/` modified → update **`docs/14_api_reference/`**
 - `app/repository/` modified → run **`python scripts/gen_db_docs.py`**
-- `ui/src/` modified → update **`docs/ui-spec.md`**: add the new Zustand store to the stores table, document the new mode tab
+- `ui/src/` modified → update **`docs/10_frontend_dashboard/`** with the store,
+  components, and interaction flow

@@ -5,6 +5,7 @@ Description=Check for new RSI Bot deployments (every 1 min)
 OnBootSec=60
 OnUnitActiveSec=60
 AccuracySec=5
+Persistent=true
 
 [Install]
 WantedBy=timers.target

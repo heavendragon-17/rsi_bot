@@ -1,5 +1,9 @@
 # 🎉 Strategy Command Center — Project Complete
 
+> **Historical delivery snapshot (February 2026):** This file records the
+> original Figma implementation and includes features that were later removed.
+> Use `ui/README.md` and `docs/10_frontend_dashboard/` for current behavior.
+
 > **Status:** ✅ **PRODUCTION READY**
 > **Completion Date:** February 8, 2026
 > **Total Tasks:** 13/13 Complete

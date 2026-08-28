@@ -1,6 +1,6 @@
 [project]
 name = "rsi-bot"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -41,18 +41,18 @@ show_missing = true
 fail_under = 70
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py313"
 line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "UP038"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 check_untyped_defs = false
 disallow_untyped_defs = false
 warn_return_any = false

@@ -92,23 +92,23 @@ ALLOWED_CORE_FILES = {
 }
 
 # ─── Rule 8: No print() in app/ ─────────────────────────────────────────────
-PRINT_PATTERN = re.compile(r'\bprint\s*\(')
+PRINT_PATTERN = re.compile(r"\bprint\s*\(")
 
 # ─── Rule 9: No bare except ────────────────────────────────────────────────
-BARE_EXCEPT_PATTERN = re.compile(r'\bexcept\s*:')
+BARE_EXCEPT_PATTERN = re.compile(r"\bexcept\s*:")
 
 # ─── Rule 10: No unittest.TestCase in tests/ ───────────────────────────────
-TESTCASE_PATTERN = re.compile(r'class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)')
+TESTCASE_PATTERN = re.compile(r"class\s+\w+\s*\(\s*(?:unittest\.)?TestCase\s*\)")
 
 # ─── Rule 12: No stdlib logging in app/ ────────────────────────────────────
 LOGGING_PATTERNS = [
-    (re.compile(r'\blogging\.getLogger\b'), "Use structlog.get_logger() instead of logging.getLogger()"),
-    (re.compile(r'^import logging$', re.MULTILINE), "Use structlog instead of stdlib logging"),
+    (re.compile(r"\blogging\.getLogger\b"), "Use structlog.get_logger() instead of logging.getLogger()"),
+    (re.compile(r"^import logging$", re.MULTILINE), "Use structlog instead of stdlib logging"),
 ]
 LOGGING_ALLOWED_FILES = ["app/core/logging.py"]
 
 # ─── Rule 16: snake_case file names in app/ ─────────────────────────────────
-SNAKE_CASE_PATTERN = re.compile(r'^[a-z_][a-z0-9_]*\.py$')
+SNAKE_CASE_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*\.py$")
 
 # ─── Rule 7: Duplicate helper functions ──────────────────────────────────────
 # Functions that have canonical implementations and should not be redefined.
@@ -126,6 +126,12 @@ DUPLICATE_HELPER_PATTERNS = [
 ]
 
 
+def _relative_path(path: Path) -> str:
+    """Return a stable repository path on Windows and POSIX runners."""
+
+    return path.relative_to(REPO_ROOT).as_posix()
+
+
 def get_imports(filepath: Path) -> list[str]:
     """Extract top-level import module paths from a Python file.
 
@@ -133,7 +139,7 @@ def get_imports(filepath: Path) -> list[str]:
     intentionally allowed (used for breaking circular / cross-layer deps).
     """
     try:
-        tree = ast.parse(filepath.read_text(), filename=str(filepath))
+        tree = ast.parse(filepath.read_text(encoding="utf-8"), filename=str(filepath))
     except SyntaxError:
         return []
     imports = []
@@ -151,8 +157,8 @@ def check_import_boundaries() -> list[str]:
     """Check that import boundaries are respected."""
     violations = []
     for py_file in APP_DIR.rglob("*.py"):
-        rel = py_file.relative_to(REPO_ROOT)
-        module_path = str(rel).replace("/", ".").replace(".py", "").replace(".__init__", "")
+        rel = _relative_path(py_file)
+        module_path = rel.replace("/", ".").replace(".py", "").replace(".__init__", "")
 
         for boundary_prefix, rules in IMPORT_RULES.items():
             if not module_path.startswith(boundary_prefix):
@@ -171,9 +177,9 @@ def check_file_sizes() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        lines = py_file.read_text().count("\n") + 1
+        lines = py_file.read_text(encoding="utf-8").count("\n") + 1
         if lines > MAX_LINES:
-            rel = py_file.relative_to(REPO_ROOT)
+            rel = _relative_path(py_file)
             violations.append(f"  {rel}: {lines} lines (max {MAX_LINES})")
     return violations
 
@@ -184,8 +190,8 @@ def check_forbidden_patterns() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
-        content = py_file.read_text()
+        rel = _relative_path(py_file)
+        content = py_file.read_text(encoding="utf-8")
 
         # Exact string matches
         for pattern, desc, allowed in FORBIDDEN_PATTERNS:
@@ -205,9 +211,9 @@ def check_directory_whitelist() -> list[str]:
     violations = []
     for item in APP_DIR.iterdir():
         if item.is_dir() and item.name not in ALLOWED_APP_DIRS:
-            rel = item.relative_to(REPO_ROOT)
+            rel = _relative_path(item)
             violations.append(
-                f"  {rel}/ is not an allowed app/ directory. " f"Allowed: {sorted(ALLOWED_APP_DIRS - {'__pycache__'})}"
+                f"  {rel}/ is not an allowed app/ directory. Allowed: {sorted(ALLOWED_APP_DIRS - {'__pycache__'})}"
             )
     return violations
 
@@ -220,7 +226,7 @@ def check_core_file_whitelist() -> list[str]:
         return violations
     for py_file in core_dir.glob("*.py"):
         if py_file.name not in ALLOWED_CORE_FILES:
-            rel = py_file.relative_to(REPO_ROOT)
+            rel = _relative_path(py_file)
             violations.append(
                 f"  {rel} is not allowed in core/. "
                 f"core/ is only for contracts and models. "
@@ -236,7 +242,7 @@ def check_class_count(max_classes: int = 1) -> list[str]:
         if "__pycache__" in str(py_file) or "__init__" in py_file.name:
             continue
         try:
-            tree = ast.parse(py_file.read_text(), filename=str(py_file))
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except SyntaxError:
             continue
 
@@ -276,7 +282,7 @@ def check_class_count(max_classes: int = 1) -> list[str]:
                 real_classes.append(node.name)
 
         if len(real_classes) > max_classes:
-            rel = py_file.relative_to(REPO_ROOT)
+            rel = _relative_path(py_file)
             violations.append(
                 f"  {rel}: {len(real_classes)} classes ({', '.join(real_classes)}) — max {max_classes} per file"
             )
@@ -289,8 +295,8 @@ def check_duplicate_helpers() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
-        content = py_file.read_text()
+        rel = _relative_path(py_file)
+        content = py_file.read_text(encoding="utf-8")
         for regex, desc, allowed in DUPLICATE_HELPER_PATTERNS:
             if rel not in allowed and regex.search(content):
                 violations.append(f"  {rel}: {desc}")
@@ -304,7 +310,7 @@ def check_snake_case_filenames() -> list[str]:
         if "__pycache__" in str(py_file) or py_file.name == "__init__.py":
             continue
         if not SNAKE_CASE_PATTERN.match(py_file.name):
-            rel = py_file.relative_to(REPO_ROOT)
+            rel = _relative_path(py_file)
             violations.append(f"  {rel}: filename not snake_case")
     return violations
 
@@ -315,8 +321,8 @@ def check_no_print() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
-        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+        rel = _relative_path(py_file)
+        for i, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             stripped = line.lstrip()
             if stripped.startswith("#"):
                 continue
@@ -331,8 +337,8 @@ def check_no_bare_except() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
-        for i, line in enumerate(py_file.read_text().splitlines(), 1):
+        rel = _relative_path(py_file)
+        for i, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             if BARE_EXCEPT_PATTERN.search(line):
                 violations.append(f"  {rel}:{i}: bare except: — specify exception type")
     return violations
@@ -347,8 +353,8 @@ def check_no_test_case() -> list[str]:
     for py_file in tests_dir.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
-        content = py_file.read_text()
+        rel = _relative_path(py_file)
+        content = py_file.read_text(encoding="utf-8")
         if TESTCASE_PATTERN.search(content):
             violations.append(f"  {rel}: uses unittest.TestCase — convert to pytest")
     return violations
@@ -360,10 +366,10 @@ def check_no_stdlib_logging() -> list[str]:
     for py_file in APP_DIR.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        rel = str(py_file.relative_to(REPO_ROOT))
+        rel = _relative_path(py_file)
         if rel in LOGGING_ALLOWED_FILES:
             continue
-        content = py_file.read_text()
+        content = py_file.read_text(encoding="utf-8")
         for regex, desc in LOGGING_PATTERNS:
             if regex.search(content):
                 violations.append(f"  {rel}: {desc}")
@@ -378,22 +384,19 @@ def check_interface_prefix() -> list[str]:
         return violations
     for py_file in core_dir.glob("*.py"):
         try:
-            tree = ast.parse(py_file.read_text(), filename=str(py_file))
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         except SyntaxError:
             continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
             inherits_abc = any(
-                (isinstance(b, ast.Name) and b.id == "ABC")
-                or (isinstance(b, ast.Attribute) and b.attr == "ABC")
+                (isinstance(b, ast.Name) and b.id == "ABC") or (isinstance(b, ast.Attribute) and b.attr == "ABC")
                 for b in node.bases
             )
             if inherits_abc and not node.name.startswith("I"):
-                rel = py_file.relative_to(REPO_ROOT)
-                violations.append(
-                    f"  {rel}: class {node.name} inherits ABC but doesn't start with 'I'"
-                )
+                rel = _relative_path(py_file)
+                violations.append(f"  {rel}: class {node.name} inherits ABC but doesn't start with 'I'")
     return violations
 
 

@@ -22,11 +22,12 @@
 | Understand portfolio or reconciliation | [09_portfolio_and_reconciliation](09_portfolio_and_reconciliation/) | [position-tracking.md](09_portfolio_and_reconciliation/position-tracking.md) |
 | Work on the React frontend (backtest UI) | [10_frontend_dashboard](10_frontend_dashboard/) | [ui-architecture.md](10_frontend_dashboard/ui-architecture.md) |
 | Work on tests or the backtest engine | [11_testing_and_backtesting](11_testing_and_backtesting/) | [backtest-engine.md](11_testing_and_backtesting/backtest-engine.md), [testing-strategy.md](11_testing_and_backtesting/testing-strategy.md) |
-| Deploy or operate the live bot | [12_deployment_and_ops](12_deployment_and_ops/) | [deployment-checklist.md](12_deployment_and_ops/deployment-checklist.md) |
+| Deploy or operate the live bot | [12_deployment_and_ops](12_deployment_and_ops/) | [deployment-checklist.md](12_deployment_and_ops/deployment-checklist.md), [infrastructure-roadmap.md](12_deployment_and_ops/infrastructure-roadmap.md) |
 | Handle or prepare for incidents | [13_runbooks_and_postmortems](13_runbooks_and_postmortems/) | [runbook-template.md](13_runbooks_and_postmortems/runbook-template.md) |
 | Add or modify API endpoints | [14_api_reference](14_api_reference/), [workflows/](workflows/) | [rest-endpoints.md](14_api_reference/rest-endpoints.md), [add-api-endpoint.md](workflows/add-api-endpoint.md) |
 | Debug an issue | [15_debugging](15_debugging/) | [debug-decision-trees.md](15_debugging/debug-decision-trees.md) |
 | Enforcement rules, CI/CD, hooks | [16_enforcement](16_enforcement/) | [enforcement.md](16_enforcement/enforcement.md) |
+| Audit a strategy statistically | [17_audit](17_audit/) | [audit.md](17_audit/audit.md) |
 | Understand a past architectural decision | [adr/](adr/) | [README.md](adr/README.md) |
 
 ---
@@ -50,6 +51,7 @@
 | [14_api_reference/](14_api_reference/) | REST endpoints, SSE events, API config | Working on the FastAPI backend (`app/api/`) |
 | [15_debugging/](15_debugging/) | Debug decision trees, log interpretation, common issues | Diagnosing any issue |
 | [16_enforcement/](16_enforcement/) | Enforcement rules, CI/CD pipeline, pre-commit hooks, adding new rules | Working on linting, CI, or code quality enforcement |
+| [17_audit/](17_audit/) | Bootstrap confidence intervals, DSR, PBO, IC, and audit verdicts | Evaluating whether a backtest result is statistically credible |
 
 ---
 
@@ -82,6 +84,22 @@ Records of significant architectural decisions with context, rationale, and cons
 - **database.md is auto-generated** from ORM models via `scripts/gen_db_docs.py`. Do NOT edit it manually.
 - **CLAUDE.md** at project root contains build commands and quick-reference. Not a substitute for these specs.
 - **Source of truth hierarchy**: Code > docs/ specs > CLAUDE.md
+
+### Documentation lifecycle
+
+| Location | Status | Maintenance rule |
+|---|---|---|
+| Numbered `docs/` folders | Current technical source | Update with matching code changes |
+| `wiki/` | Current user guidance | Keep setup and common workflows concise |
+| `docs/14_api_reference/database.md` | Generated | Run `python scripts/gen_db_docs.py`; never edit manually |
+| `docs/adr/` | Immutable decisions | Add a superseding ADR instead of rewriting history |
+| `docs/archive/` and historical `ui/docs/TASK_*` files | Historical | Do not use as current requirements |
+| `ui/build/` | Generated/ignored | Recreate with `cd ui && npm ci && npm run build`; never commit |
+| `tasks/` | Working records | Not product documentation |
+
+Run `python scripts/check_markdown_links.py` before committing documentation
+changes. The check validates every tracked Markdown target without making
+network requests and is also enforced by pre-commit and CI.
 
 ---
 
@@ -131,3 +149,7 @@ Historical specs that have been fully implemented. Kept for reference only — d
 | PLAN-figma-ui-v3.md | Original UI plan (13 tasks) | Superseded |
 | pine-indicators.md | Custom indicator library spec | Archived (feature removed) |
 | CSS_VARIABLES.md | Theme system contract | Merged into ui-spec |
+| root/ | Former root-level plans, phase specs, reviews, and bug notes | Superseded by the numbered documentation tree |
+
+See [archive/README.md](archive/README.md) for archive ownership rules and the
+historical inventory.

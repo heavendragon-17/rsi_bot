@@ -5,77 +5,78 @@ on:
     branches: [mua-tren-the-nang]
   pull_request:
     branches: [mua-tren-the-nang]
+  workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: Git ref to validate instead of the caller commit
+        required: false
+        type: string
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
   arch-lint:
     name: Architecture Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run architecture lint
         run: python scripts/arch_lint.py
-      - name: Post violation summary
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const output = execSync('python scripts/arch_lint.py 2>&1 || true').toString();
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## Architecture Lint Failed\n\n\`\`\`\n${output}\n\`\`\``
-            });
+      - name: Validate deployment shell syntax
+        run: bash -n deploy/*.sh
 
   ruff:
     name: Ruff Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install ruff
-      - name: Ruff check
-        run: ruff check app/ tests/ scripts/
-      - name: Post ruff summary
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const output = execSync('ruff check app/ tests/ scripts/ 2>&1 || true').toString();
-            const truncated = output.substring(0, 3000);
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## Ruff Lint Failed\n\n\`\`\`\n${truncated}\n\`\`\``
-            });
+      - name: Install Ruff
+        run: python -m pip install "ruff==0.8.6"
+      - name: Run Ruff
+        run: ruff check app tests scripts
 
   tests:
     name: Tests + Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
       - name: Install dependencies
         run: |
-          pip install -r requirements-dev.txt
+          python -m pip install -r requirements-dev.txt
+          python -m pip check
       - name: Run tests with coverage
         run: |
           pytest tests/ -v --tb=short \
@@ -84,117 +85,106 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-config=pyproject.toml \
             --cov-fail-under=70
-      - name: Post coverage summary
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+      - name: Add coverage to job summary
+        if: always()
+        run: |
+          echo "## Python coverage" >> "$GITHUB_STEP_SUMMARY"
+          python -m coverage report >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload coverage XML
+        if: always() && hashFiles('coverage.xml') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          script: |
-            const fs = require('fs');
-            const { execSync } = require('child_process');
-            // Get coverage summary from terminal output
-            const output = execSync(
-              'pytest tests/ --cov=app --cov-report=term --cov-config=pyproject.toml -q --no-header 2>&1 || true'
-            ).toString();
-            // Extract the coverage table (last lines before the total)
-            const lines = output.split('\n');
-            const coverageLines = lines.filter(l => l.includes('TOTAL') || l.includes('%'));
-            const totalLine = lines.find(l => l.includes('TOTAL'));
-            const summary = totalLine || 'Coverage data not available';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## Test Coverage Report\n\n\`\`\`\n${summary}\n\`\`\`\n\nFull report available in CI artifacts.`
-            });
+          name: coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 14
 
   mypy:
     name: Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -r requirements.txt mypy
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt "mypy==1.14.1"
       - name: Run mypy
-        run: mypy app/ --ignore-missing-imports
-      - name: Post mypy summary
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const output = execSync('mypy app/ --ignore-missing-imports 2>&1 || true').toString();
-            const truncated = output.substring(0, 3000);
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## mypy Type Check Failed\n\n\`\`\`\n${truncated}\n\`\`\``
-            });
+        run: mypy app --ignore-missing-imports
 
   bandit:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install bandit[toml]
-      - name: Run bandit
-        run: bandit -r app/ -c pyproject.toml
-      - name: Post bandit summary
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const output = execSync('bandit -r app/ -c pyproject.toml 2>&1 || true').toString();
-            const truncated = output.substring(0, 3000);
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## Bandit Security Scan Failed\n\n\`\`\`\n${truncated}\n\`\`\``
-            });
+      - name: Install Bandit
+        run: python -m pip install "bandit[toml]==1.8.3"
+      - name: Run Bandit
+        run: bandit -r app -c pyproject.toml
 
   pip-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install pip-audit
-      - name: Run pip-audit
+      - name: Install pip-audit
+        run: python -m pip install "pip-audit==2.9.0"
+      - name: Audit runtime dependencies
         run: pip-audit -r requirements.txt
 
   detect-secrets:
     name: Secret Detection
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install detect-secrets
-      - name: Audit secrets baseline
-        run: detect-secrets audit --report .secrets.baseline
+      - name: Install detect-secrets
+        run: python -m pip install "detect-secrets==1.5.0"
+      - name: Scan tracked files for new secrets
+        run: |
+          python -c "import subprocess; from detect_secrets.pre_commit_hook import main; files=[f for f in subprocess.check_output(['git','ls-files'], text=True).splitlines() if not f.lower().endswith('.ipynb')]; raise SystemExit(main(['--baseline', '.secrets.baseline', *files]))"
 
   circular-imports:
     name: Circular Import Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -r requirements.txt
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
       - name: Check circular imports
         run: |
           python -c "
@@ -203,27 +193,56 @@ jobs:
           print('No circular imports detected')
           "
 
-  doc-freshness:
-    name: Doc Freshness Reminder
+  docs:
+    name: Documentation
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
-      - name: Check and remind
-        uses: actions/github-script@v7
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          script: |
-            const { execSync } = require('child_process');
-            const base = context.payload.pull_request.base.ref;
-            const appChanged = execSync(`git diff --name-only origin/${base}...HEAD -- 'app/' | wc -l`).toString().trim();
-            const docsChanged = execSync(`git diff --name-only origin/${base}...HEAD -- 'docs/' | wc -l`).toString().trim();
-            if (parseInt(appChanged) > 0 && parseInt(docsChanged) === 0) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: '## Documentation Reminder\n\nCode changed in `app/` but no docs updated. See `docs/INDEX.md` for routing.\n\n> Reminder only — not blocking.'
-              });
-            }
+          python-version: "3.13"
+      - name: Validate local Markdown links
+        run: python scripts/check_markdown_links.py
+      - name: Check documentation impact
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD)"
+          if echo "$changed" | grep -Eq '^(app/|config\.yaml$|deploy/|Dockerfile$|\.github/)'; then
+            if ! echo "$changed" | grep -Eq '^(docs/|wiki/|README\.md$|SECURITY\.md$|CHANGELOG\.md$)'; then
+              echo "::error::Runtime or delivery code changed without a documentation update."
+              echo "## Documentation impact" >> "$GITHUB_STEP_SUMMARY"
+              echo "Runtime or delivery code changed without a documentation update. Update docs/INDEX.md routing targets or explain why no documentation is needed." >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          fi
+
+  ui:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: ui
+        run: npm audit --audit-level=high
+      - name: Type-check and build frontend
+        working-directory: ui
+        run: npm run build

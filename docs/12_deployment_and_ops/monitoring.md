@@ -58,7 +58,7 @@ cat /tmp/rsi_bot_status.json | python3 -m json.tool
 ## Health Check (Backtest API)
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8100/health
 # {"status": "ok"}
 ```
 

@@ -6,11 +6,37 @@ set -euo pipefail
 #
 # Usage: sudo deploy/install.sh
 
+if [[ "$EUID" -ne 0 ]]; then
+    echo "ERROR: install.sh must run as root (use sudo)." >&2
+    exit 1
+fi
+
 # ── Load shared variables ─────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/deploy_env.sh"
 
 SYSTEMD_DIR="/etc/systemd/system"
+
+if [[ ! "$SERVICE_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+    echo "ERROR: Invalid SERVICE_USER: $SERVICE_USER" >&2
+    exit 1
+fi
+if [[ ! "$SERVICE_NAME" =~ ^[A-Za-z0-9@_.-]+$ ]]; then
+    echo "ERROR: Invalid SERVICE_NAME: $SERVICE_NAME" >&2
+    exit 1
+fi
+if ! id "$SERVICE_USER" >/dev/null 2>&1; then
+    echo "ERROR: Service user '$SERVICE_USER' does not exist." >&2
+    exit 1
+fi
+if [[ ! -d "$BOT_DIR" || ! -x "$VENV_DIR/bin/python" ]]; then
+    echo "ERROR: BOT_DIR or its virtual environment is not ready." >&2
+    exit 1
+fi
+if ! sudo -u "$SERVICE_USER" test -w "$BOT_DIR"; then
+    echo "ERROR: $SERVICE_USER must own or be able to write $BOT_DIR." >&2
+    exit 1
+fi
 
 echo "Installing services with:"
 echo "  BOT_DIR       = $BOT_DIR"
@@ -31,9 +57,17 @@ Type=simple
 User=${SERVICE_USER}
 WorkingDirectory=${BOT_DIR}
 Environment=PATH=${VENV_DIR}/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
 ExecStart=${VENV_DIR}/bin/python main.py
 Restart=on-failure
 RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
 StandardOutput=journal
 StandardError=journal
 
@@ -55,6 +89,7 @@ Type=oneshot
 User=${SERVICE_USER}
 WorkingDirectory=${BOT_DIR}
 ExecStart=${BOT_DIR}/deploy/check_deploy.sh
+UMask=0077
 StandardOutput=journal
 StandardError=journal
 EOF
@@ -70,6 +105,7 @@ Description=Check for new RSI Bot deployments (every 1 min)
 OnBootSec=60
 OnUnitActiveSec=60
 AccuracySec=5
+Persistent=true
 
 [Install]
 WantedBy=timers.target
@@ -77,9 +113,24 @@ EOF
 
 echo "Wrote $SYSTEMD_DIR/check-deploy.timer"
 
+# ── Allow only the service lifecycle commands used by deploy.sh ──
+SYSTEMCTL_PATH=$(command -v systemctl)
+SUDOERS_FILE="/etc/sudoers.d/rsi-bot-deploy"
+SUDOERS_TMP=$(mktemp)
+trap 'rm -f -- "$SUDOERS_TMP"' EXIT
+cat > "$SUDOERS_TMP" <<EOF
+Cmnd_Alias RSI_BOT_SYSTEMD = ${SYSTEMCTL_PATH} restart ${SERVICE_NAME}, ${SYSTEMCTL_PATH} start ${SERVICE_NAME}, ${SYSTEMCTL_PATH} stop ${SERVICE_NAME}
+${SERVICE_USER} ALL=(root) NOPASSWD: RSI_BOT_SYSTEMD
+EOF
+chmod 0440 "$SUDOERS_TMP"
+visudo -cf "$SUDOERS_TMP"
+install -m 0440 "$SUDOERS_TMP" "$SUDOERS_FILE"
+echo "Wrote $SUDOERS_FILE"
+
 # ── Create log file ──────────────────────────────────────────────
 touch "$LOG_FILE"
 chown "$SERVICE_USER":"$SERVICE_USER" "$LOG_FILE"
+chmod 0600 "$LOG_FILE"
 echo "Created $LOG_FILE"
 
 # ── Reload and enable ────────────────────────────────────────────

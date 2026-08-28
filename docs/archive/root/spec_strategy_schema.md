@@ -1,5 +1,8 @@
 # RSI Bot — Strategy Param Schema Spec
 
+> **Historical implementation spec (April 2026):** Retained for provenance;
+> use `docs/07_trading_strategies/strategy-config.md` for the current schema.
+
 ## Overview
 
 Each strategy has a frozen dataclass config (`RsiNoRetestConfig`, `RsiMomentumConfig`, `RsiWmaRetestConfig`) with typed fields and defaults. The UI needs more than just types — it needs min/max bounds, step sizes, groupings, and descriptions to render dynamic parameter forms.

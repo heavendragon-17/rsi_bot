@@ -23,6 +23,7 @@ app/backtest/
 ├── data/            # Data loading and downloading
 │   ├── manager.py              # Data manager
 │   ├── download.py             # OHLCV data download (CLI)
+│   ├── inline_download.py      # API missing/stale CSV download, serialized per path
 │   └── download_tick.py        # Tick data download
 ├── runners/         # Runner scripts for each backtest mode
 │   ├── batch_runner.py         # Batch (multi-config) runner
@@ -84,7 +85,7 @@ User clicks "Run Backtest"
     │
     ▼
 POST /api/backtest/run
-    1. Validate request + check CSV exists
+    1. Validate request; download a missing or stale CSV when required
     2. Create Run row (status="running") + RunConfig row
     3. Create asyncio.Queue for SSE progress
     4. Submit BacktestEngine.run() to ThreadPoolExecutor
@@ -100,6 +101,10 @@ On complete:
     2. getTimeseries(run_id) → equity/drawdown curves (zlib decompressed)
     3. Render ResultsDashboard
 ```
+
+Inline downloads use one `threading.Lock` per CSV path. API jobs share a
+single-process thread pool, so this prevents concurrent writes to the same
+dataset without platform-specific file locking.
 
 ---
 

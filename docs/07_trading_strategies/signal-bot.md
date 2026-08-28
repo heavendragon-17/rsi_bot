@@ -590,7 +590,8 @@ Close 33% at 62,960
 - `app/core/constants.py` — add `SIGNAL_MAX_CONSECUTIVE_FAILURES = 3`, `SIGNAL_MAX_VP_AGE_CANDLES = 50`, `MAX_CANDLES_IN_RAM_PER_TF` dict
 - `app/data/stream_manager.py` — accept `targets: set[tuple[str, str]]`; multi-TF URL; callback to multiplexer. Keep legacy ctor path for live bot.
 - `app/data/normalizer.py` — ensure `timeframe` present on `Candle`
-- `app/notification/service.py` — add `topic_id` param to `send()`
+- `app/notification/notification_service.py` — route `topic_id` through
+  `send()`
 - `config.yaml` — schema migration (retain `strategy: ...` support for live mode back-compat)
 
 ### Docs (mandatory per CLAUDE.md)
@@ -606,7 +607,7 @@ Close 33% at 62,960
 - `tests/test_exit_monitor.py` — SL-before-TP, TP wick-touch, multi-TP, age expiry
 - `tests/test_strategy_config_resolver.py` — global + override + exclude merging
 - `tests/test_strategy_worker_failure.py` — retry counter, thread-dies-after-N
-- `tests/test_signal_runner_shutdown.py` — SIGTERM broadcast contents
+- `tests/test_signal_runner.py` — startup, shutdown, and worker coordination
 - `tests/test_signal_formatter.py` — message templates
 - `tests/test_notification_service_topic.py` — topic_id forwarded correctly
 

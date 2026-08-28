@@ -96,5 +96,8 @@ new_val = last.get("new_indicator")
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/data/indicators.py` supports strategies → update **`docs/strategy-reference.md`**: add the new computed columns to the Indicator Settings parameter table of the affected strategy
-- If `app/core/interfaces.py` (`IIndicators`) was modified → update **`docs/architecture.md`**, Layer 2 section
+- `app/data/indicators.py` supports strategies → update
+  **`docs/07_trading_strategies/strategy-reference.md`** with the computed
+  columns used by each affected strategy
+- If `app/core/interfaces.py` (`IIndicators`) changed → update
+  **`docs/02_architecture/`**, Layer 2

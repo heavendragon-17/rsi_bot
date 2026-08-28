@@ -1,5 +1,8 @@
 # Backtest Performance Optimization Spec
 
+> **Historical implementation spec:** Retained for provenance; use
+> `docs/11_testing_and_backtesting/` for the current backtest design.
+
 ## Hardware Context
 - **CPU**: AMD Ryzen 7 7700 (8 cores / 16 threads)
 - **GPU**: Intel Arc B780 (oneAPI/SYCL — not CUDA)

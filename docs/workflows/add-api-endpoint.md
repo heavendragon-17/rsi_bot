@@ -2,13 +2,17 @@
 
 > Add a new REST or SSE endpoint to the FastAPI backend.
 > Reference implementations:
->   - SSE + background job: `app/api/routes/backtest.py`
+>   - Background-job submission: `app/api/routes/backtest_run.py`
+>   - SSE progress: `app/api/routes/backtest_stream.py`
+>   - Result retrieval: `app/api/routes/backtest_results.py`
 >   - Simple CRUD: `app/api/routes/strategies.py`
 
 ## Prerequisites
 
-- Read `docs/api-reference.md` — understand existing endpoints and conventions
-- Read `docs/backtest-engine.md` — understand the SSE pattern if adding a streaming endpoint
+- Read `docs/14_api_reference/rest-endpoints.md` — understand existing
+  endpoints and conventions
+- Read `docs/14_api_reference/sse-events.md` — understand the streaming
+  protocol
 - Read `app/api/schemas.py` — existing Pydantic request/response models
 
 ## Steps
@@ -17,7 +21,9 @@
 
 | Domain | Existing router file |
 |--------|---------------------|
-| Backtest run lifecycle | `app/api/routes/backtest.py` |
+| Backtest submission | `app/api/routes/backtest_run.py` |
+| Backtest progress stream | `app/api/routes/backtest_stream.py` |
+| Backtest results | `app/api/routes/backtest_results.py` |
 | Historical run list | `app/api/routes/history.py` |
 | Strategy metadata | `app/api/routes/strategies.py` |
 | Data download/status | `app/api/routes/data.py` |
@@ -29,7 +35,8 @@ If adding to an existing domain, add routes to the existing file. If it's a new 
 
 **For a new router file** — `app/api/routes/{domain}.py`:
 
-Model on `app/api/routes/strategies.py` (simple) or `app/api/routes/backtest.py` (complex with SSE).
+Model on `app/api/routes/strategies.py` for a simple read endpoint, or the
+three `backtest_*` routers for background work with SSE.
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException
@@ -54,10 +61,17 @@ def list_items(db: Session = Depends(get_db)):
 
 **For SSE endpoints** (long-running background jobs):
 
-Follow the pattern in `app/api/routes/backtest.py`:
-1. POST endpoint submits job via `app/api/executor.py` → `submit_backtest(run_id, fn)`
-2. GET `/{run_id}/progress` returns `StreamingResponse` consuming from `get_progress_queue(run_id)`
-3. The background function publishes events via `publish_event(run_id, event_dict)`
+Follow the split backtest pattern:
+
+1. `app/api/routes/backtest_run.py` submits the job through
+   `app/backtest/service.py` and `app/api/executor.py`.
+2. `app/api/routes/backtest_stream.py` returns the `StreamingResponse`.
+3. `app/api/routes/backtest_results.py` exposes completed results.
+
+At the executor boundary:
+- `submit_backtest(run_id, fn)` schedules the worker.
+- `get_progress_queue(run_id)` feeds the progress stream.
+- `publish_event(run_id, event_dict)` publishes worker events.
 
 ### 3. Register the router in main.py
 
@@ -65,7 +79,7 @@ File: `app/api/main.py`
 
 Add import and registration:
 ```python
-from app.api.routes import backtest, data, history, strategies, your_domain  # add
+from app.api.routes import data, history, strategies, your_domain  # add
 
 app.include_router(your_domain.router)  # add
 ```
@@ -89,7 +103,9 @@ class YourResponse(BaseModel):
 
 File: `app/repository/backtest/models.py`
 
-If the endpoint requires new tables, add SQLAlchemy ORM models. Design rationale goes in code comments (not in `docs/database.md` — that file is auto-generated).
+If the endpoint requires new tables, add SQLAlchemy ORM models. Design
+rationale goes in code comments, not in
+`docs/14_api_reference/database.md`, which is auto-generated.
 
 After adding models:
 ```bash
@@ -109,14 +125,17 @@ python scripts/gen_db_docs.py
 4. Run `pytest tests/ -v`
 5. Manual smoke test:
    ```bash
-   python -m uvicorn app.api.main:app --reload --port 8000
-   curl http://localhost:8000/api/{domain}/
+   python -m uvicorn app.api.main:app --reload --port 8100
+   curl http://localhost:8100/api/{domain}/
    ```
 
 ## Documentation Impact
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/api/` modified → update **`docs/api-reference.md`**: add the new endpoint with method, path, request schema, response schema, example curl, and error codes
-- If `app/repository/` modified → run **`python scripts/gen_db_docs.py`** to regenerate `docs/database.md`
+- `app/api/` modified → update
+  **`docs/14_api_reference/rest-endpoints.md`** and, for streams,
+  **`docs/14_api_reference/sse-events.md`**
+- If `app/repository/` modified → run **`python scripts/gen_db_docs.py`** to
+  regenerate `docs/14_api_reference/database.md`
 - Design rationale for new DB tables goes in code comments in `app/repository/backtest/models.py`

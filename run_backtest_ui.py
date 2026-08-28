@@ -35,7 +35,7 @@ def main() -> None:
         print(
             f"ERROR: UI bundle not found at {UI_BUILD}\n\n"
             "Build it once on a machine with Node.js:\n"
-            "    cd ui && npm install && npm run build\n\n"
+            "    cd ui && npm ci && npm run build\n\n"
             "Then re-run this launcher. Node is not needed at runtime.",
             file=sys.stderr,
         )

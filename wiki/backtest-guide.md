@@ -15,9 +15,9 @@ The system supports 4 backtest modes, each in its own runner under `app/backtest
 
 ### Starting the Application
 
-1. Start the backend: `python -m uvicorn app.api.main:app --reload --port 8000`
+1. Start the backend: `python -m uvicorn app.api.main:app --reload --port 8100`
 2. Start the frontend: `cd ui && npm run dev`
-3. Open `http://localhost:5173`
+3. Open `http://localhost:3100`
 
 ### Running a Single Backtest
 

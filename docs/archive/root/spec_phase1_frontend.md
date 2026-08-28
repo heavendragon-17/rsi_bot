@@ -1,5 +1,8 @@
 # RSI Bot — Phase 1 Frontend Spec
 
+> **Historical implementation spec (April 2026):** Retained for provenance;
+> use `docs/10_frontend_dashboard/` for the current frontend design.
+
 ## Scope
 
 Wire the UI to run a single backtest end-to-end: load strategies from API, render dynamic param forms, run backtest via API, show SSE progress (download + backtest) in floating pill, render real results in ResultsDashboard.

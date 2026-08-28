@@ -6,13 +6,14 @@
 > - Live stream: `app/data/stream_manager.py` (BinanceStreamManager)
 > - Event source bridge: `app/data/live_event_source.py` (LiveEventSource)
 > - Backtest data: `app/backtest/engine/event_source.py` (BacktestEventSource)
-> - Event source interface: `app/core/event_source.py`
+> - Event source interface: `app/trading/event_source.py`
 
 ## Prerequisites
 
-- Read `docs/live-bot.md` — Data Ingestion section
-- Read `docs/backtest-engine.md` — data management section
-- Read `app/core/event_source.py` — `IEventSource` interface
+- Read `docs/05_data_pipeline/live-data-flow.md` — live ingestion flow
+- Read `docs/11_testing_and_backtesting/backtest-engine.md` — historical data
+  and event-source flow
+- Read `app/trading/event_source.py` — `IEventSource` interface
 - Identify which path you're modifying: live stream, sim tick feed, or historical CSV
 
 ---
@@ -54,7 +55,7 @@ Currently hardcoded to `BinanceStreamManager`. Add routing based on `config['exc
 
 ### B1. Create a download script
 
-File: `app/backtest/download_{name}.py`
+File: `app/backtest/data/download_{name}.py`
 
 Fetch OHLCV data and write CSV to `app/backtest/data/{SYMBOL}_{timeframe}.csv`.
 
@@ -99,7 +100,8 @@ python -m app.backtest.runners.tick_replay \
     --symbol BTC/USDT --timeframe 5m --balance 10000
 ```
 
-See `docs/backtest-engine.md` → Tick-Level Paper Backtest for full architecture details.
+See `docs/11_testing_and_backtesting/backtest-engine.md` for the full
+tick-replay architecture.
 
 ## Testing
 
@@ -122,6 +124,10 @@ Run `pytest tests/ -v` — all existing tests must pass.
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/data/` modified → update **`docs/live-bot.md`**: Data Ingestion section — add the new stream manager, its WebSocket URL or API, symbol normalization rules, and startup sequence
-- `app/backtest/` modified → update **`docs/backtest-engine.md`**: data management section — add the new data source and its CSV format
-- If `app/core/event_source.py` modified → also update **`docs/architecture.md`**
+- `app/data/` modified → update **`docs/05_data_pipeline/`** with the stream,
+  transport, normalization rules, and startup sequence
+- `app/backtest/` modified → update
+  **`docs/11_testing_and_backtesting/backtest-engine.md`** with the source and
+  data format
+- If `app/trading/event_source.py` changed → also update
+  **`docs/02_architecture/`**

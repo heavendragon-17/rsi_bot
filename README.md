@@ -1,108 +1,147 @@
 # RSI Bot
 
-A cryptocurrency trading bot for Binance futures (USDT-M) with a professional backtesting UI.
+RSI Bot is a Python 3.13 cryptocurrency trading and research system with
+live/simulated execution, signal-only Telegram alerts, a backtest engine, and
+a React/FastAPI analysis UI.
 
-## Features
+> **Risk warning:** `live` mode can place real futures orders. Start with
+> `mock`, then `sim`, then testnet `paper`. Review the
+> [deployment checklist](docs/12_deployment_and_ops/deployment-checklist.md)
+> before enabling real-money execution.
 
-- **Live Trading** — WebSocket-driven signal detection with automated order execution
-- **Paper Trading (Sim)** — Full strategy execution against live Binance aggTrade ticks via `PaperExchange`
-- **Tick-Level Backtest** — Replay 40M+ historical aggTrades through `PaperExchange` for precise SL/TP fill simulation
-- **Backtesting UI** — React frontend + FastAPI backend with SQLite storage
-- **Multi-Symbol** — Trade multiple pairs simultaneously with shared capital pool
-- **Grid Search** — Parameter optimization with heatmap visualization
-- **Walk-Forward** — Out-of-sample validation to detect overfitting
-- **Sensitivity Analysis** — Identify fragile parameters
+## Capabilities
 
-## Quick Start
+- WebSocket-driven Binance USDT-M futures execution
+- Read-only signal mode with strategy-specific Telegram topics
+- Simulated fills against live ticks and Binance testnet integration
+- Single-symbol, portfolio, batch, and tick-replay backtests
+- Grid search, walk-forward analysis, sensitivity analysis, and audit reports
+- FastAPI + React backtest interface with a checked-in production bundle
+
+## Quick start
+
+Prerequisites: Python 3.13 and Git. Node.js 20+ is only required when changing
+the frontend.
 
 ```bash
-# Clone and install
 git clone https://github.com/heavendragon-17/rsi_bot.git
 cd rsi_bot
-pip install -r requirements.txt
-
-# Configure
-cp .env.example .env  # Add your API keys
-# Edit config.yaml    # Set mode, symbols, strategy
-
-# Run live bot
-python main.py
-
-# Or run backtest UI
-python -m uvicorn app.api.main:app --reload --port 8000  # backend
-cd ui && npm install && npm run dev                        # frontend
+python -m venv venv
 ```
+
+Activate the environment, then install and configure the application:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+On PowerShell, activate with `venv\Scripts\Activate.ps1` and copy the template
+with `Copy-Item .env.example .env`. On Linux/macOS, activate with
+`source venv/bin/activate`.
+
+Review `.env` and `config.yaml`, then run the configured bot mode:
+
+```bash
+python main.py
+```
+
+Configuration and exchange-mode details are in
+[configuration.md](docs/03_setup_and_installation/configuration.md) and
+[exchange-modes.md](docs/03_setup_and_installation/exchange-modes.md).
+
+## Backtest UI
+
+Build the frontend locally, then the one-process launcher serves the generated
+`ui/build/` bundle and API on `http://localhost:8100` by default. The bundle is
+ignored by Git and rebuilt from the locked frontend sources:
+
+```bash
+cd ui
+npm ci
+npm run build
+cd ..
+python run_backtest_ui.py
+```
+
+For frontend development, run the API and Vite separately:
+
+```bash
+python -m app.api.main
+cd ui
+npm ci
+npm run dev
+```
+
+The development UI defaults to `http://localhost:3100` and calls the API at
+`http://localhost:8100`. Use `API_PORT`, `VITE_PORT`, and `VITE_API_URL` to
+override those defaults.
+
+## Backtest CLI
+
+```bash
+# Download OHLCV data
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
+
+# Run a single-symbol OHLCV backtest
+python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
+
+# Run portfolio, batch, or tick-replay modes
+python -m app.backtest.runners.portfolio_runner
+python -m app.backtest.runners.batch_runner --workers 8
+python -m app.backtest.runners.tick_replay --help
+```
+
+See the [backtest guide](wiki/backtest-guide.md) and
+[sim/tick-replay guide](wiki/sim-backtest.md) for complete workflows.
 
 ## Documentation
 
-**Human Guides (wiki/):**
+| Audience | Start here | Purpose |
+|---|---|---|
+| Users | [Getting started](wiki/getting-started.md) | Installation and first run |
+| Operators | [VPS deployment](docs/12_deployment_and_ops/vps-deployment-guide.md) | Production setup and recovery |
+| Contributors | [Documentation index](docs/INDEX.md) | Task-based technical documentation |
+| AI agents | [Onboarding](docs/00_onboarding/onboarding.md) | Repository workflow and conventions |
+| Security reviewers | [Security policy](SECURITY.md) | Secret and vulnerability handling |
 
-| Resource | Description |
-|----------|-------------|
-| [Getting Started](wiki/getting-started.md) | Installation, setup, and first run |
-| [Architecture Overview](wiki/architecture-overview.md) | System design and key concepts |
-| [Backtest Guide](wiki/backtest-guide.md) | Using the UI, parameter tuning, optimization |
-| [Paper Backtest](wiki/paper-backtest.md) | Tick-level paper backtest guide |
+Historical implementation plans are retained under
+[`docs/archive/`](docs/archive/) for provenance; they are not current system
+specifications.
 
-**AI Agent Specs (docs/):**
+## Repository layout
 
-| Resource | Description |
-|----------|-------------|
-| [Documentation Index](docs/INDEX.md) | Smart routing table — start here |
-| [Architecture](docs/02_architecture/) | System overview, data types, threading model |
-| [Strategy Reference](docs/07_trading_strategies/) | Strategy parameters and trading rules |
-| [API Reference](docs/14_api_reference/) | REST + SSE endpoint reference |
-
-**Other:**
-
-| Resource | Description |
-|----------|-------------|
-| [CHANGELOG](CHANGELOG.md) | Version history and release notes |
-| [Security Policy](SECURITY.md) | Secrets management and vulnerability reporting |
-
-## Project Structure
-
-```
-rsi_bot/
-├── main.py              # Live bot entry point
-├── config.yaml          # Bot configuration
-├── app/                 # Python backend
-│   ├── core/            # Interfaces, config, portfolio, runner
-│   ├── strategies/      # Trading strategies
-│   ├── services/        # Exchange adapters, market data, notifications
-│   ├── backtest/        # Backtest engine & CLI scripts
-│   │   ├── backtest.py             # OHLC backtest CLI (MockExchange)
-│   │   ├── run_paper_tick_replay.py # Tick-level paper backtest CLI (PaperExchange)
-│   │   ├── download_data.py        # Download OHLC candles from Binance
-│   │   ├── download_tick_data.py   # Download aggTrades ticks from Binance Vision
-│   │   └── data/                   # CSV storage (gitignored)
-│   ├── paper/           # PaperExchange sim engine
-│   ├── api/             # FastAPI backend (backtest UI)
-│   └── repository/      # SQLAlchemy ORM models
-├── ui/                  # React frontend (backtest UI)
-├── tests/               # Test suite
-├── docs/                # Technical specifications
-└── wiki/                # User-facing documentation
+```text
+app/core/          Interfaces, actions, configuration, and shared models
+app/data/          Market-data ingestion, normalization, and indicators
+app/trading/       Strategies, execution adapters, portfolio, and runtime
+app/signal/        Signal-only orchestration and BTC RSI alert workers
+app/backtest/      Engines, exchanges, runners, reporting, and audit tools
+app/api/           FastAPI routes and application entry point
+app/notification/  Telegram and notification services
+app/repository/    SQLAlchemy persistence
+ui/                React/Vite frontend and checked-in production bundle
+tests/             Python regression suite
+deploy/            systemd installation and deployment scripts
+docs/              Technical specifications and operational runbooks
+wiki/              User-facing guides
 ```
 
-## Tick-Level Paper Backtest (CLI)
-
-Test `PaperExchange` with real historical aggTrades for precise SL/TP simulation:
+## Development checks
 
 ```bash
-# 1. Download monthly tick data from Binance Vision (~40M rows)
-python app/backtest/download_tick_data.py --symbol BTCUSDT --year 2024 --month 1
-
-# 2. Download matching OHLC candles
-python app/backtest/download_data.py --symbol BTC/USDT --timeframe 5m --limit 9000
-
-# 3. Run tick-level paper backtest
-python app/backtest/run_paper_tick_replay.py \
-    --ohlc  app/backtest/data/BTCUSDT_5m.csv \
-    --ticks app/backtest/data/BTCUSDT_ticks_2024_01.csv \
-    --symbol BTC/USDT --timeframe 5m --balance 10000 --strategy rsi_no_retest
+python -m pytest tests/ -q
+python -m ruff check app tests scripts
+python -m mypy app --ignore-missing-imports
+python scripts/arch_lint.py
+python scripts/check_markdown_links.py
+cd ui && npm ci && npm run build
 ```
+
+CI also runs security, dependency, secret, coverage, documentation, and UI
+checks. See the [enforcement guide](docs/16_enforcement/enforcement.md).
 
 ## License
 
-Private repository.
+No open-source license is currently declared for this public repository.

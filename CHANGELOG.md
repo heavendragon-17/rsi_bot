@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Deterministic repository-local Markdown link validation in pre-commit and CI
+- Frontend build and deployment-shell validation in the main CI workflow
+- Frontend high/critical dependency audit gate and secure lockfile upgrades
+- Dependabot coverage for GitHub Actions, Python, and npm dependencies
+- Prioritized infrastructure hardening roadmap
 - Enterprise documentation restructure: numbered folder hierarchy in `docs/` for AI agents
 - `.env.example` with all environment variables documented
 - `SECURITY.md` security policy
@@ -22,6 +27,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/adr/` — Architecture Decision Records
 
 ### Changed
+- Hardened tag promotion and VPS deployment with exact-ref CI, least-privilege
+  workflow permissions, immutable action pins, fail-closed position checks,
+  candidate health identity checks, and verified rollback attempts
+- Standardized supported runtime documentation and container builds on Python
+  3.13; the container now runs as a non-root user
+- Reconciled active setup, API, strategy, deployment, and UI documentation;
+  moved obsolete root specifications into `docs/archive/root/`
+- Removed generated `ui/build/` assets and their commit-back workflow; frontend
+  output is now ignored and deterministically rebuilt from the npm lockfile
 - Reorganized flat `docs/` files into numbered folder structure
 - Enhanced `docs/INDEX.md` with task-based routing table
 - Updated `CLAUDE.md` to reference new folder structure

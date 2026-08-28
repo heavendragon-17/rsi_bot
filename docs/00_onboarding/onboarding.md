@@ -90,7 +90,8 @@ Before writing any code, internalize these rules:
 - Don't create `limit` orders for SL — always use `stop_market`
 - Don't bypass `PortfolioManager` by calling exchange methods directly
 - Don't hard-code API keys or secrets in code — use `.env`
-- Don't edit `docs/database.md` manually — run `python scripts/gen_db_docs.py`
+- Don't edit `docs/14_api_reference/database.md` manually — run
+  `python scripts/gen_db_docs.py`
 
 ---
 

@@ -6,11 +6,14 @@
 
 ## Base URL
 
-`http://localhost:8000`
+`http://localhost:8100`
 
 ## CORS
 
-Allowed origins: `http://localhost:3000`, `http://localhost:5173` (Vite dev server). All methods and headers allowed, credentials enabled.
+By default, the API accepts HTTP(S) origins on any `localhost` or
+`127.0.0.1` port, including the UI default `http://localhost:3100`. Set
+`API_CORS_ORIGINS` to a comma-separated allowlist in deployed environments.
+All methods and headers are allowed and credentials are enabled.
 
 ---
 

@@ -18,7 +18,7 @@ Below is every live-mode key, its type, default value, and validation rules.
 
 ```yaml
 bot:
-    active: true              # bool, default: true — master enable flag
+    active: true              # compatibility field; currently not a runtime stop switch
     mode: 'paper'             # str, default: 'mock' — mock | sim | paper | testnet | live | signal
     debug: true               # bool, default: false — toggle verbose strategy logging
     telegram_enabled: true    # bool, default: true — enable Telegram notifications
@@ -186,7 +186,11 @@ The `from_yaml` method flattens and remaps certain YAML keys. This is important 
 | `timeframe` | `AppConfig.timeframe` |
 | `warmup_candles` | `AppConfig.warmup_candles` |
 
-Note: `bot.active` and `paper_sim.telegram_token` / `paper_sim.chat_id` are present in YAML but not mapped to `AppConfig` fields. `bot.active` is included in the `to_legacy_dict()` output as a hardcoded `True`. The paper sim Telegram overrides are read directly from the config dict by `PaperTelegramNotifier`.
+> **Important:** `bot.active` is not currently enforced by `main.py` or mapped
+> to `AppConfig`; `to_legacy_dict()` emits a hardcoded `True`. Do not rely on it
+> as a production kill switch. Stop/disable the systemd service or change to a
+> non-executing mode. The paper-sim Telegram overrides are read directly from
+> the raw config by the simulation notification path.
 
 ---
 

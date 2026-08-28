@@ -1,5 +1,8 @@
 # RSI Bot — API Contracts Spec
 
+> **Historical integration spec (April 2026):** Retained for provenance; use
+> `docs/14_api_reference/` for current API contracts.
+
 ## Existing Endpoints (Verify & Fix)
 
 ### 1. `POST /api/backtest/run` [EXISTS — MODIFY]

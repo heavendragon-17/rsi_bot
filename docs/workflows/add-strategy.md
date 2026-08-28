@@ -1,12 +1,15 @@
 # Add a Trading Strategy
 
 > Add a new `IStrategy` implementation following the stateless analyze pattern.
-> Reference implementations: `app/trading/strategy/rsi_no_retest.py` (LONG), `app/trading/strategy/rsi_momentum.py` (SHORT)
+> Reference implementations: `app/trading/strategy/rsi_no_retest/` (LONG),
+> `app/trading/strategy/rsi_momentum/` (SHORT)
 
 ## Prerequisites
 
-- Read `docs/strategy-reference.md` — understand entry/exit/SL/TP model
-- Read `docs/live-bot.md` — understand the stateless analyze pattern and context state machine
+- Read `docs/07_trading_strategies/strategy-reference.md` — understand the
+  entry/exit/SL/TP model
+- Read `docs/07_trading_strategies/strategy-pattern.md` — understand the
+  stateless `analyze()` pattern and context state machine
 - Read `app/core/actions.py` — all available Action types
 - Read `app/core/snapshots.py` — `PositionSnapshot` and `ContextSnapshot` fields
 - Read `app/core/analysis_result.py` — `AnalysisResult` structure
@@ -15,9 +18,11 @@
 
 ### 1. Create the strategy file
 
-File: `app/trading/strategy/{your_strategy_name}.py`
+Directory: `app/trading/strategy/{your_strategy_name}/`
 
-Model on `app/trading/strategy/rsi_no_retest.py`. Required structure:
+Model on `app/trading/strategy/rsi_no_retest/`. Keep public orchestration in
+`strategy.py` and split entry/exit logic before the file-size limit is reached.
+Required structure:
 
 **Config dataclass**: A frozen `@dataclass` with typed fields and a `from_dict()` classmethod that filters unknown keys. This allows the backtest UI to pass arbitrary JSON params without crashing:
 
@@ -117,7 +122,8 @@ If your strategy opens SHORT positions (selling to enter, buying to exit):
 5. **Indicators**: All indicator computation (including RSI crossover indicators) is provided by the `Indicators` class in `app/data/indicators.py`.
 6. **Position amounts**: PortfolioManager stores SHORT positions with **negative** amounts. PnL formula `amount × (exit - entry)` handles both directions.
 
-See `app/trading/strategy/rsi_momentum.py` and its test files for a complete SHORT strategy example.
+See `app/trading/strategy/rsi_momentum/` and its test files for a complete
+SHORT strategy example.
 
 ## Testing
 
@@ -138,8 +144,8 @@ Write `tests/test_{your_strategy_name}.py` modeled on `tests/test_stateless_stra
 python -c "from app.trading.strategy.loader import STRATEGY_MAP; assert 'your_strategy' in STRATEGY_MAP"
 
 # DB seed (start the server, then check)
-python -m uvicorn app.api.main:app --port 8000 &
-curl http://localhost:8000/api/strategies | python -m json.tool
+python -m uvicorn app.api.main:app --port 8100 &
+curl http://localhost:8100/api/strategies | python -m json.tool
 # Verify your_strategy appears in the response
 ```
 
@@ -149,6 +155,11 @@ Run `pytest tests/ -v` — all existing tests must pass.
 
 Consult `docs/INDEX.md` → "Code Path → Documentation File" table:
 
-- `app/trading/strategy/` modified → update **`docs/strategy-reference.md`**: add a new section for the strategy with its parameter table, entry logic, SL/TP logic, and context state machine description
-- `app/repository/backtest/seed.py` modified → run **`python scripts/gen_db_docs.py`** to regenerate `docs/database.md`
-- If `app/core/interfaces.py` or `app/core/actions.py` modified → also update **`docs/architecture.md`**
+- `app/trading/strategy/` modified → update
+  **`docs/07_trading_strategies/strategy-reference.md`** with the parameter,
+  entry, exit, SL/TP, and context contracts
+- `app/repository/backtest/seed.py` modified → run
+  **`python scripts/gen_db_docs.py`** to regenerate
+  `docs/14_api_reference/database.md`
+- If `app/core/interfaces.py` or `app/core/actions.py` changed → also update
+  **`docs/02_architecture/`**

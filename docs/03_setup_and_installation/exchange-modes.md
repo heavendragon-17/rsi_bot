@@ -112,7 +112,7 @@ The `FillSimulator` accepts a `FillMode` instance at construction, decoupling th
 
 ## MockExchange (mock mode)
 
-**File:** `app/backtest/mock_exchange.py`
+**File:** `app/backtest/exchange/mock_exchange.py`
 
 **Purpose:** In-memory futures exchange simulator for backtesting. No network calls, no credentials.
 
@@ -150,11 +150,12 @@ MockExchange(
 
 ---
 
-## PaperExchange (sim mode)
+## SimExchange (sim mode)
 
-**File:** `app/trading/exchange/sim/paper_exchange.py`
+**File:** `app/trading/exchange/sim/sim_exchange.py`
 
-**Purpose:** Local order simulation against live Binance aggTrade WebSocket data. Behaves identically to BinanceAdapter from PortfolioManager's perspective.
+**Purpose:** Local order simulation against live Binance aggTrade WebSocket
+data. It implements the same exchange interface used by `PortfolioManager`.
 
 ### Key Characteristics
 
@@ -162,9 +163,13 @@ MockExchange(
 - **Tick-by-tick SL/TP checking:** Unlike MockExchange which checks on candle close, PaperExchange evaluates pending orders on every tick for higher fidelity.
 - **Entry fill on kline open:** Market entry orders get `status=pending_open` and fill at the next kline open price via `on_kline_open()`.
 - **Realistic fees:** Applies `TAKER_FEE = 0.05%` and `MAKER_FEE = 0.02%`.
-- **State management:** Uses `PaperTradeState` (defined in `app/trading/exchange/sim/state.py`) with typed dataclasses (`PaperOrder`, `PaperPosition`, `ClosedTrade`).
-- **Notifications:** Initializes `PaperTelegramNotifier` and a `NotificationWorker` for real-time trade alerts. Can be silenced via `silence_notifications()` for replay mode.
-- **Thread-safe:** Protected via `PaperTradeState.lock`.
+- **State management:** Uses `SimTradeState` from
+  `app/trading/exchange/sim/sim_state.py` with typed order, position, and
+  closed-trade records.
+- **Notifications:** Delegates simulated trade notifications through
+  `app/trading/exchange/sim/sim_notifications.py`.
+- **Thread-safe:** State transitions are protected by the simulation state's
+  lock.
 
 ### Order Lifecycle
 
