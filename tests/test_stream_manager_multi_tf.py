@@ -50,6 +50,11 @@ class TestCtorValidation:
 
 
 class TestUrlConstruction:
+    def test_uses_binance_futures_market_stream_endpoint(self):
+        mgr, _, _ = _mk_multi(targets={("BTC/USDT", "5m")})
+
+        assert mgr.url == "wss://fstream.binance.com/market/stream?streams=btcusdt@kline_5m"
+
     def test_multi_tf_url_has_all_streams(self):
         mgr, _, _ = _mk_multi(
             targets={("BTC/USDT", "1m"), ("ETH/USDT", "5m")},

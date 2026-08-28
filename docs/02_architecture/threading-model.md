@@ -106,12 +106,12 @@ A single daemon thread that maintains a persistent WebSocket connection to Binan
 ### WebSocket URL Construction
 
 ```python
-STREAM_URL = "wss://fstream.binance.com/stream?streams="
+STREAM_URL = "wss://fstream.binance.com/market/stream?streams="
 
 # Symbols are converted: "BTC/USDT" -> "btcusdt"
 # Stream names: "{symbol}@kline_{timeframe}"
 # Combined URL example:
-# wss://fstream.binance.com/stream?streams=btcusdt@kline_5m/ethusdt@kline_5m
+# wss://fstream.binance.com/market/stream?streams=btcusdt@kline_5m/ethusdt@kline_5m
 ```
 
 ### Symbol Normalization
