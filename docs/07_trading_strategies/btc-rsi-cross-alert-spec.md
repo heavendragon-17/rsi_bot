@@ -100,6 +100,23 @@ runtime contract.
 - Changes to Core V2.1 indicator, anchor, evaluator, state, or runtime behavior.
 - Durable/exactly-once Telegram delivery in v1.
 
+### 5.1 Offline historical replay
+
+The live alert component has a separate offline replay entry point for manual
+chart review: `app.backtest.signal_replay.run_btc_alert_replay()`. It consumes
+native BTC/USDT `5m`, `15m`, and `4h` OHLCV CSV files, reuses the pure
+timeframe-specific preparation and decision functions, and writes only
+confirmed M5/M15 alerts to a human-readable Markdown file.
+
+This replay is not part of the live bootstrap gate and does not send Telegram
+messages, create virtual positions, place orders, calculate PnL, or calculate
+win rate. Historical H4 rows are treated as confirmed context; M5 cooldown
+and deterministic event identity rules remain active. The requested replay
+window is applied to trigger-candle close times in UTC+7 while earlier rows
+remain available for indicator warmup. Each report entry contains the exact
+Telegram card fields plus blank `WIN`, `LOSS`, and `SKIP` fields for manual
+chart classification.
+
 ## 6. Locked configuration
 
 Add the following component entry to `config.yaml`. The M5 and M15 topic IDs

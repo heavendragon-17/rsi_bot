@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Final
 
@@ -19,6 +19,7 @@ COMPONENT_NAME: Final[str] = "btc_rsi_cross_alert"
 EVENT_ID_PREFIX: Final[str] = "btc-rsi-cross-v1"
 EVENT_ID_SEPARATOR: Final[str] = "|"
 EVENT_ID_SUFFIX_LENGTH: Final[int] = 8
+M5_ALERT_COOLDOWN: Final[timedelta] = timedelta(minutes=15)
 
 # ---------------------------------------------------------------------------
 # Exact preparation reasons (spec §10)

@@ -45,7 +45,7 @@
 | [08_execution_and_oms/](08_execution_and_oms/) | Order lifecycle, PortfolioManager flow, exchange adapters | Working on execution (`app/trading/exchange/`, `app/trading/portfolio/`) |
 | [09_portfolio_and_reconciliation/](09_portfolio_and_reconciliation/) | Position tracking, PnL calculation, capital allocation, known gaps | Working on position/portfolio logic |
 | [10_frontend_dashboard/](10_frontend_dashboard/) | React UI architecture, Zustand stores, charts, themes | Working on the frontend (`ui/src/`) |
-| [11_testing_and_backtesting/](11_testing_and_backtesting/) | Testing strategy, backtest engine, optimization (grid/walk-forward/sensitivity) | Working on tests or backtest (`tests/`, `app/backtest/`). Backtest sub-packages: `engine/`, `exchange/`, `runners/`, `statistics/`, `reporting/`, `data/` |
+| [11_testing_and_backtesting/](11_testing_and_backtesting/) | Testing strategy, backtest engine, optimization (grid/walk-forward/sensitivity), historical BTC alert replay | Working on tests or backtest (`tests/`, `app/backtest/`). Backtest sub-packages: `engine/`, `exchange/`, `runners/`, `statistics/`, `reporting/`, `data/`; standalone replay: `signal_replay.py` |
 | [12_deployment_and_ops/](12_deployment_and_ops/) | Deployment checklist, monitoring, security, production config | Deploying or operating the live bot |
 | [13_runbooks_and_postmortems/](13_runbooks_and_postmortems/) | Incident response runbooks, postmortem templates | Handling or preparing for production incidents |
 | [14_api_reference/](14_api_reference/) | REST endpoints, SSE events, API config | Working on the FastAPI backend (`app/api/`) |

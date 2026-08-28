@@ -10,6 +10,9 @@ The backtest module is organized into sub-packages under `app/backtest/`:
 
 ```
 app/backtest/
+├── signal_replay.py       # Offline BTC alert replay and Markdown audit log
+├── signal_replay_cli.py   # Replay command-line argument parsing
+├── signal_replay_models.py # Typed replay result models
 ├── engine/          # Core engines and event sources
 │   ├── backtest_engine.py      # Single-symbol BacktestEngine
 │   ├── portfolio_engine.py     # Multi-symbol PortfolioEngine
@@ -60,6 +63,54 @@ The system supports 4 backtest modes via the `BacktestMode` enum:
 | `portfolio` | `app/backtest/runners/portfolio_runner.py` | Multi-symbol chronological portfolio simulation |
 | `batch` | `app/backtest/runners/batch_runner.py` | Batch runs across multiple configs/symbols |
 | `tick_replay` | `app/backtest/runners/tick_replay.py` | Tick-by-tick replay through PaperExchange |
+
+The repository also provides `app.backtest.signal_replay`, an offline
+multi-timeframe replay for the Telegram-only `btc_rsi_cross_alert`. It is not
+an order simulation and is intentionally separate from `BacktestEngine`.
+
+## Historical BTC Alert Replay
+
+Run the replay with native BTC M5, M15, and H4 OHLCV CSVs:
+
+```bash
+python -m app.backtest.signal_replay \
+    --m5 app/backtest/data/BTCUSDT_5m.csv \
+    --m15 app/backtest/data/BTCUSDT_15m.csv \
+    --h4 app/backtest/data/BTCUSDT_4h.csv \
+    --start 2026-08-01 \
+    --end 2026-08-28 \
+    --output app/backtest/report/signal_replay_2026-08-01_2026-08-28.md
+```
+
+The public Python entry point is:
+
+```python
+run_btc_alert_replay(
+    m5_path,
+    m15_path,
+    h4_path,
+    start_utc7=None,
+    end_utc7=None,
+    output_path=None,
+)
+```
+
+Each input CSV must contain `timestamp, open, high, low, close, volume`.
+Naive source timestamps use the repository's fixed UTC+07:00 storage
+convention and are converted to UTC exactly once before evaluation. CLI dates
+and naive Python datetimes are interpreted as UTC+7; date-only `--end` values
+include the entire local day.
+
+The runner keeps the full frames available for indicator warmup, evaluates M5
+and M15 trigger candles chronologically, selects only point-in-time H4 data,
+applies the live 15-minute M5 cooldown and event deduplication, and writes
+only confirmed alerts. Every written alert reuses the exact Telegram card
+formatter, including its indicator snapshot and UTC+7 candle-close time.
+
+The Markdown report includes a confirmed-signal count and blank `WIN`,
+`LOSS`, and `SKIP` review fields. It does not calculate win rate, PnL, SL/TP,
+orders, or any automated outcome because the alert card has no trade-lifecycle
+levels; outcomes remain manual chart-review decisions.
 
 ---
 
