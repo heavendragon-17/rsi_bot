@@ -40,7 +40,7 @@ Strategy.analyze(symbol, df, position, context)
 
 | Property | Value |
 |----------|-------|
-| Base URL | `wss://fstream.binance.com/stream?streams=` |
+| Base URL | `wss://fstream.binance.com/market/stream?streams=` |
 | Stream format | `{symbol}@kline_{timeframe}` per symbol |
 | Transport | `websocket-client` (`WebSocketApp`) |
 | Ping interval | 60 seconds |

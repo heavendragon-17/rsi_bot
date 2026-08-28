@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-_STREAM_BASE = "wss://fstream.binance.com/stream?streams="
+_STREAM_BASE = "wss://fstream.binance.com/market/stream?streams="
 _MAX_BACKOFF = 30.0
 
 

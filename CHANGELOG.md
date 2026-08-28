@@ -29,6 +29,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - BTC RSI alert cards now include the chart candle locator and the complete
   point-in-time M5/M15 indicator and price-filter checks.
 
+## [1.2.6] - 2026-08-28
+
+### Fixed
+- Updated Binance Futures combined WebSocket consumers to use the current
+  `/market/stream` endpoint so live kline and simulation tick callbacks receive
+  market data again.
+
 ## [1.2.4] - 2026-08-27
 
 ### Changed

@@ -394,3 +394,13 @@ trade-like `/test_signal` command.
 - [x] Show trigger-timeframe price EMA21 and all M5/M15 condition values.
 - [x] Show previous/current RSI EMA/WMA values needed to verify an M15 cross.
 - [x] Add formatter regression coverage and update the authoritative alert spec.
+
+---
+
+## Fix Binance Futures market WebSocket endpoint (2026-08-28)
+
+- [x] Update live kline and simulation aggTrade combined-stream endpoints.
+- [x] Add regression coverage for the live multi-timeframe URL.
+- [x] Update architecture/data-flow documentation and release notes.
+- [ ] Run focused and repository validation.
+- [ ] Merge into `mua-tren-the-nang` and promote tag `v1.2.6` through production.

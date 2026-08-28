@@ -18,7 +18,7 @@ from .normalizer import DataNormalizer
 
 logger = structlog.get_logger()
 
-STREAM_URL = "wss://fstream.binance.com/stream?streams="
+STREAM_URL = "wss://fstream.binance.com/market/stream?streams="
 
 
 class BinanceStreamManager:
