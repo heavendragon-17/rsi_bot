@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import numpy as np
 import pandas as pd
 import pytest
 from btc_alert_fixtures import (
@@ -15,6 +16,7 @@ from btc_alert_fixtures import (
 )
 
 import app.backtest.signal_replay as signal_replay
+import app.backtest.signal_replay_preparation as replay_preparation
 from app.backtest.signal_replay import (
     SignalReplayInputError,
     render_replay_markdown,
@@ -26,6 +28,7 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import TRIGGER_DURATION_
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import prepare_m5_cross_input
 from app.trading.strategy.btc_rsi_cross_alert.m15_checker import prepare_m15_cross_input
 from app.trading.strategy.btc_rsi_cross_alert.models import BtcRsiCrossDecision
+from app.trading.strategy.core_v2_1.indicators import wma
 
 STORAGE_SHIFT = timedelta(hours=7)
 
@@ -201,6 +204,11 @@ class TestBtcAlertReplay:
         monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fake_prepare)
         monkeypatch.setattr(
             signal_replay,
+            "_scan_event",
+            lambda _event, _cache: (True, "READY"),
+        )
+        monkeypatch.setattr(
+            signal_replay,
             "format_btc_rsi_cross_alert",
             lambda _data, event_id: f"Event: {event_id}",
         )
@@ -270,6 +278,53 @@ class TestBtcAlertReplay:
             )
             assert fast == slow
 
+    def test_candidate_scan_never_drops_an_exact_signal(self, tmp_path):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+        m5_frame = signal_replay._load_ohlcv_csv(m5_path, "5m")
+        m15_frame = signal_replay._load_ohlcv_csv(m15_path, "15m")
+        h4_frame = signal_replay._load_ohlcv_csv(h4_path, "4h")
+        observed_h4_closes = signal_replay._all_h4_close_times(h4_frame)
+        cache = ReplayPreparationCache(
+            m5_frame,
+            m15_frame,
+            h4_frame,
+            history_ready_at=signal_replay.HISTORICAL_READY_AT,
+            observed_h4_closes=observed_h4_closes,
+        )
+        events = signal_replay._events_for_frame(m5_frame, "5m", None, None)
+        events.extend(signal_replay._events_for_frame(m15_frame, "15m", None, None))
+
+        exact_alerts = 0
+        for event in events:
+            data, decision, _reason = cache.prepare_and_evaluate(
+                event, symbol="BTC/USDT"
+            )
+            if data is None or decision is None or not decision.should_alert:
+                continue
+            exact_alerts += 1
+            is_candidate, scan_reason = cache.scan(event)
+            assert is_candidate is True
+            assert scan_reason == "READY"
+
+        assert exact_alerts >= 2
+
+    def test_vectorized_wma_stays_inside_candidate_scan_tolerance(self):
+        rng = np.random.default_rng(20260828)
+        values = pd.Series(
+            [np.nan] * 21 + rng.uniform(0.0, 100.0, size=500).tolist(),
+            dtype="float64",
+        )
+        locked = wma(values, replay_preparation.RSI_WMA_PERIOD).to_numpy()
+        fast = replay_preparation._fast_wma(
+            values.to_numpy(), replay_preparation.RSI_WMA_PERIOD
+        )
+        finite = np.isfinite(locked) & np.isfinite(fast)
+
+        assert finite.any()
+        assert np.max(np.abs(locked[finite] - fast[finite])) < (
+            replay_preparation.PREFILTER_TOLERANCE
+        )
+
     def test_future_rows_do_not_change_an_earlier_replay(self, tmp_path):
         m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
         baseline_path = tmp_path / "baseline.md"
@@ -329,6 +384,11 @@ class TestBtcAlertReplay:
         monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fake_prepare)
         monkeypatch.setattr(
             signal_replay,
+            "_scan_event",
+            lambda _event, _cache: (True, "READY"),
+        )
+        monkeypatch.setattr(
+            signal_replay,
             "format_btc_rsi_cross_alert",
             lambda _data, event_id: f"Event: {event_id}",
         )
@@ -367,6 +427,11 @@ class TestBtcAlertReplay:
         monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fake_prepare)
         monkeypatch.setattr(
             signal_replay,
+            "_scan_event",
+            lambda _event, _cache: (True, "READY"),
+        )
+        monkeypatch.setattr(
+            signal_replay,
             "format_btc_rsi_cross_alert",
             lambda _data, event_id: f"Event: {event_id}",
         )
@@ -384,6 +449,60 @@ class TestBtcAlertReplay:
         assert len(result.signals) == 1
         assert result.counts.duplicate_suppressed == 1
         assert result.counts.m5_cooldown_suppressed == 0
+
+    def test_rejected_events_skip_full_domain_evaluation(self, tmp_path, monkeypatch):
+        m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+        evaluated = 0
+
+        def fail_if_evaluated(_event, _cache):
+            nonlocal evaluated
+            evaluated += 1
+            raise AssertionError("rejected candles must not build domain inputs")
+
+        monkeypatch.setattr(
+            signal_replay,
+            "_scan_event",
+            lambda _event, _cache: (False, "READY"),
+        )
+        monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fail_if_evaluated)
+
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            output_path=tmp_path / "prefilter.md",
+            generated_at_utc7=datetime(2026, 8, 28, tzinfo=UTC),
+        )
+
+        assert evaluated == 0
+        assert result.signals == ()
+        assert (
+            result.counts.rejected + result.counts.warmup_skipped
+            == result.counts.candidates
+        )
+
+    def test_mixed_naive_and_aware_csv_timestamps_keep_their_instants(self, tmp_path):
+        path = tmp_path / "mixed.csv"
+        pd.DataFrame(
+            {
+                "timestamp": [
+                    "2026-08-24 16:00:00",
+                    "2026-08-24T09:05:00+00:00",
+                ],
+                "open": [100.0, 101.0],
+                "high": [100.0, 101.0],
+                "low": [100.0, 101.0],
+                "close": [100.0, 101.0],
+                "volume": [1.0, 1.0],
+            }
+        ).to_csv(path, index=False)
+
+        frame = signal_replay._load_ohlcv_csv(path, "5m")
+
+        assert list(frame.index.to_pydatetime()) == [
+            datetime(2026, 8, 24, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 24, 9, 5, tzinfo=UTC),
+        ]
 
     def test_invalid_csv_schema_fails_before_writing_output(self, tmp_path):
         bad_path = tmp_path / "bad.csv"

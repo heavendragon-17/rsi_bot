@@ -12,6 +12,7 @@ The backtest module is organized into sub-packages under `app/backtest/`:
 app/backtest/
 ├── signal_replay.py       # Offline BTC alert replay and Markdown audit log
 ├── signal_replay_cli.py   # Replay command-line argument parsing
+├── signal_replay_data.py  # Vectorized CSV normalization and event loading
 ├── signal_replay_models.py # Typed replay result models
 ├── signal_replay_preparation.py # Cached point-in-time indicator preparation
 ├── engine/          # Core engines and event sources
@@ -107,10 +108,26 @@ available, and reports those skipped warmup candles separately from later
 not-ready data. It precomputes the locked indicators once per contiguous
 segment, then evaluates M5 and M15 trigger candles chronologically with
 constant-time point-in-time lookups. This avoids recalculating the complete
-historical prefix for every candle. It selects only point-in-time H4 data,
-applies the live 15-minute M5 cooldown and event deduplication, and writes
-only confirmed alerts. Every written alert reuses the exact Telegram card
-formatter, including its indicator snapshot and UTC+7 candle-close time.
+historical prefix for every candle. Homogeneous CSV timestamps are parsed in
+one vectorized operation, and each event retains its source-array position so
+the hot loop does not repeat datetime normalization or dictionary lookup.
+
+The replay first runs an allocation-light NumPy candidate scan. Its vectorized
+WMA45 is used only to produce a conservative candidate superset with a numeric
+safety margin. Every possible signal then rebuilds the exact locked WMA values
+and passes through the existing M5/M15 evaluator before cooldown, deduplication,
+or logging. Rejected candles therefore avoid unnecessary `Decimal`, domain
+model, SHA-256 event-ID, and Telegram-card allocation without changing signal
+semantics. It selects only point-in-time H4 data, applies the live 15-minute M5
+cooldown and event deduplication, and writes only confirmed alerts. Every
+written alert reuses the exact Telegram card formatter, including its indicator
+snapshot and UTC+7 candle-close time.
+
+This replay path is CPU-only. An Intel Arc or other GPU does not accelerate
+pandas/NumPy automatically and is not required for a two-year BTC replay. On
+the development machine, the 280,510-candle 2024-08-28 through 2026-08-28
+replay improved from 12.43 seconds to 3.87 seconds; this is a local benchmark,
+not a runtime guarantee.
 
 The Markdown report includes a confirmed-signal count and blank `WIN`,
 `LOSS`, and `SKIP` review fields. It does not calculate win rate, PnL, SL/TP,

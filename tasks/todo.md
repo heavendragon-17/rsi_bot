@@ -4,6 +4,35 @@
 
 ## Current Tasks
 
+### BTC historical replay — second performance pass
+
+- [x] Benchmark and profile a two-year-scale replay on the current cached implementation.
+- [x] Remove measured per-event overhead without changing point-in-time signal behavior.
+- [x] Add output-parity and performance-regression coverage for the optimized path.
+- [x] Update replay documentation with the final execution model and benchmark result.
+- [x] Run focused tests, full tests, Ruff, compilation, architecture lint, and diff checks.
+
+#### Review
+
+- Real 2024-08-28 through 2026-08-28 data: 280,510 candidate candles and
+  8,047 confirmed signals completed in 3.87 seconds versus 12.43 seconds
+  before this pass (3.2x faster); fixed-generation Markdown was byte-identical.
+- Vectorized homogeneous timestamp parsing, source-position/H4 array mapping,
+  and NumPy WMA candidate scanning remove repeated hot-loop conversion and
+  allocation. The scan is a conservative superset; exact locked WMA arithmetic
+  and the existing M5/M15 evaluator remain authoritative for every possible
+  signal.
+- `tests/test_signal_replay.py`: 14 passed. Related BTC/replay suite: 222 passed.
+  Full repository suite: 1,100 passed, 12 skipped. Changed-file Ruff,
+  `py_compile`, focused mypy, and `git diff --check` pass.
+- Architecture lint reports only the same four pre-existing violations in
+  `app/core/constants.py` and `app/core/logging.py`; no changed replay module
+  violates its file-size or architecture checks. The documented Markdown-link
+  checker is not present on this branch, and this change adds no Markdown links.
+- Intel Arc B580 supports oneAPI, but this replay remains CPU-only; at a
+  sub-four-second two-year runtime, a GPU backend would add more complexity
+  than practical benefit.
+
 ### PR #148 CI remediation
 
 - [x] Inspect the live PR head and all status checks.

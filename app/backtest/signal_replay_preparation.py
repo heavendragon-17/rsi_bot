@@ -20,6 +20,8 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     expected_h4_close_for,
 )
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import (
+    M5_MIN_RSI_EMA_WMA_SPREAD,
+    M5_MIN_RSI_WMA45,
     M5_TIMEFRAME,
     evaluate_m5_cross,
 )
@@ -40,16 +42,18 @@ from app.trading.strategy.btc_rsi_cross_alert.models import (
     BtcRsiCrossPreparation,
     RsiBundlePoint,
 )
-from app.trading.strategy.core_v2_1.indicators import ema, rsi_wilder, wma
+from app.trading.strategy.core_v2_1.indicators import ema, rsi_wilder
 
 RSI_PERIOD = 21
 RSI_EMA_PERIOD = 9
 RSI_WMA_PERIOD = 45
 PRICE_EMA_PERIOD = 21
+PREFILTER_TOLERANCE = 1e-10
 
 
 @dataclass(frozen=True)
 class _IndicatorContext:
+    close_index: pd.DatetimeIndex
     close_times: tuple[datetime, ...]
     close_values: np.ndarray
     segment_starts: np.ndarray
@@ -86,13 +90,35 @@ def _finite_array(series: pd.Series) -> np.ndarray:
     return series.to_numpy(dtype="float64", na_value=np.nan)
 
 
+def _close_index(frame: pd.DataFrame, duration: timedelta) -> pd.DatetimeIndex:
+    index = pd.DatetimeIndex(frame.index)
+    if index.tz is None:
+        return pd.DatetimeIndex(
+            candle_close_time(raw_open, duration) for raw_open in frame.index
+        )
+    return index.tz_convert(UTC) + duration
+
+
+def _fast_wma(values: np.ndarray, period: int) -> np.ndarray:
+    """Vectorized WMA used only to find a safe superset of signal candidates."""
+
+    result = np.full(len(values), np.nan, dtype="float64")
+    if len(values) < period:
+        return result
+    weights = np.arange(1.0, period + 1.0, dtype="float64")
+    denominator = period * (period + 1) / 2.0
+    result[period - 1 :] = np.correlate(values, weights, mode="valid") / denominator
+    return result
+
+
 def _build_context(
     frame: pd.DataFrame,
     duration: timedelta,
     *,
     include_rsi: bool,
 ) -> _IndicatorContext:
-    close_times = tuple(candle_close_time(raw_open, duration) for raw_open in frame.index)
+    close_index = _close_index(frame, duration)
+    close_times = tuple(value.to_pydatetime() for value in close_index)
     close_values = frame["close"].to_numpy(dtype="float64")
     segment_starts = _segment_starts(close_times, duration)
     price_ema21 = np.full(len(frame), np.nan, dtype="float64")
@@ -118,13 +144,14 @@ def _build_context(
             rsi_ema9[segment_start:position] = _finite_array(
                 ema(rsi_series, RSI_EMA_PERIOD)
             )
-            rsi_wma45[segment_start:position] = _finite_array(
-                wma(rsi_series, RSI_WMA_PERIOD)
+            rsi_wma45[segment_start:position] = _fast_wma(
+                _finite_array(rsi_series), RSI_WMA_PERIOD
             )
         if not at_end:
             segment_start = position
 
     return _IndicatorContext(
+        close_index=close_index,
         close_times=close_times,
         close_values=close_values,
         segment_starts=segment_starts,
@@ -143,11 +170,17 @@ def _not_ready(reason: str) -> BtcRsiCrossPreparation:
 def _bundle_point(context: _IndicatorContext, position: int) -> RsiBundlePoint | None:
     if context.rsi21 is None or context.rsi_ema9 is None or context.rsi_wma45 is None:
         return None
-    values = (
-        context.rsi21[position],
-        context.rsi_ema9[position],
-        context.rsi_wma45[position],
-    )
+    start = position - RSI_WMA_PERIOD + 1
+    if start < int(context.segment_starts[position]):
+        return None
+    rsi_window = context.rsi21[start : position + 1]
+    if len(rsi_window) != RSI_WMA_PERIOD or not np.isfinite(rsi_window).all():
+        return None
+    denominator = RSI_WMA_PERIOD * (RSI_WMA_PERIOD + 1) / 2.0
+    exact_wma = sum(
+        float(value) * weight for weight, value in enumerate(rsi_window, start=1)
+    ) / denominator
+    values = (context.rsi21[position], context.rsi_ema9[position], exact_wma)
     if not all(math.isfinite(float(value)) for value in values):
         return None
     return RsiBundlePoint(
@@ -182,6 +215,22 @@ class ReplayPreparationCache:
         self._h4 = _build_context(h4_frame, H4_DURATION, include_rsi=False)
         self._history_ready_at = history_ready_at.astimezone(UTC)
         self._observed_h4_closes = observed_h4_closes
+        self._h4_positions_by_timeframe = {
+            timeframe: self._h4.close_index.get_indexer(context.close_index.floor("4h"))
+            for timeframe, context in (
+                (M5_TIMEFRAME, self._m5),
+                (M15_TIMEFRAME, self._m15),
+            )
+        }
+        self._h4_confirmed = np.fromiter(
+            (
+                close_time <= self._history_ready_at
+                or close_time in self._observed_h4_closes
+                for close_time in self._h4.close_times
+            ),
+            dtype=np.bool_,
+            count=len(self._h4.close_times),
+        )
 
     @property
     def warmup_ready_at_by_timeframe(self) -> dict[str, datetime | None]:
@@ -202,14 +251,31 @@ class ReplayPreparationCache:
     def _trigger_context(self, timeframe: str) -> _IndicatorContext:
         return self._m5 if timeframe == M5_TIMEFRAME else self._m15
 
-    def prepare(self, event: ReplayTriggerEvent, *, symbol: str) -> BtcRsiCrossPreparation:
+    def _event_position(
+        self,
+        event: ReplayTriggerEvent,
+        context: _IndicatorContext,
+    ) -> tuple[int | None, bool]:
+        position = event.position
+        if (
+            position is not None
+            and 0 <= position < len(context.close_times)
+            and context.close_times[position] == event.close_time
+        ):
+            return position, True
+        return context.index_by_close_time.get(event.close_time), False
+
+    def _positions_for_event(
+        self,
+        event: ReplayTriggerEvent,
+    ) -> tuple[int | None, int | None, str]:
         trigger_context = self._trigger_context(event.timeframe)
-        position = trigger_context.index_by_close_time.get(event.close_time)
+        position, direct_position = self._event_position(event, trigger_context)
         if position is None:
-            return _not_ready(TRIGGER_CURRENT_ROW_MISSING)
+            return None, None, TRIGGER_CURRENT_ROW_MISSING
 
         if not trigger_context.has_contiguous_history(position, TRIGGER_MINIMUM_ROWS):
-            return _not_ready(TRIGGER_INSUFFICIENT_CONTIGUOUS_HISTORY)
+            return None, None, TRIGGER_INSUFFICIENT_CONTIGUOUS_HISTORY
 
         previous_position = position - 1
         if previous_position < 0 or (
@@ -217,29 +283,98 @@ class ReplayPreparationCache:
             - trigger_context.close_times[previous_position]
             != TRIGGER_DURATION_BY_TIMEFRAME[event.timeframe]
         ):
-            return _not_ready(TRIGGER_INSUFFICIENT_CONTIGUOUS_HISTORY)
+            return None, None, TRIGGER_INSUFFICIENT_CONTIGUOUS_HISTORY
 
+        assert trigger_context.rsi21 is not None
+        assert trigger_context.rsi_ema9 is not None
+        assert trigger_context.rsi_wma45 is not None
+        trigger_values = (
+            trigger_context.rsi21[position],
+            trigger_context.rsi_ema9[position],
+            trigger_context.rsi_wma45[position],
+            trigger_context.rsi21[previous_position],
+            trigger_context.rsi_ema9[previous_position],
+            trigger_context.rsi_wma45[previous_position],
+            trigger_context.price_ema21[position],
+        )
+        if not all(math.isfinite(float(value)) for value in trigger_values):
+            return None, None, TRIGGER_NON_FINITE_DATA
+
+        if direct_position:
+            h4_position = int(
+                self._h4_positions_by_timeframe[event.timeframe][position]
+            )
+        else:
+            expected_h4_close = expected_h4_close_for(event.close_time)
+            h4_position = self._h4.index_by_close_time.get(expected_h4_close, -1)
+        if h4_position < 0:
+            return None, None, H4_EXPECTED_CLOSE_MISSING
+        if not self._h4_confirmed[h4_position]:
+            return None, None, H4_LIVE_CLOSE_UNCONFIRMED
+        if not self._h4.has_contiguous_history(
+            h4_position, H4_PRICE_EMA_MINIMUM_ROWS
+        ):
+            return None, None, H4_INSUFFICIENT_CONTIGUOUS_HISTORY
+        if not math.isfinite(float(self._h4.price_ema21[h4_position])):
+            return None, None, H4_INSUFFICIENT_CONTIGUOUS_HISTORY
+        return position, h4_position, PREPARATION_READY
+
+    def scan(self, event: ReplayTriggerEvent) -> tuple[bool | None, str]:
+        """Return a safe signal-candidate superset without domain allocations."""
+
+        position, h4_position, reason = self._positions_for_event(event)
+        if position is None or h4_position is None:
+            return None, reason
+
+        context = self._trigger_context(event.timeframe)
+        assert context.rsi21 is not None
+        assert context.rsi_ema9 is not None
+        assert context.rsi_wma45 is not None
+        previous_position = position - 1
+        current_rsi = context.rsi21[position]
+        current_ema = context.rsi_ema9[position]
+        current_wma = context.rsi_wma45[position]
+        h4_bullish = (
+            self._h4.close_values[h4_position]
+            > self._h4.price_ema21[h4_position]
+        )
+        price_bullish = context.close_values[position] > context.price_ema21[position]
+
+        if event.timeframe == M5_TIMEFRAME:
+            candidate = (
+                current_rsi > current_ema
+                and current_ema > current_wma - PREFILTER_TOLERANCE
+                and h4_bullish
+                and current_ema - current_wma
+                >= M5_MIN_RSI_EMA_WMA_SPREAD - PREFILTER_TOLERANCE
+                and current_wma > M5_MIN_RSI_WMA45 - PREFILTER_TOLERANCE
+                and price_bullish
+            )
+        else:
+            previous_ema = context.rsi_ema9[previous_position]
+            previous_wma = context.rsi_wma45[previous_position]
+            candidate = (
+                previous_ema <= previous_wma + PREFILTER_TOLERANCE
+                and current_ema > current_wma - PREFILTER_TOLERANCE
+                and h4_bullish
+                and price_bullish
+            )
+        return bool(candidate), PREPARATION_READY
+
+    def prepare(self, event: ReplayTriggerEvent, *, symbol: str) -> BtcRsiCrossPreparation:
+        trigger_context = self._trigger_context(event.timeframe)
+        position, h4_position, reason = self._positions_for_event(event)
+        if position is None or h4_position is None:
+            return _not_ready(reason)
+
+        previous_position = position - 1
         current_trigger = _bundle_point(trigger_context, position)
         previous_trigger = _bundle_point(trigger_context, previous_position)
         trigger_price_ema21 = trigger_context.price_ema21[position]
         if current_trigger is None or previous_trigger is None or not math.isfinite(trigger_price_ema21):
             return _not_ready(TRIGGER_NON_FINITE_DATA)
 
-        expected_h4_close = expected_h4_close_for(event.close_time)
-        h4_position = self._h4.index_by_close_time.get(expected_h4_close)
-        if h4_position is None:
-            return _not_ready(H4_EXPECTED_CLOSE_MISSING)
-        if (
-            expected_h4_close > self._history_ready_at
-            and expected_h4_close not in self._observed_h4_closes
-        ):
-            return _not_ready(H4_LIVE_CLOSE_UNCONFIRMED)
-        if not self._h4.has_contiguous_history(h4_position, H4_PRICE_EMA_MINIMUM_ROWS):
-            return _not_ready(H4_INSUFFICIENT_CONTIGUOUS_HISTORY)
-
         h4_price_ema21 = self._h4.price_ema21[h4_position]
-        if not math.isfinite(h4_price_ema21):
-            return _not_ready(H4_INSUFFICIENT_CONTIGUOUS_HISTORY)
 
         prepared_input = BtcRsiCrossInput(
             symbol=symbol,
@@ -251,7 +386,7 @@ class ReplayPreparationCache:
             current_trigger=current_trigger,
             h4_close_price=Decimal(str(self._h4.close_values[h4_position])),
             h4_price_ema21=Decimal(str(h4_price_ema21)),
-            h4_close_time=expected_h4_close,
+            h4_close_time=self._h4.close_times[h4_position],
         )
         return BtcRsiCrossPreparation(input=prepared_input, reason=PREPARATION_READY)
 

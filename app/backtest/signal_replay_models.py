@@ -23,6 +23,7 @@ class ReplayTriggerEvent:
     timeframe: str
     open_time: datetime
     close_time: datetime
+    position: int | None = None
 
 
 @dataclass(frozen=True)

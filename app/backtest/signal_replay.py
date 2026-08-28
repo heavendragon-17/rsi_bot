@@ -18,31 +18,30 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Final
 
-import numpy as np
-import pandas as pd
 import structlog
 
+from app.backtest.signal_replay_data import (
+    all_h4_close_times as _all_h4_close_times,
+)
+from app.backtest.signal_replay_data import (
+    events_for_frame as _events_for_frame,
+)
+from app.backtest.signal_replay_data import (
+    load_ohlcv_csv as _load_ohlcv_csv,
+)
 from app.backtest.signal_replay_models import (
     ReplayCounts,
     ReplayResult,
     ReplaySignal,
     ReplayTriggerEvent,
-    SignalReplayInputError,
+)
+from app.backtest.signal_replay_models import (
+    SignalReplayInputError as SignalReplayInputError,
 )
 from app.backtest.signal_replay_preparation import ReplayPreparationCache
 from app.signal.btc_rsi_cross_alert.formatter import format_btc_rsi_cross_alert
-from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
-    H4_DURATION,
-    TRIGGER_DURATION_BY_TIMEFRAME,
-    candle_close_time,
-    normalize_candle_open,
-)
-from app.trading.strategy.btc_rsi_cross_alert.m5_checker import (
-    M5_TIMEFRAME,
-)
-from app.trading.strategy.btc_rsi_cross_alert.m15_checker import (
-    M15_TIMEFRAME,
-)
+from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
+from app.trading.strategy.btc_rsi_cross_alert.m15_checker import M15_TIMEFRAME
 from app.trading.strategy.btc_rsi_cross_alert.models import (
     M5_ALERT_COOLDOWN,
     BtcRsiCrossDecision,
@@ -56,14 +55,6 @@ SYMBOL: Final[str] = "BTC/USDT"
 DEFAULT_DATA_DIR: Final[Path] = Path("app/backtest/data")
 DEFAULT_REPORT_DIR: Final[Path] = Path("app/backtest/report")
 HISTORICAL_READY_AT: Final[datetime] = datetime(1970, 1, 1, tzinfo=UTC)
-REQUIRED_COLUMNS: Final[tuple[str, ...]] = (
-    "timestamp",
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-)
 TIMEFRAME_ORDER: Final[dict[str, int]] = {M5_TIMEFRAME: 0, M15_TIMEFRAME: 1}
 
 
@@ -91,109 +82,18 @@ def _format_window_boundary(value: datetime | None, *, is_start: bool) -> str:
     return _format_utc7(value)
 
 
-def _load_ohlcv_csv(path: str | Path, timeframe: str) -> pd.DataFrame:
-    """Load, normalize, and validate one historical OHLCV frame."""
-
-    csv_path = Path(path)
-    if not csv_path.exists():
-        raise FileNotFoundError(f"Historical {timeframe} CSV not found: {csv_path}")
-    if not csv_path.is_file():
-        raise SignalReplayInputError(f"Historical {timeframe} path is not a file: {csv_path}")
-
-    try:
-        raw = pd.read_csv(csv_path)
-    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
-        raise SignalReplayInputError(
-            f"Could not read historical {timeframe} CSV {csv_path}: {exc}"
-        ) from exc
-
-    missing = [column for column in REQUIRED_COLUMNS if column not in raw.columns]
-    if missing:
-        raise SignalReplayInputError(
-            f"Historical {timeframe} CSV {csv_path} is missing columns: {', '.join(missing)}"
-        )
-    if raw.empty:
-        raise SignalReplayInputError(f"Historical {timeframe} CSV is empty: {csv_path}")
-
-    normalized_opens: list[datetime] = []
-    for position, raw_timestamp in enumerate(raw["timestamp"]):
-        try:
-            parsed = pd.Timestamp(raw_timestamp)
-            if pd.isna(parsed):
-                raise ValueError("timestamp is NaT")
-            normalized_opens.append(normalize_candle_open(parsed))
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise SignalReplayInputError(
-                f"Invalid timestamp at row {position} in {csv_path}: {raw_timestamp!r}"
-            ) from exc
-
-    frame = raw.loc[:, list(REQUIRED_COLUMNS)].copy()
-    frame["timestamp"] = normalized_opens
-    for column in REQUIRED_COLUMNS[1:]:
-        numeric = pd.to_numeric(frame[column], errors="coerce")
-        values = numeric.to_numpy(dtype="float64", na_value=np.nan)
-        if not np.isfinite(values).all():
-            bad_position = int(np.flatnonzero(~np.isfinite(values))[0])
-            raise SignalReplayInputError(
-                f"Invalid {column} at row {bad_position} in {csv_path}; "
-                "OHLCV values must be finite numbers"
-            )
-        frame[column] = values
-
-    frame = frame.set_index("timestamp").sort_index()
-    if not frame.index.is_unique:
-        duplicate = frame.index[frame.index.duplicated(keep=False)][0]
-        duplicate_time = duplicate.to_pydatetime()
-        raise SignalReplayInputError(
-            f"Historical {timeframe} CSV contains duplicate candle opens: "
-            f"{_format_utc7(duplicate_time)}"
-        )
-
-    frame["closed"] = True
-    frame["timeframe"] = timeframe
-    return frame
-
-
-def _events_for_frame(
-    frame: pd.DataFrame,
-    timeframe: str,
-    start_utc: datetime | None,
-    end_utc: datetime | None,
-) -> list[ReplayTriggerEvent]:
-    duration = TRIGGER_DURATION_BY_TIMEFRAME[timeframe]
-    events: list[ReplayTriggerEvent] = []
-    for raw_open in frame.index:
-        open_time = normalize_candle_open(raw_open)
-        close_time = open_time + duration
-        if start_utc is not None and close_time < start_utc:
-            continue
-        if end_utc is not None and close_time > end_utc:
-            continue
-        events.append(
-            ReplayTriggerEvent(
-                timeframe=timeframe,
-                open_time=open_time,
-                close_time=close_time,
-            )
-        )
-    return events
-
-
-def _all_h4_close_times(frame: pd.DataFrame) -> frozenset[datetime]:
-    return frozenset(
-        candle_close_time(raw_open, H4_DURATION) for raw_open in frame.index
-    )
-
-
 def _prepare_and_evaluate(
     event: ReplayTriggerEvent,
-    _m5_frame: pd.DataFrame,
-    _m15_frame: pd.DataFrame,
-    _h4_frame: pd.DataFrame,
-    _observed_h4_closes: frozenset[datetime],
     replay_cache: ReplayPreparationCache,
 ) -> tuple[BtcRsiCrossInput | None, BtcRsiCrossDecision | None, str]:
     return replay_cache.prepare_and_evaluate(event, symbol=SYMBOL)
+
+
+def _scan_event(
+    event: ReplayTriggerEvent,
+    replay_cache: ReplayPreparationCache,
+) -> tuple[bool | None, str]:
+    return replay_cache.scan(event)
 
 
 def _render_signal(signal: ReplaySignal) -> str:
@@ -337,13 +237,29 @@ def run_btc_alert_replay(
                 m15_warmup_skipped += 1
             continue
 
+        is_candidate, preparation_reason = _scan_event(event, replay_cache)
+        if is_candidate is None:
+            if event.timeframe == M5_TIMEFRAME:
+                m5_not_ready += 1
+            else:
+                m15_not_ready += 1
+            logger.debug(
+                "btc_signal_replay_not_ready",
+                timeframe=event.timeframe,
+                trigger_close=_format_utc7(event.close_time),
+                reason=preparation_reason,
+            )
+            continue
+
+        if not is_candidate:
+            if event.timeframe == M5_TIMEFRAME:
+                m5_rejected += 1
+            else:
+                m15_rejected += 1
+            continue
+
         data, decision, preparation_reason = _prepare_and_evaluate(
-            event,
-            m5_frame,
-            m15_frame,
-            h4_frame,
-            observed_h4_closes,
-            replay_cache,
+            event, replay_cache
         )
         if data is None or decision is None:
             if event.timeframe == M5_TIMEFRAME:
@@ -357,7 +273,6 @@ def run_btc_alert_replay(
                 reason=preparation_reason,
             )
             continue
-
         if not decision.should_alert:
             if event.timeframe == M5_TIMEFRAME:
                 m5_rejected += 1
