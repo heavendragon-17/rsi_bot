@@ -1,0 +1,71 @@
+"""Typed public models for the historical BTC signal replay."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+from app.trading.strategy.btc_rsi_cross_alert.models import (
+    BtcRsiCrossDecision,
+    BtcRsiCrossInput,
+)
+
+
+class SignalReplayInputError(ValueError):
+    """Raised when a historical replay CSV cannot be safely consumed."""
+
+
+@dataclass(frozen=True)
+class ReplaySignal:
+    """One confirmed replay signal and its exact Telegram card snapshot."""
+
+    sequence: int
+    timeframe: str
+    data: BtcRsiCrossInput
+    decision: BtcRsiCrossDecision
+    telegram_card: str
+
+
+@dataclass(frozen=True)
+class ReplayCounts:
+    """Counters that explain how the replay reached its confirmed signals."""
+
+    m5_candidates: int
+    m15_candidates: int
+    m5_not_ready: int
+    m15_not_ready: int
+    m5_rejected: int
+    m15_rejected: int
+    m5_cooldown_suppressed: int
+    duplicate_suppressed: int
+
+    @property
+    def candidates(self) -> int:
+        """Total M5 and M15 trigger candles in the requested window."""
+
+        return self.m5_candidates + self.m15_candidates
+
+    @property
+    def not_ready(self) -> int:
+        """Total trigger candles without enough valid point-in-time data."""
+
+        return self.m5_not_ready + self.m15_not_ready
+
+    @property
+    def rejected(self) -> int:
+        """Total prepared candles that did not satisfy their signal rules."""
+
+        return self.m5_rejected + self.m15_rejected
+
+
+@dataclass(frozen=True)
+class ReplayResult:
+    """Result of one historical BTC alert replay."""
+
+    signals: tuple[ReplaySignal, ...]
+    counts: ReplayCounts
+    start_utc7: datetime | None
+    end_utc7: datetime | None
+    generated_at_utc7: datetime
+    output_path: Path
