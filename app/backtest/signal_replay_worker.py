@@ -87,21 +87,56 @@ def run_signal_replay_worker(
             end_utc7=end_at,
             write_output=False,
         )
-        progress_cb({"pct": 75, "phase": "replay", "candle": result.counts.candidates, "total": result.counts.candidates})
+        progress_cb(
+            {
+                "pct": 72,
+                "phase": "signals",
+                "candle": result.counts.candidates,
+                "total": result.counts.candidates,
+            }
+        )
 
         run.source_metadata = source_facts
         run.counters = _counts_payload(result)
+
+        def report_metric_progress(completed: int, total: int) -> None:
+            fraction = completed / total if total else 1.0
+            progress_cb(
+                {
+                    "pct": 72 + fraction * 18,
+                    "phase": "metrics",
+                    "candle": completed,
+                    "total": total,
+                }
+            )
+
         rows = build_signal_rows(
             result,
             replay_run_id=run_id,
             m5_frame=m5_frame,
             m15_frame=m15_frame,
+            on_progress=report_metric_progress,
+        )
+        progress_cb(
+            {
+                "pct": 92,
+                "phase": "saving",
+                "candle": len(rows),
+                "total": len(rows),
+            }
         )
         db.add_all(rows)
         run.status = "completed"
         run.completed_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
-        progress_cb({"pct": 100, "phase": "persist", "candle": len(rows), "total": len(rows)})
+        progress_cb(
+            {
+                "pct": 100,
+                "phase": "complete",
+                "candle": len(rows),
+                "total": len(rows),
+            }
+        )
         publish_event_fn(
             run_id,
             loop,

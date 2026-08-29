@@ -129,6 +129,7 @@ indicator fields, latest human review, and objective forward observations.
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET` | `/api/signal-replays/availability` | Validate canonical sources and return their aligned replay range |
 | `POST` | `/api/signal-replays/runs` | Start a BTC M5/M15/H1/H4 replay job |
 | `GET` | `/api/signal-replays/runs` | List recent replay runs |
 | `GET` | `/api/signal-replays/runs/{run_id}` | Run provenance, counters, and signal counts |
@@ -142,16 +143,29 @@ indicator fields, latest human review, and objective forward observations.
 ### `POST /api/signal-replays/runs`
 
 Body: `{ "start": "YYYY-MM-DD or ISO timestamp", "end": "YYYY-MM-DD or ISO timestamp" }`.
-Naive boundaries are interpreted as UTC+7; date-only `end` includes the full
-local day. The response is `{ run_id, status: "running" }`. Missing or
-invalid canonical CSVs fail before a worker is submitted.
+Both properties are optional. When omitted, the API uses the full aligned
+intersection returned by `GET /availability`. Naive boundaries are interpreted
+as UTC+7; date-only `end` includes the full local day. A supplied range outside
+the aligned source coverage is rejected before a run row or worker is created.
+The response is `{ run_id, status: "running" }`. Missing or invalid canonical
+CSVs fail before a worker is submitted, and a second concurrent signal replay
+is rejected.
+
+### `GET /api/signal-replays/availability`
+
+Returns `ready`, `common_start_at`, `common_end_at`, and a `sources` item for
+each of `5m`, `15m`, `1h`, and `4h`. Source items include availability, row
+count, first/last candle-close time, modification time, and a validation error
+when the file cannot be used. The UI derives its all-data and recent-period
+presets from this response instead of accepting arbitrary dates.
 
 ### `GET /api/signal-replays/signals`
 
 Supported query parameters are `timeframe` (`5m` or `15m`), `replay_run_id`,
 `quality`, `human_outcome`, `start`, `end`, `page`, and `limit`. The response
-is `{ signals, total, page, pages }`. The `quality=GOOD` query is the saved
-Good Signals view used by the UI.
+is `{ signals, total, page, pages }`. The UI always supplies
+`replay_run_id`, defaults to `quality=UNREVIEWED`, and also exposes explicit
+Good, Bad, Uncertain, all-quality, and outcome filters.
 
 ### Review and chart gate
 

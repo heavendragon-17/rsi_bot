@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  CalendarRange,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  Clock3,
   Database,
   FileText,
   Play,
   RefreshCw,
   Save,
-  Star,
 } from "lucide-react";
 import { SignalChart } from "./SignalChart";
 import { useSignalReviewStore } from "../../stores/signalReviewStore";
@@ -21,6 +23,14 @@ function displayDate(value?: string | null): string {
     timeZone: "Asia/Bangkok",
     dateStyle: "medium",
     timeStyle: "short",
+  });
+}
+
+function displayDateOnly(value?: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-US", {
+    timeZone: "Asia/Bangkok",
+    dateStyle: "medium",
   });
 }
 
@@ -39,7 +49,6 @@ const ACTIVE_QUALITY_CLASSES: Record<string, string> = {
   emerald: "border-emerald-400/60 bg-emerald-400/20 text-emerald-200",
   rose: "border-rose-400/60 bg-rose-400/20 text-rose-200",
   amber: "border-amber-400/60 bg-amber-400/20 text-amber-200",
-  yellow: "border-yellow-400/60 bg-yellow-400/20 text-yellow-200",
 };
 
 function qualityClasses(active: boolean, color: string): string {
@@ -48,61 +57,121 @@ function qualityClasses(active: boolean, color: string): string {
     : "border-border-main bg-bg-elevated/40 text-text-secondary hover:text-text-primary";
 }
 
+const RUN_PHASE_LABELS: Record<string, string> = {
+  starting: "Starting replay",
+  load: "Loading market data",
+  signals: "Finding qualifying signals",
+  metrics: "Preparing forward observations",
+  saving: "Saving the review dataset",
+  complete: "Dataset ready",
+};
+
 function ReplayLauncher() {
   const startReplay = useSignalReviewStore((state) => state.startReplay);
+  const availability = useSignalReviewStore((state) => state.availability);
+  const loadAvailability = useSignalReviewStore((state) => state.loadAvailability);
+  const isLoadingAvailability = useSignalReviewStore((state) => state.isLoadingAvailability);
+  const runs = useSignalReviewStore((state) => state.runs);
   const isRunning = useSignalReviewStore((state) => state.isRunning);
   const runProgress = useSignalReviewStore((state) => state.runProgress);
   const runPhase = useSignalReviewStore((state) => state.runPhase);
   const error = useSignalReviewStore((state) => state.error);
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [scope, setScope] = useState<"all" | "30d" | "90d" | "365d">("all");
+  const latestCompleted = runs.find((run) => run.status === "completed");
+  const ready = availability?.ready === true;
+  const phaseLabel = RUN_PHASE_LABELS[runPhase] ?? "Building review dataset";
 
   return (
     <section className="rounded-xl border border-border-main bg-bg-primary/50 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Play size={16} className="text-accent-main" />
-        <h2 className="font-semibold text-text-primary">Run BTC signal replay</h2>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Database size={16} className="text-accent-main" />
+            <h2 className="font-semibold text-text-primary">Review dataset</h2>
+          </div>
+          <p className="mt-1 text-xs text-text-muted">
+            The replay is constrained to the aligned local M5, M15, H1, and H4 coverage.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void loadAvailability()}
+          disabled={isLoadingAvailability || isRunning}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border-main px-2.5 py-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={isLoadingAvailability ? "animate-spin" : ""} />
+          Check coverage
+        </button>
       </div>
-      <div className="flex flex-wrap items-end gap-3">
+      <div className={`mt-4 rounded-lg border px-3 py-3 ${ready ? "border-emerald-400/25 bg-emerald-400/5" : "border-amber-400/25 bg-amber-400/5"}`}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+          {ready ? <CheckCircle2 size={15} className="text-emerald-300" /> : <CircleAlert size={15} className="text-amber-300" />}
+          <span className={ready ? "text-emerald-200" : "text-amber-200"}>
+            {ready ? "All four sources are ready" : "Replay data needs attention"}
+          </span>
+          {ready && (
+            <span className="inline-flex items-center gap-1.5 text-text-secondary">
+              <CalendarRange size={13} />
+              {displayDate(availability?.common_start_at)} – {displayDate(availability?.common_end_at)} (UTC+7)
+            </span>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {availability?.sources.map((source) => (
+            <span
+              key={source.timeframe}
+              title={source.error ?? `${displayDateOnly(source.available_start)} – ${displayDateOnly(source.available_end)}`}
+              className={`rounded-md border px-2 py-1 text-[11px] ${source.available ? "border-border-main bg-bg-elevated/60 text-text-secondary" : "border-rose-400/30 bg-rose-400/10 text-rose-200"}`}
+            >
+              {source.timeframe.toUpperCase()} · {source.available ? source.row_count.toLocaleString() : "missing"}
+            </span>
+          ))}
+        </div>
+        {!ready && availability?.sources.some((source) => source.error) && (
+          <p className="mt-2 text-[11px] text-amber-200">
+            {availability.sources.filter((source) => source.error).map((source) => source.error).join(" · ")}
+          </p>
+        )}
+      </div>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="text-xs text-text-secondary">
-          Start (UTC+7)
-          <input
-            type="date"
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-            className="mt-1 block rounded-md border border-border-main bg-input px-3 py-2 text-sm text-text-primary"
-          />
-        </label>
-        <label className="text-xs text-text-secondary">
-          End (UTC+7)
-          <input
-            type="date"
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            className="mt-1 block rounded-md border border-border-main bg-input px-3 py-2 text-sm text-text-primary"
-          />
+          Replay scope
+          <select
+            value={scope}
+            onChange={(event) => setScope(event.target.value as typeof scope)}
+            disabled={!ready || isRunning}
+            className="mt-1 block rounded-md border border-border-main bg-input px-3 py-2 text-sm text-text-primary disabled:opacity-50"
+          >
+            <option value="all">All available data</option>
+            <option value="30d">Latest 30 days</option>
+            <option value="90d">Latest 90 days</option>
+            <option value="365d">Latest 1 year</option>
+          </select>
         </label>
         <button
           type="button"
-          disabled={isRunning}
-          onClick={() => void startReplay(
-            start ? `${start}T00:00:00+07:00` : undefined,
-            end ? `${end}T23:59:59.999999+07:00` : undefined,
-          )}
+          disabled={isRunning || !ready}
+          onClick={() => void startReplay(scope)}
           className="inline-flex items-center gap-2 rounded-md bg-accent-main px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           <Play size={14} />
-          {isRunning ? `${runPhase} ${Math.round(runProgress)}%` : "Replay M5 + M15"}
+          {isRunning ? `${phaseLabel} · ${Math.round(runProgress)}%` : latestCompleted ? "Rebuild review dataset" : "Build review dataset"}
         </button>
       </div>
       {isRunning && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
-          <div className="h-full bg-accent-main transition-all" style={{ width: `${runProgress}%` }} />
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] text-text-muted">
+            <span className="inline-flex items-center gap-1.5"><Clock3 size={12} />{phaseLabel}</span>
+            <span>{Math.round(runProgress)}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-bg-elevated">
+            <div className="h-full bg-accent-main transition-all" style={{ width: `${runProgress}%` }} />
+          </div>
         </div>
       )}
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
       <p className="mt-3 text-xs text-text-muted">
-        The replay stores immutable alert facts and forward market observations. It does not create trades or PnL.
+        Rebuilding creates a new immutable dataset. Existing human reviews remain attached to their original replay run.
       </p>
     </section>
   );
@@ -117,15 +186,32 @@ function SignalList() {
   const timeframe = useSignalReviewStore((state) => state.timeframe);
   const qualityFilter = useSignalReviewStore((state) => state.qualityFilter);
   const outcomeFilter = useSignalReviewStore((state) => state.outcomeFilter);
+  const runs = useSignalReviewStore((state) => state.runs);
+  const selectedRunId = useSignalReviewStore((state) => state.selectedRunId);
   const setTimeframe = useSignalReviewStore((state) => state.setTimeframe);
   const setQualityFilter = useSignalReviewStore((state) => state.setQualityFilter);
   const setOutcomeFilter = useSignalReviewStore((state) => state.setOutcomeFilter);
+  const setSelectedRunId = useSignalReviewStore((state) => state.setSelectedRunId);
   const loadSignals = useSignalReviewStore((state) => state.loadSignals);
   const loadSignal = useSignalReviewStore((state) => state.loadSignal);
 
   return (
     <section className="rounded-xl border border-border-main bg-bg-primary/50 overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-border-main p-3">
+        <select
+          value={selectedRunId ?? ""}
+          onChange={(event) => setSelectedRunId(Number(event.target.value))}
+          disabled={runs.every((run) => run.status !== "completed")}
+          className="max-w-[260px] rounded-md border border-border-main bg-input px-2.5 py-1.5 text-xs text-text-secondary disabled:opacity-50"
+          aria-label="Replay dataset"
+        >
+          {runs.filter((run) => run.status === "completed").map((run) => (
+            <option key={run.id} value={run.id}>
+              Run #{run.id} · {displayDateOnly(run.created_at)} · {run.signal_count} signals
+            </option>
+          ))}
+        </select>
+        <span className="h-5 w-px bg-border-main mx-1" />
         {(["5m", "15m"] as const).map((tf) => (
           <button
             type="button"
@@ -137,13 +223,17 @@ function SignalList() {
           </button>
         ))}
         <span className="h-5 w-px bg-border-main mx-1" />
-        <button
-          type="button"
-          onClick={() => setQualityFilter(qualityFilter === "GOOD" ? "" : "GOOD")}
-          className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs ${qualityClasses(qualityFilter === "GOOD", "yellow")}`}
+        <select
+          value={qualityFilter}
+          onChange={(event) => setQualityFilter(event.target.value)}
+          className="rounded-md border border-border-main bg-input px-2.5 py-1.5 text-xs text-text-secondary"
         >
-          <Star size={13} /> Good Signals
-        </button>
+          <option value="UNREVIEWED">Needs review</option>
+          <option value="">All quality labels</option>
+          <option value="GOOD">Good signals</option>
+          <option value="BAD">Bad signals</option>
+          <option value="UNCERTAIN">Uncertain signals</option>
+        </select>
         <select
           value={outcomeFilter}
           onChange={(event) => setOutcomeFilter(event.target.value)}
@@ -198,7 +288,7 @@ function SignalList() {
           </tbody>
         </table>
         {!isLoading && signals.length === 0 && (
-          <div className="p-10 text-center text-sm text-text-muted">No signals match this view. Run a replay or change the filters.</div>
+          <div className="p-10 text-center text-sm text-text-muted">No signals match this dataset and filter. Change the filter or build a new dataset.</div>
         )}
         {isLoading && <div className="p-10 text-center text-sm text-text-muted">Loading signal records…</div>}
       </div>
@@ -217,19 +307,24 @@ function SignalList() {
 function ReviewPanel() {
   const selected = useSignalReviewStore((state) => state.selected);
   const saveReview = useSignalReviewStore((state) => state.saveReview);
+  const reviewSaveState = useSignalReviewStore((state) => state.reviewSaveState);
   const [note, setNote] = useState("");
   const review = selected?.review;
   const futureUnlocked = review?.quality !== "UNREVIEWED";
 
   useEffect(() => {
     setNote(review?.note ?? "");
-  }, [selected?.id, review?.note]);
+  }, [selected?.id]);
 
   useEffect(() => {
-    if (!selected || note === (selected.review.note ?? "")) return undefined;
+    if (
+      !selected
+      || reviewSaveState === "saving"
+      || note === (selected.review.note ?? "")
+    ) return undefined;
     const timer = window.setTimeout(() => void saveReview({ note }), 600);
     return () => window.clearTimeout(timer);
-  }, [note, selected?.id, selected?.review.note, saveReview]);
+  }, [note, reviewSaveState, selected?.id, selected?.review.note, saveReview]);
 
   if (!selected || !review) return null;
 
@@ -253,8 +348,9 @@ function ReviewPanel() {
             <button
               type="button"
               key={value}
+              disabled={reviewSaveState === "saving"}
               onClick={() => void saveReview({ quality: value } as SignalReviewUpdate)}
-              className={`rounded-md border px-3 py-2 text-xs font-medium ${qualityClasses(review.quality === value, color)}`}
+              className={`rounded-md border px-3 py-2 text-xs font-medium disabled:cursor-wait disabled:opacity-50 ${qualityClasses(review.quality === value, color)}`}
             >{label}</button>
           ))}
         </div>
@@ -266,7 +362,7 @@ function ReviewPanel() {
             <button
               type="button"
               key={value}
-              disabled={!futureUnlocked}
+              disabled={!futureUnlocked || reviewSaveState === "saving"}
               onClick={() => void saveReview({ human_outcome: value } as SignalReviewUpdate)}
               className={`rounded-md border px-3 py-2 text-xs font-medium ${review.human_outcome === value ? "border-violet-400/60 bg-violet-400/20 text-violet-200" : "border-border-main bg-bg-elevated/40 text-text-secondary"} disabled:cursor-not-allowed disabled:opacity-40`}
             >{label}</button>
@@ -281,7 +377,10 @@ function ReviewPanel() {
         placeholder="Why is this chart good or bad? What did you notice?"
         className="w-full resize-y rounded-md border border-border-main bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-main focus:outline-none"
       />
-      <p className="text-[11px] text-text-muted">Notes save automatically. Last updated: {displayDate(review.updated_at)}</p>
+      <p className={`text-[11px] ${reviewSaveState === "error" ? "text-danger" : "text-text-muted"}`}>
+        {reviewSaveState === "saving" ? "Saving review…" : reviewSaveState === "saved" ? "Review saved" : reviewSaveState === "error" ? "Review could not be saved" : "Notes save automatically"}
+        {review.updated_at ? ` · Last updated ${displayDate(review.updated_at)}` : ""}
+      </p>
     </section>
   );
 }
@@ -356,23 +455,21 @@ function SignalDetail() {
 
 export function SignalReviewLab() {
   const selected = useSignalReviewStore((state) => state.selected);
-  const loadSignals = useSignalReviewStore((state) => state.loadSignals);
-  const loadRuns = useSignalReviewStore((state) => state.loadRuns);
+  const initialize = useSignalReviewStore((state) => state.initialize);
   const total = useSignalReviewStore((state) => state.total);
   const runs = useSignalReviewStore((state) => state.runs);
-  const latestRun = useMemo(() => runs[0], [runs]);
+  const latestRun = runs.find((run) => run.status === "completed") ?? runs[0];
 
   useEffect(() => {
-    void loadSignals(1);
-    void loadRuns();
-  }, [loadSignals, loadRuns]);
+    void initialize();
+  }, [initialize]);
 
   if (selected) return <SignalDetail />;
   return (
     <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4">
       <header>
         <div className="flex items-center gap-3"><CircleAlert size={22} className="text-accent-main" /><h1 className="text-xl font-semibold text-text-primary">BTC Signal Review Lab</h1></div>
-        <p className="mt-1 text-sm text-text-secondary">Review M5/M15 raw alerts, separate chart quality from market outcome, and build a clean research dataset.</p>
+        <p className="mt-1 text-sm text-text-secondary">Work through one replay dataset at a time, label chart quality first, then inspect the future outcome.</p>
       </header>
       <ReplayLauncher />
       <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">

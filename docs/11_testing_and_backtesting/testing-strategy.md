@@ -50,6 +50,7 @@ tests/
 ├── test_partial_tp_sl.py        # TP/SL management, partial closes
 ├── test_portfolio.py            # PortfolioManager position sizing, order flow
 ├── test_binance_adapter.py      # Exchange adapter (needs real API keys)
+├── test_executor.py              # Executor job-key and worker-argument forwarding
 ├── test_soft_sl.py              # Soft SL mechanism (known issues)
 ├── test_soft_sl_noretest.py     # Soft SL for rsi_no_retest (known issues)
 └── ...
@@ -120,7 +121,8 @@ Telegram, no sleeps beyond bounded shutdown waits.
 | `tests/test_btc_rsi_cross_alert_formatter.py` | M5/M15 labels, all required values + event suffix, UTC timestamp, stable numeric formatting, HTML escaping, no trade-lifecycle fields |
 | `tests/test_btc_rsi_cross_alert_worker.py` | Bootstrap suppression (pre-ready discard, watermark duplicates, during-hydration closes), closed-candle evaluation to the configured topic, strict one-hour M5/M15 cooldown boundaries (+5m through +55m M5 suppressed, +15m through +45m M15 suppressed, +60m allowed), independent timeframe cooldown state, open candles ignored, H1/H4 sync confirmation waking a waiting trigger without queue transit, boundary race retry-once, retry exhaustion failing closed, duplicate/backward/consumed-cross dedupe, cursor precedence per terminal state, failure budget with requeue-ahead + debug notification + worker-only death, simultaneous M5+M15 alerts, no-virtual-position surface, bounded idempotent stop |
 | `tests/test_signal_replay.py` | Historical CSV validation, naive/aware/mixed UTC+7 normalization, full-card combined and split Markdown output, timeframe-isolated M5/M15 files, native H1/H4 context gates, indicator warmup and initial warmup skipping, point-in-time future-row isolation, exact cached-preparation parity with existing checkers, conservative candidate-scan coverage and WMA tolerance, rejected-candle allocation avoidance, independent one-hour M5/M15 cooldown boundaries, duplicate suppression, manual-review fields, and repeatable rendering |
-| `tests/test_signal_review_lab.py` | Trigger-close forward return/MFE/MAE calculations, incomplete horizon warnings, immutable card and structured-snapshot persistence, M5 filtering, review reload, independent quality/outcome labels, staged future-candle access, and replay-source chart warnings |
+| `tests/test_signal_review_lab.py` | Trigger-close forward return/MFE/MAE calculations and preindexed-source parity, one-time metric-source preparation/progress, canonical common-range availability, bounded/default run creation, orphan reconciliation, immutable card and structured-snapshot persistence, M5 filtering, review reload, independent quality/outcome labels, staged future-candle access, and replay-source chart warnings |
+| `tests/test_executor.py` | Executor bookkeeping IDs remain independent from worker keyword arguments such as `run_id` |
 | `tests/test_stream_manager_multi_tf.py` | `history_complete_callback` order (all fetches → once → WS thread), exactly-once despite a failed fetch, exception isolation, default-None backward compatibility |
 | `tests/test_signal_runner.py` | Mixed ordinary/BTC worker groups, union stream targets, alert-only startup, disabled no-op, topic collisions, alert-thread join on stop, no BTC shutdown broadcast |
 | `tests/test_signal_runner_integration.py` | Real multiplexer + real worker + mocked stream/notifier: qualifying candle reaches the BTC topic, virtual positions stay empty, duplicates silent |
@@ -134,6 +136,8 @@ The Signal Review Lab tests use the same fixtures plus isolated in-memory
 SQLite databases. They do not require a running API server or live market
 data. The chart gate is tested at both states: `UNREVIEWED` clamps the chart
 to the trigger close, while any explicit quality label unlocks future candles.
+Availability and start-run tests replace canonical paths or executor submission
+with local deterministic doubles; they do not download market data.
 
 Focused command:
 

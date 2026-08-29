@@ -42,10 +42,10 @@ def set_max_workers(n: int) -> None:
     _max_workers = clamped
 
 
-def submit_backtest(run_id: int, fn: Callable, *args, **kwargs) -> Future:
+def submit_backtest(job_id: int, fn: Callable, *args, **kwargs) -> Future:
     """Submit a backtest job to the thread pool."""
     future = _executor.submit(fn, *args, **kwargs)
-    _jobs[run_id] = future
+    _jobs[job_id] = future
     return future
 
 

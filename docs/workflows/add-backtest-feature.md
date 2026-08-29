@@ -80,7 +80,7 @@ Follow the split pattern in `app/api/routes/backtest_run.py`,
 `app/api/routes/backtest_stream.py`, and
 `app/api/routes/backtest_results.py`:
 
-1. **POST endpoint**: Validate request → create DB parent row → submit job to executor (`app/api/executor.py` → `submit_backtest(run_id, fn)`) → return `{"run_id": ..., "status": "running"}`
+1. **POST endpoint**: Validate request → create DB parent row → submit job to executor (`app/api/executor.py` → `submit_backtest(job_id, fn)`) → return `{"run_id": ..., "status": "running"}`
 2. **GET SSE endpoint**: `/{run_id}/progress` returns `StreamingResponse` consuming from `get_progress_queue(run_id)` → yields `data: {...}\n\n` events
 3. **GET detail endpoint**: `/{run_id}` returns completed results from DB
 4. **DELETE endpoint**: `/{run_id}` cancels a running job

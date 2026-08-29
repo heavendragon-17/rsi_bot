@@ -237,6 +237,23 @@ class SignalReplayStartResponse(BaseModel):
     status: str
 
 
+class SignalReplaySourceAvailability(BaseModel):
+    timeframe: str
+    available: bool
+    row_count: int
+    available_start: str | None
+    available_end: str | None
+    source_modified_at: str | None
+    error: str | None
+
+
+class SignalReplayAvailabilityResponse(BaseModel):
+    ready: bool
+    common_start_at: str | None
+    common_end_at: str | None
+    sources: list[SignalReplaySourceAvailability]
+
+
 class SignalReplayRunSummary(BaseModel):
     id: int
     status: str

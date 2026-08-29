@@ -27,17 +27,24 @@ Click the checklist icon in the top bar. Its name is **BTC Signal Review**.
 
 Do not click the normal **Backtest** button.
 
-### 3. Load the signals
+### 3. Open or rebuild the review dataset
 
-1. Leave the Start and End date boxes empty unless the developer gives you
-   specific dates.
-2. Click **Replay M5 + M15**.
-3. Wait until the progress bar finishes.
-4. Click **M5 signals** or **M15 signals**.
+The **Review dataset** card shows whether M5, M15, H1, and H4 data are ready
+and the exact aligned range available for replay. You do not enter dates.
+
+If a completed dataset already exists, the newest one opens automatically and
+the list starts with signals that still need review. To rebuild it:
+
+1. Choose **All available data** (recommended), **Latest 30 days**,
+   **Latest 90 days**, or **Latest 1 year**.
+2. Click **Build review dataset** or **Rebuild review dataset**.
+3. Follow the named progress steps until **Dataset ready** appears.
+4. Choose the replay run, then click **M5 signals** or **M15 signals**.
 5. Click a signal row to open it.
 
-If the list is empty, click the refresh icon once. If it is still empty, tell
-the developer; do not change settings or run commands.
+If the card says data needs attention, send the displayed missing-file message
+to the developer. If a completed dataset has no signals under **Needs review**,
+choose another quality filter before rebuilding it.
 
 ### 4. Check the chart
 
@@ -71,7 +78,8 @@ chart to see what happened after the signal, then choose **WIN**, **LOSS**, or
 **SKIP** under **Your market outcome**. If the result cannot be decided, use
 **SKIP**.
 
-Write a short explanation in the notes box. Notes save automatically.
+Write a short explanation in the notes box. Notes save automatically, and the
+status line confirms when the review is saved.
 
 The quality decision and the later outcome are separate. A good-looking chart
 can still have a bad later outcome. This screen does not calculate trading

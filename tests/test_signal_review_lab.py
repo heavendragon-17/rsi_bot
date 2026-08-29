@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,11 +26,13 @@ from sqlalchemy.pool import StaticPool
 from app.api.main import app
 from app.api.routes import signal_replays
 from app.api.schemas import SignalHumanOutcome, SignalQuality, SignalReviewUpdate
+from app.backtest import signal_replay_service
 from app.backtest.signal_replay import run_btc_alert_replay
 from app.backtest.signal_replay_analysis import (
     calculate_forward_metrics,
     chart_candles,
     chart_window_from_frame,
+    prepare_forward_metric_source,
     source_metadata,
 )
 from app.backtest.signal_replay_data import load_ohlcv_csv
@@ -152,7 +155,12 @@ def test_forward_metrics_use_trigger_close_and_report_partial_horizons():
     )
 
     metrics = calculate_forward_metrics(signal, frame)
+    prepared_metrics = calculate_forward_metrics(
+        signal,
+        prepare_forward_metric_source(frame, "5m"),
+    )
 
+    assert prepared_metrics == metrics
     assert metrics[0]["horizon_minutes"] == 60
     assert metrics[0]["complete"] is True
     assert metrics[0]["return_pct"] == pytest.approx(10.0)
@@ -160,6 +168,180 @@ def test_forward_metrics_use_trigger_close_and_report_partial_horizons():
     assert metrics[0]["mae_pct"] == pytest.approx(-1.0)
     assert metrics[-1]["complete"] is False
     assert metrics[-1]["warning"]
+
+
+def test_signal_rows_prepare_metric_sources_once_and_report_progress(
+    tmp_path,
+    monkeypatch,
+):
+    m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+    result = run_btc_alert_replay(
+        m5_path,
+        m15_path,
+        h4_path,
+        start_utc7=datetime(2026, 8, 24, 16, 40),
+        end_utc7=datetime(2026, 8, 24, 17, 10),
+        write_output=False,
+    )
+    m5_frame = load_ohlcv_csv(m5_path, "5m")
+    m15_frame = load_ohlcv_csv(m15_path, "15m")
+    prepared_timeframes: list[str] = []
+
+    from app.backtest import signal_replay_persistence
+
+    real_prepare = signal_replay_persistence.prepare_forward_metric_source
+
+    def tracked_prepare(frame, timeframe):
+        prepared_timeframes.append(timeframe)
+        return real_prepare(frame, timeframe)
+
+    monkeypatch.setattr(
+        signal_replay_persistence,
+        "prepare_forward_metric_source",
+        tracked_prepare,
+    )
+    progress: list[tuple[int, int]] = []
+    rows = build_signal_rows(
+        result,
+        replay_run_id=1,
+        m5_frame=m5_frame,
+        m15_frame=m15_frame,
+        on_progress=lambda completed, total: progress.append((completed, total)),
+    )
+
+    assert prepared_timeframes == ["5m", "15m"]
+    assert progress[0] == (1, len(rows))
+    assert progress[-1] == (len(rows), len(rows))
+
+
+def test_replay_availability_uses_common_canonical_range(tmp_path, monkeypatch):
+    m5_path, m15_path, h4_path = _write_qualifying_csvs(tmp_path)
+    h1_path = h4_path.with_name("BTCUSDT_1h.csv")
+    monkeypatch.setattr(
+        signal_replay_service,
+        "_default_paths",
+        lambda: (m5_path, m15_path, h1_path, h4_path),
+    )
+
+    availability = SignalReplayService().get_availability()
+
+    assert availability["ready"] is True
+    assert {source["timeframe"] for source in availability["sources"]} == {
+        "5m",
+        "15m",
+        "1h",
+        "4h",
+    }
+    starts = [
+        datetime.fromisoformat(source["available_start"])
+        for source in availability["sources"]
+    ]
+    ends = [
+        datetime.fromisoformat(source["available_end"])
+        for source in availability["sources"]
+    ]
+    assert datetime.fromisoformat(availability["common_start_at"]) == max(starts)
+    assert datetime.fromisoformat(availability["common_end_at"]) == min(ends)
+
+
+def test_replay_start_rejects_range_outside_available_data(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    service = SignalReplayService()
+    monkeypatch.setattr(
+        service,
+        "get_availability",
+        lambda: {
+            "ready": True,
+            "common_start_at": "2026-01-01T00:00:00+00:00",
+            "common_end_at": "2026-01-31T23:59:59+00:00",
+            "sources": [],
+        },
+    )
+    try:
+        with pytest.raises(ValueError, match="available data range"):
+            asyncio.run(service.start_run("2025-12-01", "2026-01-15", db))
+        assert db.query(SignalReplayRun).count() == 0
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_replay_start_defaults_to_common_range(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    service = SignalReplayService()
+    monkeypatch.setattr(
+        service,
+        "get_availability",
+        lambda: {
+            "ready": True,
+            "common_start_at": "2026-01-01T00:00:00+00:00",
+            "common_end_at": "2026-01-31T23:59:59+00:00",
+            "sources": [],
+        },
+    )
+    submitted: dict[str, object] = {}
+
+    def fake_submit(job_id, worker, **kwargs):
+        submitted.update({"job_id": job_id, "worker": worker, **kwargs})
+        return SimpleNamespace()
+
+    monkeypatch.setattr(signal_replay_service.executor, "submit_backtest", fake_submit)
+    try:
+        run_id = asyncio.run(service.start_run(None, None, db))
+        run = db.query(SignalReplayRun).filter_by(id=run_id).one()
+
+        assert run.requested_start_at == datetime(2026, 1, 1)
+        assert run.requested_end_at == datetime(2026, 1, 31, 23, 59, 59)
+        assert submitted["job_id"] == run_id
+        assert submitted["run_id"] == run_id
+    finally:
+        signal_replay_service.executor.cleanup_job(1)
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_reconcile_orphaned_replay_runs(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    run = SignalReplayRun(
+        status="running",
+        definition_version="btc-rsi-cross-v1",
+        symbol="BTC/USDT",
+    )
+    db.add(run)
+    db.commit()
+    monkeypatch.setattr(
+        signal_replay_service.executor,
+        "get_progress_queue",
+        lambda _run_id: None,
+    )
+    try:
+        SignalReplayService().reconcile_orphaned_runs(db)
+        db.refresh(run)
+
+        assert run.status == "failed"
+        assert "interrupted" in run.error_message
+        assert run.completed_at is not None
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
 
 
 def test_persistence_keeps_exact_card_and_structured_snapshot(tmp_path):

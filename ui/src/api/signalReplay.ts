@@ -1,6 +1,7 @@
 import { apiFetch, apiSSE } from "./client";
 import type {
   SignalChartResponse,
+  SignalReplayAvailabilityResponse,
   SignalReplayListResponse,
   SignalReplayRunDetail,
   SignalReplayRunRequest,
@@ -40,6 +41,12 @@ export async function startSignalReplay(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function getSignalReplayAvailability(): Promise<SignalReplayAvailabilityResponse> {
+  return apiFetch<SignalReplayAvailabilityResponse>(
+    "/api/signal-replays/availability",
+  );
 }
 
 export async function listSignalReplayRuns(): Promise<SignalReplayRunSummary[]> {

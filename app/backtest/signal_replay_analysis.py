@@ -15,11 +15,13 @@ observation.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from app.backtest.signal_replay_models import ReplaySignal
@@ -34,6 +36,16 @@ FORWARD_HORIZONS_MINUTES: tuple[int, ...] = (60, 240, 720, 1440)
 CHART_CONTEXT_CANDLES = 120
 CHART_INITIAL_FORWARD_CANDLES = 0
 CHART_CHUNK_CANDLES = 500
+
+
+@dataclass(frozen=True, slots=True)
+class ForwardMetricSource:
+    """Pre-indexed OHLCV arrays shared by every signal in one timeframe."""
+
+    close_times: pd.DatetimeIndex
+    closes: np.ndarray
+    highs: np.ndarray
+    lows: np.ndarray
 
 
 def _duration_for_timeframe(timeframe: str) -> timedelta:
@@ -87,9 +99,23 @@ def _finite_float(value: Any) -> float | None:
     return converted if math.isfinite(converted) else None
 
 
+def prepare_forward_metric_source(
+    frame: pd.DataFrame,
+    timeframe: str,
+) -> ForwardMetricSource:
+    """Prepare one immutable lookup source for all replay signals in a timeframe."""
+
+    return ForwardMetricSource(
+        close_times=_close_times(frame, timeframe),
+        closes=frame["close"].to_numpy(dtype=float, copy=False),
+        highs=frame["high"].to_numpy(dtype=float, copy=False),
+        lows=frame["low"].to_numpy(dtype=float, copy=False),
+    )
+
+
 def calculate_forward_metrics(
     signal: ReplaySignal,
-    frame: pd.DataFrame,
+    frame: pd.DataFrame | ForwardMetricSource,
 ) -> list[dict[str, Any]]:
     """Calculate close-return, MFE, and MAE observations after a signal.
 
@@ -100,18 +126,20 @@ def calculate_forward_metrics(
     is returned with ``complete=False`` and a warning.
     """
 
-    close_times = _close_times(frame, signal.timeframe)
+    source = (
+        frame
+        if isinstance(frame, ForwardMetricSource)
+        else prepare_forward_metric_source(frame, signal.timeframe)
+    )
     trigger_close = signal.data.trigger_close_time.astimezone(UTC)
     baseline = float(signal.data.trigger_close_price)
-    future_positions = [
-        position
-        for position, close_time in enumerate(close_times)
-        if close_time.to_pydatetime() > trigger_close
-    ]
+    future_start = int(
+        source.close_times.searchsorted(pd.Timestamp(trigger_close), side="right")
+    )
     rows: list[dict[str, Any]] = []
     for horizon_minutes in FORWARD_HORIZONS_MINUTES:
         target = trigger_close + timedelta(minutes=horizon_minutes)
-        if not future_positions:
+        if future_start >= len(source.close_times):
             rows.append(
                 {
                     "horizon_minutes": horizon_minutes,
@@ -126,31 +154,30 @@ def calculate_forward_metrics(
             )
             continue
 
-        target_position = next(
-            (
-                position
-                for position in future_positions
-                if close_times[position].to_pydatetime() >= target
-            ),
-            None,
+        target_position = int(
+            source.close_times.searchsorted(pd.Timestamp(target), side="left")
         )
-        complete = target_position is not None
-        end_position = target_position if target_position is not None else future_positions[-1]
-        observation_positions = [
-            position for position in future_positions if position <= end_position
-        ]
-        observed_at = close_times[end_position].to_pydatetime()
-        closes = [float(frame.iloc[position]["close"]) for position in observation_positions]
-        highs = [float(frame.iloc[position]["high"]) for position in observation_positions]
-        lows = [float(frame.iloc[position]["low"]) for position in observation_positions]
-        last_close = closes[-1]
+        complete = target_position < len(source.close_times)
+        end_position = target_position if complete else len(source.close_times) - 1
+        observation = slice(future_start, end_position + 1)
+        observed_at = source.close_times[end_position].to_pydatetime()
+        last_close = float(source.closes[end_position])
         rows.append(
             {
                 "horizon_minutes": horizon_minutes,
                 "price_at_observation": _decimal_text(last_close),
                 "return_pct": (last_close / baseline - 1.0) * 100.0,
-                "mfe_pct": (max(highs) / baseline - 1.0) * 100.0,
-                "mae_pct": min(0.0, (min(lows) / baseline - 1.0) * 100.0),
+                "mfe_pct": (
+                    float(np.max(source.highs[observation])) / baseline - 1.0
+                )
+                * 100.0,
+                "mae_pct": min(
+                    0.0,
+                    (
+                        float(np.min(source.lows[observation])) / baseline - 1.0
+                    )
+                    * 100.0,
+                ),
                 "observed_at": observed_at,
                 "complete": complete,
                 "warning": None

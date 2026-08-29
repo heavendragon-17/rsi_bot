@@ -9,6 +9,12 @@
 - **Files affected**: app/strategies/*.py
 -->
 
+## 2026-08-30: Make review workflows data-aware and review-first
+
+- **Correction**: The Signal Review page required manual dates even though replays can only use predownloaded canonical CSV coverage, then appeared frozen at 75% while post-processing signals.
+- **Rule**: Derive replay scope from the intersection of available source data, make all available data the default, constrain optional presets to that range, expose post-replay progress, and keep dataset preparation secondary to the human review task.
+- **Files affected**: `app/backtest/signal_replay_*`, `app/api/routes/signal_replays.py`, `ui/src/components/signal-review/`, the signal-review store/API, tests, and routed documentation.
+
 ## 2026-08-27: Keep timeframe gates tied to the requested market quantity
 
 - **Correction**: The BTC RSI alert's H4 confirmation must use the closed H4 candle price above EMA21(price), not EMA9/WMA45 derived from RSI21.

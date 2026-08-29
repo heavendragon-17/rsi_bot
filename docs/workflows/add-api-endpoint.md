@@ -69,7 +69,7 @@ Follow the split backtest pattern:
 3. `app/api/routes/backtest_results.py` exposes completed results.
 
 At the executor boundary:
-- `submit_backtest(run_id, fn)` schedules the worker.
+- `submit_backtest(job_id, fn)` schedules the worker.
 - `get_progress_queue(run_id)` feeds the progress stream.
 - `publish_event(run_id, event_dict)` publishes worker events.
 

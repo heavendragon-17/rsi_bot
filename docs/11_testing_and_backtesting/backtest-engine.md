@@ -176,13 +176,26 @@ adverse excursion observations. These are market observations, not simulated
 trade PnL: there are no fills, TP/SL levels, sizing, fees, leverage, or
 execution assumptions.
 
+The availability endpoint validates the current M5, M15, H1, and H4 CSVs and
+returns their common candle-close range. Omitted replay boundaries default to
+that full intersection; supplied boundaries are rejected before job creation
+when they fall outside it. Only one signal replay may run at a time, and a
+`running` database row without an in-memory executor job is reconciled to a
+clear interrupted/failed state after an API restart.
+
 The worker uses the existing ThreadPoolExecutor/SSE infrastructure and loads
-the current M5, M15, H1, and H4 CSVs. It bulk-persists signals, latest reviews,
-and forward metrics in one transaction before marking the run complete. CSV
-candles remain outside SQLite; chart responses report missing historical data,
-shortened future data, and incomplete horizons explicitly. Markdown replay
-reports remain available through the existing CLI as an optional audit/export
-format.
+the four current CSVs. Forward observations prepare one timestamp index and
+one set of NumPy OHLC arrays per trigger timeframe, then use binary searches
+and bounded slices for every signal/horizon. This avoids rescanning an entire
+source frame for every signal. SSE phases continue after signal detection as
+`metrics` and `saving`, so the UI no longer appears frozen while rows are
+prepared and committed. Signals, latest reviews, and forward metrics are
+persisted in one transaction before the run is marked complete.
+
+CSV candles remain outside SQLite; chart responses report missing historical
+data, shortened future data, and incomplete horizons explicitly. Markdown
+replay reports remain available through the existing CLI as an optional
+audit/export format.
 
 ---
 

@@ -24,6 +24,19 @@
 
 **Timeout**: 60 seconds per event. If no event within timeout, connection closes.
 
+## BTC Signal Replay Progress (`GET /api/signal-replays/runs/{run_id}/progress`)
+
+| Event | Payload | When |
+|-------|---------|------|
+| `progress` | `{ pct, phase, candle, total }` | Market-data load, signal detection, forward-metric preparation, persistence, and completion |
+| `complete` | `{ run_id, status, signal_count, m5_count, m15_count }` | The immutable review dataset is committed |
+| `error` | `{ run_id?, message }` | Validation or worker failure, including an interrupted run after restart |
+
+Current phase values are `load`, `signals`, `metrics`, `saving`, and
+`complete`. The client closes the stream on a terminal event and reloads the
+selected run's signal queue. Refreshing the page can reconnect while the same
+API process still owns the executor queue.
+
 ## Grid Search Progress (`GET /api/grid-search/{run_id}/progress`)
 
 | Event | Payload | When |

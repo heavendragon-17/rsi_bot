@@ -24,6 +24,7 @@ from app.repository.backtest.models import (
 )
 
 UTC_PLUS_7 = timezone(timedelta(hours=7), name="UTC+7")
+REPLAY_SOURCE_TIMEFRAMES = ("5m", "15m", "1h", "4h")
 
 
 def parse_boundary(raw: str | None, *, is_end: bool) -> datetime | None:
@@ -63,6 +64,10 @@ def api_datetime(value: datetime | None) -> str | None:
 
 def _now_utc_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _availability_datetime(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
 
 
 def current_git_hash() -> str | None:
@@ -188,16 +193,136 @@ def signal_detail(signal: SignalReplaySignal) -> dict[str, Any]:
 class SignalReplayService:
     """Coordinates replay jobs and exposes review-oriented query operations."""
 
+    def get_availability(self) -> dict[str, Any]:
+        """Inspect the canonical replay inputs and return their common range."""
+
+        sources: list[dict[str, Any]] = []
+        starts: list[datetime] = []
+        ends: list[datetime] = []
+        for timeframe, path in zip(
+            REPLAY_SOURCE_TIMEFRAMES,
+            _default_paths(),
+            strict=True,
+        ):
+            if not path.is_file():
+                sources.append(
+                    {
+                        "timeframe": timeframe,
+                        "available": False,
+                        "row_count": 0,
+                        "available_start": None,
+                        "available_end": None,
+                        "source_modified_at": None,
+                        "error": f"Missing {path.name}",
+                    }
+                )
+                continue
+            try:
+                frame = load_ohlcv_csv(path, timeframe)
+                metadata = source_metadata(path, frame, timeframe)
+                available_start = _availability_datetime(
+                    metadata["available_start"]
+                )
+                available_end = _availability_datetime(metadata["available_end"])
+                if available_start is None or available_end is None:
+                    raise ValueError("CSV contains no candles")
+                starts.append(available_start)
+                ends.append(available_end)
+                sources.append(
+                    {
+                        "timeframe": timeframe,
+                        "available": True,
+                        "row_count": metadata["row_count"],
+                        "available_start": metadata["available_start"],
+                        "available_end": metadata["available_end"],
+                        "source_modified_at": metadata["source_modified_at"],
+                        "error": None,
+                    }
+                )
+            except (OSError, ValueError) as exc:
+                sources.append(
+                    {
+                        "timeframe": timeframe,
+                        "available": False,
+                        "row_count": 0,
+                        "available_start": None,
+                        "available_end": None,
+                        "source_modified_at": None,
+                        "error": f"{path.name}: {exc}",
+                    }
+                )
+
+        ready = len(starts) == len(REPLAY_SOURCE_TIMEFRAMES)
+        common_start = max(starts) if ready else None
+        common_end = min(ends) if ready else None
+        if common_start is not None and common_end is not None:
+            ready = common_start <= common_end
+        return {
+            "ready": ready,
+            "common_start_at": common_start.isoformat() if ready else None,
+            "common_end_at": common_end.isoformat() if ready else None,
+            "sources": sources,
+        }
+
+    def reconcile_orphaned_runs(self, db) -> None:
+        """Fail running DB rows whose in-memory executor job no longer exists."""
+
+        orphaned = (
+            db.query(SignalReplayRun)
+            .filter_by(status="running")
+            .order_by(SignalReplayRun.created_at.asc())
+            .all()
+        )
+        changed = False
+        for run in orphaned:
+            if executor.get_progress_queue(run.id) is not None:
+                continue
+            run.status = "failed"
+            run.error_message = (
+                "Replay was interrupted before completion. Start a new replay."
+            )
+            run.completed_at = _now_utc_naive()
+            changed = True
+        if changed:
+            db.commit()
+
     async def start_run(self, start_raw: str | None, end_raw: str | None, db) -> int:
-        start_at = parse_boundary(start_raw, is_end=False)
-        end_at = parse_boundary(end_raw, is_end=True)
+        self.reconcile_orphaned_runs(db)
+        active_run = (
+            db.query(SignalReplayRun)
+            .filter_by(status="running")
+            .order_by(SignalReplayRun.created_at.desc())
+            .first()
+        )
+        if active_run is not None:
+            raise ValueError(f"Signal replay #{active_run.id} is already running")
+
+        availability = self.get_availability()
+        if not availability["ready"]:
+            errors = [
+                source["error"]
+                for source in availability["sources"]
+                if source["error"]
+            ]
+            raise ValueError(
+                "Signal replay data is not ready: " + "; ".join(errors)
+            )
+        available_start = _availability_datetime(availability["common_start_at"])
+        available_end = _availability_datetime(availability["common_end_at"])
+        if available_start is None or available_end is None:
+            raise ValueError("Signal replay data has no common available range")
+
+        start_at = parse_boundary(start_raw, is_end=False) or available_start
+        end_at = parse_boundary(end_raw, is_end=True) or available_end
         if start_at is not None and end_at is not None and start_at > end_at:
             raise ValueError("start must be before or equal to end")
-
-        paths = _default_paths()
-        missing = [str(path) for path in paths if not path.is_file()]
-        if missing:
-            raise ValueError(f"Missing replay CSV file(s): {', '.join(missing)}")
+        if start_at < available_start or end_at > available_end:
+            start_label = available_start.astimezone(UTC_PLUS_7).isoformat()
+            end_label = available_end.astimezone(UTC_PLUS_7).isoformat()
+            raise ValueError(
+                "Replay range must stay inside the available data range "
+                f"{start_label} to {end_label}"
+            )
 
         now = _now_utc_naive()
         run = SignalReplayRun(
@@ -250,6 +375,8 @@ class SignalReplayService:
                 yield f"event: error\ndata: {json.dumps({'message': 'Signal replay run not found'})}\n\n"
             elif run.status == "failed":
                 yield f"event: error\ndata: {json.dumps({'message': run.error_message or 'Signal replay failed'})}\n\n"
+            elif run.status == "running":
+                yield f"event: error\ndata: {json.dumps({'message': 'Replay was interrupted before completion. Start a new replay.'})}\n\n"
             else:
                 yield f"event: complete\ndata: {json.dumps({'run_id': run_id, 'status': run.status})}\n\n"
             return

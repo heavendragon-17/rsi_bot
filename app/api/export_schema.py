@@ -42,6 +42,8 @@ _INCLUDE = {
     "SignalHumanOutcome",
     "SignalReplayRunRequest",
     "SignalReplayStartResponse",
+    "SignalReplaySourceAvailability",
+    "SignalReplayAvailabilityResponse",
     "SignalReplayRunSummary",
     "SignalForwardMetricResponse",
     "SignalReviewResponse",

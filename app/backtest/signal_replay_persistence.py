@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from app.backtest.signal_replay_analysis import calculate_forward_metrics
+from app.backtest.signal_replay_analysis import (
+    calculate_forward_metrics,
+    prepare_forward_metric_source,
+)
 from app.backtest.signal_replay_models import ReplayResult, ReplaySignal
 from app.repository.backtest.models import (
     SignalForwardMetric,
@@ -69,12 +73,18 @@ def build_signal_rows(
     replay_run_id: int,
     m5_frame,
     m15_frame,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> list[SignalReplaySignal]:
     """Build signal, review, and forward-metric rows without committing them."""
 
     rows: list[SignalReplaySignal] = []
     frames = {"5m": m5_frame, "15m": m15_frame}
-    for signal in result.signals:
+    metric_sources = {
+        timeframe: prepare_forward_metric_source(frame, timeframe)
+        for timeframe, frame in frames.items()
+    }
+    total = len(result.signals)
+    for position, signal in enumerate(result.signals, start=1):
         data = signal.data
         trigger_duration = TRIGGER_DURATION_BY_TIMEFRAME[signal.timeframe]
         current = data.current_trigger
@@ -107,7 +117,10 @@ def build_signal_rows(
             human_outcome="UNSET",
             updated_at=datetime.now(UTC).replace(tzinfo=None),
         )
-        for metric in calculate_forward_metrics(signal, frames[signal.timeframe]):
+        for metric in calculate_forward_metrics(
+            signal,
+            metric_sources[signal.timeframe],
+        ):
             row.forward_metrics.append(
                 SignalForwardMetric(
                     horizon_minutes=metric["horizon_minutes"],
@@ -125,4 +138,8 @@ def build_signal_rows(
                 )
             )
         rows.append(row)
+        if on_progress is not None and (
+            position == 1 or position == total or position % 100 == 0
+        ):
+            on_progress(position, total)
     return rows

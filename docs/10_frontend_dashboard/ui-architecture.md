@@ -28,9 +28,19 @@
 ### Signal Review workspace
 
 The `signal-review` mode is a full-page workspace with no normal backtest
-sidebar. It has one shared implementation with M5/M15 tabs and a saved
-`Good Signals` filter. The list is server-paginated and displays trigger time,
-timeframe, trigger-close price, quality, human outcome, and note presence.
+sidebar. It opens on the latest completed replay run, defaults to signals that
+still need review, and keeps every list request scoped to the selected run so
+rerunning a historical window cannot mix duplicate events into the review
+queue. The list is server-paginated and displays trigger time, timeframe,
+trigger-close price, quality, human outcome, and note presence.
+
+Dataset preparation is data-aware. The launcher first shows the aligned
+intersection of the canonical M5, M15, H1, and H4 CSV coverage, including the
+row count for each source. Reviewers choose **all available data** or a bounded
+30-day, 90-day, or one-year preset; arbitrary manual dates are not exposed.
+The store resumes the visible progress stream after a page refresh when the
+same API process still owns an active run. Interrupted database rows are
+reported as failed instead of leaving the page permanently busy.
 
 Selecting a row opens a full-page detail view with newer/older navigation. It
 renders the exact Telegram card, the structured signal snapshot, objective
@@ -41,9 +51,12 @@ and lazy forward loading.
 
 Review is deliberately staged: the initial chart stops at the trigger close.
 Saving `GOOD`, `BAD`, or `UNCERTAIN` unlocks forward candles and enables
-`WIN`, `LOSS`, and `SKIP`. Notes are debounced and saved server-side; the
-quality and outcome labels are separate fields so a visually good alert can
-still lose and a profitable alert can still be marked poor quality.
+`WIN`, `LOSS`, and `SKIP`. Notes are debounced and saved server-side; label and
+note writes are serialized so a response cannot overwrite an unsent draft.
+Ordinary note/outcome saves update the current list locally instead of
+reloading and reconstructing the chart. The quality and outcome labels are
+separate fields so a visually good alert can still lose and a profitable alert
+can still be marked poor quality.
 
 ### Timeframe Selector
 

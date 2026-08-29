@@ -1,198 +1,14 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-08-28T10:00:27Z
+ * Generated: 2026-08-29T17:12:43Z
  */
-
-export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
-
-export type SignalQuality = "UNREVIEWED" | "GOOD" | "BAD" | "UNCERTAIN";
 
 export type SignalHumanOutcome = "UNSET" | "WIN" | "LOSS" | "SKIP";
 
-export interface TimeseriesResponse {
-  run_id: number;
-  equity_curve: Record<string, unknown>[];
-  drawdown_curve: Record<string, unknown>[];
-  monthly_returns: Record<string, unknown>;
-  dispersion_range: Record<string, unknown>[];
-  benchmark_curve: Record<string, unknown>[];
-}
+export type SignalQuality = "UNREVIEWED" | "GOOD" | "BAD" | "UNCERTAIN";
 
-export interface SignalReplayStartResponse {
-  run_id: number;
-  status: string;
-}
-
-export interface SignalChartResponse {
-  signal_id: number;
-  timeframe: string;
-  candles: Record<string, unknown>[];
-  available_start: string | null;
-  available_end: string | null;
-  requested_start: string | null;
-  requested_end: string | null;
-  has_before: boolean;
-  has_after: boolean;
-  future_allowed: boolean;
-  warning: string | null;
-}
-
-export interface SignalReplayRunDetail {
-  run: SignalReplayRunSummary;
-  source_metadata: Record<string, unknown>;
-  counters: Record<string, unknown>;
-}
-
-export interface PresetUpdate {
-  name?: string | null;
-  config?: Record<string, unknown> | null;
-}
-
-export interface DataStatusResponse {
-  symbol: string;
-  timeframe: string;
-  available: boolean;
-  file_path: string | null;
-  candle_count: number | null;
-  date_range: Record<string, string> | null;
-}
-
-export interface RunSummary {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  start_date: string;
-  end_date: string;
-  initial_capital: string;
-  leverage: number;
-  net_profit: string | null;
-  net_profit_pct: number | null;
-  win_rate: number | null;
-  profit_factor: number | null;
-  max_drawdown_pct: number | null;
-  sharpe_ratio: number | null;
-  total_trades: number | null;
-  tags: string[];
-}
-
-export interface StrategyInfo {
-  id: number;
-  name: string;
-  description: string | null;
-  default_config: Record<string, unknown>;
-  param_schema?: Record<string, unknown>;
-}
-
-export interface BacktestStartResponse {
-  run_id: number;
-  status: string;
-}
-
-export interface SignalReplayRunSummary {
-  id: number;
-  status: string;
-  strategy_name: string;
-  definition_version: string;
-  git_hash: string | null;
-  symbol: string;
-  requested_start_at: string | null;
-  requested_end_at: string | null;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  signal_count: number;
-  m5_count: number;
-  m15_count: number;
-  error_message: string | null;
-}
-
-export interface SignalReviewUpdate {
-  quality?: SignalQuality | null;
-  human_outcome?: SignalHumanOutcome | null;
-  note?: string | null;
-}
-
-export interface SignalReviewResponse {
-  quality: SignalQuality;
-  human_outcome: SignalHumanOutcome;
-  note: string | null;
-  reviewed_at: string | null;
-  updated_at: string | null;
-  future_unlocked_at: string | null;
-}
-
-export interface RunDetail {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  config: Record<string, unknown>;
-  results: Record<string, unknown> | null;
-  trades: Record<string, unknown>[] | null;
-}
-
-export interface SignalForwardMetricResponse {
-  horizon_minutes: number;
-  price_at_observation: string | null;
-  return_pct: number | null;
-  mfe_pct: number | null;
-  mae_pct: number | null;
-  observed_at: string | null;
-  complete: boolean;
-  warning: string | null;
-}
-
-export interface PresetCreate {
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-}
-
-export interface PresetResponse {
-  id: number;
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SignalReplayRunRequest {
-  start?: string | null;
-  end?: string | null;
-}
-
-export interface SignalReplaySignalSummary {
-  id: number;
-  replay_run_id: number;
-  event_id: string;
-  sequence: number;
-  timeframe: string;
-  trigger_close_at: string;
-  trigger_close_price: string;
-  decision_reason: string;
-  quality: SignalQuality;
-  human_outcome: SignalHumanOutcome;
-  note_present: boolean;
-}
-
-export interface HistoryResponse {
-  runs: RunSummary[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-export interface DownloadStartResponse {
-  job_id: string;
-  status: string;
-}
+export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
 
 export interface SignalReplaySignalDetail {
   id: number;
@@ -221,11 +37,132 @@ export interface SignalReplaySignalDetail {
   forward_metrics: SignalForwardMetricResponse[];
 }
 
+export interface HistoryResponse {
+  runs: RunSummary[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface SignalReviewUpdate {
+  quality?: SignalQuality | null;
+  human_outcome?: SignalHumanOutcome | null;
+  note?: string | null;
+}
+
+export interface PresetCreate {
+  name: string;
+  strategy: string;
+  config: Record<string, unknown>;
+}
+
 export interface SignalReplayListResponse {
   signals: SignalReplaySignalSummary[];
   total: number;
   page: number;
   pages: number;
+}
+
+export interface SignalReplayAvailabilityResponse {
+  ready: boolean;
+  common_start_at: string | null;
+  common_end_at: string | null;
+  sources: SignalReplaySourceAvailability[];
+}
+
+export interface SignalReplayRunDetail {
+  run: SignalReplayRunSummary;
+  source_metadata: Record<string, unknown>;
+  counters: Record<string, unknown>;
+}
+
+export interface SignalForwardMetricResponse {
+  horizon_minutes: number;
+  price_at_observation: string | null;
+  return_pct: number | null;
+  mfe_pct: number | null;
+  mae_pct: number | null;
+  observed_at: string | null;
+  complete: boolean;
+  warning: string | null;
+}
+
+export interface SignalReplayRunSummary {
+  id: number;
+  status: string;
+  strategy_name: string;
+  definition_version: string;
+  git_hash: string | null;
+  symbol: string;
+  requested_start_at: string | null;
+  requested_end_at: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  signal_count: number;
+  m5_count: number;
+  m15_count: number;
+  error_message: string | null;
+}
+
+export interface SignalReviewResponse {
+  quality: SignalQuality;
+  human_outcome: SignalHumanOutcome;
+  note: string | null;
+  reviewed_at: string | null;
+  updated_at: string | null;
+  future_unlocked_at: string | null;
+}
+
+export interface SignalReplaySignalSummary {
+  id: number;
+  replay_run_id: number;
+  event_id: string;
+  sequence: number;
+  timeframe: string;
+  trigger_close_at: string;
+  trigger_close_price: string;
+  decision_reason: string;
+  quality: SignalQuality;
+  human_outcome: SignalHumanOutcome;
+  note_present: boolean;
+}
+
+export interface StrategyInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  default_config: Record<string, unknown>;
+  param_schema?: Record<string, unknown>;
+}
+
+export interface PresetUpdate {
+  name?: string | null;
+  config?: Record<string, unknown> | null;
+}
+
+export interface SignalReplaySourceAvailability {
+  timeframe: string;
+  available: boolean;
+  row_count: number;
+  available_start: string | null;
+  available_end: string | null;
+  source_modified_at: string | null;
+  error: string | null;
+}
+
+export interface SignalChartResponse {
+  signal_id: number;
+  timeframe: string;
+  candles: Record<string, unknown>[];
+  available_start: string | null;
+  available_end: string | null;
+  requested_start: string | null;
+  requested_end: string | null;
+  has_before: boolean;
+  has_after: boolean;
+  future_allowed: boolean;
+  warning: string | null;
 }
 
 export interface BacktestRequest {
@@ -253,4 +190,84 @@ export interface BacktestRequest {
   min_sl_distance_pct?: number;
   use_risk_based_sizing?: boolean;
   use_initial_capital_for_risk?: boolean;
+}
+
+export interface PresetResponse {
+  id: number;
+  name: string;
+  strategy: string;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BacktestStartResponse {
+  run_id: number;
+  status: string;
+}
+
+export interface TimeseriesResponse {
+  run_id: number;
+  equity_curve: Record<string, unknown>[];
+  drawdown_curve: Record<string, unknown>[];
+  monthly_returns: Record<string, unknown>;
+  dispersion_range: Record<string, unknown>[];
+  benchmark_curve: Record<string, unknown>[];
+}
+
+export interface SignalReplayRunRequest {
+  start?: string | null;
+  end?: string | null;
+}
+
+export interface DataStatusResponse {
+  symbol: string;
+  timeframe: string;
+  available: boolean;
+  file_path: string | null;
+  candle_count: number | null;
+  date_range: Record<string, string> | null;
+}
+
+export interface SignalReplayStartResponse {
+  run_id: number;
+  status: string;
+}
+
+export interface DownloadStartResponse {
+  job_id: string;
+  status: string;
+}
+
+export interface RunSummary {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  start_date: string;
+  end_date: string;
+  initial_capital: string;
+  leverage: number;
+  net_profit: string | null;
+  net_profit_pct: number | null;
+  win_rate: number | null;
+  profit_factor: number | null;
+  max_drawdown_pct: number | null;
+  sharpe_ratio: number | null;
+  total_trades: number | null;
+  tags: string[];
+}
+
+export interface RunDetail {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  config: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  trades: Record<string, unknown>[] | null;
 }

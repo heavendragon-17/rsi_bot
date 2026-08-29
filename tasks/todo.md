@@ -2,6 +2,49 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## BTC Signal Review flow audit and repair (2026-08-30)
+
+- [x] Reproduce the 75% stall and audit the launcher, run selection, signal list, chart, and review-save flow.
+- [x] Replace arbitrary manual dates with a data-aware replay scope derived from the canonical M5/M15/H1/H4 coverage.
+- [x] Optimize forward-metric persistence and expose meaningful progress after signal detection.
+- [x] Scope the review list to one replay run and resume visible progress for an active run.
+- [x] Stop note/outcome saves from unnecessarily reloading the signal list and chart.
+- [x] Add backend/frontend regression coverage and update routed product documentation.
+- [x] Run focused/broader backend checks, frontend type-check/build, Markdown validation, live API/SSE replay, and served-bundle verification; attempt and isolate unrelated full-suite stalls.
+
+### Audit findings
+
+- The replay reaches 75% after signal detection, then computes forward metrics by rescanning the full source frame for every signal. A two-year run with 1,988 signals remains CPU-bound with no intermediate progress.
+- The launcher accepts dates the local canonical CSV set cannot satisfy and does not show the common available range.
+- The default signal query omits `replay_run_id`, so repeated replays mix duplicate historical events from multiple datasets.
+- Every review save reloads the list and chart; debounced note typing therefore causes repeated chart reconstruction.
+
+### Review
+
+The launcher now reads the aligned canonical coverage, defaults to all usable
+data, and offers only bounded recent-period presets. The latest completed run
+opens as a review queue filtered to `UNREVIEWED`; reviewers can switch datasets
+without mixing runs. Refreshing during a live replay reconnects to the current
+executor queue, while interrupted rows are reconciled to failed after restart.
+
+Forward metrics now reuse one timestamp/NumPy source per trigger timeframe and
+use binary-search slices. On the canonical two-year dataset, a live run stored
+1,988 signals (1,399 M5 and 589 M15) in 10.67 seconds with 25 SSE updates; the
+old run remained silent after 75% for roughly ten minutes. Review writes update
+local state and reload the chart only when the future-data gate changes; saves
+are serialized so labels cannot overwrite a pending note draft.
+
+Validation: 12 focused tests passed, 38 replay/API tests passed, TypeScript
+type-check and production build passed, Python compilation passed, Markdown
+links passed, `git diff --check` passed, and live availability/range/run/SSE/
+run-scoped-list checks passed. The repository-wide suite was attempted but two
+unchanged legacy fixtures were isolated as pathological in this environment:
+`tests/test_engine_results.py::test_returns_dict` stalls in its module-level
+`BacktestEngine.run()`, and `tests/test_indicators.py::TestCompute::test_returns_expected_columns`
+stalls in `Indicators.compute()` before its first assertion. In-app browser
+control could not start because its local kernel assets failed to initialize;
+the newly built bundle was verified through the running server instead.
+
 ## Add H1 trend gate and M5 RSI ceiling (2026-08-29)
 
 - [x] Trace the existing BTC alert live/replay contracts and preserve unrelated worktree changes.

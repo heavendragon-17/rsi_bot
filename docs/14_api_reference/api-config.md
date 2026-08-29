@@ -52,6 +52,10 @@ Job tracking dicts maintain SSE queues and job state:
 - `progress_queues: Dict[str, asyncio.Queue]` — SSE event queues per run_id
 - `running_jobs: Dict[str, Future]` — executor futures for cancellation
 
+The executor entry point is `submit_backtest(job_id, fn, *args, **kwargs)`.
+`job_id` is the executor's tracking key; worker-specific keyword arguments,
+including `run_id`, are forwarded separately to `fn`.
+
 ---
 
 ## Database

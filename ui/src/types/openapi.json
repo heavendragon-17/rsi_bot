@@ -958,6 +958,27 @@
         }
       }
     },
+    "/api/signal-replays/availability": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Get Signal Replay Availability",
+        "operationId": "get_signal_replay_availability_api_signal_replays_availability_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplayAvailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/signal-replays/runs": {
       "post": {
         "tags": [
@@ -2389,6 +2410,51 @@
         ],
         "title": "SignalQuality"
       },
+      "SignalReplayAvailabilityResponse": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "common_start_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Common Start At"
+          },
+          "common_end_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Common End At"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SignalReplaySourceAvailability"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ready",
+          "common_start_at",
+          "common_end_at",
+          "sources"
+        ],
+        "title": "SignalReplayAvailabilityResponse"
+      },
       "SignalReplayListResponse": {
         "properties": {
           "signals": {
@@ -2803,6 +2869,77 @@
           "note_present"
         ],
         "title": "SignalReplaySignalSummary"
+      },
+      "SignalReplaySourceAvailability": {
+        "properties": {
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          },
+          "available_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Start"
+          },
+          "available_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available End"
+          },
+          "source_modified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Modified At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timeframe",
+          "available",
+          "row_count",
+          "available_start",
+          "available_end",
+          "source_modified_at",
+          "error"
+        ],
+        "title": "SignalReplaySourceAvailability"
       },
       "SignalReplayStartResponse": {
         "properties": {

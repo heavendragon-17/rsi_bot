@@ -439,7 +439,7 @@ There is zero shared mutable state between concurrent backtest runs. This makes 
    ├── Create DB run record (status="running")
    ├── create_progress_queue(run_id) -> asyncio.Queue
    ├── make_progress_callback(run_id, loop) -> callback function
-   └── submit_backtest(run_id, engine.run, ..., on_progress=callback)
+   └── submit_backtest(job_id, engine.run, ..., on_progress=callback)
        └── Returns Future (non-blocking)
 
 2. GET /api/backtest/{id}/stream (SSE endpoint)

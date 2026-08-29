@@ -133,7 +133,7 @@ for the authoritative contract.
 ```
 React UI (Zustand store)
   -> POST /api/backtest/run (FastAPI)
-    -> submit_backtest(run_id, fn) -> ProcessPoolExecutor
+    -> submit_backtest(job_id, fn) -> ProcessPoolExecutor
       -> BacktestEngine.run(on_progress=callback)
         -> MockExchange (in-memory order matching)
         -> on_progress(data) -> asyncio.Queue via loop.call_soon_threadsafe

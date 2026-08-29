@@ -12,6 +12,7 @@ from app.api.schemas import (
     SignalForwardMetricResponse,
     SignalHumanOutcome,
     SignalQuality,
+    SignalReplayAvailabilityResponse,
     SignalReplayListResponse,
     SignalReplayRunDetail,
     SignalReplayRunRequest,
@@ -42,6 +43,14 @@ def get_db():
         db.close()
 
 
+@router.get(
+    "/availability",
+    response_model=SignalReplayAvailabilityResponse,
+)
+def get_signal_replay_availability():
+    return _service.get_availability()
+
+
 @router.post("/runs", status_code=201, response_model=SignalReplayStartResponse)
 async def start_signal_replay(
     body: SignalReplayRunRequest,
@@ -60,6 +69,7 @@ def list_signal_replay_runs(
     db: Session = Depends(get_db),
     limit: int = Query(default=20, ge=1, le=100),
 ):
+    _service.reconcile_orphaned_runs(db)
     runs = (
         db.query(SignalReplayRun)
         .order_by(SignalReplayRun.created_at.desc())
