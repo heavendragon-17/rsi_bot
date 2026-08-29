@@ -38,6 +38,19 @@ _INCLUDE = {
     "PresetCreate",
     "PresetUpdate",
     "PresetResponse",
+    "SignalQuality",
+    "SignalHumanOutcome",
+    "SignalReplayRunRequest",
+    "SignalReplayStartResponse",
+    "SignalReplayRunSummary",
+    "SignalForwardMetricResponse",
+    "SignalReviewResponse",
+    "SignalReviewUpdate",
+    "SignalReplaySignalSummary",
+    "SignalReplaySignalDetail",
+    "SignalReplayListResponse",
+    "SignalReplayRunDetail",
+    "SignalChartResponse",
 }
 
 

@@ -119,6 +119,54 @@ Returns 50 candles before entry to 10 after exit, with indicator arrays.
 
 ---
 
+## BTC Signal Review (`/api/signal-replays`)
+
+Signal Review is a separate alert-review dataset. It does not use the normal
+backtest `Run`, `RunResult`, or `Trade` models because a raw Telegram alert has
+no execution lifecycle. A replay run stores provenance and immutable signal
+snapshots; a signal stores the exact rendered Telegram card, structured
+indicator fields, latest human review, and objective forward observations.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/signal-replays/runs` | Start a BTC M5/M15/H1/H4 replay job |
+| `GET` | `/api/signal-replays/runs` | List recent replay runs |
+| `GET` | `/api/signal-replays/runs/{run_id}` | Run provenance, counters, and signal counts |
+| `GET` | `/api/signal-replays/runs/{run_id}/progress` | SSE replay progress and terminal status |
+| `GET` | `/api/signal-replays/signals` | Paginated signal list with filters |
+| `GET` | `/api/signal-replays/signals/{signal_id}` | Full card, structured snapshot, review, and metrics |
+| `GET` | `/api/signal-replays/signals/{signal_id}/chart` | Review-gated OHLCV/indicator chart window |
+| `GET` | `/api/signal-replays/signals/{signal_id}/forward-metrics` | 1h/4h/12h/24h market observations |
+| `PATCH` | `/api/signal-replays/signals/{signal_id}/review` | Save quality, outcome, and note |
+
+### `POST /api/signal-replays/runs`
+
+Body: `{ "start": "YYYY-MM-DD or ISO timestamp", "end": "YYYY-MM-DD or ISO timestamp" }`.
+Naive boundaries are interpreted as UTC+7; date-only `end` includes the full
+local day. The response is `{ run_id, status: "running" }`. Missing or
+invalid canonical CSVs fail before a worker is submitted.
+
+### `GET /api/signal-replays/signals`
+
+Supported query parameters are `timeframe` (`5m` or `15m`), `replay_run_id`,
+`quality`, `human_outcome`, `start`, `end`, `page`, and `limit`. The response
+is `{ signals, total, page, pages }`. The `quality=GOOD` query is the saved
+Good Signals view used by the UI.
+
+### Review and chart gate
+
+`quality=UNREVIEWED` is the initial state. Until an explicit quality label is
+saved, the chart endpoint clamps its requested end to the trigger close and
+returns `future_allowed: false` with a warning. Saving `GOOD`, `BAD`, or
+`UNCERTAIN` sets `future_allowed: true`; only then can `WIN`, `LOSS`, or `SKIP`
+be recorded. `quality` and `human_outcome` remain independent fields.
+
+Forward metrics use the trigger candle close as the baseline. A missing or
+shortened CSV returns partial metrics with `complete: false` and a warning
+instead of silently presenting a complete result.
+
+---
+
 ## Health
 
 | Method | Path | Description |

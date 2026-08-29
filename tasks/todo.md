@@ -2,7 +2,72 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## Add H1 trend gate and M5 RSI ceiling (2026-08-29)
+
+- [x] Trace the existing BTC alert live/replay contracts and preserve unrelated worktree changes.
+- [x] Add native H1 EMA21 context to the BTC alert configuration, preparation, worker, and replay.
+- [x] Reject M5 alerts when current RSI21 is 60 or higher.
+- [x] Update regression tests, alert cards, replay snapshots, and routed documentation.
+- [x] Run compile and diff checks; focused pytest is blocked because the available Python environments lack the project dependencies.
+
 ## Current Tasks
+
+### Apply one-hour cooldown to M15 BTC alerts (2026-08-29)
+
+- [x] Add independent M15 cooldown state to the live worker and historical replay.
+- [x] Add M15 boundary coverage for suppression through +45m and eligibility at +60m.
+- [x] Update replay counters, cooldown telemetry, and BTC strategy documentation.
+- [x] Document the native H1 input required by the historical replay command.
+- [x] Run compile, Markdown-link, and diff checks; record the local pytest dependency blocker.
+
+#### Review
+
+M15 alerts now use the same fixed one-hour candle-close policy as M5 alerts,
+but each timeframe stores and updates its own last-emitted close. Suppressed
+M15 decisions do not reset the cooldown or enter event-ID deduplication. The
+replay requires a native BTC H1 CSV because the H1 EMA21 gate is point-in-time
+and must not be silently synthesized from another timeframe.
+
+### BTC M5/M15 Signal Review Lab (2026-08-28)
+
+- [x] Add purpose-specific replay-run, signal, review, and forward-metric database models.
+- [x] Persist deterministic M5/M15 replay snapshots, exact Telegram cards, provenance, and objective observations.
+- [x] Add FastAPI replay launcher, SSE status, list/detail/chart/metrics/review endpoints.
+- [x] Add the Signal Review workspace with M5/M15 tabs, Good Signals filter, detail navigation, staged chart, and notes.
+- [x] Add focused backend/API coverage and regenerate database/OpenAPI TypeScript documentation.
+- [x] Add and validate a Windows-friendly human-validation guide for the Signal Review Lab.
+- [x] Simplify the reviewer path to one-click launch and plain-language chart review.
+- [x] Keep generated UI/build, frontend dependencies, environments, and non-canonical local data out of Git.
+- [x] Version the four canonical BTC Signal Review CSV inputs while keeping other downloaded data ignored.
+- [x] Run frontend type-check/build, backend focused/full tests, Markdown validation, and final diff review.
+
+#### Review
+
+Implemented the Signal Review Lab as a separate human-labeled alert dataset.
+Raw signals remain distinct from simulated trades and PnL: SQLite stores
+immutable replay provenance, exact Telegram cards, structured snapshots,
+latest quality/outcome review, and trigger-close forward observations. The
+chart is locked to the trigger until `GOOD`, `BAD`, or `UNCERTAIN` is saved;
+human `WIN`/`LOSS`/`SKIP` remains a separate label. The frontend uses one
+M5/M15 workspace with saved Good Signals filtering, full-page detail, synced
+price/RSI charts, crosshair/pan/zoom, forward loading, and debounced notes.
+
+
+### Change BTC M5 alert cooldown to one hour (2026-08-28)
+
+- [x] Update the shared M5 cooldown from 15 minutes to 1 hour.
+- [x] Update worker and replay boundary tests for +55m suppression and +60m eligibility.
+- [x] Update the current BTC alert, architecture, replay, and testing documentation.
+- [x] Run focused tests, static checks, and final diff review.
+
+#### Review
+
+`M5_ALERT_COOLDOWN` now equals one hour and is shared by the live worker and
+historical replay. Worker and replay tests cover suppression through +55m and
+eligibility at +60m. Targeted files compile, Markdown links pass for all 128
+checked files, the direct constant assertion passes, and `git diff --check` is
+clean. Focused pytest could not run because the available Python environments
+do not contain the project dependencies (`pytest`/`pandas`).
 
 ### Repository documentation, CI/CD, and infrastructure review (2026-08-28)
 
@@ -294,7 +359,7 @@ values instead of an H4 RSI bundle.
 
 - [x] Add a 15-minute cooldown based on the last successfully emitted M5 candle close.
 - [x] Suppress qualifying M5 closes before `last_alert_close + 15m`; allow equality at 15 minutes.
-- [x] Keep M15 behavior independent and without cooldown.
+- [x] Keep M15 behavior independent of the M5 cooldown state.
 - [x] Add worker boundary tests and observable cooldown logging/state.
 - [x] Update strategy, architecture, data-flow, and testing documentation.
 - [x] Run focused/full tests and all static verification.
@@ -305,7 +370,12 @@ The worker now stores the close time of the last successfully emitted M5
 alert. A new qualifying M5 decision is suppressed while its close is earlier
 than `last_m5_alert_close + 15 minutes`; equality is allowed. Suppressed events
 advance the M5 evaluation cursor but do not enter emitted-event dedupe and do
-not restart the cooldown. M15 never reads this state and remains cooldown-free.
+not restart the cooldown. M15 did not read this state in that historical
+implementation; it was superseded on 2026-08-29 by the independent one-hour
+M15 cooldown recorded above.
+
+This historical 15-minute implementation was superseded on 2026-08-28 by the
+one-hour M5 cooldown recorded above.
 
 | Check | Result |
 |---|---|
@@ -362,7 +432,8 @@ M5 now evaluates the current closed candle independently using strict
 `RSI21 > EMA9 > WMA45`, followed by the H4 gate, spread>=2, WMA45>45, and
 close>EMA21(price). It never checks the previous M5 point. M15 continues to
 delegate to the unchanged shared fresh-cross evaluator. At that revision M5
-had no cooldown; this is superseded by the later fixed 15-minute M5 cooldown.
+had no cooldown; this was superseded first by the fixed 15-minute M5 cooldown
+and then by the current one-hour M5 cooldown.
 Duplicate callbacks for the same candle remain suppressed by event identity.
 
 The M5 Telegram title is now `BTC RSI BULLISH ALIGNMENT`; M15 retains

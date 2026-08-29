@@ -29,6 +29,7 @@ from app.api.routes import (
     history,
     presets,
     settings,
+    signal_replays,
     strategies,
     trade_chart,
 )
@@ -85,6 +86,7 @@ app.include_router(data.router)
 app.include_router(presets.router)
 app.include_router(settings.router)
 app.include_router(trade_chart.router)
+app.include_router(signal_replays.router)
 
 
 # ── Global exception handler ───────────────────────────────────────────────

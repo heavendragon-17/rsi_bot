@@ -39,8 +39,9 @@ The requested behavior, normalized from the product conversation, is:
    WMA45(RSI21) greater than 45, and RSI21 strictly below 60. On both trigger
    timeframes, require the trigger candle close to be strictly above EMA21(price)
    of that same timeframe.
-9. After an M5 alert is emitted, suppress further qualifying M5 alerts for one
-   hour measured by candle close time. M15 has no cooldown.
+9. After an M5 or M15 alert is emitted, suppress further qualifying alerts on
+   that same timeframe for one hour measured by candle close time. M5 and M15
+   cooldown state is independent.
 
 This document resolves all unspecified v1 behavior so implementation does not
 depend on follow-up interpretation.
@@ -114,8 +115,9 @@ the API or CLI receives an explicit output path.
 
 This replay is not part of the live bootstrap gate and does not send Telegram
 messages, create virtual positions, place orders, calculate PnL, or calculate
-win rate. Historical H1/H4 rows are treated as confirmed context; M5 cooldown
-and deterministic event identity rules remain active. The requested replay
+win rate. Historical H1/H4 rows are treated as confirmed context; independent
+M5/M15 cooldown and deterministic event identity rules remain active. The
+requested replay
 window is applied to trigger-candle close times in UTC+7 while earlier rows
 remain available for indicator warmup. Initial events are skipped until the
 67-row trigger and 21-row H1/H4 contiguous-history minimums are available; the
@@ -404,10 +406,12 @@ Important boundary rules:
   later merely because H4 price moves above EMA21; M15
   requires a new qualifying fresh cross. M5 evaluates each new closed candle's
   current alignment independently.
-- After an M5 alert at close time `T`, qualifying M5 candles with close times
-  before `T + 1 hour` are suppressed. Therefore `T+5m` through `T+55m` fail
-  the cooldown, while `T+60m` is eligible. Only a successfully emitted M5
-  alert resets the cooldown. M15 is independent and has no cooldown.
+- After an alert on either trigger timeframe at close time `T`, qualifying
+  candles on that same timeframe with close times before `T + 1 hour` are
+  suppressed. For M5, `T+5m` through `T+55m` fail the cooldown; for M15,
+  `T+15m` through `T+45m` fail it. In both cases, `T+60m` is eligible. Only a
+  successfully emitted alert resets that timeframe's cooldown; M5 and M15
+  remain independent.
 - Deduplication remains based on candle event identity and per-timeframe cursor;
   the cooldown uses candle close time, never the process wall clock.
 
@@ -559,9 +563,10 @@ The worker must:
 7. Retry once after `context_settle_seconds` only when exact H1 or H4 context
    for a shared boundary is not yet available.
 8. Evaluate using the pure evaluator.
-9. For a qualifying M5 decision, apply the one-hour candle-close cooldown.
-   A suppressed candle remains terminally evaluated but is not added to the
-   emitted-event-ID set and does not move the last-M5-alert timestamp.
+9. For a qualifying M5 or M15 decision, apply the one-hour candle-close
+   cooldown for that trigger timeframe. A suppressed candle remains terminally
+   evaluated but is not added to the emitted-event-ID set and does not move the
+   last-alert timestamp for its timeframe.
 10. Send one message through
     `NotificationService.send_message(formatted_message,
     topic_id=config.topic_id_for(trigger_timeframe))` when `should_alert` is
@@ -569,8 +574,8 @@ The worker must:
     checked-in configuration.
 11. Remember the last evaluated trigger close and emitted event IDs separately
    for M5 and M15.
-12. Remember the last successfully emitted M5 trigger close separately from
-    `last_evaluated`.
+12. Remember the last successfully emitted M5 and M15 trigger closes separately
+     from `last_evaluated` and from each other.
 13. Ignore and structured-log duplicate, backward, or already-evaluated trigger
    callbacks.
 14. Catch per-event failures, use the existing consecutive-failure budget, and
@@ -594,9 +599,9 @@ Terminal-state precedence for each trigger event is locked:
 - Do not advance `last_evaluated` while waiting for the one allowed H1/H4 retry.
 - After a ready decision—alert, no cross, or H4 rejection—advance
   `last_evaluated` for that trigger timeframe.
-- A qualifying M5 decision suppressed by cooldown also advances
-  `last_evaluated`, but neither changes `last_m5_alert_close` nor enters the
-  emitted-event-ID set.
+- A qualifying M5 or M15 decision suppressed by cooldown also advances
+  `last_evaluated`, but neither changes that timeframe's last-alert close nor
+  enters the emitted-event-ID set.
 - After retry exhaustion or any other deterministic not-ready result, advance
   `last_evaluated`; a duplicate callback must not retry a terminally rejected
   candle.
@@ -788,6 +793,7 @@ the shown core fields:
 | `btc_rsi_cross_context_retry` | timeframe, trigger close, expected H1 close, expected H4 close |
 | `btc_rsi_cross_decision` | timeframe, trigger close, decision reason, event ID |
 | `btc_rsi_cross_m5_cooldown_suppressed` | trigger close, last alert close, next eligible close, event ID |
+| `btc_rsi_cross_m15_cooldown_suppressed` | trigger close, last alert close, next eligible close, event ID |
 | `btc_rsi_cross_alert_enqueued` | timeframe, trigger close, event ID, topic |
 | `btc_rsi_cross_duplicate_ignored` | timeframe, trigger close, event ID |
 | `btc_rsi_cross_worker_error` | timeframe, trigger close, attempt |
@@ -943,7 +949,8 @@ the condition being tested.
   the alert worker after the configured budget;
 - simultaneous valid M5/M15 closes produce two alerts;
 - M5 alerts from +5m through +55m are cooldown-suppressed while +60m is allowed;
-- the M5 cooldown does not suppress a simultaneous valid M15 alert;
+- M15 alerts from +15m through +45m are cooldown-suppressed while +60m is allowed;
+- M5 and M15 cooldown states do not suppress a simultaneous valid alert on the other timeframe;
 - M5 Telegram alerts use the configured M5 topic and M15 alerts use the
   configured M15 topic;
 - no virtual position is opened;

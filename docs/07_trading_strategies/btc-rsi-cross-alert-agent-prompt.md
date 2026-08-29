@@ -52,8 +52,8 @@ Non-negotiable boundaries:
 - Suppress every historical bootstrap alert. The first eligible public signal
   is a subsequent live M5/M15 candle close.
 - Keep M5 and M15 independent and deduplicate by deterministic event identity.
-  Apply the fixed one-hour cooldown only to emitted M5 alerts, measured by
-   candle close time rather than the process wall clock; M15 has no cooldown.
+  Apply the fixed one-hour cooldown to emitted M5 and M15 alerts independently,
+  measured by candle close time rather than the process wall clock.
 - Preserve all existing single-timeframe SignalRunner behavior and tests.
 - Keep /test_signal trade-like fake cards scoped to ordinary strategies; the
   BTC alert must never fabricate a virtual position.

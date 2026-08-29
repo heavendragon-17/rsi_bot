@@ -10,6 +10,7 @@ import {
   Flame,
   TrendingUp,
   Wind,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useThemeStore } from "../../stores/themeStore";
@@ -87,6 +88,18 @@ export const Navbar: React.FC = () => {
             title="Sensitivity Analysis"
           >
             <Wind size={18} />
+          </button>
+          <button
+            onClick={() => setMode("signal-review")}
+            className={cn(
+              "p-2 rounded-md transition-colors",
+              mode === "signal-review"
+                ? "text-accent-main bg-accent-main/10"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+            )}
+            title="BTC Signal Review"
+          >
+            <ListChecks size={18} />
           </button>
           <button
             onClick={() => setMode("history")}

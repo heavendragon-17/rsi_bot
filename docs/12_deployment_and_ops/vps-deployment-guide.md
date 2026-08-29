@@ -221,8 +221,17 @@ needs immediate recovery. The command refuses an untagged production commit.
 
 ## 7. Running the Backtest UI (Optional)
 
-The checked-in UI bundle can be served by FastAPI without Node.js. Bind it to
+The UI bundle is generated from the frontend source and is ignored by Git. To
+serve it from FastAPI on a VPS, build it during deployment on a machine with
+Node.js, then run the application without Node.js at runtime. Bind it to
 loopback and reach it through an SSH tunnel:
+
+```bash
+cd /opt/rsi_bot/ui
+npm ci
+npm run build
+cd /opt/rsi_bot
+```
 
 ```bash
 source venv/bin/activate

@@ -49,7 +49,7 @@ from app.signal.btc_rsi_cross_alert.formatter import format_btc_rsi_cross_alert
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
 from app.trading.strategy.btc_rsi_cross_alert.m15_checker import M15_TIMEFRAME
 from app.trading.strategy.btc_rsi_cross_alert.models import (
-    M5_ALERT_COOLDOWN,
+    BTC_ALERT_COOLDOWN,
     BtcRsiCrossDecision,
     BtcRsiCrossInput,
 )
@@ -175,6 +175,7 @@ def render_replay_markdown(
         f"Not ready: {counts.not_ready}",
         f"Rejected by signal rules: {counts.rejected}",
         f"M5 cooldown suppressed: {counts.m5_cooldown_suppressed}",
+        f"M15 cooldown suppressed: {counts.m15_cooldown_suppressed}",
         f"Duplicate events suppressed: {counts.duplicate_suppressed}",
         "",
         "Automated win rate: NOT CALCULATED",
@@ -201,6 +202,7 @@ def _counts_for_timeframe(counts: ReplayCounts, timeframe: str) -> ReplayCounts:
         duplicate_suppressed=counts.duplicate_suppressed if is_m5 else 0,
         m5_warmup_skipped=counts.m5_warmup_skipped if is_m5 else 0,
         m15_warmup_skipped=counts.m15_warmup_skipped if not is_m5 else 0,
+        m15_cooldown_suppressed=counts.m15_cooldown_suppressed if not is_m5 else 0,
     )
 
 
@@ -291,11 +293,13 @@ def run_btc_alert_replay(
     m5_rejected = 0
     m15_rejected = 0
     m5_cooldown_suppressed = 0
+    m15_cooldown_suppressed = 0
     duplicate_suppressed = 0
     m5_warmup_skipped = 0
     m15_warmup_skipped = 0
     emitted_event_ids: set[str] = set()
     last_m5_alert_close: datetime | None = None
+    last_m15_alert_close: datetime | None = None
     confirmed: list[ReplaySignal] = []
 
     for event in events:
@@ -354,17 +358,28 @@ def run_btc_alert_replay(
             duplicate_suppressed += 1
             continue
 
+        last_alert_close = (
+            last_m5_alert_close
+            if event.timeframe == M5_TIMEFRAME
+            else last_m15_alert_close
+            if event.timeframe == M15_TIMEFRAME
+            else None
+        )
         if (
-            event.timeframe == M5_TIMEFRAME
-            and last_m5_alert_close is not None
-            and event.close_time < last_m5_alert_close + M5_ALERT_COOLDOWN
+            last_alert_close is not None
+            and event.close_time < last_alert_close + BTC_ALERT_COOLDOWN
         ):
-            m5_cooldown_suppressed += 1
+            if event.timeframe == M5_TIMEFRAME:
+                m5_cooldown_suppressed += 1
+            else:
+                m15_cooldown_suppressed += 1
             continue
 
         emitted_event_ids.add(decision.event_id)
         if event.timeframe == M5_TIMEFRAME:
             last_m5_alert_close = event.close_time
+        elif event.timeframe == M15_TIMEFRAME:
+            last_m15_alert_close = event.close_time
         confirmed.append(
             ReplaySignal(
                 sequence=len(confirmed) + 1,
@@ -396,6 +411,7 @@ def run_btc_alert_replay(
             duplicate_suppressed=duplicate_suppressed,
             m5_warmup_skipped=m5_warmup_skipped,
             m15_warmup_skipped=m15_warmup_skipped,
+            m15_cooldown_suppressed=m15_cooldown_suppressed,
         ),
         start_utc7=start_utc.astimezone(UTC_PLUS_7) if start_utc else None,
         end_utc7=end_utc.astimezone(UTC_PLUS_7) if end_utc else None,

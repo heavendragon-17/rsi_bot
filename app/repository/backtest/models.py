@@ -1,9 +1,14 @@
 """
 ORM models for the backtest database.
 
-MVP tables: strategies, runs, run_configs, run_results,
-            run_timeseries, trades, tags.
-(comparisons and themes are post-MVP — omitted per SPEC.)
+The database contains two deliberately separate result domains:
+
+* order-oriented backtests (`runs`, `trades`, and related tables); and
+* signal-review replays (`signal_replay_runs`, `replay_signals`,
+  `signal_reviews`, and `signal_forward_metrics`).
+
+The second domain must not be represented as trades because a raw BTC alert
+does not contain an execution, fill, stop, target, or PnL model.
 """
 
 from datetime import datetime
@@ -216,4 +221,153 @@ class Tag(Base):
         UniqueConstraint("run_id", "name"),
         Index("idx_tags_run", "run_id"),
         Index("idx_tags_name", "name"),
+    )
+
+
+class SignalReplayRun(Base):
+    """Immutable provenance and status for one BTC M5/M15 signal replay."""
+
+    __tablename__ = "signal_replay_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(Text, nullable=False, default="running")
+    strategy_name = Column(Text, nullable=False, default="btc_rsi_cross_alert")
+    definition_version = Column(Text, nullable=False)
+    git_hash = Column(Text)
+    symbol = Column(Text, nullable=False)
+    requested_start_at = Column(DateTime)
+    requested_end_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    source_metadata = Column(JSON, nullable=False, default=dict)
+    counters = Column(JSON, nullable=False, default=dict)
+    error_message = Column(Text)
+
+    signals = relationship(
+        "SignalReplaySignal",
+        back_populates="replay_run",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("idx_signal_replay_runs_created", "created_at"),
+        Index("idx_signal_replay_runs_status", "status"),
+    )
+
+
+class SignalReplaySignal(Base):
+    """Immutable structured snapshot of one confirmed replay signal."""
+
+    __tablename__ = "replay_signals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    replay_run_id = Column(
+        Integer,
+        ForeignKey("signal_replay_runs.id"),
+        nullable=False,
+    )
+    event_id = Column(Text, nullable=False)
+    sequence = Column(Integer, nullable=False)
+    timeframe = Column(Text, nullable=False)
+    definition_version = Column(Text, nullable=False)
+    trigger_open_at = Column(DateTime, nullable=False)
+    trigger_close_at = Column(DateTime, nullable=False)
+    trigger_close_price = Column(Text, nullable=False)
+    trigger_price_ema21 = Column(Text, nullable=False)
+    rsi21 = Column(Float, nullable=False)
+    rsi_ema9 = Column(Float, nullable=False)
+    rsi_wma45 = Column(Float, nullable=False)
+    rsi_spread = Column(Float, nullable=False)
+    previous_rsi_ema9 = Column(Float)
+    previous_rsi_wma45 = Column(Float)
+    h4_close_price = Column(Text, nullable=False)
+    h4_price_ema21 = Column(Text, nullable=False)
+    h4_close_at = Column(DateTime, nullable=False)
+    decision_reason = Column(Text, nullable=False)
+    telegram_card = Column(Text, nullable=False)
+    snapshot = Column(JSON, nullable=False)
+
+    replay_run = relationship("SignalReplayRun", back_populates="signals")
+    review = relationship(
+        "SignalReview",
+        back_populates="signal",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    forward_metrics = relationship(
+        "SignalForwardMetric",
+        back_populates="signal",
+        cascade="all, delete-orphan",
+        order_by="SignalForwardMetric.horizon_minutes",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "replay_run_id",
+            "event_id",
+            name="uq_signal_replay_signal_run_event",
+        ),
+        Index("idx_replay_signals_timeframe", "timeframe"),
+        Index("idx_replay_signals_trigger_close", "trigger_close_at"),
+        Index("idx_replay_signals_event", "event_id"),
+    )
+
+
+class SignalReview(Base):
+    """Latest single-operator quality/outcome review for one signal."""
+
+    __tablename__ = "signal_reviews"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signal_id = Column(
+        Integer,
+        ForeignKey("replay_signals.id"),
+        nullable=False,
+        unique=True,
+    )
+    quality = Column(Text, nullable=False, default="UNREVIEWED")
+    human_outcome = Column(Text, nullable=False, default="UNSET")
+    note = Column(Text)
+    reviewed_at = Column(DateTime)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    future_unlocked_at = Column(DateTime)
+
+    signal = relationship("SignalReplaySignal", back_populates="review")
+
+    __table_args__ = (
+        Index("idx_signal_reviews_quality", "quality"),
+        Index("idx_signal_reviews_outcome", "human_outcome"),
+    )
+
+
+class SignalForwardMetric(Base):
+    """Objective close-return and excursion observation for one horizon."""
+
+    __tablename__ = "signal_forward_metrics"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signal_id = Column(
+        Integer,
+        ForeignKey("replay_signals.id"),
+        nullable=False,
+    )
+    horizon_minutes = Column(Integer, nullable=False)
+    price_at_observation = Column(Text)
+    return_pct = Column(Float)
+    mfe_pct = Column(Float)
+    mae_pct = Column(Float)
+    observed_at = Column(DateTime)
+    complete = Column(Boolean, nullable=False, default=False)
+    warning = Column(Text)
+
+    signal = relationship("SignalReplaySignal", back_populates="forward_metrics")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "signal_id",
+            "horizon_minutes",
+            name="uq_signal_forward_metric_signal_horizon",
+        ),
+        Index("idx_signal_forward_metrics_signal", "signal_id"),
     )

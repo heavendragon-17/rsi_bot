@@ -14,7 +14,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isSidebarOpen, mode } = useBacktestStore();
 
   // Hide sidebar in history, grid-search, and walk-forward modes
-  const showSidebar = mode !== "history" && mode !== "grid-search" && mode !== "walk-forward";
+  const showSidebar = mode !== "history" && mode !== "grid-search" && mode !== "walk-forward" && mode !== "signal-review";
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary font-sans selection:bg-accent-main/30">

@@ -515,6 +515,71 @@ class TestBtcAlertReplay:
         assert result.counts.m5_cooldown_suppressed == 4
         assert [signal.decision.event_id for signal in result.signals] == ["event-540", "event-600"]
 
+    def test_m15_cooldown_suppresses_until_one_hour(self, tmp_path, monkeypatch):
+        close_times = [
+            BASE.replace(hour=9, minute=minute) for minute in (0, 15, 30, 45)
+        ]
+        close_times.append(BASE.replace(hour=10))
+        m5_path = tmp_path / "m5.csv"
+        m15_path = tmp_path / "m15.csv"
+        h4_path = tmp_path / "h4.csv"
+        _write_ohlcv_csv(
+            m5_path,
+            [BASE.replace(hour=1)],
+            [100.0],
+            timedelta(minutes=5),
+        )
+        _write_ohlcv_csv(
+            m15_path,
+            close_times,
+            [100.0] * len(close_times),
+            timedelta(minutes=15),
+        )
+        _write_ohlcv_csv(h4_path, [BASE.replace(hour=0)], [100.0], timedelta(hours=4))
+
+        def fake_prepare(event, *_frames):
+            decision = BtcRsiCrossDecision(
+                should_alert=True,
+                event_id=(
+                    f"event-{event.timeframe}-"
+                    f"{(event.close_time - BASE) // timedelta(minutes=1)}"
+                ),
+                reason="TEST_ALERT",
+            )
+            return object(), decision, "READY"
+
+        monkeypatch.setattr(signal_replay, "_prepare_and_evaluate", fake_prepare)
+        monkeypatch.setattr(
+            signal_replay,
+            "_scan_event",
+            lambda _event, _cache: (True, "READY"),
+        )
+        monkeypatch.setattr(
+            signal_replay,
+            "format_btc_rsi_cross_alert",
+            lambda _data, event_id: f"Event: {event_id}",
+        )
+
+        output_path = tmp_path / "m15-cooldown.md"
+        result = run_btc_alert_replay(
+            m5_path,
+            m15_path,
+            h4_path,
+            start_utc7=datetime(2026, 8, 24, 16, 0),
+            end_utc7=datetime(2026, 8, 24, 17, 0),
+            output_path=output_path,
+            generated_at_utc7=datetime(2026, 8, 28, tzinfo=UTC),
+        )
+
+        assert len(result.signals) == 2
+        assert result.counts.m5_cooldown_suppressed == 0
+        assert result.counts.m15_cooldown_suppressed == 3
+        assert [signal.decision.event_id for signal in result.signals] == [
+            "event-15m-540",
+            "event-15m-600",
+        ]
+        assert "M15 cooldown suppressed: 3" in output_path.read_text(encoding="utf-8")
+
     def test_duplicate_event_ids_are_suppressed_before_cooldown(self, tmp_path, monkeypatch):
         close_times = [BASE.replace(hour=9, minute=minute) for minute in (0, 5)]
         m5_path = tmp_path / "m5.csv"

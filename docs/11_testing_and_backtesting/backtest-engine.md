@@ -72,12 +72,13 @@ an order simulation and is intentionally separate from `BacktestEngine`.
 
 ## Historical BTC Alert Replay
 
-Run the replay with native BTC M5, M15, and H4 OHLCV CSVs:
+Run the replay with native BTC M5, M15, H1, and H4 OHLCV CSVs:
 
 ```bash
 python -m app.backtest.signal_replay \
     --m5 app/backtest/data/BTCUSDT_5m.csv \
     --m15 app/backtest/data/BTCUSDT_15m.csv \
+    --h1 app/backtest/data/BTCUSDT_1h.csv \
     --h4 app/backtest/data/BTCUSDT_4h.csv \
     --start 2026-08-01 \
     --end 2026-08-28
@@ -102,6 +103,7 @@ run_btc_alert_replay(
     end_utc7=None,
     output_path=None,
     *,
+    h1_path=None,
     output_m5_path=None,
     output_m15_path=None,
 )
@@ -119,7 +121,7 @@ and naive Python datetimes are interpreted as UTC+7; date-only `--end` values
 include the entire local day.
 
 The runner keeps the full frames available for indicator warmup, skips initial
-M5/M15 candles until both the trigger and H4 contiguous-history minimums are
+M5/M15 candles until the trigger and both H1/H4 contiguous-history minimums are
 available, and reports those skipped warmup candles separately from later
 not-ready data. It precomputes the locked indicators once per contiguous
 segment, then evaluates M5 and M15 trigger candles chronologically with
@@ -134,8 +136,8 @@ safety margin. Every possible signal then rebuilds the exact locked WMA values
 and passes through the existing M5/M15 evaluator before cooldown, deduplication,
 or logging. Rejected candles therefore avoid unnecessary `Decimal`, domain
 model, SHA-256 event-ID, and Telegram-card allocation without changing signal
-semantics. It selects only point-in-time H4 data, applies the live 15-minute M5
-cooldown and event deduplication, and writes only confirmed alerts. Every
+semantics. It selects only point-in-time H1/H4 data, applies the live one-hour
+per-timeframe M5/M15 cooldowns and event deduplication, and writes only confirmed alerts. Every
 written alert reuses the exact Telegram card formatter, including its indicator
 snapshot and UTC+7 candle-close time.
 
@@ -149,6 +151,38 @@ Each Markdown report includes a confirmed-signal count and blank `WIN`,
 `LOSS`, and `SKIP` review fields. It does not calculate win rate, PnL, SL/TP,
 orders, or any automated outcome because the alert card has no trade-lifecycle
 levels; outcomes remain manual chart-review decisions.
+
+### BTC Signal Review Lab
+
+The backtest UI's **Signal Review** workspace runs the same deterministic BTC
+alert replay, but persists a research dataset instead of `RunResult` or
+`Trade` rows. Each run is immutable and records the replay definition, Git
+revision, requested UTC+7 window, source CSV facts, counters, and status.
+Each emitted alert becomes an immutable `SignalReplaySignal` with the exact
+Telegram card plus a versioned structured snapshot. A unique
+`(replay_run_id, event_id)` constraint prevents duplicate alerts within a run;
+rerunning a window creates a new run and never overwrites prior data.
+
+The review layer keeps two labels independent:
+
+- `quality`: `UNREVIEWED`, `GOOD`, `BAD`, or `UNCERTAIN`;
+- `human_outcome`: `UNSET`, `WIN`, `LOSS`, or `SKIP`.
+
+The initial chart exposes candles at or before the trigger close only. Saving
+any explicit quality label unlocks forward candles and the human outcome
+controls. The chart uses the trigger candle close as its reference and shows
+1h, 4h, 12h, and 24h close-return, maximum favorable excursion, and maximum
+adverse excursion observations. These are market observations, not simulated
+trade PnL: there are no fills, TP/SL levels, sizing, fees, leverage, or
+execution assumptions.
+
+The worker uses the existing ThreadPoolExecutor/SSE infrastructure and loads
+the current M5, M15, H1, and H4 CSVs. It bulk-persists signals, latest reviews,
+and forward metrics in one transaction before marking the run complete. CSV
+candles remain outside SQLite; chart responses report missing historical data,
+shortened future data, and incomplete horizons explicitly. Markdown replay
+reports remain available through the existing CLI as an optional audit/export
+format.
 
 ---
 

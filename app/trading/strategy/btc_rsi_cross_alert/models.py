@@ -19,7 +19,11 @@ COMPONENT_NAME: Final[str] = "btc_rsi_cross_alert"
 EVENT_ID_PREFIX: Final[str] = "btc-rsi-cross-v1"
 EVENT_ID_SEPARATOR: Final[str] = "|"
 EVENT_ID_SUFFIX_LENGTH: Final[int] = 8
-M5_ALERT_COOLDOWN: Final[timedelta] = timedelta(hours=1)
+BTC_ALERT_COOLDOWN: Final[timedelta] = timedelta(hours=1)
+# Keep the timeframe-specific names available for callers while making the
+# shared one-hour policy explicit.
+M5_ALERT_COOLDOWN: Final[timedelta] = BTC_ALERT_COOLDOWN
+M15_ALERT_COOLDOWN: Final[timedelta] = BTC_ALERT_COOLDOWN
 
 # ---------------------------------------------------------------------------
 # Exact preparation reasons (spec §10)

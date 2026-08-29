@@ -146,6 +146,11 @@ python run_backtest_ui.py              # or run_backtest_ui.{sh,bat}
 bundle at the same origin (`http://localhost:8100`) and opens a browser tab.
 The generated directory is intentionally ignored by Git. Once it exists, end
 users only need Python — Node is not required while the application runs.
+On Windows, `run_backtest_ui.bat` prefers the repository's
+`venv\Scripts\python.exe` and checks that the UI bundle and core dependencies
+are ready before starting. This supports a one-click handoff to a human chart
+reviewer; the reviewer workflow is documented in
+[`wiki/btc-signal-review-guide.md`](../../wiki/btc-signal-review-guide.md).
 
 ### Backtest CLI
 

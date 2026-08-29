@@ -15,10 +15,12 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-venv/
+# Local environments created by setup.ps1 or common Python tooling
+/venv/
+/.venv/
 /tmp/
 
-# Node.js
+# Frontend dependencies and generated output; rebuild locally, never commit
 /ui/node_modules/
 /ui/dist/
 /ui/build/
@@ -31,6 +33,12 @@ venv/
 app/backtest/data/*.csv
 app/backtest/data/*.zip
 app/backtest/data/*.json
+
+# Versioned canonical inputs for the BTC Signal Review Lab
+!app/backtest/data/BTCUSDT_5m.csv
+!app/backtest/data/BTCUSDT_15m.csv
+!app/backtest/data/BTCUSDT_1h.csv
+!app/backtest/data/BTCUSDT_4h.csv
 
 # Logs
 *.log

@@ -113,8 +113,8 @@ It never creates
 virtual positions or orders and is not registered in `STRATEGY_MAP`.
 Both trigger checkers require their candle close > EMA21(price). M5 additionally
 requires RSI EMA/WMA spread >= 2, RSI WMA45 > 45, and RSI21 < 60. A
-successfully emitted M5 alert starts a fixed one-hour candle-close cooldown;
-M15 does not apply those M5-only RSI filters or the cooldown.
+successfully emitted M5 or M15 alert starts an independent fixed one-hour
+candle-close cooldown; M15 does not apply the M5-only RSI filters.
 
 ```
 TimeframeMultiplexer close callbacks

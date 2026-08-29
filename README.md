@@ -16,7 +16,7 @@ a React/FastAPI analysis UI.
 - Simulated fills against live ticks and Binance testnet integration
 - Single-symbol, portfolio, batch, and tick-replay backtests
 - Grid search, walk-forward analysis, sensitivity analysis, and audit reports
-- FastAPI + React backtest interface with a checked-in production bundle
+- FastAPI + React backtest interface with a locally generated production bundle
 
 ## Quick start
 
@@ -65,6 +65,11 @@ cd ..
 python run_backtest_ui.py
 ```
 
+On Windows, a non-technical reviewer can double-click `run_backtest_ui.bat`
+after the one-time setup. It uses the local project environment and opens the
+browser-based UI automatically. See the [BTC Signal Review Lab guide](wiki/btc-signal-review-guide.md)
+for the simplified human-review workflow.
+
 For frontend development, run the API and Vite separately:
 
 ```bash
@@ -101,6 +106,7 @@ See the [backtest guide](wiki/backtest-guide.md) and
 | Audience | Start here | Purpose |
 |---|---|---|
 | Users | [Getting started](wiki/getting-started.md) | Installation and first run |
+| Human validators | [BTC Signal Review Lab](wiki/btc-signal-review-guide.md) | Run and manually review BTC M5/M15 alerts |
 | Operators | [VPS deployment](docs/12_deployment_and_ops/vps-deployment-guide.md) | Production setup and recovery |
 | Contributors | [Documentation index](docs/INDEX.md) | Task-based technical documentation |
 | AI agents | [Onboarding](docs/00_onboarding/onboarding.md) | Repository workflow and conventions |
@@ -121,7 +127,7 @@ app/backtest/      Engines, exchanges, runners, reporting, and audit tools
 app/api/           FastAPI routes and application entry point
 app/notification/  Telegram and notification services
 app/repository/    SQLAlchemy persistence
-ui/                React/Vite frontend and checked-in production bundle
+ui/                React/Vite frontend sources and local generated build output
 tests/             Python regression suite
 deploy/            systemd installation and deployment scripts
 docs/              Technical specifications and operational runbooks

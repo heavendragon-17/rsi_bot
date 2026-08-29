@@ -10,7 +10,8 @@ import {
   Menu,
   Flame,
   TrendingUp,
-  Wind
+  Wind,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -61,6 +62,13 @@ export const MobileNav: React.FC = () => {
       icon: History,
       onClick: () => setMode("history"),
       isActive: mode === "history",
+    },
+    {
+      id: "signals",
+      label: "Signals",
+      icon: ListChecks,
+      onClick: () => setMode("signal-review"),
+      isActive: mode === "signal-review",
     },
     {
       id: "more",

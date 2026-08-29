@@ -17,9 +17,15 @@
 
 ## 2026-08-27: Cooldown must preserve timeframe independence
 
-- **Correction**: M5 alignment alerts need a 15-minute cooldown, while M15 must remain unchanged.
-- **Rule**: Store alert cooldown state separately from evaluation cursors and emitted-event dedupe; measure it from candle close time, update it only after a successful send, and test the equality boundary plus other-timeframe isolation.
+- **Correction**: M5 and M15 alignment/cross alerts both need a candle-close cooldown. The initial M5 implementation used 15 minutes; the current policy uses one hour for each timeframe.
+- **Rule**: Store each timeframe's alert cooldown state separately from evaluation cursors and emitted-event dedupe; measure it from candle close time, update it only after a successful send, and test the equality boundary plus other-timeframe isolation.
 - **Files affected**: `app/signal/btc_rsi_cross_alert/worker.py`, worker tests, and BTC RSI alert documentation.
+
+## 2026-08-29: Historical BTC replay needs native H1 context
+
+- **Correction**: The replay command failed because the BTC H1 CSV was omitted and no sibling `BTCUSDT_1h.csv` existed beside the M5/M15/H4 files.
+- **Rule**: Download and pass native BTC `1h` data explicitly whenever replaying the H1 close > EMA21 gate; do not silently derive H1 context from another timeframe.
+- **Files affected**: `app/backtest/signal_replay.py`, replay CLI/data documentation, and common troubleshooting guidance.
 
 ## 2026-08-27: Separate shared gates from timeframe-specific price filters
 
@@ -62,3 +68,15 @@
 - **Correction**: A combined report made it harder to review M5 and M15 signals against their respective charts.
 - **Rule**: Make the default replay output one file per timeframe, while retaining an explicit combined-report option for compatibility.
 - **Files affected**: `app/backtest/signal_replay*.py`, replay tests, and backtest documentation.
+
+## 2026-08-29: Add multi-timeframe gates from the requested source timeframe
+
+- **Correction**: BTC alerts must require H1 close > H1 EMA21 in addition to the existing H4 gate, and M5 RSI21 must stay below 60 to avoid buying a local top.
+- **Rule**: When adding a timeframe-specific filter, carry that timeframe as an explicit native context through config, stream targets, point-in-time preparation, live confirmation, replay, and the visible alert snapshot; do not infer it from another timeframe. Treat “below 60” as a strict `< 60` boundary.
+- **Files affected**: BTC alert config/evaluator/checkers/worker, historical replay, formatter, tests, and strategy documentation.
+
+## 2026-08-29: Keep low-tech reviewer commands in Windows CMD syntax
+
+- **Correction**: The human review guide used PowerShell commands for the one-time frontend build even though the reviewer workflow is Windows batch-file based.
+- **Rule**: For low-tech Windows reviewer instructions, use `cmd` syntax (`cd /d`, `npm ci`, `npm run build`) and keep shell-specific commands out of the copy-paste path.
+- **Files affected**: `wiki/btc-signal-review-guide.md`.

@@ -58,7 +58,7 @@ export interface BacktestState {
   setSidebarOpen: (isOpen: boolean) => void;
 
   // Configuration State
-  mode: "single" | "batch" | "portfolio" | "history" | "grid-search" | "walk-forward" | "sensitivity";
+  mode: "single" | "batch" | "portfolio" | "history" | "grid-search" | "walk-forward" | "sensitivity" | "signal-review";
   symbol: string;
   portfolioInput: string;
   strategy: string;

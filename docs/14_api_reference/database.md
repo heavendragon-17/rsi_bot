@@ -10,13 +10,50 @@
 
 | Table | Description |
 |-------|-------------|
+| `batches` |  |
+| `presets` |  |
 | `runs` |  |
 | `run_configs` |  |
 | `run_results` |  |
 | `run_timeseries` |  |
+| `signal_forward_metrics` | Objective close-return and excursion observation for one horizon. |
+| `signal_replay_runs` | Immutable provenance and status for one BTC M5/M15 signal replay. |
+| `replay_signals` | Immutable structured snapshot of one confirmed replay signal, including native H1/H4 context in JSON. |
+| `signal_reviews` | Latest single-operator quality/outcome review for one signal. |
 | `strategies` |  |
 | `tags` |  |
 | `trades` |  |
+
+---
+
+### batches
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `status` | TEXT | DEFAULT 'running' |
+| `total_symbols` | INTEGER |  |
+| `completed_symbols` | INTEGER | DEFAULT 0 |
+| `created_at` | DATETIME | DEFAULT utcnow() |
+
+**Relationships:**
+  - `runs` → `Run`
+
+---
+
+### presets
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `name` | TEXT | NOT NULL |
+| `strategy` | TEXT | NOT NULL |
+| `config` | JSON | NOT NULL |
+| `created_at` | DATETIME | DEFAULT utcnow() |
+| `updated_at` | DATETIME | DEFAULT utcnow() |
+
+**Indexes:**
+  - `ix_presets_strategy` on (strategy)
 
 ---
 
@@ -36,19 +73,21 @@
 | `grid_search_parent_id` | INTEGER | FK → runs.id |
 | `grid_search_total` | INTEGER |  |
 | `grid_search_completed` | INTEGER |  |
+| `batch_id` | INTEGER | FK → batches.id |
 
 **Indexes:**
-  - `idx_runs_strategy` on (strategy_id)
   - `idx_runs_created` on (created_at)
+  - `idx_runs_strategy` on (strategy_id)
   - `idx_runs_status` on (status)
 
 **Relationships:**
   - `strategy` → `Strategy`
-  - `config` → `RunConfig` (cascade: delete-orphan, delete)
-  - `result` → `RunResult` (cascade: delete-orphan, delete)
-  - `timeseries` → `RunTimeseries` (cascade: delete-orphan, delete)
-  - `trades` → `Trade` (cascade: delete-orphan, delete)
-  - `tags` → `Tag` (cascade: delete-orphan, delete)
+  - `batch` → `Batch`
+  - `config` → `RunConfig` (cascade: delete, delete-orphan)
+  - `result` → `RunResult` (cascade: delete, delete-orphan)
+  - `timeseries` → `RunTimeseries` (cascade: delete, delete-orphan)
+  - `trades` → `Trade` (cascade: delete, delete-orphan)
+  - `tags` → `Tag` (cascade: delete, delete-orphan)
 
 ---
 
@@ -85,6 +124,7 @@
 |--------|------|-------------|
 | `id` | INTEGER | PK, AUTO |
 | `run_id` | INTEGER | NOT NULL, UNIQUE, FK → runs.id |
+| `final_balance` | TEXT |  |
 | `net_profit` | TEXT |  |
 | `net_profit_pct` | REAL |  |
 | `gross_profit` | TEXT |  |
@@ -124,9 +164,123 @@
 | `equity_curve` | BLOB |  |
 | `drawdown_curve` | BLOB |  |
 | `monthly_returns` | JSON |  |
+| `dispersion_range` | BLOB |  |
+| `benchmark_curve` | BLOB |  |
 
 **Relationships:**
   - `run` → `Run`
+
+---
+
+### signal_forward_metrics
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `signal_id` | INTEGER | NOT NULL, FK → replay_signals.id |
+| `horizon_minutes` | INTEGER | NOT NULL |
+| `price_at_observation` | TEXT |  |
+| `return_pct` | REAL |  |
+| `mfe_pct` | REAL |  |
+| `mae_pct` | REAL |  |
+| `observed_at` | DATETIME |  |
+| `complete` | BOOLEAN | NOT NULL, DEFAULT False |
+| `warning` | TEXT |  |
+
+**Indexes:**
+  - `idx_signal_forward_metrics_signal` on (signal_id)
+
+**Relationships:**
+  - `signal` → `SignalReplaySignal`
+
+---
+
+### signal_replay_runs
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `status` | TEXT | NOT NULL, DEFAULT 'running' |
+| `strategy_name` | TEXT | NOT NULL, DEFAULT 'btc_rsi_cross_alert' |
+| `definition_version` | TEXT | NOT NULL |
+| `git_hash` | TEXT |  |
+| `symbol` | TEXT | NOT NULL |
+| `requested_start_at` | DATETIME |  |
+| `requested_end_at` | DATETIME |  |
+| `created_at` | DATETIME | DEFAULT utcnow() |
+| `started_at` | DATETIME |  |
+| `completed_at` | DATETIME |  |
+| `source_metadata` | JSON | NOT NULL, DEFAULT dict() |
+| `counters` | JSON | NOT NULL, DEFAULT dict() |
+| `error_message` | TEXT |  |
+
+**Indexes:**
+  - `idx_signal_replay_runs_status` on (status)
+  - `idx_signal_replay_runs_created` on (created_at)
+
+**Relationships:**
+  - `signals` → `SignalReplaySignal` (cascade: delete, delete-orphan)
+
+---
+
+### replay_signals
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `replay_run_id` | INTEGER | NOT NULL, FK → signal_replay_runs.id |
+| `event_id` | TEXT | NOT NULL |
+| `sequence` | INTEGER | NOT NULL |
+| `timeframe` | TEXT | NOT NULL |
+| `definition_version` | TEXT | NOT NULL |
+| `trigger_open_at` | DATETIME | NOT NULL |
+| `trigger_close_at` | DATETIME | NOT NULL |
+| `trigger_close_price` | TEXT | NOT NULL |
+| `trigger_price_ema21` | TEXT | NOT NULL |
+| `rsi21` | REAL | NOT NULL |
+| `rsi_ema9` | REAL | NOT NULL |
+| `rsi_wma45` | REAL | NOT NULL |
+| `rsi_spread` | REAL | NOT NULL |
+| `previous_rsi_ema9` | REAL |  |
+| `previous_rsi_wma45` | REAL |  |
+| `h4_close_price` | TEXT | NOT NULL |
+| `h4_price_ema21` | TEXT | NOT NULL |
+| `h4_close_at` | DATETIME | NOT NULL |
+| `decision_reason` | TEXT | NOT NULL |
+| `telegram_card` | TEXT | NOT NULL |
+| `snapshot` | JSON | NOT NULL |
+
+**Indexes:**
+  - `idx_replay_signals_event` on (event_id)
+  - `idx_replay_signals_trigger_close` on (trigger_close_at)
+  - `idx_replay_signals_timeframe` on (timeframe)
+
+**Relationships:**
+  - `replay_run` → `SignalReplayRun`
+  - `review` → `SignalReview` (cascade: delete, delete-orphan)
+  - `forward_metrics` → `SignalForwardMetric` (cascade: delete, delete-orphan)
+
+---
+
+### signal_reviews
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | INTEGER | PK, AUTO |
+| `signal_id` | INTEGER | NOT NULL, UNIQUE, FK → replay_signals.id |
+| `quality` | TEXT | NOT NULL, DEFAULT 'UNREVIEWED' |
+| `human_outcome` | TEXT | NOT NULL, DEFAULT 'UNSET' |
+| `note` | TEXT |  |
+| `reviewed_at` | DATETIME |  |
+| `updated_at` | DATETIME | DEFAULT utcnow() |
+| `future_unlocked_at` | DATETIME |  |
+
+**Indexes:**
+  - `idx_signal_reviews_quality` on (quality)
+  - `idx_signal_reviews_outcome` on (human_outcome)
+
+**Relationships:**
+  - `signal` → `SignalReplaySignal`
 
 ---
 

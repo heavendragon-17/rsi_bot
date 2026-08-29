@@ -958,6 +958,542 @@
         }
       }
     },
+    "/api/signal-replays/runs": {
+      "post": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Start Signal Replay",
+        "operationId": "start_signal_replay_api_signal_replays_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalReplayRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplayStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "List Signal Replay Runs",
+        "operationId": "list_signal_replay_runs_api_signal_replays_runs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalReplayRunSummary"
+                  },
+                  "title": "Response List Signal Replay Runs Api Signal Replays Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Get Signal Replay Run",
+        "operationId": "get_signal_replay_run_api_signal_replays_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplayRunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/runs/{run_id}/progress": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Stream Signal Replay Progress",
+        "operationId": "stream_signal_replay_progress_api_signal_replays_runs__run_id__progress_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/signals": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "List Signal Replay Signals",
+        "operationId": "list_signal_replay_signals_api_signal_replays_signals_get",
+        "parameters": [
+          {
+            "name": "timeframe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timeframe"
+            }
+          },
+          {
+            "name": "replay_run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Replay Run Id"
+            }
+          },
+          {
+            "name": "quality",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SignalQuality"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Quality"
+            }
+          },
+          {
+            "name": "human_outcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SignalHumanOutcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Human Outcome"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplayListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/signals/{signal_id}": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Get Signal",
+        "operationId": "get_signal_api_signal_replays_signals__signal_id__get",
+        "parameters": [
+          {
+            "name": "signal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Signal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplaySignalDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/signals/{signal_id}/chart": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Get Signal Chart",
+        "operationId": "get_signal_chart_api_signal_replays_signals__signal_id__chart_get",
+        "parameters": [
+          {
+            "name": "signal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Signal Id"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalChartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/signals/{signal_id}/forward-metrics": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Get Signal Forward Metrics",
+        "operationId": "get_signal_forward_metrics_api_signal_replays_signals__signal_id__forward_metrics_get",
+        "parameters": [
+          {
+            "name": "signal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Signal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalForwardMetricResponse"
+                  },
+                  "title": "Response Get Signal Forward Metrics Api Signal Replays Signals  Signal Id  Forward Metrics Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/signals/{signal_id}/review": {
+      "patch": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Update Signal Review",
+        "operationId": "update_signal_review_api_signal_replays_signals__signal_id__review_patch",
+        "parameters": [
+          {
+            "name": "signal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Signal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalReviewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -1640,6 +2176,752 @@
         ],
         "title": "RunSummary",
         "description": "Lightweight row for history list \u2014 no heavy timeseries data."
+      },
+      "SignalChartResponse": {
+        "properties": {
+          "signal_id": {
+            "type": "integer",
+            "title": "Signal Id"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          },
+          "candles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candles"
+          },
+          "available_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Start"
+          },
+          "available_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available End"
+          },
+          "requested_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Start"
+          },
+          "requested_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested End"
+          },
+          "has_before": {
+            "type": "boolean",
+            "title": "Has Before"
+          },
+          "has_after": {
+            "type": "boolean",
+            "title": "Has After"
+          },
+          "future_allowed": {
+            "type": "boolean",
+            "title": "Future Allowed"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signal_id",
+          "timeframe",
+          "candles",
+          "available_start",
+          "available_end",
+          "requested_start",
+          "requested_end",
+          "has_before",
+          "has_after",
+          "future_allowed",
+          "warning"
+        ],
+        "title": "SignalChartResponse"
+      },
+      "SignalForwardMetricResponse": {
+        "properties": {
+          "horizon_minutes": {
+            "type": "integer",
+            "title": "Horizon Minutes"
+          },
+          "price_at_observation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price At Observation"
+          },
+          "return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Pct"
+          },
+          "mfe_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mfe Pct"
+          },
+          "mae_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae Pct"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "horizon_minutes",
+          "price_at_observation",
+          "return_pct",
+          "mfe_pct",
+          "mae_pct",
+          "observed_at",
+          "complete",
+          "warning"
+        ],
+        "title": "SignalForwardMetricResponse"
+      },
+      "SignalHumanOutcome": {
+        "type": "string",
+        "enum": [
+          "UNSET",
+          "WIN",
+          "LOSS",
+          "SKIP"
+        ],
+        "title": "SignalHumanOutcome"
+      },
+      "SignalQuality": {
+        "type": "string",
+        "enum": [
+          "UNREVIEWED",
+          "GOOD",
+          "BAD",
+          "UNCERTAIN"
+        ],
+        "title": "SignalQuality"
+      },
+      "SignalReplayListResponse": {
+        "properties": {
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalReplaySignalSummary"
+            },
+            "type": "array",
+            "title": "Signals"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signals",
+          "total",
+          "page",
+          "pages"
+        ],
+        "title": "SignalReplayListResponse"
+      },
+      "SignalReplayRunDetail": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/SignalReplayRunSummary"
+          },
+          "source_metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Source Metadata"
+          },
+          "counters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Counters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "source_metadata",
+          "counters"
+        ],
+        "title": "SignalReplayRunDetail"
+      },
+      "SignalReplayRunRequest": {
+        "properties": {
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "title": "SignalReplayRunRequest",
+        "description": "Start a BTC M5/M15 replay using the canonical local CSV files."
+      },
+      "SignalReplayRunSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "strategy_name": {
+            "type": "string",
+            "title": "Strategy Name"
+          },
+          "definition_version": {
+            "type": "string",
+            "title": "Definition Version"
+          },
+          "git_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Hash"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "requested_start_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Start At"
+          },
+          "requested_end_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested End At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "signal_count": {
+            "type": "integer",
+            "title": "Signal Count"
+          },
+          "m5_count": {
+            "type": "integer",
+            "title": "M5 Count"
+          },
+          "m15_count": {
+            "type": "integer",
+            "title": "M15 Count"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "strategy_name",
+          "definition_version",
+          "git_hash",
+          "symbol",
+          "requested_start_at",
+          "requested_end_at",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "signal_count",
+          "m5_count",
+          "m15_count",
+          "error_message"
+        ],
+        "title": "SignalReplayRunSummary"
+      },
+      "SignalReplaySignalDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "replay_run_id": {
+            "type": "integer",
+            "title": "Replay Run Id"
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          },
+          "definition_version": {
+            "type": "string",
+            "title": "Definition Version"
+          },
+          "trigger_open_at": {
+            "type": "string",
+            "title": "Trigger Open At"
+          },
+          "trigger_close_at": {
+            "type": "string",
+            "title": "Trigger Close At"
+          },
+          "trigger_close_price": {
+            "type": "string",
+            "title": "Trigger Close Price"
+          },
+          "trigger_price_ema21": {
+            "type": "string",
+            "title": "Trigger Price Ema21"
+          },
+          "rsi21": {
+            "type": "number",
+            "title": "Rsi21"
+          },
+          "rsi_ema9": {
+            "type": "number",
+            "title": "Rsi Ema9"
+          },
+          "rsi_wma45": {
+            "type": "number",
+            "title": "Rsi Wma45"
+          },
+          "rsi_spread": {
+            "type": "number",
+            "title": "Rsi Spread"
+          },
+          "previous_rsi_ema9": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Rsi Ema9"
+          },
+          "previous_rsi_wma45": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Rsi Wma45"
+          },
+          "h4_close_price": {
+            "type": "string",
+            "title": "H4 Close Price"
+          },
+          "h4_price_ema21": {
+            "type": "string",
+            "title": "H4 Price Ema21"
+          },
+          "h4_close_at": {
+            "type": "string",
+            "title": "H4 Close At"
+          },
+          "decision_reason": {
+            "type": "string",
+            "title": "Decision Reason"
+          },
+          "telegram_card": {
+            "type": "string",
+            "title": "Telegram Card"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          },
+          "review": {
+            "$ref": "#/components/schemas/SignalReviewResponse"
+          },
+          "forward_metrics": {
+            "items": {
+              "$ref": "#/components/schemas/SignalForwardMetricResponse"
+            },
+            "type": "array",
+            "title": "Forward Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "replay_run_id",
+          "event_id",
+          "sequence",
+          "timeframe",
+          "definition_version",
+          "trigger_open_at",
+          "trigger_close_at",
+          "trigger_close_price",
+          "trigger_price_ema21",
+          "rsi21",
+          "rsi_ema9",
+          "rsi_wma45",
+          "rsi_spread",
+          "previous_rsi_ema9",
+          "previous_rsi_wma45",
+          "h4_close_price",
+          "h4_price_ema21",
+          "h4_close_at",
+          "decision_reason",
+          "telegram_card",
+          "snapshot",
+          "review",
+          "forward_metrics"
+        ],
+        "title": "SignalReplaySignalDetail"
+      },
+      "SignalReplaySignalSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "replay_run_id": {
+            "type": "integer",
+            "title": "Replay Run Id"
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe"
+          },
+          "trigger_close_at": {
+            "type": "string",
+            "title": "Trigger Close At"
+          },
+          "trigger_close_price": {
+            "type": "string",
+            "title": "Trigger Close Price"
+          },
+          "decision_reason": {
+            "type": "string",
+            "title": "Decision Reason"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/SignalQuality"
+          },
+          "human_outcome": {
+            "$ref": "#/components/schemas/SignalHumanOutcome"
+          },
+          "note_present": {
+            "type": "boolean",
+            "title": "Note Present"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "replay_run_id",
+          "event_id",
+          "sequence",
+          "timeframe",
+          "trigger_close_at",
+          "trigger_close_price",
+          "decision_reason",
+          "quality",
+          "human_outcome",
+          "note_present"
+        ],
+        "title": "SignalReplaySignalSummary"
+      },
+      "SignalReplayStartResponse": {
+        "properties": {
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "SignalReplayStartResponse"
+      },
+      "SignalReviewResponse": {
+        "properties": {
+          "quality": {
+            "$ref": "#/components/schemas/SignalQuality"
+          },
+          "human_outcome": {
+            "$ref": "#/components/schemas/SignalHumanOutcome"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "future_unlocked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Future Unlocked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quality",
+          "human_outcome",
+          "note",
+          "reviewed_at",
+          "updated_at",
+          "future_unlocked_at"
+        ],
+        "title": "SignalReviewResponse"
+      },
+      "SignalReviewUpdate": {
+        "properties": {
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalQuality"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "human_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalHumanOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "SignalReviewUpdate"
       },
       "StrategyInfo": {
         "properties": {

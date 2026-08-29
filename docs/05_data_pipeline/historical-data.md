@@ -14,6 +14,13 @@ Downloads historical candles from Binance USDT-M Futures via CCXT with automatic
 python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 5000
 ```
 
+For the BTC signal replay, download the required native H1 context as well as
+the trigger and trend timeframes:
+
+```bash
+python app/backtest/data/download.py --symbol BTC/USDT --timeframe 1h --days 732 --output app/backtest/data
+```
+
 ### Arguments
 
 | Arg | Default | Description |
@@ -34,7 +41,8 @@ python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50
 ### Output
 
 - **File**: `{SYMBOL_NO_SLASH}_{timeframe}.csv` (e.g., `BTCUSDT_5m.csv`)
-- **Location**: `app/backtest/data/` (gitignored)
+- **Location**: `app/backtest/data/` (downloaded files are normally gitignored;
+  the four canonical BTC Signal Review Lab CSVs are versioned exceptions)
 - **Columns**: `timestamp, open, high, low, close, volume`
 - **Sort order**: oldest-first
 - **Timestamps**: Milliseconds converted to datetime with UTC+7 offset
@@ -96,7 +104,8 @@ python app/backtest/data/download_tick.py --symbol BTCUSDT --recent 2
 
 ## Data Storage
 
-- **Location**: `app/backtest/data/` (gitignored)
+- **Location**: `app/backtest/data/`; downloaded files are normally gitignored,
+  except for the four versioned BTC Signal Review Lab inputs
 - **Format**: CSV
 - **Size**: OHLCV CSVs are small (MBs). Tick CSVs can be large (hundreds of MBs per month for BTC)
 - **Backtest UI data management**: The API (`/api/data/status`) checks if CSV files exist and returns metadata. The download endpoint (`/api/data/download`) triggers `download_data()` in a background thread

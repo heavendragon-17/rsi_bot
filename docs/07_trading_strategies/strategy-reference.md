@@ -281,10 +281,10 @@ RSI filters:
 Equality fails each comparison. These M5-only RSI filters are not applied by
 `m15_checker.py`; M15 adds only its own close > EMA21(price) filter after the
 shared fresh-cross and H1/H4 gates pass.
-After an M5 alert, the worker applies a fixed one-hour cooldown measured from
-that alert candle's close. Qualifying closes from +5m through +55m are
-suppressed; equality at +60m is eligible. M15 remains independent and has no
-cooldown.
+After an M5 or M15 alert, the worker applies a fixed one-hour cooldown measured
+from that timeframe's alert candle close. Qualifying M5 closes from +5m through
++55m are suppressed; M15 closes from +15m through +45m are suppressed;
+equality at +60m is eligible for both. The cooldown states are independent.
 Duplicate callbacks for the same candle remain suppressed.
 
 ### Data rules

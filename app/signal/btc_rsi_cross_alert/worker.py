@@ -15,7 +15,8 @@ Guarantees implemented here (spec §11):
 * exactly one H1/H4 context-boundary settle/retry per trigger event, bounded
   by ``context_settle_seconds`` and interrupted promptly by shutdown;
 * deterministic deduplication by per-timeframe cursor and emitted event
-  identity, plus a one-hour M5 cooldown measured by candle close time;
+  identity, plus independent one-hour M5/M15 cooldowns measured by candle
+  close time;
 * consecutive-failure budget with requeue-ahead semantics and a terminal
   debug-topic notification matching the existing StrategyWorker policy;
 * bounded, idempotent shutdown via :meth:`request_stop`.
@@ -59,12 +60,13 @@ from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     expected_h4_close_for,
 )
 from app.trading.strategy.btc_rsi_cross_alert.m5_checker import M5_TIMEFRAME
+from app.trading.strategy.btc_rsi_cross_alert.m15_checker import M15_TIMEFRAME
 from app.trading.strategy.btc_rsi_cross_alert.models import (
+    BTC_ALERT_COOLDOWN,
     DECISION_ALERT_FRESH_BULLISH_CROSS_H4_BULLISH,
     DECISION_ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH,
     DECISION_H1_CLOSE_NOT_ABOVE_EMA21,
     DECISION_H4_CLOSE_NOT_ABOVE_EMA21,
-    M5_ALERT_COOLDOWN,
     PREPARATION_READY,
     build_event_id,
 )
@@ -113,6 +115,7 @@ class BtcRsiCrossAlertWorker:
         }
         self._emitted_event_ids: set[str] = set()
         self._last_m5_alert_close: datetime | None = None
+        self._last_m15_alert_close: datetime | None = None
         self._failure_streak = 0
 
     # ------------------------------------------------------------------
@@ -135,6 +138,10 @@ class BtcRsiCrossAlertWorker:
     @property
     def last_m5_alert_close(self) -> datetime | None:
         return self._last_m5_alert_close
+
+    @property
+    def last_m15_alert_close(self) -> datetime | None:
+        return self._last_m15_alert_close
 
     @property
     def is_history_ready(self) -> bool:
@@ -390,17 +397,26 @@ class BtcRsiCrossAlertWorker:
             )
             return
 
+        last_alert_close = (
+            self._last_m5_alert_close
+            if timeframe == M5_TIMEFRAME
+            else self._last_m15_alert_close
+            if timeframe == M15_TIMEFRAME
+            else None
+        )
         if (
-            timeframe == M5_TIMEFRAME
-            and self._last_m5_alert_close is not None
-            and trigger_close < self._last_m5_alert_close + M5_ALERT_COOLDOWN
+            last_alert_close is not None
+            and trigger_close < last_alert_close + BTC_ALERT_COOLDOWN
         ):
+            cooldown_timeframe = (
+                "m5" if timeframe == M5_TIMEFRAME else "m15"
+            )
             logger.info(
-                "btc_rsi_cross_m5_cooldown_suppressed",
+                f"btc_rsi_cross_{cooldown_timeframe}_cooldown_suppressed",
                 trigger_close=_iso(trigger_close),
-                last_alert_close=_iso(self._last_m5_alert_close),
+                last_alert_close=_iso(last_alert_close),
                 next_eligible_close=_iso(
-                    self._last_m5_alert_close + M5_ALERT_COOLDOWN
+                    last_alert_close + BTC_ALERT_COOLDOWN
                 ),
                 event_id=decision.event_id,
             )
@@ -412,6 +428,8 @@ class BtcRsiCrossAlertWorker:
         self._emitted_event_ids.add(decision.event_id)
         if timeframe == M5_TIMEFRAME:
             self._last_m5_alert_close = trigger_close
+        elif timeframe == M15_TIMEFRAME:
+            self._last_m15_alert_close = trigger_close
         logger.info(
             "btc_rsi_cross_alert_enqueued",
             timeframe=timeframe,

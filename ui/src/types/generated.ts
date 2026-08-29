@@ -1,21 +1,14 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-05-02T15:41:31Z
+ * Generated: 2026-08-28T10:00:27Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
 
-export interface PresetUpdate {
-  name?: string | null;
-  config?: Record<string, unknown> | null;
-}
+export type SignalQuality = "UNREVIEWED" | "GOOD" | "BAD" | "UNCERTAIN";
 
-export interface PresetCreate {
-  name: string;
-  strategy: string;
-  config: Record<string, unknown>;
-}
+export type SignalHumanOutcome = "UNSET" | "WIN" | "LOSS" | "SKIP";
 
 export interface TimeseriesResponse {
   run_id: number;
@@ -26,6 +19,36 @@ export interface TimeseriesResponse {
   benchmark_curve: Record<string, unknown>[];
 }
 
+export interface SignalReplayStartResponse {
+  run_id: number;
+  status: string;
+}
+
+export interface SignalChartResponse {
+  signal_id: number;
+  timeframe: string;
+  candles: Record<string, unknown>[];
+  available_start: string | null;
+  available_end: string | null;
+  requested_start: string | null;
+  requested_end: string | null;
+  has_before: boolean;
+  has_after: boolean;
+  future_allowed: boolean;
+  warning: string | null;
+}
+
+export interface SignalReplayRunDetail {
+  run: SignalReplayRunSummary;
+  source_metadata: Record<string, unknown>;
+  counters: Record<string, unknown>;
+}
+
+export interface PresetUpdate {
+  name?: string | null;
+  config?: Record<string, unknown> | null;
+}
+
 export interface DataStatusResponse {
   symbol: string;
   timeframe: string;
@@ -33,43 +56,6 @@ export interface DataStatusResponse {
   file_path: string | null;
   candle_count: number | null;
   date_range: Record<string, string> | null;
-}
-
-export interface StrategyInfo {
-  id: number;
-  name: string;
-  description: string | null;
-  default_config: Record<string, unknown>;
-  param_schema?: Record<string, unknown>;
-}
-
-export interface RunDetail {
-  id: number;
-  strategy_name: string;
-  symbol: string;
-  timeframe: string;
-  status: string;
-  created_at: string;
-  config: Record<string, unknown>;
-  results: Record<string, unknown> | null;
-  trades: Record<string, unknown>[] | null;
-}
-
-export interface DownloadStartResponse {
-  job_id: string;
-  status: string;
-}
-
-export interface HistoryResponse {
-  runs: RunSummary[];
-  total: number;
-  page: number;
-  pages: number;
-}
-
-export interface BacktestStartResponse {
-  run_id: number;
-  status: string;
 }
 
 export interface RunSummary {
@@ -93,6 +79,81 @@ export interface RunSummary {
   tags: string[];
 }
 
+export interface StrategyInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  default_config: Record<string, unknown>;
+  param_schema?: Record<string, unknown>;
+}
+
+export interface BacktestStartResponse {
+  run_id: number;
+  status: string;
+}
+
+export interface SignalReplayRunSummary {
+  id: number;
+  status: string;
+  strategy_name: string;
+  definition_version: string;
+  git_hash: string | null;
+  symbol: string;
+  requested_start_at: string | null;
+  requested_end_at: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  signal_count: number;
+  m5_count: number;
+  m15_count: number;
+  error_message: string | null;
+}
+
+export interface SignalReviewUpdate {
+  quality?: SignalQuality | null;
+  human_outcome?: SignalHumanOutcome | null;
+  note?: string | null;
+}
+
+export interface SignalReviewResponse {
+  quality: SignalQuality;
+  human_outcome: SignalHumanOutcome;
+  note: string | null;
+  reviewed_at: string | null;
+  updated_at: string | null;
+  future_unlocked_at: string | null;
+}
+
+export interface RunDetail {
+  id: number;
+  strategy_name: string;
+  symbol: string;
+  timeframe: string;
+  status: string;
+  created_at: string;
+  config: Record<string, unknown>;
+  results: Record<string, unknown> | null;
+  trades: Record<string, unknown>[] | null;
+}
+
+export interface SignalForwardMetricResponse {
+  horizon_minutes: number;
+  price_at_observation: string | null;
+  return_pct: number | null;
+  mfe_pct: number | null;
+  mae_pct: number | null;
+  observed_at: string | null;
+  complete: boolean;
+  warning: string | null;
+}
+
+export interface PresetCreate {
+  name: string;
+  strategy: string;
+  config: Record<string, unknown>;
+}
+
 export interface PresetResponse {
   id: number;
   name: string;
@@ -100,6 +161,71 @@ export interface PresetResponse {
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface SignalReplayRunRequest {
+  start?: string | null;
+  end?: string | null;
+}
+
+export interface SignalReplaySignalSummary {
+  id: number;
+  replay_run_id: number;
+  event_id: string;
+  sequence: number;
+  timeframe: string;
+  trigger_close_at: string;
+  trigger_close_price: string;
+  decision_reason: string;
+  quality: SignalQuality;
+  human_outcome: SignalHumanOutcome;
+  note_present: boolean;
+}
+
+export interface HistoryResponse {
+  runs: RunSummary[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface DownloadStartResponse {
+  job_id: string;
+  status: string;
+}
+
+export interface SignalReplaySignalDetail {
+  id: number;
+  replay_run_id: number;
+  event_id: string;
+  sequence: number;
+  timeframe: string;
+  definition_version: string;
+  trigger_open_at: string;
+  trigger_close_at: string;
+  trigger_close_price: string;
+  trigger_price_ema21: string;
+  rsi21: number;
+  rsi_ema9: number;
+  rsi_wma45: number;
+  rsi_spread: number;
+  previous_rsi_ema9: number | null;
+  previous_rsi_wma45: number | null;
+  h4_close_price: string;
+  h4_price_ema21: string;
+  h4_close_at: string;
+  decision_reason: string;
+  telegram_card: string;
+  snapshot: Record<string, unknown>;
+  review: SignalReviewResponse;
+  forward_metrics: SignalForwardMetricResponse[];
+}
+
+export interface SignalReplayListResponse {
+  signals: SignalReplaySignalSummary[];
+  total: number;
+  page: number;
+  pages: number;
 }
 
 export interface BacktestRequest {

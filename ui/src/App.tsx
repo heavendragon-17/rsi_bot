@@ -9,6 +9,7 @@ import { RunHistory } from './components/history/RunHistory';
 import { GridSearch } from './components/GridSearch';
 import { WalkForward } from './components/WalkForward';
 import { SensitivityAnalysis } from './components/Sensitivity';
+import { SignalReviewLab } from './components/signal-review/SignalReviewLab';
 import { FloatingProgressPill } from './components/layout/FloatingProgressPill';
 import { useResultsStore } from './stores/resultsStore';
 import { useBatchResultsStore } from './stores/batchResultsStore';
@@ -37,6 +38,7 @@ function App() {
   const showGridSearch = mode === "grid-search";
   const showWalkForward = mode === "walk-forward";
   const showSensitivity = mode === "sensitivity";
+  const showSignalReview = mode === "signal-review";
 
   return (
     <Layout>
@@ -46,8 +48,9 @@ function App() {
       {showGridSearch && <GridSearch />}
       {showWalkForward && <WalkForward />}
       {showSensitivity && <SensitivityAnalysis />}
+      {showSignalReview && <SignalReviewLab />}
 
-      {!showSingle && !showBatch && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && <EmptyState />}
+      {!showSingle && !showBatch && !showHistory && !showGridSearch && !showWalkForward && !showSensitivity && !showSignalReview && <EmptyState />}
 
       <DataPrepModal />
       <FloatingProgressPill />

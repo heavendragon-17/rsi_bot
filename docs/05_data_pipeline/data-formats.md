@@ -123,12 +123,17 @@ class Candle:
 
 ## CSV File Location
 
-All data files live in `app/backtest/data/` (gitignored). The API layer checks this directory via `/api/data/status`.
+Downloaded data normally lives in `app/backtest/data/` and is gitignored. The
+four canonical BTC Signal Review Lab inputs are intentional versioned
+exceptions: `BTCUSDT_5m.csv`, `BTCUSDT_15m.csv`, `BTCUSDT_1h.csv`, and
+`BTCUSDT_4h.csv`. The API layer checks this directory via `/api/data/status`.
 
 ```
 app/backtest/data/
 ├── BTCUSDT_5m.csv              # OHLCV candles
 ├── BTCUSDT_15m.csv             # Different timeframe
+├── BTCUSDT_1h.csv              # BTC Signal Review Lab context
+├── BTCUSDT_4h.csv              # BTC Signal Review Lab context
 ├── ETHUSDT_5m.csv              # Different symbol
 ├── BTCUSDT_ticks_2024_01.csv   # Monthly tick data
 ├── BTCUSDT_ticks_2024_02.csv

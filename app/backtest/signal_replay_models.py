@@ -51,6 +51,7 @@ class ReplayCounts:
     duplicate_suppressed: int
     m5_warmup_skipped: int = 0
     m15_warmup_skipped: int = 0
+    m15_cooldown_suppressed: int = 0
 
     @property
     def candidates(self) -> int:

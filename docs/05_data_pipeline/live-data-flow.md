@@ -380,9 +380,9 @@ BtcRsiCrossAlertWorker.on_history_complete():
     1. bootstrap gate: discard while history-ready unset; ignore closes
        <= timeframe watermark OR <= history-ready instant (covers delayed
        WS duplicates and candles that closed during hydration)
-     2. dedupe: per-timeframe cursor + deterministic event id; after an M5
-        alert, suppress qualifying M5 closes through +55m and allow +60m;
-       M15 has no cooldown
+     2. dedupe: per-timeframe cursor + deterministic event id; after an M5 or
+        M15 alert, suppress qualifying closes on that same timeframe through
+        +55m and allow +60m; cooldown state is independent per timeframe
     3. point-in-time preparation over defensive get_dataframe() copies:
        naive stored opens = fixed UTC+07:00 → UTC close = open + tf duration;
        maximal contiguous cadence suffix ending at the exact expected row;

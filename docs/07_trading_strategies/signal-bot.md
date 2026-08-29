@@ -161,11 +161,11 @@ Key properties (full contract:
   synchronously under a `threading.Condition`; when a trigger needs an
   unconfirmed context the worker waits at most `context_settle_seconds` once, then
   re-prepares exactly once more. Retry exhaustion fails closed silently.
-* **Deduplication, M5 cooldown & failure budget** — per-timeframe cursor + deterministic
+* **Deduplication, M5/M15 cooldown & failure budget** — per-timeframe cursor + deterministic
   event identity (SHA-256 of
-  `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`). After an M5 alert, qualifying M5
-  closes before +1 hour are suppressed using candle-close time; M15 has no
-  cooldown.
+  `btc-rsi-cross-v1|BTC/USDT|tf|UTC close`). After an M5 or M15 alert,
+  qualifying closes on that same timeframe before +1 hour are suppressed using
+  candle-close time; the two cooldown states are independent.
   Unexpected exceptions requeue the same event ahead of newer ones within the
   existing `signal_runner.max_consecutive_failures` budget; exhaustion
   advances the cursor, notifies the debug topic once and terminates only this

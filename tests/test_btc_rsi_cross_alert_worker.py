@@ -33,6 +33,10 @@ from btc_alert_fixtures import (
 from app.data.multiplexer import TimeframeMultiplexer
 from app.signal.btc_rsi_cross_alert.config import BtcRsiCrossAlertConfig
 from app.signal.btc_rsi_cross_alert.worker import BtcRsiCrossAlertWorker
+from app.trading.strategy.btc_rsi_cross_alert.models import (
+    BtcRsiCrossDecision,
+    build_event_id,
+)
 
 
 def _hydrate(
@@ -282,6 +286,81 @@ class TestClosedCandleEvaluation:
         )
         assert _wait_for(lambda: notifier.send_message.call_count == 2)
         assert worker.last_m5_alert_close == eligible_close
+        assert len(worker.emitted_event_ids) == 2
+
+        _stop(worker, thread)
+
+    def test_m15_cooldown_suppresses_until_forty_five_minutes_then_allows_one_hour(
+        self, monkeypatch
+    ):
+        worker, mux, notifier = _make_worker()
+
+        def always_alert(_timeframe, data):
+            return BtcRsiCrossDecision(
+                should_alert=True,
+                event_id=build_event_id(
+                    symbol=data.symbol,
+                    trigger_timeframe=data.trigger_timeframe,
+                    trigger_close_time=data.trigger_close_time,
+                ),
+                reason="TEST_ALERT",
+            )
+
+        monkeypatch.setattr(
+            "app.signal.btc_rsi_cross_alert.worker.evaluate_prepared_input",
+            always_alert,
+        )
+        step = timedelta(minutes=15)
+        first_close = BASE.replace(hour=9, minute=45)
+        close_times, closes = _qualifying_trigger(step, first_close)
+
+        h4_closes = _bullish_h4_closes()
+        h4_end = BASE.replace(hour=8)
+        h4_times = [
+            h4_end - timedelta(hours=4) * (70 - 1 - i) for i in range(70)
+        ]
+        _hydrate(
+            mux,
+            "4h",
+            timedelta(hours=4),
+            h4_times,
+            h4_closes,
+            include_last=True,
+        )
+        _hydrate(mux, "15m", step, close_times, closes)
+        _bootstrap(worker)
+        thread = _start(worker)
+
+        mux.on_kline_event(
+            SYMBOL,
+            "15m",
+            _candle(first_close, step, closes[-1]),
+        )
+        assert _wait_for(lambda: notifier.send_message.call_count == 1)
+        assert worker.last_m15_alert_close == first_close
+
+        for minutes in range(15, 60, 15):
+            suppressed_close = first_close + timedelta(minutes=minutes)
+            mux.on_kline_event(
+                SYMBOL,
+                "15m",
+                _candle(suppressed_close, step, closes[-1]),
+            )
+            assert _wait_for(
+                lambda expected=suppressed_close: worker.last_evaluated["15m"]
+                == expected
+            )
+            assert notifier.send_message.call_count == 1
+            assert worker.last_m15_alert_close == first_close
+
+        eligible_close = first_close + timedelta(hours=1)
+        mux.on_kline_event(
+            SYMBOL,
+            "15m",
+            _candle(eligible_close, step, closes[-1]),
+        )
+        assert _wait_for(lambda: notifier.send_message.call_count == 2)
+        assert worker.last_m15_alert_close == eligible_close
         assert len(worker.emitted_event_ids) == 2
 
         _stop(worker, thread)
@@ -612,6 +691,7 @@ class TestMultiTimeframeIndependence:
         )
         assert worker.last_evaluated["5m"] == shared_t
         assert worker.last_evaluated["15m"] == shared_t
+        assert worker.last_m15_alert_close == shared_t
         alerts_by_title = {
             "m5": next(
                 c.kwargs["topic_id"]

@@ -24,6 +24,20 @@ class BacktestMode(StrEnum):
     TICK_REPLAY = "tick_replay"
 
 
+class SignalQuality(StrEnum):
+    UNREVIEWED = "UNREVIEWED"
+    GOOD = "GOOD"
+    BAD = "BAD"
+    UNCERTAIN = "UNCERTAIN"
+
+
+class SignalHumanOutcome(StrEnum):
+    UNSET = "UNSET"
+    WIN = "WIN"
+    LOSS = "LOSS"
+    SKIP = "SKIP"
+
+
 # ---------------------------------------------------------------------------
 # Request
 # ---------------------------------------------------------------------------
@@ -204,3 +218,132 @@ class PresetResponse(BaseModel):
     updated_at: str
 
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# BTC signal replay review
+# ---------------------------------------------------------------------------
+
+
+class SignalReplayRunRequest(BaseModel):
+    """Start a BTC M5/M15 replay using the canonical local CSV files."""
+
+    start: str | None = None
+    end: str | None = None
+
+
+class SignalReplayStartResponse(BaseModel):
+    run_id: int
+    status: str
+
+
+class SignalReplayRunSummary(BaseModel):
+    id: int
+    status: str
+    strategy_name: str
+    definition_version: str
+    git_hash: str | None
+    symbol: str
+    requested_start_at: str | None
+    requested_end_at: str | None
+    created_at: str
+    started_at: str | None
+    completed_at: str | None
+    signal_count: int
+    m5_count: int
+    m15_count: int
+    error_message: str | None
+
+
+class SignalForwardMetricResponse(BaseModel):
+    horizon_minutes: int
+    price_at_observation: str | None
+    return_pct: float | None
+    mfe_pct: float | None
+    mae_pct: float | None
+    observed_at: str | None
+    complete: bool
+    warning: str | None
+
+
+class SignalReviewResponse(BaseModel):
+    quality: SignalQuality
+    human_outcome: SignalHumanOutcome
+    note: str | None
+    reviewed_at: str | None
+    updated_at: str | None
+    future_unlocked_at: str | None
+
+
+class SignalReviewUpdate(BaseModel):
+    quality: SignalQuality | None = None
+    human_outcome: SignalHumanOutcome | None = None
+    note: str | None = None
+
+
+class SignalReplaySignalSummary(BaseModel):
+    id: int
+    replay_run_id: int
+    event_id: str
+    sequence: int
+    timeframe: str
+    trigger_close_at: str
+    trigger_close_price: str
+    decision_reason: str
+    quality: SignalQuality
+    human_outcome: SignalHumanOutcome
+    note_present: bool
+
+
+class SignalReplaySignalDetail(BaseModel):
+    id: int
+    replay_run_id: int
+    event_id: str
+    sequence: int
+    timeframe: str
+    definition_version: str
+    trigger_open_at: str
+    trigger_close_at: str
+    trigger_close_price: str
+    trigger_price_ema21: str
+    rsi21: float
+    rsi_ema9: float
+    rsi_wma45: float
+    rsi_spread: float
+    previous_rsi_ema9: float | None
+    previous_rsi_wma45: float | None
+    h4_close_price: str
+    h4_price_ema21: str
+    h4_close_at: str
+    decision_reason: str
+    telegram_card: str
+    snapshot: dict[str, Any]
+    review: SignalReviewResponse
+    forward_metrics: list[SignalForwardMetricResponse]
+
+
+class SignalReplayListResponse(BaseModel):
+    signals: list[SignalReplaySignalSummary]
+    total: int
+    page: int
+    pages: int
+
+
+class SignalReplayRunDetail(BaseModel):
+    run: SignalReplayRunSummary
+    source_metadata: dict[str, Any]
+    counters: dict[str, Any]
+
+
+class SignalChartResponse(BaseModel):
+    signal_id: int
+    timeframe: str
+    candles: list[dict[str, Any]]
+    available_start: str | None
+    available_end: str | None
+    requested_start: str | None
+    requested_end: str | None
+    has_before: bool
+    has_after: bool
+    future_allowed: bool
+    warning: str | None
