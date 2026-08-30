@@ -459,6 +459,7 @@ class SignalReplayService:
         signal_id: int,
         db,
         *,
+        chart_timeframe: str | None,
         start_raw: str | None,
         end_raw: str | None,
     ) -> dict[str, Any]:
@@ -468,15 +469,20 @@ class SignalReplayService:
         run = db.query(SignalReplayRun).filter_by(id=signal.replay_run_id).first()
         if run is None:
             raise LookupError("Replay run not found")
-        metadata = (run.source_metadata or {}).get(signal.timeframe, {})
-        csv_path = Path(metadata.get("path", ""))
+        requested_timeframe = chart_timeframe or signal.timeframe
+        if requested_timeframe not in REPLAY_SOURCE_TIMEFRAMES:
+            raise ValueError("chart timeframe must be 5m, 15m, 1h, or 4h")
+        metadata = (run.source_metadata or {}).get(requested_timeframe, {})
+        csv_path_raw = metadata.get("path")
+        csv_path = Path(csv_path_raw) if csv_path_raw else None
         allow_future = signal.review is not None and signal.review.quality != "UNREVIEWED"
         start_at = parse_boundary(start_raw, is_end=False)
         end_at = parse_boundary(end_raw, is_end=True)
-        if not csv_path.is_file():
+        signal_time = signal.trigger_close_at.replace(tzinfo=UTC)
+        if csv_path is None or not csv_path.is_file():
             return {
                 "signal_id": signal_id,
-                "timeframe": signal.timeframe,
+                "timeframe": requested_timeframe,
                 "candles": [],
                 "available_start": metadata.get("available_start"),
                 "available_end": metadata.get("available_end"),
@@ -485,15 +491,20 @@ class SignalReplayService:
                 "has_before": False,
                 "has_after": False,
                 "future_allowed": allow_future,
-                "warning": "CSV data file is unavailable for this signal.",
+                "signal_time": signal_time.isoformat(),
+                "anchor_time": None,
+                "warning": (
+                    f"{requested_timeframe.upper()} replay source is unavailable "
+                    "for this dataset."
+                ),
             }
         try:
-            frame = load_ohlcv_csv(csv_path, signal.timeframe)
-            current_source = source_metadata(csv_path, frame, signal.timeframe)
+            frame = load_ohlcv_csv(csv_path, requested_timeframe)
+            current_source = source_metadata(csv_path, frame, requested_timeframe)
             candles, chart_metadata = chart_window_from_frame(
                 frame,
-                signal.timeframe,
-                trigger_close=signal.trigger_close_at.replace(tzinfo=UTC),
+                requested_timeframe,
+                trigger_close=signal_time,
                 start_at=start_at,
                 end_at=end_at,
                 allow_future=allow_future,
@@ -508,7 +519,7 @@ class SignalReplayService:
         except (LookupError, ValueError) as exc:
             return {
                 "signal_id": signal_id,
-                "timeframe": signal.timeframe,
+                "timeframe": requested_timeframe,
                 "candles": [],
                 "available_start": metadata.get("available_start"),
                 "available_end": metadata.get("available_end"),
@@ -517,9 +528,16 @@ class SignalReplayService:
                 "has_before": False,
                 "has_after": False,
                 "future_allowed": allow_future,
+                "signal_time": signal_time.isoformat(),
+                "anchor_time": None,
                 "warning": str(exc),
             }
-        return {"signal_id": signal_id, "timeframe": signal.timeframe, "candles": candles, **chart_metadata}
+        return {
+            "signal_id": signal_id,
+            "timeframe": requested_timeframe,
+            "candles": candles,
+            **chart_metadata,
+        }
 
     def update_review(self, signal_id: int, patch, db) -> dict[str, Any]:
         signal = db.query(SignalReplaySignal).filter_by(id=signal_id).first()

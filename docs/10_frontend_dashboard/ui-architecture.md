@@ -55,12 +55,19 @@ states, and at least 40–48 px heights. Notes and autosave state remain in the
 same decision surface, so the reviewer does not need to scroll below secondary
 cards to record a judgment.
 
-The chart has trigger-timeframe candles, EMA21, RSI21/EMA9/WMA45, a trigger
-marker, crosshair, wheel zoom, drag pan, synchronized price/oscillator scales,
-and lazy forward loading. Unlocking future inspection loads 2,000 candles but
-keeps a readable signal-centered viewport. Panning to the loaded edge appends
-another 2,000 candles and preserves the current logical range instead of
-jumping back to the signal.
+The chart can switch independently between the run's native **M5**, **M15**,
+**H1**, and **H4** sources without changing the selected signal or its human
+review. It shows price candles with EMA21/EMA200 and a synchronized oscillator
+pane with RSI21, EMA9(RSI21), and WMA45(RSI21), plus the signal price, marker,
+crosshair, wheel zoom, drag pan, and lazy forward loading. For a timeframe that
+does not close exactly at the M5/M15 signal timestamp, the marker uses the
+latest fully closed native candle at or before that timestamp and the UI labels
+that point-in-time anchor explicitly.
+
+Unlocking future inspection loads 2,000 candles in the currently selected chart
+timeframe but keeps a readable signal-centered viewport. Panning to the loaded
+edge appends another 2,000 candles using that chart timeframe's duration and
+preserves the current logical range instead of jumping back to the signal.
 
 Review is deliberately staged: the initial chart stops at the trigger close.
 Saving `GOOD`, `BAD`, or `UNCERTAIN` unlocks the 2,000-candle future window and
@@ -88,7 +95,7 @@ The Asset Config section exposes a row of preset pills (`1m`, `5m`, `15m`, `30m`
 | `gridSearchStore` | Grid search config + results | None |
 | `walkForwardStore` | Walk-forward config + results | None |
 | `sensitivityStore` | Sensitivity config + results | None |
-| `signalReviewStore` | BTC M5/M15 replay list, detail, chart, review, and SSE orchestration | None |
+| `signalReviewStore` | BTC M5/M15 signal list plus M5/M15/H1/H4 chart, detail, review, and SSE orchestration | None |
 | `exportStore` | Export config + trade annotations | localStorage (all) |
 | `dataPrepStore` | Data download tracking | None |
 | `themeStore` | UI themes (3 hardcoded) | None |

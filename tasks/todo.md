@@ -2,6 +2,44 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## Multi-timeframe Signal Review charts and indicators (2026-08-30)
+
+- [x] Audit the chart API, replay-source metadata, signal anchoring, indicator payload, and reviewer store flow.
+- [x] Let reviewers switch the selected signal chart between M5, M15, H1, and H4.
+- [x] Anchor non-trigger timeframes to the latest fully closed candle at or before the signal time.
+- [x] Add price EMA21/EMA200 and RSI21 with EMA9(RSI)/WMA45(RSI) overlays and clear legends.
+- [x] Keep future-locking, 2,000-candle extensions, and chart position behavior correct on every timeframe.
+- [x] Add API/analysis regression coverage and update frontend, backtest, API, and reviewer documentation.
+- [x] Run focused tests, generated-type refresh, TypeScript/build, Markdown/diff checks, and live UI verification.
+
+### Audit findings
+
+- The chart endpoint always selects the signal's own replay source, even though each run records native M5, M15, H1, and H4 source metadata.
+- Higher-timeframe candles do not necessarily close exactly at an M5/M15 signal timestamp; the safe point-in-time anchor is the latest native candle closed at or before that timestamp.
+- The payload and chart already include EMA21 plus the requested RSI21/EMA9/WMA45 family, but EMA200 is absent and the RSI-derived legend labels are ambiguous.
+- Lazy extension currently derives duration from the signal timeframe instead of the chart timeframe, so it must move with the new chart selection state.
+
+### Review
+
+The signal detail chart now switches independently between native M5, M15,
+H1, and H4 data without changing the review queue or the signal's stored entry
+timeframe. Higher-timeframe views use the latest fully closed native candle at
+or before the signal as their point-in-time anchor. Each view keeps the staged
+human-review gate and supports the existing 2,000-candle future extensions in
+the selected chart timeframe.
+
+The price pane now shows EMA21 and EMA200. The RSI pane shows RSI21 together
+with EMA9(RSI) and WMA45(RSI), using separate, explicit legends and stable
+colors. Timeframe changes are race-safe, reset only the chart viewport, and
+retain the reviewer's quality, outcome, note, and queue position.
+
+Verification passed with 32 replay/reviewer/executor tests, Ruff, Python
+compilation, TypeScript type-checking, a production frontend build, all 129
+Markdown links, and `git diff --check`. Live API checks loaded all four native
+timeframes with the requested indicators and valid point-in-time anchors. The
+rebuilt page was exercised across M5, M15, H1, and H4 in the in-app browser
+with no console warnings or errors.
+
 ## Human-first Signal Review detail redesign (2026-08-30)
 
 - [x] Audit the current rating hierarchy, chart unlock window, and signal navigation.

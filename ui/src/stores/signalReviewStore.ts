@@ -20,7 +20,9 @@ import type {
 } from "../types/generated";
 import {
   REVIEW_CHART_CHUNK_CANDLES,
+  REVIEW_CHART_TIMEFRAME_MINUTES,
   REVIEW_SIGNAL_PAGE_SIZE,
+  type ReviewChartTimeframe,
 } from "../lib/signal-review";
 
 export type SignalReplayScope = "all" | "30d" | "90d" | "365d";
@@ -36,6 +38,7 @@ interface SignalReviewState {
   pages: number;
   selected: SignalReplaySignalDetail | null;
   chart: SignalChartResponse | null;
+  chartTimeframe: ReviewChartTimeframe;
   runs: SignalReplayRunSummary[];
   selectedRunId: number | null;
   availability: SignalReplayAvailabilityResponse | null;
@@ -44,6 +47,7 @@ interface SignalReviewState {
   runPhase: string;
   isLoading: boolean;
   isLoadingDetail: boolean;
+  isLoadingChart: boolean;
   isLoadingAvailability: boolean;
   isRunning: boolean;
   reviewSaveState: ReviewSaveState;
@@ -57,6 +61,7 @@ interface SignalReviewState {
   loadRuns: () => Promise<void>;
   loadAvailability: () => Promise<void>;
   loadSignal: (signalId: number) => Promise<void>;
+  setChartTimeframe: (timeframe: ReviewChartTimeframe) => Promise<void>;
   loadAdjacentSignal: (direction: -1 | 1) => Promise<void>;
   loadMoreChart: () => Promise<void>;
   saveReview: (patch: SignalReviewUpdate) => Promise<void>;
@@ -95,6 +100,7 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   pages: 1,
   selected: null,
   chart: null,
+  chartTimeframe: "5m",
   runs: [],
   selectedRunId: null,
   availability: null,
@@ -103,6 +109,7 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   runPhase: "idle",
   isLoading: false,
   isLoadingDetail: false,
+  isLoadingChart: false,
   isLoadingAvailability: false,
   isRunning: false,
   reviewSaveState: "idle",
@@ -114,7 +121,7 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   },
 
   setTimeframe: (timeframe) => {
-    set({ timeframe, selected: null, chart: null });
+    set({ timeframe, selected: null, chart: null, chartTimeframe: timeframe, isLoadingChart: false });
     void get().loadSignals(1);
   },
 
@@ -129,7 +136,7 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   },
 
   setSelectedRunId: (selectedRunId) => {
-    set({ selectedRunId, selected: null, chart: null });
+    set({ selectedRunId, selected: null, chart: null, isLoadingChart: false });
     void get().loadSignals(1);
   },
 
@@ -197,18 +204,44 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   },
 
   loadSignal: async (signalId) => {
-    set({ isLoadingDetail: true, error: null, reviewSaveState: "idle" });
+    set({ isLoadingDetail: true, isLoadingChart: true, error: null, reviewSaveState: "idle" });
     try {
       const [selected, chart] = await Promise.all([
         getSignalReplaySignal(signalId),
         getSignalChart(signalId),
       ]);
-      set({ selected, chart, isLoadingDetail: false });
+      set({
+        selected,
+        chart,
+        chartTimeframe: chart.timeframe as ReviewChartTimeframe,
+        isLoadingDetail: false,
+        isLoadingChart: false,
+      });
     } catch (error) {
       set({
         isLoadingDetail: false,
+        isLoadingChart: false,
         error: error instanceof Error ? error.message : "Failed to load signal",
       });
+    }
+  },
+
+  setChartTimeframe: async (chartTimeframe) => {
+    const selected = get().selected;
+    if (!selected || get().chartTimeframe === chartTimeframe) return;
+    set({ chartTimeframe, chart: null, isLoadingChart: true, error: null });
+    try {
+      const chart = await getSignalChart(selected.id, { timeframe: chartTimeframe });
+      if (get().selected?.id === selected.id && get().chartTimeframe === chartTimeframe) {
+        set({ chart, isLoadingChart: false });
+      }
+    } catch (error) {
+      if (get().selected?.id === selected.id && get().chartTimeframe === chartTimeframe) {
+        set({
+          isLoadingChart: false,
+          error: error instanceof Error ? error.message : "Failed to switch chart timeframe",
+        });
+      }
     }
   },
 
@@ -235,17 +268,23 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
     if (!state.selected || !state.chart?.has_after) return;
     const currentEnd = state.chart.requested_end;
     if (!currentEnd) return;
-    const minutes = state.selected.timeframe === "5m" ? 5 : 15;
+    const minutes = REVIEW_CHART_TIMEFRAME_MINUTES[state.chartTimeframe];
     const nextEnd = new Date(
       new Date(currentEnd).getTime()
       + minutes * REVIEW_CHART_CHUNK_CANDLES * 60_000,
     ).toISOString();
     try {
       const chart = await getSignalChart(state.selected.id, {
+        timeframe: state.chartTimeframe,
         start: state.chart.requested_start ?? undefined,
         end: nextEnd,
       });
-      set({ chart });
+      if (
+        get().selected?.id === state.selected.id
+        && get().chartTimeframe === state.chartTimeframe
+      ) {
+        set({ chart });
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Failed to load more chart data" });
     }
@@ -278,10 +317,17 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
       const wasUnlocked = previousReview.quality !== "UNREVIEWED";
       const isUnlocked = review.quality !== "UNREVIEWED";
       if (selected?.id === signalId && wasUnlocked !== isUnlocked) {
+        const requestedChartTimeframe = current.chartTimeframe;
         const chart = await getSignalChart(signalId, {
+          timeframe: requestedChartTimeframe,
           start: current.chart?.requested_start ?? undefined,
         });
-        if (get().selected?.id === signalId) set({ chart });
+        if (
+          get().selected?.id === signalId
+          && get().chartTimeframe === requestedChartTimeframe
+        ) {
+          set({ chart });
+        }
       }
     } catch (error) {
       set({
@@ -350,5 +396,10 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
     }
   },
 
-  clearSelection: () => set({ selected: null, chart: null, reviewSaveState: "idle" }),
+  clearSelection: () => set({
+    selected: null,
+    chart: null,
+    isLoadingChart: false,
+    reviewSaveState: "idle",
+  }),
 }));

@@ -1361,6 +1361,22 @@
             }
           },
           {
+            "name": "timeframe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timeframe"
+            }
+          },
+          {
             "name": "start",
             "in": "query",
             "required": false,
@@ -2272,6 +2288,28 @@
             "type": "boolean",
             "title": "Future Allowed"
           },
+          "signal_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Time"
+          },
+          "anchor_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Time"
+          },
           "warning": {
             "anyOf": [
               {
@@ -2296,6 +2334,8 @@
           "has_before",
           "has_after",
           "future_allowed",
+          "signal_time",
+          "anchor_time",
           "warning"
         ],
         "title": "SignalChartResponse"

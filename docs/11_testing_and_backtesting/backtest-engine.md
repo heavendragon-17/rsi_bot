@@ -168,13 +168,18 @@ The review layer keeps two labels independent:
 - `quality`: `UNREVIEWED`, `GOOD`, `BAD`, or `UNCERTAIN`;
 - `human_outcome`: `UNSET`, `WIN`, `LOSS`, or `SKIP`.
 
-The initial chart exposes candles at or before the trigger close only. Saving
-any explicit quality label unlocks 2,000 trigger-timeframe candles and the
-human outcome controls. Each manual/lazy extension adds another 2,000 candles.
-For M5 this is about 6 days 22 hours per chunk; for M15 it is about 20 days 20
-hours. The browser initially frames a smaller signal-centered range and lets
-the reviewer pan through the loaded future instead of compressing every candle
-into one unreadable viewport.
+The initial chart exposes candles at or before the signal's point-in-time
+anchor only. Reviewers can switch the same signal between native M5, M15, H1,
+and H4 sources. Exact-alignment timeframes anchor on the signal close; otherwise
+the anchor is the latest fully closed candle at or before the signal timestamp,
+so H1/H4 inspection cannot use a forming or future candle.
+
+Every chart includes price EMA21/EMA200 plus RSI21, EMA9(RSI21), and
+WMA45(RSI21). Saving any explicit quality label unlocks 2,000 candles in the
+selected chart timeframe and the human outcome controls. Each manual/lazy
+extension adds another 2,000 candles. The browser initially frames a smaller
+signal-centered range and lets the reviewer pan through the loaded future
+instead of compressing every candle into one unreadable viewport.
 
 The chart uses the trigger candle close as its reference and shows 1h, 4h, 12h,
 and 24h close-return, maximum favorable excursion, and maximum adverse

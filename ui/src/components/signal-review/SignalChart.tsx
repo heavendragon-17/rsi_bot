@@ -7,12 +7,19 @@ import {
   LineSeries,
 } from "lightweight-charts";
 import type { SignalChartResponse } from "../../types/generated";
-import { REVIEW_CHART_CHUNK_CANDLES } from "../../lib/signal-review";
+import {
+  REVIEW_CHART_CHUNK_CANDLES,
+  REVIEW_CHART_TIMEFRAMES,
+  REVIEW_CHART_TIMEFRAME_MINUTES,
+  type ReviewChartTimeframe,
+} from "../../lib/signal-review";
 
 interface SignalChartProps {
   chart: SignalChartResponse;
   triggerClosePrice: number;
   onLoadMore: () => Promise<void>;
+  onTimeframeChange: (timeframe: ReviewChartTimeframe) => Promise<void>;
+  isLoading: boolean;
 }
 
 interface ChartCandle {
@@ -25,6 +32,7 @@ interface ChartCandle {
   rsi_ema9?: number | null;
   rsi_wma45?: number | null;
   ema21?: number | null;
+  ema200?: number | null;
   is_trigger?: boolean;
 }
 
@@ -55,19 +63,41 @@ function toUnixSeconds(iso: string): number {
 }
 
 function formatCandleSpan(candles: number, timeframe: string): string {
-  const minutes = candles * (timeframe === "5m" ? 5 : 15);
+  const minutesPerCandle = REVIEW_CHART_TIMEFRAME_MINUTES[
+    timeframe as ReviewChartTimeframe
+  ] ?? 5;
+  const minutes = candles * minutesPerCandle;
   const days = Math.floor(minutes / (24 * 60));
   const hours = Math.floor((minutes % (24 * 60)) / 60);
   if (days > 0) return `${days}d ${hours}h`;
   return `${hours}h`;
 }
 
-export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChartProps) {
+function formatUtc7(value: string): string {
+  return `${new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value))} UTC+7`;
+}
+
+export function SignalChart({
+  chart,
+  triggerClosePrice,
+  onLoadMore,
+  onTimeframeChange,
+  isLoading,
+}: SignalChartProps) {
   const priceContainer = useRef<HTMLDivElement>(null);
   const rsiContainer = useRef<HTMLDivElement>(null);
   const loadingMore = useRef(false);
   const lastVisibleRange = useRef<LogicalRange | null>(null);
   const lastSignalId = useRef<number | null>(null);
+  const lastTimeframe = useRef<string | null>(null);
   const previousFutureAllowed = useRef(false);
 
   useEffect(() => {
@@ -77,9 +107,11 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
 
     const rows = chart.candles as unknown as ChartCandle[];
     const signalChanged = lastSignalId.current !== chart.signal_id;
+    const timeframeChanged = lastTimeframe.current !== chart.timeframe;
     const futureJustUnlocked = !previousFutureAllowed.current && chart.future_allowed;
-    if (signalChanged || futureJustUnlocked) lastVisibleRange.current = null;
+    if (signalChanged || timeframeChanged || futureJustUnlocked) lastVisibleRange.current = null;
     lastSignalId.current = chart.signal_id;
+    lastTimeframe.current = chart.timeframe;
     previousFutureAllowed.current = chart.future_allowed;
     const priceChart = createChart(priceContainer.current, {
       ...CHART_OPTIONS,
@@ -105,8 +137,13 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
       lineWidth: 2,
       title: "EMA21",
     });
+    const ema200 = priceChart.addSeries(LineSeries, {
+      color: "#22d3ee",
+      lineWidth: 2,
+      title: "EMA200",
+    });
     const rsi = rsiChart.addSeries(LineSeries, {
-      color: "#fbbf24",
+      color: "#a78bfa",
       lineWidth: 2,
       title: "RSI21",
       autoscaleInfoProvider: (original) => {
@@ -118,13 +155,13 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
     const rsiEma = rsiChart.addSeries(LineSeries, {
       color: "#38bdf8",
       lineWidth: 1,
-      title: "EMA9",
+      title: "EMA9 RSI",
     });
     const rsiWma = rsiChart.addSeries(LineSeries, {
       color: "#f472b6",
       lineWidth: 1,
       lineStyle: 2,
-      title: "WMA45",
+      title: "WMA45 RSI",
     });
 
     const validRows = rows.map((row) => ({ ...row, time: toUnixSeconds(row.time) as any }));
@@ -136,6 +173,7 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
       close: row.close,
     })) as any);
     ema21.setData(validRows.filter((row) => row.ema21 != null).map((row) => ({ time: row.time, value: row.ema21! })) as any);
+    ema200.setData(validRows.filter((row) => row.ema200 != null).map((row) => ({ time: row.time, value: row.ema200! })) as any);
     rsi.setData(validRows.filter((row) => row.rsi21 != null).map((row) => ({ time: row.time, value: row.rsi21! })) as any);
     rsiEma.setData(validRows.filter((row) => row.rsi_ema9 != null).map((row) => ({ time: row.time, value: row.rsi_ema9! })) as any);
     rsiWma.setData(validRows.filter((row) => row.rsi_wma45 != null).map((row) => ({ time: row.time, value: row.rsi_wma45! })) as any);
@@ -155,7 +193,7 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
-        title: "Trigger",
+        title: "Signal price",
       });
     }
 
@@ -230,6 +268,11 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
   const triggerIndex = rows.findIndex((row) => row.is_trigger);
   const futureCandleCount = triggerIndex >= 0 ? rows.length - triggerIndex - 1 : 0;
   const futureSpan = formatCandleSpan(futureCandleCount, chart.timeframe);
+  const usesEarlierAnchor = Boolean(
+    chart.anchor_time
+    && chart.signal_time
+    && chart.anchor_time !== chart.signal_time,
+  );
   return (
     <section className="rounded-xl border border-border-main bg-bg-primary/60 p-4 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -237,13 +280,39 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
           <h3 className="font-semibold text-text-primary">Market replay</h3>
           <p className="text-xs text-text-muted">Crosshair, wheel zoom, drag/pan, and forward candle loading</p>
         </div>
-        <div className="flex items-center gap-3 text-[11px] font-mono text-text-secondary">
-          <span className="text-amber-300">EMA21</span>
-          <span className="text-amber-300">RSI21</span>
-          <span className="text-sky-300">EMA9</span>
-          <span className="text-pink-300">WMA45</span>
+        <div role="group" aria-label="Chart timeframe" className="flex items-center rounded-lg border border-border-main bg-bg-elevated/50 p-1">
+          {REVIEW_CHART_TIMEFRAMES.map((timeframe) => (
+            <button
+              key={timeframe}
+              type="button"
+              aria-pressed={chart.timeframe === timeframe}
+              disabled={isLoading}
+              onClick={() => void onTimeframeChange(timeframe)}
+              className={`min-h-9 min-w-12 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${chart.timeframe === timeframe ? "bg-accent-main text-white shadow-sm" : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"}`}
+            >
+              {timeframe.toUpperCase()}
+            </button>
+          ))}
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-text-secondary">
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">
+          <span className="font-sans font-medium text-text-muted">Price</span>
+          <span className="inline-flex items-center gap-1.5 text-amber-300"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />EMA21</span>
+          <span className="inline-flex items-center gap-1.5 text-cyan-300"><span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />EMA200</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">
+          <span className="font-sans font-medium text-text-muted">RSI</span>
+          <span className="inline-flex items-center gap-1.5 text-violet-300"><span className="h-1.5 w-1.5 rounded-full bg-violet-300" />RSI21</span>
+          <span className="inline-flex items-center gap-1.5 text-sky-300"><span className="h-1.5 w-1.5 rounded-full bg-sky-300" />EMA9 RSI</span>
+          <span className="inline-flex items-center gap-1.5 text-pink-300"><span className="h-1.5 w-1.5 rounded-full bg-pink-300" />WMA45 RSI</span>
+        </div>
+      </div>
+      {usesEarlierAnchor && chart.anchor_time && (
+        <div className="rounded-lg border border-sky-400/25 bg-sky-400/5 px-3 py-2 text-xs text-sky-200">
+          Point-in-time anchor: latest fully closed {chart.timeframe.toUpperCase()} candle at {formatUtc7(chart.anchor_time)}.
+        </div>
+      )}
       {warning && (
         <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
           {warning}
@@ -257,7 +326,7 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
       )}
       {chart.candles.length === 0 ? (
         <div className="h-48 flex items-center justify-center text-sm text-text-muted">
-          No chart candles available for this CSV range.
+          {isLoading ? `Loading ${chart.timeframe.toUpperCase()} chart…` : "No chart candles available for this CSV range."}
         </div>
       ) : (
         <>

@@ -136,7 +136,7 @@ indicator fields, latest human review, and objective forward observations.
 | `GET` | `/api/signal-replays/runs/{run_id}/progress` | SSE replay progress and terminal status |
 | `GET` | `/api/signal-replays/signals` | Paginated signal list with filters |
 | `GET` | `/api/signal-replays/signals/{signal_id}` | Full card, structured snapshot, review, and metrics |
-| `GET` | `/api/signal-replays/signals/{signal_id}/chart` | Review-gated OHLCV/indicator chart window |
+| `GET` | `/api/signal-replays/signals/{signal_id}/chart` | Review-gated M5/M15/H1/H4 OHLCV/indicator chart window |
 | `GET` | `/api/signal-replays/signals/{signal_id}/forward-metrics` | 1h/4h/12h/24h market observations |
 | `PATCH` | `/api/signal-replays/signals/{signal_id}/review` | Save quality, outcome, and note |
 
@@ -169,13 +169,20 @@ Good, Bad, Uncertain, all-quality, and outcome filters.
 
 ### Review and chart gate
 
+`GET /signals/{signal_id}/chart` accepts `timeframe=5m|15m|1h|4h` plus optional
+ISO `start` and `end` boundaries. Omitting `timeframe` keeps backward-compatible
+signal-timeframe behavior. The payload includes `signal_time` and `anchor_time`;
+for non-aligned H1/H4 views, `anchor_time` is the latest native candle close at
+or before `signal_time`. Candle rows contain OHLCV, EMA21, EMA200, RSI21,
+EMA9(RSI21), WMA45(RSI21), and the anchor marker.
+
 `quality=UNREVIEWED` is the initial state. Until an explicit quality label is
-saved, the chart endpoint clamps its requested end to the trigger close and
-returns `future_allowed: false` with a warning. Saving `GOOD`, `BAD`, or
-`UNCERTAIN` sets `future_allowed: true`; an omitted chart `end` then returns up
-to 2,000 future trigger-timeframe candles. Only after quality review can `WIN`,
-`LOSS`, or `SKIP` be recorded. `quality` and `human_outcome` remain independent
-fields.
+saved, every chart timeframe clamps its requested end to the point-in-time
+anchor and returns `future_allowed: false` with a warning. Saving `GOOD`, `BAD`,
+or `UNCERTAIN` sets `future_allowed: true`; an omitted chart `end` then returns
+up to 2,000 future candles in the requested chart timeframe. Only after quality
+review can `WIN`, `LOSS`, or `SKIP` be recorded. `quality` and `human_outcome`
+remain independent fields.
 
 Forward metrics use the trigger candle close as the baseline. A missing or
 shortened CSV returns partial metrics with `complete: false` and a warning

@@ -36,6 +36,7 @@ FORWARD_HORIZONS_MINUTES: tuple[int, ...] = (60, 240, 720, 1440)
 CHART_CONTEXT_CANDLES = 120
 CHART_INITIAL_FORWARD_CANDLES = 0
 CHART_CHUNK_CANDLES = 2_000
+CHART_INDICATOR_WARMUP_CANDLES = 1_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,10 +194,26 @@ def _indicator_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
     output = frame.copy()
     output["ema21"] = ema(output["close"], 21)
+    output["ema200"] = ema(output["close"], 200)
     output["rsi21"] = rsi_wilder(output["close"], 21)
     output["rsi_ema9"] = ema(output["rsi21"], 9)
     output["rsi_wma45"] = wma(output["rsi21"], 45)
     return output
+
+
+def chart_anchor_position(
+    close_times: pd.DatetimeIndex,
+    signal_time: datetime,
+) -> int:
+    """Return the latest native candle closed at or before the signal time."""
+
+    signal_utc = pd.Timestamp(signal_time.astimezone(UTC))
+    position = int(close_times.searchsorted(signal_utc, side="right")) - 1
+    if position < 0:
+        raise LookupError(
+            "No fully closed candle is available at or before the signal time"
+        )
+    return position
 
 
 def chart_candles(
@@ -213,17 +230,9 @@ def chart_candles(
     if before < 0 or after < 0:
         raise ValueError("before and after must be non-negative")
     close_times = _close_times(frame, timeframe)
-    trigger = trigger_close.astimezone(UTC)
-    trigger_position = next(
-        (
-            position
-            for position, close_time in enumerate(close_times)
-            if close_time.to_pydatetime() == trigger
-        ),
-        None,
-    )
-    if trigger_position is None:
-        raise LookupError("Trigger candle is not present in the current CSV")
+    signal_time = trigger_close.astimezone(UTC)
+    trigger_position = chart_anchor_position(close_times, signal_time)
+    anchor_time = close_times[trigger_position].to_pydatetime()
     future_allowed = allow_future
     end_position = (
         min(len(frame) - 1, trigger_position + after)
@@ -233,7 +242,7 @@ def chart_candles(
     start_position = max(0, trigger_position - before)
     # Keep enough prefix history for the recursive EMA and RSI/WMA seed rules;
     # only the requested display rows are returned to the browser.
-    compute_start = max(0, start_position - 200)
+    compute_start = max(0, start_position - CHART_INDICATOR_WARMUP_CANDLES)
     computed = _indicator_frame(frame.iloc[compute_start : end_position + 1].copy())
     enriched = computed.iloc[start_position - compute_start :].reset_index(drop=True)
     sliced_close_times = close_times[start_position : end_position + 1]
@@ -251,7 +260,8 @@ def chart_candles(
             "rsi_ema9": _finite_float(row.get("rsi_ema9")),
             "rsi_wma45": _finite_float(row.get("rsi_wma45")),
             "ema21": _finite_float(row.get("ema21")),
-            "is_trigger": close_time == trigger,
+            "ema200": _finite_float(row.get("ema200")),
+            "is_trigger": close_time == anchor_time,
         }
         candles.append(values)
 
@@ -262,8 +272,10 @@ def chart_candles(
     warning: str | None = None
     if available_start is None or available_end is None:
         warning = "CSV contains no candles."
-    elif trigger < available_start or trigger > available_end:
-        warning = "Trigger is outside the current CSV range."
+    elif signal_time < available_start:
+        warning = "Signal time is before the current CSV range."
+    elif signal_time > available_end:
+        warning = "Signal time is after the current CSV range."
     elif not future_allowed:
         warning = "Future candles are locked until a quality label is saved."
     elif end_position == len(frame) - 1:
@@ -277,6 +289,8 @@ def chart_candles(
         "has_before": has_before,
         "has_after": has_after,
         "future_allowed": future_allowed,
+        "signal_time": _utc_iso(signal_time),
+        "anchor_time": _utc_iso(anchor_time),
         "warning": warning,
     }
 
@@ -293,17 +307,19 @@ def chart_window_from_frame(
     """Return an explicit timestamp window, applying the review gate."""
 
     close_times = _close_times(frame, timeframe)
-    trigger = trigger_close.astimezone(UTC)
+    signal_time = trigger_close.astimezone(UTC)
+    anchor_position = chart_anchor_position(close_times, signal_time)
+    anchor_time = close_times[anchor_position].to_pydatetime()
     requested_start = start_at.astimezone(UTC) if start_at else None
     requested_end = end_at.astimezone(UTC) if end_at else None
     original_requested_end = requested_end
     if not allow_future:
-        requested_end = trigger
+        requested_end = anchor_time
     elif requested_end is None:
         duration = _duration_for_timeframe(timeframe)
-        requested_end = trigger + duration * CHART_CHUNK_CANDLES
+        requested_end = anchor_time + duration * CHART_CHUNK_CANDLES
     if requested_start is None:
-        requested_start = trigger - timedelta(
+        requested_start = anchor_time - timedelta(
             minutes=CHART_CONTEXT_CANDLES
             * int(_duration_for_timeframe(timeframe).total_seconds() // 60)
         )
@@ -312,7 +328,7 @@ def chart_window_from_frame(
         for position, close_time in enumerate(close_times)
         if close_time.to_pydatetime() >= requested_start
         and (requested_end is None or close_time.to_pydatetime() <= requested_end)
-        and (allow_future or close_time.to_pydatetime() <= trigger)
+        and (allow_future or close_time.to_pydatetime() <= anchor_time)
     ]
     if not positions:
         return [], {
@@ -323,15 +339,17 @@ def chart_window_from_frame(
             "has_before": False,
             "has_after": False,
             "future_allowed": allow_future,
+            "signal_time": _utc_iso(signal_time),
+            "anchor_time": _utc_iso(anchor_time),
             "warning": "Requested chart range is unavailable in the current CSV.",
         }
     start_position, end_position = positions[0], positions[-1]
     candles, metadata = chart_candles(
         frame,
         timeframe,
-        trigger_close=trigger,
-        before=trigger_position_distance(close_times, trigger, start_position),
-        after=max(0, end_position - trigger_position(close_times, trigger)),
+        trigger_close=signal_time,
+        before=max(0, anchor_position - start_position),
+        after=max(0, end_position - anchor_position),
         allow_future=allow_future,
     )
     metadata["requested_start"] = _utc_iso(requested_start)
@@ -349,19 +367,3 @@ def chart_window_from_frame(
         warnings = [warning for warning in (metadata.get("warning"), *range_warnings) if warning]
         metadata["warning"] = " ".join(dict.fromkeys(warnings))
     return candles, metadata
-
-
-def trigger_position(close_times: pd.DatetimeIndex, trigger: datetime) -> int:
-    trigger_utc = trigger.astimezone(UTC)
-    for position, close_time in enumerate(close_times):
-        if close_time.to_pydatetime() == trigger_utc:
-            return position
-    raise LookupError("Trigger candle is not present in the current CSV")
-
-
-def trigger_position_distance(
-    close_times: pd.DatetimeIndex,
-    trigger: datetime,
-    start_position: int,
-) -> int:
-    return trigger_position(close_times, trigger) - start_position

@@ -11,6 +11,7 @@ import type {
   SignalReviewUpdate,
   SignalReplayStartResponse,
 } from "../types/generated";
+import type { ReviewChartTimeframe } from "../lib/signal-review";
 
 export interface SignalReplayListFilters {
   timeframe?: "5m" | "15m";
@@ -95,7 +96,7 @@ export async function getSignalReplaySignal(
 
 export async function getSignalChart(
   signalId: number,
-  range: { start?: string; end?: string } = {},
+  range: { timeframe?: ReviewChartTimeframe; start?: string; end?: string } = {},
 ): Promise<SignalChartResponse> {
   return apiFetch<SignalChartResponse>(
     `/api/signal-replays/signals/${signalId}/chart${queryString(range)}`,

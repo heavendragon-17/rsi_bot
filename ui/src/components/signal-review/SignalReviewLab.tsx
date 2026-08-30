@@ -467,7 +467,9 @@ function ReviewerDecisionBar() {
 function SignalDetail() {
   const selected = useSignalReviewStore((state) => state.selected);
   const chart = useSignalReviewStore((state) => state.chart);
+  const chartTimeframe = useSignalReviewStore((state) => state.chartTimeframe);
   const isLoading = useSignalReviewStore((state) => state.isLoadingDetail);
+  const isLoadingChart = useSignalReviewStore((state) => state.isLoadingChart);
   const signals = useSignalReviewStore((state) => state.signals);
   const total = useSignalReviewStore((state) => state.total);
   const page = useSignalReviewStore((state) => state.page);
@@ -475,6 +477,7 @@ function SignalDetail() {
   const clearSelection = useSignalReviewStore((state) => state.clearSelection);
   const loadAdjacentSignal = useSignalReviewStore((state) => state.loadAdjacentSignal);
   const loadMoreChart = useSignalReviewStore((state) => state.loadMoreChart);
+  const setChartTimeframe = useSignalReviewStore((state) => state.setChartTimeframe);
   if (!selected) return null;
   const currentMetric = selected.forward_metrics;
   const currentIndex = signals.findIndex((signal) => signal.id === selected.id);
@@ -510,7 +513,27 @@ function SignalDetail() {
       <ReviewerDecisionBar />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)] gap-4">
         <div className="space-y-4">
-          <SignalChart chart={chart ?? { signal_id: selected.id, timeframe: selected.timeframe, candles: [], available_start: null, available_end: null, requested_start: null, requested_end: null, has_before: false, has_after: false, future_allowed: false, warning: "Loading chart…" }} triggerClosePrice={Number(selected.trigger_close_price)} onLoadMore={loadMoreChart} />
+          <SignalChart
+            chart={chart ?? {
+              signal_id: selected.id,
+              timeframe: chartTimeframe,
+              candles: [],
+              available_start: null,
+              available_end: null,
+              requested_start: null,
+              requested_end: null,
+              has_before: false,
+              has_after: false,
+              future_allowed: false,
+              signal_time: selected.trigger_close_at,
+              anchor_time: null,
+              warning: "Loading chart…",
+            }}
+            triggerClosePrice={Number(selected.trigger_close_price)}
+            onLoadMore={loadMoreChart}
+            onTimeframeChange={setChartTimeframe}
+            isLoading={isLoadingChart}
+          />
           <section className="rounded-xl border border-border-main bg-bg-primary/50 p-4">
             <div className="flex items-center gap-2 mb-3"><Database size={16} className="text-accent-main" /><h3 className="font-semibold text-text-primary">Forward market observations</h3></div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">

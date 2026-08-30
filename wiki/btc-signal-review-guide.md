@@ -51,11 +51,17 @@ choose another quality filter before rebuilding it.
 Look at the **Telegram alert snapshot** and the chart. The card shows the
 exact values used by the alert. You do not need to calculate them yourself.
 
+Use the **M5**, **M15**, **H1**, and **H4** buttons in the chart header to inspect
+the same signal on each native timeframe. This does not change the signal or
+your saved review. When a higher timeframe did not close exactly at the signal
+time, the blue message identifies the latest fully closed candle used as the
+safe point-in-time anchor.
+
 Check that:
 
 - the signal marker is on the correct candle;
-- the price is above the yellow EMA21 line;
-- the RSI lines show the bullish arrangement described in the card;
+- the price chart shows the yellow EMA21 and cyan EMA200 lines;
+- the RSI pane shows violet RSI21, blue EMA9 RSI, and pink WMA45 RSI;
 - the H1 and H4 confirmation lines are marked with a green check; and
 - the chart does not look broken, empty, or obviously contradictory to the
   card.

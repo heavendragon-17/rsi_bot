@@ -363,4 +363,6 @@ class SignalChartResponse(BaseModel):
     has_before: bool
     has_after: bool
     future_allowed: bool
+    signal_time: str | None
+    anchor_time: str | None
     warning: str | None

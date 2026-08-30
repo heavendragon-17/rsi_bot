@@ -105,6 +105,8 @@ def _seed_replay(tmp_path, db):
     )
     m5_frame = load_ohlcv_csv(m5_path, "5m")
     m15_frame = load_ohlcv_csv(m15_path, "15m")
+    h1_path = h4_path.with_name(h4_path.name.replace("4h", "1h"))
+    h1_frame = load_ohlcv_csv(h1_path, "1h")
     h4_frame = load_ohlcv_csv(h4_path, "4h")
     run = SignalReplayRun(
         status="completed",
@@ -113,6 +115,7 @@ def _seed_replay(tmp_path, db):
         source_metadata={
             "5m": source_metadata(m5_path, m5_frame, "5m"),
             "15m": source_metadata(m15_path, m15_frame, "15m"),
+            "1h": source_metadata(h1_path, h1_frame, "1h"),
             "4h": source_metadata(h4_path, h4_frame, "4h"),
         },
     )
@@ -408,6 +411,42 @@ def test_chart_future_is_locked_until_quality_review():
     assert unlocked_meta["future_allowed"] is True
 
 
+def test_chart_exposes_full_indicator_set_and_anchors_higher_timeframe():
+    opens = pd.date_range(
+        "2026-01-01 00:00:00",
+        periods=350,
+        freq="1h",
+        tz="UTC",
+    )
+    values = np.linspace(100.0, 180.0, len(opens)) + np.sin(np.arange(len(opens)))
+    frame = pd.DataFrame(
+        {
+            "open": values,
+            "high": values + 1.0,
+            "low": values - 1.0,
+            "close": values,
+            "volume": 1.0,
+        },
+        index=opens,
+    )
+    anchor_time = (opens[300] + timedelta(hours=1)).to_pydatetime()
+    signal_time = anchor_time + timedelta(minutes=30)
+
+    candles, metadata = chart_candles(
+        frame,
+        "1h",
+        trigger_close=signal_time,
+        allow_future=False,
+    )
+
+    anchor = next(candle for candle in candles if candle["is_trigger"])
+    assert anchor["time"] == anchor_time.isoformat()
+    assert metadata["signal_time"] == signal_time.isoformat()
+    assert metadata["anchor_time"] == anchor_time.isoformat()
+    for indicator in ("ema21", "ema200", "rsi21", "rsi_ema9", "rsi_wma45"):
+        assert anchor[indicator] is not None
+
+
 def test_default_unlocked_chart_loads_two_thousand_future_candles():
     periods = CHART_CHUNK_CANDLES + 400
     opens = pd.date_range(
@@ -506,6 +545,16 @@ def test_signal_api_filters_persists_review_and_reloads_chart(tmp_path):
         assert locked.json()["future_allowed"] is False
         assert "locked" in locked.json()["warning"]
 
+        locked_h1 = client.get(
+            f"/api/signal-replays/signals/{m5_id}/chart",
+            params={"timeframe": "1h"},
+        )
+        assert locked_h1.status_code == 200
+        assert locked_h1.json()["timeframe"] == "1h"
+        assert locked_h1.json()["future_allowed"] is False
+        assert locked_h1.json()["anchor_time"] <= locked_h1.json()["signal_time"]
+        assert sum(candle["is_trigger"] for candle in locked_h1.json()["candles"]) == 1
+
         review = client.patch(
             f"/api/signal-replays/signals/{m5_id}/review",
             json={"quality": SignalQuality.GOOD.value},
@@ -516,6 +565,24 @@ def test_signal_api_filters_persists_review_and_reloads_chart(tmp_path):
         unlocked = client.get(f"/api/signal-replays/signals/{m5_id}/chart")
         assert unlocked.status_code == 200
         assert unlocked.json()["future_allowed"] is True
+        assert {"ema21", "ema200", "rsi21", "rsi_ema9", "rsi_wma45"}.issubset(
+            unlocked.json()["candles"][-1]
+        )
+
+        h4_chart = client.get(
+            f"/api/signal-replays/signals/{m5_id}/chart",
+            params={"timeframe": "4h"},
+        )
+        assert h4_chart.status_code == 200
+        assert h4_chart.json()["timeframe"] == "4h"
+        assert h4_chart.json()["anchor_time"] <= h4_chart.json()["signal_time"]
+
+        invalid_chart = client.get(
+            f"/api/signal-replays/signals/{m5_id}/chart",
+            params={"timeframe": "1d"},
+        )
+        assert invalid_chart.status_code == 400
+        assert "5m, 15m, 1h, or 4h" in invalid_chart.json()["detail"]
 
         source_path = Path(_run.source_metadata["5m"]["path"])
         source_frame = pd.read_csv(source_path)

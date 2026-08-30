@@ -135,12 +135,19 @@ def get_signal(signal_id: int, db: Session = Depends(get_db)):
 @router.get("/signals/{signal_id}/chart", response_model=SignalChartResponse)
 def get_signal_chart(
     signal_id: int,
+    timeframe: str | None = None,
     start: str | None = None,
     end: str | None = None,
     db: Session = Depends(get_db),
 ):
     try:
-        return _service.get_chart(signal_id, db, start_raw=start, end_raw=end)
+        return _service.get_chart(
+            signal_id,
+            db,
+            chart_timeframe=timeframe,
+            start_raw=start,
+            end_raw=end,
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
