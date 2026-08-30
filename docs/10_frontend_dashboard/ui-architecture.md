@@ -82,6 +82,14 @@ can still be marked poor quality.
 
 The Asset Config section exposes a row of preset pills (`1m`, `5m`, `15m`, `30m`, `1h`, `4h`, `1d`) plus a free-form text input that accepts any Binance-compatible timeframe string of the form `\d+[mhdw]` (e.g. `3m`, `2h`, `12h`, `1w`). The same controls are mirrored in `MobileSidebarSheet.tsx`. The store derives bars-per-day from the timeframe string via `barsPerDayFor()` so the relative-date sync and bar estimate work for any value, not just the presets.
 
+### Theme-aware native controls
+
+The application supports both light and dark theme families. Native `select`
+controls use the browser's dark color scheme whenever the root has the `dark`
+class, and their `option`/`optgroup` rows receive explicit theme background and
+foreground colors. This prevents Windows Chromium from combining a white native
+popup with inherited light text while leaving light-theme controls unchanged.
+
 ---
 
 ## Zustand Stores

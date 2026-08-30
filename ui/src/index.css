@@ -4359,6 +4359,16 @@
   --glow: 0 0 10px #3b82f680;
 }
 
+.dark select {
+  color-scheme: dark;
+}
+
+.dark select option,
+.dark select optgroup {
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
 html {
   font-size: var(--font-size);
 }

@@ -9,6 +9,12 @@
 - **Files affected**: app/strategies/*.py
 -->
 
+## 2026-08-30: Verify native form-control popups in every theme mode
+
+- **Correction**: The dark Signal Review page styled the collapsed Replay scope control, but its Windows native popup used a light surface with inherited white option text, hiding most choices.
+- **Rule**: When a themed UI uses native selects, set the matching `color-scheme` on the control and explicit option foreground/background colors. Verify the opened native popup on the target OS; checking only the closed control is insufficient.
+- **Files affected**: `ui/src/index.css`, frontend theme documentation, and live UI verification.
+
 ## 2026-08-30: Put reviewer decisions before supporting evidence
 
 - **Correction**: The Signal Review detail page placed quality/outcome controls below secondary information and revealed too few future candles for a confident manual WIN/LOSS/SKIP judgment.

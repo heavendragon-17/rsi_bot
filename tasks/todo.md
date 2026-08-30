@@ -2,6 +2,35 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## Dark-theme native select readability (2026-08-30)
+
+- [x] Reproduce the Replay scope popup and inspect its computed browser theme.
+- [x] Make native select popups readable in every dark application theme.
+- [x] Verify Replay scope, dataset, quality, outcome, and sensitivity selectors.
+- [x] Run TypeScript/build, Markdown, and diff checks and create a focused commit.
+
+### Root cause
+
+- The document has the `dark` class, but Tailwind's form-control reset forces
+  native selects to `color-scheme: light`.
+- Options inherit the application's white text with a transparent background,
+  while Windows Chromium paints the light native popup white. Unselected rows
+  therefore render as white text on white.
+
+### Review
+
+Dark themes now set native selects to `color-scheme: dark` and give option and
+option-group rows explicit theme foreground/background colors. The rule is
+scoped to the root `dark` class, so light themes retain their light native
+controls and dark text.
+
+The production build passed TypeScript checking and Vite compilation; all 129
+Markdown links and `git diff --check` passed. Live browser verification covered
+Replay scope, replay dataset, quality, outcome, and Sensitivity metric selects.
+Deep Space rendered every popup row with a dark background and light text,
+Paper retained a light popup with dark text, the original Deep Space theme was
+restored, and the page produced no console warnings or errors.
+
 ## Multi-timeframe Signal Review charts and indicators (2026-08-30)
 
 - [x] Audit the chart API, replay-source metadata, signal anchoring, indicator payload, and reviewer store flow.
