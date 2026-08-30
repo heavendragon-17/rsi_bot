@@ -18,6 +18,10 @@ import type {
   SignalReplaySignalSummary,
   SignalReviewUpdate,
 } from "../types/generated";
+import {
+  REVIEW_CHART_CHUNK_CANDLES,
+  REVIEW_SIGNAL_PAGE_SIZE,
+} from "../lib/signal-review";
 
 export type SignalReplayScope = "all" | "30d" | "90d" | "365d";
 export type ReviewSaveState = "idle" | "saving" | "saved" | "error";
@@ -143,7 +147,7 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
         quality: state.qualityFilter || undefined,
         human_outcome: state.outcomeFilter || undefined,
         page,
-        limit: 50,
+        limit: REVIEW_SIGNAL_PAGE_SIZE,
       };
       const response = await listSignalReplaySignals(filters);
       set({
@@ -233,7 +237,8 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
     if (!currentEnd) return;
     const minutes = state.selected.timeframe === "5m" ? 5 : 15;
     const nextEnd = new Date(
-      new Date(currentEnd).getTime() + minutes * 500 * 60_000,
+      new Date(currentEnd).getTime()
+      + minutes * REVIEW_CHART_CHUNK_CANDLES * 60_000,
     ).toISOString();
     try {
       const chart = await getSignalChart(state.selected.id, {

@@ -169,12 +169,18 @@ The review layer keeps two labels independent:
 - `human_outcome`: `UNSET`, `WIN`, `LOSS`, or `SKIP`.
 
 The initial chart exposes candles at or before the trigger close only. Saving
-any explicit quality label unlocks forward candles and the human outcome
-controls. The chart uses the trigger candle close as its reference and shows
-1h, 4h, 12h, and 24h close-return, maximum favorable excursion, and maximum
-adverse excursion observations. These are market observations, not simulated
-trade PnL: there are no fills, TP/SL levels, sizing, fees, leverage, or
-execution assumptions.
+any explicit quality label unlocks 2,000 trigger-timeframe candles and the
+human outcome controls. Each manual/lazy extension adds another 2,000 candles.
+For M5 this is about 6 days 22 hours per chunk; for M15 it is about 20 days 20
+hours. The browser initially frames a smaller signal-centered range and lets
+the reviewer pan through the loaded future instead of compressing every candle
+into one unreadable viewport.
+
+The chart uses the trigger candle close as its reference and shows 1h, 4h, 12h,
+and 24h close-return, maximum favorable excursion, and maximum adverse
+excursion observations. These are market observations, not simulated trade
+PnL: there are no fills, TP/SL levels, sizing, fees, leverage, or execution
+assumptions.
 
 The availability endpoint validates the current M5, M15, H1, and H4 CSVs and
 returns their common candle-close range. Omitted replay boundaries default to

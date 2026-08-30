@@ -1,0 +1,2 @@
+export const REVIEW_CHART_CHUNK_CANDLES = 2_000;
+export const REVIEW_SIGNAL_PAGE_SIZE = 50;

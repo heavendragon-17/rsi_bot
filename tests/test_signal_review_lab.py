@@ -29,6 +29,7 @@ from app.api.schemas import SignalHumanOutcome, SignalQuality, SignalReviewUpdat
 from app.backtest import signal_replay_service
 from app.backtest.signal_replay import run_btc_alert_replay
 from app.backtest.signal_replay_analysis import (
+    CHART_CHUNK_CANDLES,
     calculate_forward_metrics,
     chart_candles,
     chart_window_from_frame,
@@ -405,6 +406,46 @@ def test_chart_future_is_locked_until_quality_review():
     assert len(unlocked) == len(locked) + 5
     assert locked_meta["future_allowed"] is False
     assert unlocked_meta["future_allowed"] is True
+
+
+def test_default_unlocked_chart_loads_two_thousand_future_candles():
+    periods = CHART_CHUNK_CANDLES + 400
+    opens = pd.date_range(
+        "2026-01-01 00:00:00",
+        periods=periods,
+        freq="5min",
+        tz="UTC",
+    )
+    values = np.linspace(100.0, 120.0, len(opens))
+    frame = pd.DataFrame(
+        {
+            "open": values,
+            "high": values + 1.0,
+            "low": values - 1.0,
+            "close": values,
+            "volume": 1.0,
+        },
+        index=opens,
+    )
+    trigger = opens[300] + timedelta(minutes=5)
+
+    candles, metadata = chart_window_from_frame(
+        frame,
+        "5m",
+        trigger_close=trigger,
+        start_at=None,
+        end_at=None,
+        allow_future=True,
+    )
+
+    trigger_index = next(
+        index for index, candle in enumerate(candles) if candle["is_trigger"]
+    )
+    assert CHART_CHUNK_CANDLES == 2_000
+    assert len(candles) - trigger_index - 1 == CHART_CHUNK_CANDLES
+    assert metadata["requested_end"] == (
+        trigger + timedelta(minutes=5 * CHART_CHUNK_CANDLES)
+    ).isoformat()
 
 
 def test_chart_range_reports_csv_boundaries():

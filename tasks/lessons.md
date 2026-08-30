@@ -9,6 +9,12 @@
 - **Files affected**: app/strategies/*.py
 -->
 
+## 2026-08-30: Put reviewer decisions before supporting evidence
+
+- **Correction**: The Signal Review detail page placed quality/outcome controls below secondary information and revealed too few future candles for a confident manual WIN/LOSS/SKIP judgment.
+- **Rule**: In human review tools, keep staged decision controls visible above the primary evidence, show the reviewer's queue position, and size the unlocked evidence window for the actual judgment horizon rather than a generic chart chunk. Report the actual loaded evidence count at source boundaries instead of promising the configured target chunk.
+- **Files affected**: `app/backtest/signal_replay_analysis.py`, `ui/src/components/signal-review/`, `ui/src/stores/signalReviewStore.ts`, tests, and reviewer documentation.
+
 ## 2026-08-30: Make review workflows data-aware and review-first
 
 - **Correction**: The Signal Review page required manual dates even though replays can only use predownloaded canonical CSV coverage, then appeared frozen at 75% while post-processing signals.

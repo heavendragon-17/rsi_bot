@@ -35,7 +35,7 @@ from app.trading.strategy.core_v2_1.indicators import ema, rsi_wilder, wma
 FORWARD_HORIZONS_MINUTES: tuple[int, ...] = (60, 240, 720, 1440)
 CHART_CONTEXT_CANDLES = 120
 CHART_INITIAL_FORWARD_CANDLES = 0
-CHART_CHUNK_CANDLES = 500
+CHART_CHUNK_CANDLES = 2_000
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,6 +7,7 @@ import {
   LineSeries,
 } from "lightweight-charts";
 import type { SignalChartResponse } from "../../types/generated";
+import { REVIEW_CHART_CHUNK_CANDLES } from "../../lib/signal-review";
 
 interface SignalChartProps {
   chart: SignalChartResponse;
@@ -27,6 +28,14 @@ interface ChartCandle {
   is_trigger?: boolean;
 }
 
+interface LogicalRange {
+  from: number;
+  to: number;
+}
+
+const DEFAULT_VISIBLE_CONTEXT = 120;
+const DEFAULT_VISIBLE_FUTURE = 240;
+
 const CHART_OPTIONS = {
   layout: {
     background: { type: ColorType.Solid, color: "#0f172a" },
@@ -45,10 +54,21 @@ function toUnixSeconds(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000);
 }
 
+function formatCandleSpan(candles: number, timeframe: string): string {
+  const minutes = candles * (timeframe === "5m" ? 5 : 15);
+  const days = Math.floor(minutes / (24 * 60));
+  const hours = Math.floor((minutes % (24 * 60)) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  return `${hours}h`;
+}
+
 export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChartProps) {
   const priceContainer = useRef<HTMLDivElement>(null);
   const rsiContainer = useRef<HTMLDivElement>(null);
   const loadingMore = useRef(false);
+  const lastVisibleRange = useRef<LogicalRange | null>(null);
+  const lastSignalId = useRef<number | null>(null);
+  const previousFutureAllowed = useRef(false);
 
   useEffect(() => {
     if (!priceContainer.current || !rsiContainer.current || chart.candles.length === 0) {
@@ -56,6 +76,11 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
     }
 
     const rows = chart.candles as unknown as ChartCandle[];
+    const signalChanged = lastSignalId.current !== chart.signal_id;
+    const futureJustUnlocked = !previousFutureAllowed.current && chart.future_allowed;
+    if (signalChanged || futureJustUnlocked) lastVisibleRange.current = null;
+    lastSignalId.current = chart.signal_id;
+    previousFutureAllowed.current = chart.future_allowed;
     const priceChart = createChart(priceContainer.current, {
       ...CHART_OPTIONS,
       width: priceContainer.current.clientWidth,
@@ -142,6 +167,9 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
         syncing = true;
         target.timeScale().setVisibleLogicalRange(range);
         syncing = false;
+        if (userHasInteracted) {
+          lastVisibleRange.current = { from: range.from, to: range.to };
+        }
         if (userHasInteracted && chart.has_after && range.to > rows.length - 20 && !loadingMore.current) {
           loadingMore.current = true;
           void onLoadMore().finally(() => { loadingMore.current = false; });
@@ -161,8 +189,22 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
     rsiContainer.current?.addEventListener("wheel", markUserInteraction, { passive: true });
     rsiContainer.current?.addEventListener("pointerdown", markUserInteraction);
 
-    priceChart.timeScale().fitContent();
-    rsiChart.timeScale().fitContent();
+    const triggerIndex = rows.findIndex((row) => row.is_trigger);
+    const initialRange = lastVisibleRange.current
+      ?? (
+        chart.future_allowed && triggerIndex >= 0
+          ? {
+              from: Math.max(0, triggerIndex - DEFAULT_VISIBLE_CONTEXT),
+              to: Math.min(rows.length - 1, triggerIndex + DEFAULT_VISIBLE_FUTURE),
+            }
+          : null
+      );
+    if (initialRange) {
+      priceChart.timeScale().setVisibleLogicalRange(initialRange);
+    } else {
+      priceChart.timeScale().fitContent();
+      rsiChart.timeScale().fitContent();
+    }
 
     const resize = () => {
       if (priceContainer.current) priceChart.applyOptions({ width: priceContainer.current.clientWidth });
@@ -184,6 +226,10 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
   }, [chart, onLoadMore, triggerClosePrice]);
 
   const warning = chart.warning;
+  const rows = chart.candles as unknown as ChartCandle[];
+  const triggerIndex = rows.findIndex((row) => row.is_trigger);
+  const futureCandleCount = triggerIndex >= 0 ? rows.length - triggerIndex - 1 : 0;
+  const futureSpan = formatCandleSpan(futureCandleCount, chart.timeframe);
   return (
     <section className="rounded-xl border border-border-main bg-bg-primary/60 p-4 space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -203,6 +249,12 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
           {warning}
         </div>
       )}
+      {chart.future_allowed && futureCandleCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/25 bg-emerald-400/5 px-3 py-2 text-xs">
+          <span className="font-medium text-emerald-200">Future outcome window unlocked</span>
+          <span className="text-text-secondary">{futureCandleCount.toLocaleString()} candles loaded · about {futureSpan} · pan right from the signal</span>
+        </div>
+      )}
       {chart.candles.length === 0 ? (
         <div className="h-48 flex items-center justify-center text-sm text-text-muted">
           No chart candles available for this CSV range.
@@ -219,7 +271,7 @@ export function SignalChart({ chart, triggerClosePrice, onLoadMore }: SignalChar
           onClick={() => void onLoadMore()}
           className="rounded-md border border-border-main px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:border-accent-main transition-colors"
         >
-          Load more forward candles
+          Extend by {REVIEW_CHART_CHUNK_CANDLES.toLocaleString()} candles
         </button>
       )}
     </section>

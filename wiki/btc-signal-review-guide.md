@@ -67,16 +67,21 @@ confirmation checks.
 
 ### 5. Save your decision
 
-Under **Human review → Chart quality**, choose one:
+The **Human review** bar is directly above the chart. Under **1. Entry
+quality**, choose one:
 
 - **Good** — the alert and chart look correct;
 - **Bad** — something is clearly wrong; or
 - **Uncertain** — you cannot decide.
 
-After choosing a quality label, the future candles become available. Use the
-chart to see what happened after the signal, then choose **WIN**, **LOSS**, or
-**SKIP** under **Your market outcome**. If the result cannot be decided, use
-**SKIP**.
+After choosing a quality label, 2,000 future candles become available. The
+chart stays zoomed around the signal so the candles remain readable; pan right
+to inspect what happened. The green chart message shows how much future time
+is loaded. When needed, use **Extend by 2,000 candles** at the bottom of the
+chart.
+
+Then choose **WIN**, **LOSS**, or **SKIP** under **2. What happened next?**. If
+the result cannot be decided, use **SKIP**.
 
 Write a short explanation in the notes box. Notes save automatically, and the
 status line confirms when the review is saved.
@@ -87,8 +92,10 @@ profit or loss.
 
 ### 6. Move to the next signal
 
-Use **Newer** and **Older** at the top of the detail screen. You can also go
-back and switch between M5 and M15.
+Use **Previous** and **Next signal** at the top of the detail screen. The page
+also shows your position in the current queue, and **Next signal** is
+highlighted after an outcome is recorded. You can go back and switch between
+M5 and M15 at any time.
 
 When finished, close the browser and the black launcher window.
 

@@ -42,17 +42,30 @@ The store resumes the visible progress stream after a page refresh when the
 same API process still owns an active run. Interrupted database rows are
 reported as failed instead of leaving the page permanently busy.
 
-Selecting a row opens a full-page detail view with newer/older navigation. It
-renders the exact Telegram card, the structured signal snapshot, objective
-forward observations, review controls, and a Lightweight Charts market replay.
+Selecting a row opens a full-page detail view that shows the reviewer's queue
+position and uses **Previous** / **Next signal** navigation. A completed outcome
+makes the Next signal action visually primary. The exact Telegram card,
+structured signal snapshot, objective forward observations, and Lightweight
+Charts market replay remain supporting evidence below the review controls.
+
+The human decision surface is a sticky two-step bar above the chart on desktop:
+**1. Entry quality** (`GOOD`, `BAD`, `UNCERTAIN`) followed by **2. What happened
+next?** (`WIN`, `LOSS`, `SKIP`). Buttons use explicit labels, icons, selected
+states, and at least 40–48 px heights. Notes and autosave state remain in the
+same decision surface, so the reviewer does not need to scroll below secondary
+cards to record a judgment.
+
 The chart has trigger-timeframe candles, EMA21, RSI21/EMA9/WMA45, a trigger
 marker, crosshair, wheel zoom, drag pan, synchronized price/oscillator scales,
-and lazy forward loading.
+and lazy forward loading. Unlocking future inspection loads 2,000 candles but
+keeps a readable signal-centered viewport. Panning to the loaded edge appends
+another 2,000 candles and preserves the current logical range instead of
+jumping back to the signal.
 
 Review is deliberately staged: the initial chart stops at the trigger close.
-Saving `GOOD`, `BAD`, or `UNCERTAIN` unlocks forward candles and enables
-`WIN`, `LOSS`, and `SKIP`. Notes are debounced and saved server-side; label and
-note writes are serialized so a response cannot overwrite an unsent draft.
+Saving `GOOD`, `BAD`, or `UNCERTAIN` unlocks the 2,000-candle future window and
+enables `WIN`, `LOSS`, and `SKIP`. Notes are debounced and saved server-side;
+label and note writes are serialized so a response cannot overwrite an unsent draft.
 Ordinary note/outcome saves update the current list locally instead of
 reloading and reconstructing the chart. The quality and outcome labels are
 separate fields so a visually good alert can still lose and a profitable alert

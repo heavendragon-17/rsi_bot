@@ -172,8 +172,10 @@ Good, Bad, Uncertain, all-quality, and outcome filters.
 `quality=UNREVIEWED` is the initial state. Until an explicit quality label is
 saved, the chart endpoint clamps its requested end to the trigger close and
 returns `future_allowed: false` with a warning. Saving `GOOD`, `BAD`, or
-`UNCERTAIN` sets `future_allowed: true`; only then can `WIN`, `LOSS`, or `SKIP`
-be recorded. `quality` and `human_outcome` remain independent fields.
+`UNCERTAIN` sets `future_allowed: true`; an omitted chart `end` then returns up
+to 2,000 future trigger-timeframe candles. Only after quality review can `WIN`,
+`LOSS`, or `SKIP` be recorded. `quality` and `human_outcome` remain independent
+fields.
 
 Forward metrics use the trigger candle close as the baseline. A missing or
 shortened CSV returns partial metrics with `complete: false` and a warning

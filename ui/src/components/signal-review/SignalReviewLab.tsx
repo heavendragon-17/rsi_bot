@@ -9,11 +9,19 @@ import {
   Clock3,
   Database,
   FileText,
+  HelpCircle,
+  MinusCircle,
   Play,
   RefreshCw,
   Save,
+  TrendingDown,
+  Trophy,
+  XCircle,
 } from "lucide-react";
 import { SignalChart } from "./SignalChart";
+import {
+  REVIEW_SIGNAL_PAGE_SIZE,
+} from "../../lib/signal-review";
 import { useSignalReviewStore } from "../../stores/signalReviewStore";
 import type { SignalReviewUpdate } from "../../types/generated";
 
@@ -304,13 +312,19 @@ function SignalList() {
   );
 }
 
-function ReviewPanel() {
+function ReviewerDecisionBar() {
   const selected = useSignalReviewStore((state) => state.selected);
+  const chart = useSignalReviewStore((state) => state.chart);
   const saveReview = useSignalReviewStore((state) => state.saveReview);
   const reviewSaveState = useSignalReviewStore((state) => state.reviewSaveState);
   const [note, setNote] = useState("");
   const review = selected?.review;
   const futureUnlocked = review?.quality !== "UNREVIEWED";
+  const chartRows = (chart?.candles ?? []) as Array<{ is_trigger?: boolean }>;
+  const triggerIndex = chartRows.findIndex((row) => row.is_trigger);
+  const futureCandlesLoaded = triggerIndex >= 0
+    ? chartRows.length - triggerIndex - 1
+    : 0;
 
   useEffect(() => {
     setNote(review?.note ?? "");
@@ -328,59 +342,124 @@ function ReviewPanel() {
 
   if (!selected || !review) return null;
 
-  const qualityOptions: Array<[string, string, string]> = [
-    ["GOOD", "Good", "emerald"],
-    ["BAD", "Bad", "rose"],
-    ["UNCERTAIN", "Uncertain", "amber"],
+  const qualityOptions = [
+    { value: "GOOD", label: "Good entry", helper: "Setup is valid", color: "emerald", icon: CheckCircle2 },
+    { value: "BAD", label: "Bad entry", helper: "Setup is invalid", color: "rose", icon: XCircle },
+    { value: "UNCERTAIN", label: "Uncertain", helper: "Needs another look", color: "amber", icon: HelpCircle },
   ];
-  const outcomes: Array<[string, string]> = [["WIN", "WIN"], ["LOSS", "LOSS"], ["SKIP", "SKIP"]];
+  const outcomes = [
+    { value: "WIN", label: "WIN", helper: "Strategy worked", icon: Trophy, active: "border-emerald-400/60 bg-emerald-400/20 text-emerald-200" },
+    { value: "LOSS", label: "LOSS", helper: "Strategy failed", icon: TrendingDown, active: "border-rose-400/60 bg-rose-400/20 text-rose-200" },
+    { value: "SKIP", label: "SKIP", helper: "Cannot confirm", icon: MinusCircle, active: "border-slate-400/60 bg-slate-400/20 text-slate-200" },
+  ];
+  const saveLabel = reviewSaveState === "saving"
+    ? "Saving review…"
+    : reviewSaveState === "saved"
+      ? "Review saved"
+      : reviewSaveState === "error"
+        ? "Review could not be saved"
+        : "Autosave ready";
+  const futureLabel = !futureUnlocked
+    ? "Future chart locked"
+    : chart?.future_allowed && futureCandlesLoaded > 0
+      ? `${futureCandlesLoaded.toLocaleString()} future candles loaded`
+      : "Loading future candles…";
 
   return (
-    <section className="rounded-xl border border-border-main bg-bg-primary/50 p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Save size={16} className="text-accent-main" />
-        <h3 className="font-semibold text-text-primary">Human review</h3>
-      </div>
-      <div>
-        <p className="mb-2 text-xs text-text-muted">Chart quality</p>
-        <div className="flex flex-wrap gap-2">
-          {qualityOptions.map(([value, label, color]) => (
-            <button
-              type="button"
-              key={value}
-              disabled={reviewSaveState === "saving"}
-              onClick={() => void saveReview({ quality: value } as SignalReviewUpdate)}
-              className={`rounded-md border px-3 py-2 text-xs font-medium disabled:cursor-wait disabled:opacity-50 ${qualityClasses(review.quality === value, color)}`}
-            >{label}</button>
-          ))}
+    <section className="xl:sticky xl:top-0 z-20 rounded-xl border border-accent-main/30 bg-bg-primary/95 p-4 shadow-xl shadow-black/10 backdrop-blur-md">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 rounded-lg bg-accent-main/15 p-2 text-accent-main">
+            <Save size={16} />
+          </div>
+          <div>
+            <h2 className="font-semibold text-text-primary">Human review</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Judge the entry first. Then inspect the revealed future and record what happened.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className={`rounded-full border px-2.5 py-1 ${futureUnlocked ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
+            {futureLabel}
+          </span>
+          <span aria-live="polite" className={`rounded-full border px-2.5 py-1 ${reviewSaveState === "error" ? "border-rose-400/30 text-rose-200" : "border-border-main text-text-muted"}`}>
+            {saveLabel}
+          </span>
         </div>
       </div>
-      <div>
-        <p className="mb-2 text-xs text-text-muted">Your market outcome</p>
-        <div className="flex flex-wrap gap-2">
-          {outcomes.map(([value, label]) => (
-            <button
-              type="button"
-              key={value}
-              disabled={!futureUnlocked || reviewSaveState === "saving"}
-              onClick={() => void saveReview({ human_outcome: value } as SignalReviewUpdate)}
-              className={`rounded-md border px-3 py-2 text-xs font-medium ${review.human_outcome === value ? "border-violet-400/60 bg-violet-400/20 text-violet-200" : "border-border-main bg-bg-elevated/40 text-text-secondary"} disabled:cursor-not-allowed disabled:opacity-40`}
-            >{label}</button>
-          ))}
+      <div className="grid gap-3 xl:grid-cols-[1fr_1fr_minmax(260px,0.8fr)]">
+        <div className="rounded-lg border border-border-main bg-bg-elevated/35 p-3">
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-main text-xs font-bold text-white">1</span>
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">Entry quality</h3>
+              <p className="text-[11px] text-text-muted">Use only information available at the signal.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {qualityOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  disabled={reviewSaveState === "saving"}
+                  aria-pressed={review.quality === option.value}
+                  onClick={() => void saveReview({ quality: option.value } as SignalReviewUpdate)}
+                  className={`min-h-12 rounded-lg border px-2.5 py-2 text-left transition-colors disabled:cursor-wait disabled:opacity-50 ${qualityClasses(review.quality === option.value, option.color)}`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-semibold"><Icon size={14} />{option.label}</span>
+                  <span className="mt-0.5 block text-[10px] opacity-75">{option.helper}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {!futureUnlocked && <p className="mt-2 text-[11px] text-amber-300">Choose a quality label before reviewing the future outcome.</p>}
+        <div className={`rounded-lg border p-3 transition-colors ${futureUnlocked ? "border-violet-400/25 bg-violet-400/5" : "border-border-main bg-bg-elevated/20"}`}>
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${futureUnlocked ? "bg-violet-500 text-white" : "bg-bg-elevated text-text-muted"}`}>2</span>
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">What happened next?</h3>
+              <p className="text-[11px] text-text-muted">{futureUnlocked ? "Pan right through the future chart, then decide." : "Rate entry quality to reveal future candles."}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {outcomes.map((option) => {
+              const Icon = option.icon;
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  disabled={!futureUnlocked || reviewSaveState === "saving"}
+                  aria-pressed={review.human_outcome === option.value}
+                  onClick={() => void saveReview({ human_outcome: option.value } as SignalReviewUpdate)}
+                  className={`min-h-12 rounded-lg border px-2.5 py-2 text-left transition-colors ${review.human_outcome === option.value ? option.active : "border-border-main bg-bg-elevated/40 text-text-secondary hover:text-text-primary"} disabled:cursor-not-allowed disabled:opacity-35`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-bold"><Icon size={14} />{option.label}</span>
+                  <span className="mt-0.5 block text-[10px] opacity-75">{option.helper}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="rounded-lg border border-border-main bg-bg-elevated/25 p-3">
+          <label htmlFor={`review-note-${selected.id}`} className="text-sm font-semibold text-text-primary">Reviewer note</label>
+          <p className="mt-0.5 text-[11px] text-text-muted">Capture the reason for your labels.</p>
+          <textarea
+            id={`review-note-${selected.id}`}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            onBlur={() => {
+              if (note !== (selected.review.note ?? "")) void saveReview({ note });
+            }}
+            rows={3}
+            placeholder="What made this entry good, bad, or uncertain?"
+            className="mt-2 w-full resize-y rounded-md border border-border-main bg-input px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-accent-main focus:outline-none"
+          />
+          <p className={`mt-1.5 text-[10px] ${reviewSaveState === "error" ? "text-danger" : "text-text-muted"}`}>
+            Autosaves after you pause typing{review.updated_at ? ` · Updated ${displayDate(review.updated_at)}` : ""}
+          </p>
+        </div>
       </div>
-      <textarea
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        rows={4}
-        placeholder="Why is this chart good or bad? What did you notice?"
-        className="w-full resize-y rounded-md border border-border-main bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-main focus:outline-none"
-      />
-      <p className={`text-[11px] ${reviewSaveState === "error" ? "text-danger" : "text-text-muted"}`}>
-        {reviewSaveState === "saving" ? "Saving review…" : reviewSaveState === "saved" ? "Review saved" : reviewSaveState === "error" ? "Review could not be saved" : "Notes save automatically"}
-        {review.updated_at ? ` · Last updated ${displayDate(review.updated_at)}` : ""}
-      </p>
     </section>
   );
 }
@@ -389,29 +468,46 @@ function SignalDetail() {
   const selected = useSignalReviewStore((state) => state.selected);
   const chart = useSignalReviewStore((state) => state.chart);
   const isLoading = useSignalReviewStore((state) => state.isLoadingDetail);
+  const signals = useSignalReviewStore((state) => state.signals);
+  const total = useSignalReviewStore((state) => state.total);
+  const page = useSignalReviewStore((state) => state.page);
+  const pages = useSignalReviewStore((state) => state.pages);
   const clearSelection = useSignalReviewStore((state) => state.clearSelection);
   const loadAdjacentSignal = useSignalReviewStore((state) => state.loadAdjacentSignal);
   const loadMoreChart = useSignalReviewStore((state) => state.loadMoreChart);
   if (!selected) return null;
   const currentMetric = selected.forward_metrics;
+  const currentIndex = signals.findIndex((signal) => signal.id === selected.id);
+  const reviewPosition = currentIndex >= 0
+    ? (page - 1) * REVIEW_SIGNAL_PAGE_SIZE + currentIndex + 1
+    : null;
+  const hasPrevious = currentIndex > 0 || page > 1;
+  const hasNext = (currentIndex >= 0 && currentIndex < signals.length - 1) || page < pages;
+  const outcomeRecorded = selected.review.human_outcome !== "UNSET";
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={clearSelection} className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary">
-          <ArrowLeft size={16} /> Back to signals
-        </button>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => void loadAdjacentSignal(-1)} className="inline-flex items-center gap-1 rounded-md border border-border-main px-2 py-1 text-xs text-text-secondary hover:border-accent-main hover:text-text-primary">
-            <ChevronLeft size={14} /> Newer
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={clearSelection} className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-sm text-text-secondary hover:bg-bg-elevated hover:text-text-primary">
+            <ArrowLeft size={16} /> Back to signals
           </button>
-          <span className="font-mono text-xs text-text-muted">#{String(selected.sequence).padStart(4, "0")} · {selected.timeframe.toUpperCase()}</span>
-          <button type="button" onClick={() => void loadAdjacentSignal(1)} className="inline-flex items-center gap-1 rounded-md border border-border-main px-2 py-1 text-xs text-text-secondary hover:border-accent-main hover:text-text-primary">
-            Older <ChevronRight size={14} />
+          <div className="border-l border-border-main pl-3">
+            <p className="text-sm font-medium text-text-primary">{reviewPosition ? `Signal ${reviewPosition.toLocaleString()} of ${total.toLocaleString()}` : "Signal review"}</p>
+            <p className="font-mono text-[11px] text-text-muted">#{String(selected.sequence).padStart(4, "0")} · {selected.timeframe.toUpperCase()} · {displayDate(selected.trigger_close_at)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={!hasPrevious} onClick={() => void loadAdjacentSignal(-1)} className="inline-flex min-h-10 items-center gap-1 rounded-md border border-border-main px-3 py-2 text-xs text-text-secondary hover:border-accent-main hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-35">
+            <ChevronLeft size={14} /> Previous
+          </button>
+          <button type="button" disabled={!hasNext} onClick={() => void loadAdjacentSignal(1)} className={`inline-flex min-h-10 items-center gap-1 rounded-md border px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-35 ${outcomeRecorded ? "border-accent-main bg-accent-main text-white hover:bg-accent-hover" : "border-border-main text-text-secondary hover:border-accent-main hover:text-text-primary"}`}>
+            Next signal <ChevronRight size={14} />
           </button>
         </div>
       </div>
       {isLoading && <div className="text-sm text-text-muted">Loading signal…</div>}
+      <ReviewerDecisionBar />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)] gap-4">
         <div className="space-y-4">
           <SignalChart chart={chart ?? { signal_id: selected.id, timeframe: selected.timeframe, candles: [], available_start: null, available_end: null, requested_start: null, requested_end: null, has_before: false, has_after: false, future_allowed: false, warning: "Loading chart…" }} triggerClosePrice={Number(selected.trigger_close_price)} onLoadMore={loadMoreChart} />
@@ -446,7 +542,6 @@ function SignalDetail() {
               <span className="text-text-muted">Decision</span><span className="font-mono text-[10px] text-accent-main break-all">{selected.decision_reason}</span>
             </div>
           </section>
-          <ReviewPanel />
         </div>
       </div>
     </div>

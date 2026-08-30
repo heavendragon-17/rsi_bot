@@ -2,6 +2,42 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## Human-first Signal Review detail redesign (2026-08-30)
+
+- [x] Audit the current rating hierarchy, chart unlock window, and signal navigation.
+- [x] Increase the post-quality chart window and each forward extension from 500 to 2,000 candles.
+- [x] Move entry-quality and WIN/LOSS/SKIP controls into a prominent sticky decision bar above the chart.
+- [x] Add clear two-step reviewer guidance, larger controls, review position, and a stronger next-signal action.
+- [x] Add regression coverage and update frontend/backtest/reviewer documentation.
+- [x] Run focused tests, TypeScript/build, Markdown/diff checks, and live UI verification.
+
+### Audit findings
+
+- The review controls are the last card in the secondary column, below the Telegram snapshot and structured confirmation, even though rating is the page's primary task.
+- The chart unlocks only 500 forward candles, and the frontend loads only 500 more per extension; this is too little room for manual strategy-outcome confirmation.
+- `Newer` and `Older` describe chronology rather than the review workflow, and the detail view does not show the reviewer's position in the current queue.
+- Quality, outcome, note, and save state are visually grouped as a generic form instead of a staged Entry quality → Future outcome decision.
+
+### Review
+
+The unlocked chart and every forward extension now load up to 2,000 trigger-
+timeframe candles, four times the previous window. The chart initially keeps a
+readable signal-centered viewport and preserves the reviewer's pan position as
+additional candles arrive. The detail page now starts with a desktop-sticky,
+two-step human decision surface, keeps all six rating buttons above the chart,
+shows queue position and Previous/Next signal actions, and flushes note drafts
+before navigation.
+
+Verification passed with 31 replay/reviewer/executor tests, TypeScript type-
+checking, a production frontend build, Python compilation, all 129 Markdown
+links, and `git diff --check`. The rebuilt bundle was served from
+`http://127.0.0.1:8100`, rendered the reviewer-first layout in the in-app
+browser with no console warnings/errors, and exposed the expected Human review,
+Next signal, and 2,000-candle extension copy. A canonical-M5 benchmark returned
+2,000 future candles (2,121 total with context) in 0.905 seconds when source data
+was available; the live newest signal correctly showed only the 48 candles that
+exist before the current CSV boundary.
+
 ## BTC Signal Review flow audit and repair (2026-08-30)
 
 - [x] Reproduce the 75% stall and audit the launcher, run selection, signal list, chart, and review-save flow.
