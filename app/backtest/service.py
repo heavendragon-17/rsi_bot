@@ -42,10 +42,10 @@ _exc_mod_cache = None
 
 
 def _get_exc_mod():
-    """Return app.api.executor, importing it on first call."""
+    """Return app.backtest.executor, importing it on first call."""
     global _exc_mod_cache
     if _exc_mod_cache is None:
-        from app.api import executor
+        from app.backtest import executor
         _exc_mod_cache = executor
     return _exc_mod_cache
 

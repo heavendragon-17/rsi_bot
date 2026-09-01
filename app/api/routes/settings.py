@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.executor import get_max_workers, has_running_jobs, set_max_workers
+from app.backtest.executor import get_max_workers, has_running_jobs, set_max_workers
 from app.core.constants import MAX_WORKERS_UPPER_BOUND
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])

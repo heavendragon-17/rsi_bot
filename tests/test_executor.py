@@ -1,4 +1,4 @@
-from app.api import executor
+from app.backtest import executor
 
 
 def test_submit_backtest_allows_worker_run_id_keyword():

@@ -12,6 +12,7 @@ does not contain an execution, fill, stop, target, or PnL model.
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -26,7 +27,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from app.repository.backtest.database import Base
@@ -229,20 +230,28 @@ class SignalReplayRun(Base):
 
     __tablename__ = "signal_replay_runs"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    status = Column(Text, nullable=False, default="running")
-    strategy_name = Column(Text, nullable=False, default="btc_rsi_cross_alert")
-    definition_version = Column(Text, nullable=False)
-    git_hash = Column(Text)
-    symbol = Column(Text, nullable=False)
-    requested_start_at = Column(DateTime)
-    requested_end_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
-    source_metadata = Column(JSON, nullable=False, default=dict)
-    counters = Column(JSON, nullable=False, default=dict)
-    error_message = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="running")
+    strategy_name: Mapped[str] = mapped_column(
+        Text, nullable=False, default="btc_rsi_cross_alert"
+    )
+    definition_version: Mapped[str] = mapped_column(Text, nullable=False)
+    git_hash: Mapped[str | None] = mapped_column(Text)
+    symbol: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_start_at: Mapped[datetime | None] = mapped_column(DateTime)
+    requested_end_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    source_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    counters: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    error_message: Mapped[str | None] = mapped_column(Text)
 
     signals = relationship(
         "SignalReplaySignal",
@@ -261,32 +270,32 @@ class SignalReplaySignal(Base):
 
     __tablename__ = "replay_signals"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    replay_run_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    replay_run_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("signal_replay_runs.id"),
         nullable=False,
     )
-    event_id = Column(Text, nullable=False)
-    sequence = Column(Integer, nullable=False)
-    timeframe = Column(Text, nullable=False)
-    definition_version = Column(Text, nullable=False)
-    trigger_open_at = Column(DateTime, nullable=False)
-    trigger_close_at = Column(DateTime, nullable=False)
-    trigger_close_price = Column(Text, nullable=False)
-    trigger_price_ema21 = Column(Text, nullable=False)
-    rsi21 = Column(Float, nullable=False)
-    rsi_ema9 = Column(Float, nullable=False)
-    rsi_wma45 = Column(Float, nullable=False)
-    rsi_spread = Column(Float, nullable=False)
-    previous_rsi_ema9 = Column(Float)
-    previous_rsi_wma45 = Column(Float)
-    h4_close_price = Column(Text, nullable=False)
-    h4_price_ema21 = Column(Text, nullable=False)
-    h4_close_at = Column(DateTime, nullable=False)
-    decision_reason = Column(Text, nullable=False)
-    telegram_card = Column(Text, nullable=False)
-    snapshot = Column(JSON, nullable=False)
+    event_id: Mapped[str] = mapped_column(Text, nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    timeframe: Mapped[str] = mapped_column(Text, nullable=False)
+    definition_version: Mapped[str] = mapped_column(Text, nullable=False)
+    trigger_open_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    trigger_close_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    trigger_close_price: Mapped[str] = mapped_column(Text, nullable=False)
+    trigger_price_ema21: Mapped[str] = mapped_column(Text, nullable=False)
+    rsi21: Mapped[float] = mapped_column(Float, nullable=False)
+    rsi_ema9: Mapped[float] = mapped_column(Float, nullable=False)
+    rsi_wma45: Mapped[float] = mapped_column(Float, nullable=False)
+    rsi_spread: Mapped[float] = mapped_column(Float, nullable=False)
+    previous_rsi_ema9: Mapped[float | None] = mapped_column(Float)
+    previous_rsi_wma45: Mapped[float | None] = mapped_column(Float)
+    h4_close_price: Mapped[str] = mapped_column(Text, nullable=False)
+    h4_price_ema21: Mapped[str] = mapped_column(Text, nullable=False)
+    h4_close_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    decision_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    telegram_card: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
     replay_run = relationship("SignalReplayRun", back_populates="signals")
     review = relationship(
@@ -319,19 +328,25 @@ class SignalReview(Base):
 
     __tablename__ = "signal_reviews"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    signal_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    signal_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("replay_signals.id"),
         nullable=False,
         unique=True,
     )
-    quality = Column(Text, nullable=False, default="UNREVIEWED")
-    human_outcome = Column(Text, nullable=False, default="UNSET")
-    note = Column(Text)
-    reviewed_at = Column(DateTime)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-    future_unlocked_at = Column(DateTime)
+    quality: Mapped[str] = mapped_column(
+        Text, nullable=False, default="UNREVIEWED"
+    )
+    human_outcome: Mapped[str] = mapped_column(
+        Text, nullable=False, default="UNSET"
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    future_unlocked_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     signal = relationship("SignalReplaySignal", back_populates="review")
 
@@ -346,20 +361,20 @@ class SignalForwardMetric(Base):
 
     __tablename__ = "signal_forward_metrics"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    signal_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    signal_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("replay_signals.id"),
         nullable=False,
     )
-    horizon_minutes = Column(Integer, nullable=False)
-    price_at_observation = Column(Text)
-    return_pct = Column(Float)
-    mfe_pct = Column(Float)
-    mae_pct = Column(Float)
-    observed_at = Column(DateTime)
-    complete = Column(Boolean, nullable=False, default=False)
-    warning = Column(Text)
+    horizon_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_at_observation: Mapped[str | None] = mapped_column(Text)
+    return_pct: Mapped[float | None] = mapped_column(Float)
+    mfe_pct: Mapped[float | None] = mapped_column(Float)
+    mae_pct: Mapped[float | None] = mapped_column(Float)
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    warning: Mapped[str | None] = mapped_column(Text)
 
     signal = relationship("SignalReplaySignal", back_populates="forward_metrics")
 

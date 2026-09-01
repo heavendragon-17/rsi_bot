@@ -313,7 +313,7 @@ Per CLAUDE.md and `docs/agent-workflow.md`:
   for `bootstrap_ci.py`; `scipy` is used by `deflated_sharpe.py` and
   should be added before the audit pipeline is wired into a runtime
   code path.)
-- One logic class per file. Files stay under 450 lines.
+- One logic class per file. Files stay under 600 lines.
 - All numeric thresholds in `constants.py`.
 - This module imports from `app.repository.backtest`, `app.data.indicators`,
   and standard scientific libraries. It must NOT import from

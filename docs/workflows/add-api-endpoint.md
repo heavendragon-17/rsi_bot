@@ -64,7 +64,7 @@ def list_items(db: Session = Depends(get_db)):
 Follow the split backtest pattern:
 
 1. `app/api/routes/backtest_run.py` submits the job through
-   `app/backtest/service.py` and `app/api/executor.py`.
+   `app/backtest/service.py` and `app/backtest/executor.py`.
 2. `app/api/routes/backtest_stream.py` returns the `StreamingResponse`.
 3. `app/api/routes/backtest_results.py` exposes completed results.
 

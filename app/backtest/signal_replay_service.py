@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-import subprocess
+import shutil
+
+# Only used for the fixed-argv git revision probe below (no user input).
+import subprocess  # nosec B404
 from datetime import UTC, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from app.api import executor
+from app.backtest import executor
 from app.backtest.signal_replay import _default_paths
 from app.backtest.signal_replay_analysis import chart_window_from_frame, source_metadata
 from app.backtest.signal_replay_data import load_ohlcv_csv
@@ -73,9 +76,13 @@ def _availability_datetime(value: str | None) -> datetime | None:
 def current_git_hash() -> str | None:
     """Capture the code revision when the API is running from a Git checkout."""
 
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        return None
     try:
-        completed = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+        # Fixed argv, absolute executable path, no untrusted input.
+        completed = subprocess.run(  # nosec B603
+            [git_executable, "rev-parse", "HEAD"],
             cwd=Path(__file__).resolve().parents[2],
             check=True,
             capture_output=True,
@@ -259,8 +266,12 @@ class SignalReplayService:
             ready = common_start <= common_end
         return {
             "ready": ready,
-            "common_start_at": common_start.isoformat() if ready else None,
-            "common_end_at": common_end.isoformat() if ready else None,
+            "common_start_at": (
+                common_start.isoformat() if ready and common_start else None
+            ),
+            "common_end_at": (
+                common_end.isoformat() if ready and common_end else None
+            ),
             "sources": sources,
         }
 

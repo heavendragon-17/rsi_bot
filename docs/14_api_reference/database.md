@@ -18,7 +18,7 @@
 | `run_timeseries` |  |
 | `signal_forward_metrics` | Objective close-return and excursion observation for one horizon. |
 | `signal_replay_runs` | Immutable provenance and status for one BTC M5/M15 signal replay. |
-| `replay_signals` | Immutable structured snapshot of one confirmed replay signal, including native H1/H4 context in JSON. |
+| `replay_signals` | Immutable structured snapshot of one confirmed replay signal. |
 | `signal_reviews` | Latest single-operator quality/outcome review for one signal. |
 | `strategies` |  |
 | `tags` |  |
@@ -76,18 +76,18 @@
 | `batch_id` | INTEGER | FK → batches.id |
 
 **Indexes:**
+  - `idx_runs_status` on (status)
   - `idx_runs_created` on (created_at)
   - `idx_runs_strategy` on (strategy_id)
-  - `idx_runs_status` on (status)
 
 **Relationships:**
   - `strategy` → `Strategy`
   - `batch` → `Batch`
-  - `config` → `RunConfig` (cascade: delete, delete-orphan)
-  - `result` → `RunResult` (cascade: delete, delete-orphan)
-  - `timeseries` → `RunTimeseries` (cascade: delete, delete-orphan)
-  - `trades` → `Trade` (cascade: delete, delete-orphan)
-  - `tags` → `Tag` (cascade: delete, delete-orphan)
+  - `config` → `RunConfig` (cascade: delete-orphan, delete)
+  - `result` → `RunResult` (cascade: delete-orphan, delete)
+  - `timeseries` → `RunTimeseries` (cascade: delete-orphan, delete)
+  - `trades` → `Trade` (cascade: delete-orphan, delete)
+  - `tags` → `Tag` (cascade: delete-orphan, delete)
 
 ---
 
@@ -207,7 +207,7 @@
 | `symbol` | TEXT | NOT NULL |
 | `requested_start_at` | DATETIME |  |
 | `requested_end_at` | DATETIME |  |
-| `created_at` | DATETIME | DEFAULT utcnow() |
+| `created_at` | DATETIME | NOT NULL, DEFAULT utcnow() |
 | `started_at` | DATETIME |  |
 | `completed_at` | DATETIME |  |
 | `source_metadata` | JSON | NOT NULL, DEFAULT dict() |
@@ -215,11 +215,11 @@
 | `error_message` | TEXT |  |
 
 **Indexes:**
-  - `idx_signal_replay_runs_status` on (status)
   - `idx_signal_replay_runs_created` on (created_at)
+  - `idx_signal_replay_runs_status` on (status)
 
 **Relationships:**
-  - `signals` → `SignalReplaySignal` (cascade: delete, delete-orphan)
+  - `signals` → `SignalReplaySignal` (cascade: delete-orphan, delete)
 
 ---
 
@@ -251,14 +251,14 @@
 | `snapshot` | JSON | NOT NULL |
 
 **Indexes:**
-  - `idx_replay_signals_event` on (event_id)
   - `idx_replay_signals_trigger_close` on (trigger_close_at)
+  - `idx_replay_signals_event` on (event_id)
   - `idx_replay_signals_timeframe` on (timeframe)
 
 **Relationships:**
   - `replay_run` → `SignalReplayRun`
-  - `review` → `SignalReview` (cascade: delete, delete-orphan)
-  - `forward_metrics` → `SignalForwardMetric` (cascade: delete, delete-orphan)
+  - `review` → `SignalReview` (cascade: delete-orphan, delete)
+  - `forward_metrics` → `SignalForwardMetric` (cascade: delete-orphan, delete)
 
 ---
 
@@ -272,7 +272,7 @@
 | `human_outcome` | TEXT | NOT NULL, DEFAULT 'UNSET' |
 | `note` | TEXT |  |
 | `reviewed_at` | DATETIME |  |
-| `updated_at` | DATETIME | DEFAULT utcnow() |
+| `updated_at` | DATETIME | NOT NULL, DEFAULT utcnow() |
 | `future_unlocked_at` | DATETIME |  |
 
 **Indexes:**
@@ -310,8 +310,8 @@
 | `created_at` | DATETIME | DEFAULT utcnow() |
 
 **Indexes:**
-  - `idx_tags_run` on (run_id)
   - `idx_tags_name` on (name)
+  - `idx_tags_run` on (run_id)
 
 **Relationships:**
   - `run` → `Run`
@@ -343,8 +343,8 @@
 | `note` | TEXT |  |
 
 **Indexes:**
-  - `idx_trades_run` on (run_id)
   - `idx_trades_symbol` on (symbol)
+  - `idx_trades_run` on (run_id)
 
 **Relationships:**
   - `run` → `Run`

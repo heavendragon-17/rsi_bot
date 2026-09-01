@@ -381,7 +381,7 @@ class BinanceAdapter(IExchange):
 
 ## Backtest Concurrency
 
-**File**: `app/api/executor.py`
+**File**: `app/backtest/executor.py`
 
 The backtest UI uses a fundamentally different concurrency model than the live bot: **ProcessPoolExecutor** for running backtest jobs, with no shared mutable state between jobs.
 
@@ -475,7 +475,7 @@ def cancel_job(run_id: int) -> bool:
 
 ## SSE Bridge (Thread-to-Async)
 
-**File**: `app/api/executor.py`
+**File**: `app/backtest/executor.py`
 
 The SSE (Server-Sent Events) bridge solves a fundamental problem: backtest engine runs in a **worker thread** (synchronous), but SSE responses must be yielded from an **async generator** (asyncio). The bridge uses `loop.call_soon_threadsafe()` to safely cross the thread/async boundary.
 
@@ -644,6 +644,6 @@ If you need to add a new resource that multiple threads access:
 | `app/data/stream_manager.py` | `BinanceStreamManager` -- WebSocket daemon thread |
 | `app/data/store.py` | `MarketDataStore` -- thread-safe candle storage |
 | `app/trading/exchange/binance_adapter.py` | `BinanceAdapter` -- single lock for all CCXT calls |
-| `app/api/executor.py` | `ProcessPoolExecutor` + SSE bridge for backtest concurrency |
+| `app/backtest/executor.py` | `ProcessPoolExecutor` + SSE bridge for backtest concurrency |
 | `app/trading/exchange/sim/sim_stream.py` | `PaperTradeStreamManager` -- aggTrade WebSocket for sim mode |
 | `main.py` | Entry point; main thread lifecycle |
