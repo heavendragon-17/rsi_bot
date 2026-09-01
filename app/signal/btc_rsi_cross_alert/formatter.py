@@ -1,9 +1,14 @@
 """Deterministic HTML-safe Telegram card for the BTC RSI cross alert.
 
-Pure formatting only: no clocks, I/O, or notifier access. All dynamic text is
-escaped because the underlying ``TelegramBot`` sends with
-``parse_mode="HTML"``. No entry / SL / TP / leverage / position / expected-
-profit fields are ever rendered (spec §13).
+Pure formatting only: no clocks, I/O, or notifier access. Every ``<``
+character in the card — dynamic values *and* static comparison glyphs such as
+``< 60.00`` and ``<=`` — is entity-escaped, because the underlying
+``TelegramBot`` sends with ``parse_mode="HTML"`` and Telegram rejects the
+whole message with HTTP 400 "can't parse entities" on any raw ``<``,
+silently dropping the alert. Send-safety is enforced by
+``tests/test_btc_rsi_cross_alert_formatter.py::TestHtmlEscaping``.
+No entry / SL / TP / leverage / position / expected-profit fields are ever
+rendered (spec §13).
 """
 
 from __future__ import annotations
@@ -101,7 +106,7 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
                 f"M5 WMA45(RSI21) > 45.00: "
                 f"{_fmt_indicator(current.rsi_wma45)} > 45.00 "
                 f"{_status(current.rsi_wma45 > 45.0)}",
-                f"M5 RSI21 < 60.00: {_fmt_indicator(current.rsi21)} < 60.00 "
+                f"M5 RSI21 &lt; 60.00: {_fmt_indicator(current.rsi21)} &lt; 60.00 "
                 f"{_status(current.rsi21 < 60.0)}",
             ]
         )
@@ -123,7 +128,7 @@ def format_btc_rsi_cross_alert(data: BtcRsiCrossInput, event_id: str) -> str:
                 f"Current {tf_label} WMA45(RSI21): "
                 f"{_fmt_indicator(current.rsi_wma45)}",
                 f"Fresh bullish cross: "
-                f"{_fmt_indicator(previous.rsi_ema9)} <= "
+                f"{_fmt_indicator(previous.rsi_ema9)} &lt;= "
                 f"{_fmt_indicator(previous.rsi_wma45)} and "
                 f"{_fmt_indicator(current.rsi_ema9)} > "
                 f"{_fmt_indicator(current.rsi_wma45)} "

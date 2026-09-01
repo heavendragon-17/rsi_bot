@@ -325,8 +325,11 @@ ns.send_message("🤖 RSI Bot Started")
   injection.
 * **Exception:** the `btc_rsi_cross_alert` card is rendered by the pure
   formatter in `app/signal/btc_rsi_cross_alert/formatter.py`. Because
-  `TelegramBot` always sends with `parse_mode="HTML"`, that card escapes all
-  dynamic text (`html.escape`) and renders a fixed point-in-time template:
+  `TelegramBot` always sends with `parse_mode="HTML"`, that card escapes
+  every `<` character — dynamic text (`html.escape`) *and* static comparison
+  glyphs such as `M5 RSI21 &lt; 60.00` and `&lt;=` (a raw `<` makes Telegram
+  reject the entire message with HTTP 400 "can't parse entities") — and
+  renders a fixed point-in-time template:
   chart timeframe, UTC+7 trigger candle close time, trigger BTC
   close and price EMA21 values, trigger RSI21 / EMA9(RSI21) / WMA45(RSI21),
   previous/current RSI EMA/WMA values for M15 cross verification, every
@@ -334,7 +337,17 @@ ns.send_message("🤖 RSI Bot Started")
   and H4 price gates and the M5 RSI21 < 60 ceiling, and a short event-ID
   suffix. It never contains entry/SL/TP/leverage/position fields. No message
   is sent for not-ready data, no-cross decisions, H1/H4 rejections, bootstrap
-  history, duplicates or retries.
+  history, duplicates or retries. Send-safety (no raw `<`, no bare `&`) is
+  asserted by `TestHtmlEscaping` in `tests/test_btc_rsi_cross_alert_formatter.py`.
+* **Entity-rejection fallback:** on HTTP 400 `can't parse entities`,
+  `TelegramBot.send_message()` retries once with `parse_mode` stripped
+  (plain text, same chat/topic/buttons), so a formatting bug degrades
+  formatting, never delivery. The retry is locked by
+  `tests/test_telegram_bot_send_fallback.py`. Note the logs: a successful
+  send logs `Telegram message sent`, the fallback logs
+  `Telegram rejected HTML entities; retrying as plain text` followed by
+  `Telegram message sent as plain text after entity rejection`. "Enqueued"
+  on the worker side is not proof of delivery — diff against the channel.
 * Topic uniqueness is validated across ordinary strategies, the BTC alert
   component and the debug topic together at startup; a collision raises
   `ValueError` before any stream starts. A disabled component reserves no
@@ -355,6 +368,7 @@ ns.send_message("🤖 RSI Bot Started")
 | No Telegram messages at all         | `telegram_enabled: false` or missing token   | Check config + `.env`                                                             |
 | `TelegramBot` init error on startup | `TELEGRAM_BOT_TOKEN` env var missing         | Add to `.env`, falls back to `NullNotifier`                                       |
 | Messages delayed                    | `NotificationWorker` queue backed up         | Normal under load — queue drains async                                            |
+| Message never arrives, log shows `Telegram send failed ... can't parse entities` | Raw `<` in HTML-parsed message text | Escape the text (formatters must render `&lt;`); `send_message` retries as plain text — if that also fails, fix the formatter |
 | Duplicate on_entry messages         | Exchange and dispatcher both fire            | Check `_fires_entry_notification` flag — sim should leave it `False` so only the dispatcher fires after SL/TP are placed |
 | Entry card missing SL/TP lines      | Exchange fires the entry notification *before* SL/TP orders are placed | Set `_fires_entry_notification = False` on the exchange so `NotificationDispatcher.notify_entry` fires at the end of `TradeExecutor._handle_entry_signal` |
 | No SL notifications in live mode    | Hard SL fills on exchange without PM polling | Known gap — see [known-gaps.md](../09_portfolio_and_reconciliation/known-gaps.md) |

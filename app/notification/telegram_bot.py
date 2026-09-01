@@ -85,19 +85,41 @@ class TelegramBot:
         try:
             resp = requests.post(url, data=payload, timeout=5)
 
+            if resp.status_code == 400 and "can't parse entities" in resp.text:
+                # Telegram refuses the HTML parse (e.g. a raw '<' reached the
+                # text). Resend without parse_mode so the message is delivered
+                # unformatted instead of being silently dropped.
+                self.logger.warning(
+                    "Telegram rejected HTML entities; retrying as plain text",
+                    error=resp.text[:300],
+                )
+                plain_payload = {
+                    key: value
+                    for key, value in payload.items()
+                    if key != "parse_mode"
+                }
+                resp = requests.post(url, data=plain_payload, timeout=5)
+                if resp.status_code == 200:
+                    self.logger.info(
+                        "Telegram message sent as plain text after entity "
+                        "rejection",
+                        chat_id=target_chat_id,
+                    )
+                    return True
+
             if resp.status_code == 200:
                 self.logger.info(
-                    "Telegram message sent (chat_id=%s, button=%s)",
-                    target_chat_id,
-                    "yes" if (button_text and button_url) else "no",
+                    "Telegram message sent",
+                    chat_id=target_chat_id,
+                    button="yes" if (button_text and button_url) else "no",
                 )
                 return True
 
             # Telegram returns JSON error details; log it for debugging
             self.logger.warning(
-                "Telegram send failed (status=%s): %s",
-                resp.status_code,
-                resp.text,
+                "Telegram send failed",
+                status=resp.status_code,
+                error=resp.text,
             )
             return False
 

@@ -131,7 +131,7 @@ class TestBtcAlertReplay:
         assert "M5 RSI alignment:" in m5_card
         assert "M5 EMA9(RSI21) - WMA45(RSI21):" in m5_card
         assert "M5 WMA45(RSI21) > 45.00:" in m5_card
-        assert "M5 RSI21 < 60.00:" in m5_card
+        assert "M5 RSI21 &lt; 60.00:" in m5_card
         assert "H1 close:" in m5_card
         assert "H1 EMA21(price):" in m5_card
         assert "H1 close > EMA21(price):" in m5_card

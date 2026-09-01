@@ -774,7 +774,10 @@ say `15m` and `M15`. Requirements:
 - show H1 and H4 close and their price EMA21 values to two decimals;
 - show each signal condition with the values compared and a pass/fail marker;
 - include the short event ID;
-- escape all dynamic text before HTML delivery; and
+- escape every `<` character before HTML delivery — dynamic values and static
+  comparison glyphs (e.g. `M5 RSI21 &lt; 60.00`, `&lt;=`) alike, because a raw
+  `<` makes Telegram reject the whole message with HTTP 400 "can't parse
+  entities"; and
 - do not display entry, SL, TP, leverage, position, or expected-profit fields.
 
 No Telegram message is sent for not-ready data, no-cross decisions, a bearish
@@ -923,7 +926,8 @@ the condition being tested.
 - all required values and event suffix appear;
 - timestamp is UTC;
 - numeric formatting is stable; and
-- dynamic HTML is escaped.
+- dynamic HTML is escaped and the rendered card contains no raw `<` (asserted
+  by the send-safety test for both M5 and M15).
 
 ### `tests/test_btc_rsi_cross_alert_worker.py`
 

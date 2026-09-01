@@ -2,6 +2,17 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
+
+- [x] Diagnose why 12 `btc_rsi_cross_alert_enqueued` produced only 3 channel messages (9 × Telegram 400 "can't parse entities", raw `<` in card text; all 4 M15 alerts lost).
+- [x] Escape static `<`/`<=` glyphs in `app/signal/btc_rsi_cross_alert/formatter.py` (dynamic text was already escaped).
+- [x] Add plain-text fallback retry on entity rejection in `TelegramBot.send_message` (formatting may degrade, delivery must not).
+- [x] Regression tests: `TestHtmlEscaping.test_card_is_html_send_safe` / `test_static_comparison_glyphs_are_escaped`; new `tests/test_telegram_bot_send_fallback.py`.
+- [x] Guardrails for future agents: AGENTS.md convention, notifications doc, BTC spec rules, agent-prompt non-negotiable, common-issues row 18, lessons entry.
+- [x] Full test suite + arch lint + ruff + mypy + bandit + markdown link check.
+- [x] Repair the pre-existing red CI gates that blocked tag promotion (mypy ORM typing, bandit subprocess findings, arch executor layering + 600-line threshold).
+- [x] Commit, push `mua-tren-the-nang`, tag `v1.2.8` to trigger the deploy pipeline.
+
 ## Dark-theme native select readability (2026-08-30)
 
 - [x] Reproduce the Replay scope popup and inspect its computed browser theme.

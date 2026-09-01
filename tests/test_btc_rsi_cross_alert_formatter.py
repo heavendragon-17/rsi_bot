@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
@@ -54,7 +55,7 @@ class TestLabelsAndValues:
         assert "Current M5 RSI21: 53.42" in body
         assert "Current M5 EMA9(RSI21): 48.76" in body
         assert "Current M5 WMA45(RSI21): 46.55" in body
-        assert "M5 RSI21 < 60.00: 53.42 < 60.00 ✅" in body
+        assert "M5 RSI21 &lt; 60.00: 53.42 &lt; 60.00 ✅" in body
 
     def test_m15_labels(self):
         body = _format(_input("15m"))
@@ -90,7 +91,7 @@ class TestLabelsAndValues:
         assert "Previous M15 EMA9(RSI21): 40.00" in body
         assert "Previous M15 WMA45(RSI21): 50.00" in body
         assert "Current M15 RSI21: 53.42" in body
-        assert "Fresh bullish cross: 40.00 <= 50.00 and 48.76 > 46.55 ✅" in body
+        assert "Fresh bullish cross: 40.00 &lt;= 50.00 and 48.76 > 46.55 ✅" in body
         assert "M15 close > EMA21(price): 64,321.50 > 63,000.00 ✅" in body
 
     def test_short_event_suffix_displayed(self):
@@ -142,6 +143,33 @@ class TestHtmlEscaping:
         assert "<b>dead</b>" not in body
         # Suffix = first 8 chars: "<b>dead<" -> escaped.
         assert "Event: &lt;b&gt;dead&lt;" in body
+
+    @pytest.mark.parametrize("timeframe", ["5m", "15m"])
+    def test_card_is_html_send_safe(self, timeframe):
+        """Regression guard: Telegram rejects the WHOLE message under
+        parse_mode=HTML on any raw '<' (HTTP 400 "can't parse entities"),
+        which silently dropped every M15 alert and all post-deploy M5 alerts
+        in production (2026-08/09). The card must contain no raw '<' and no
+        bare '&' — every special char must be a valid HTML entity."""
+
+        body = _format(_input(timeframe))
+        assert "<" not in body
+        bare_ampersands = [
+            body[max(0, match.start() - 20) : match.start() + 20]
+            for match in re.finditer(r"&(?!amp;|lt;|gt;|quot;|#\d+;)", body)
+        ]
+        assert bare_ampersands == []
+
+    def test_static_comparison_glyphs_are_escaped(self):
+        """The '<' glyphs live in the static templates, not just dynamic
+        values — they must be entity-escaped too."""
+
+        m5_body = _format()
+        assert "&lt; 60.00" in m5_body
+        assert "<" not in m5_body
+        m15_body = _format(_input("15m"))
+        assert "&lt;= 50.00" in m15_body
+        assert "<=" not in m15_body
 
     def test_unsupported_timeframe_rejected(self):
         data = BtcRsiCrossInput(

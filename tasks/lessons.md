@@ -9,6 +9,12 @@
 - **Files affected**: app/strategies/*.py
 -->
 
+## 2026-09-01: "Enqueued" is not "delivered" — verify the whole send path
+
+- **Correction**: The production log reported 12 `btc_rsi_cross_alert_enqueued` events (8 M5, 4 M15) while the user's Telegram channel had received only 3 M5 cards and zero M15. Nine alerts were rejected by Telegram with HTTP 400 "can't parse entities" (raw `<` in the card text) and silently dropped.
+- **Rule**: When debugging "no signal arrived", diff the delivery path end-to-end (enqueue → HTTP send result → channel export) instead of trusting upstream counters; an enqueue log proves nothing about delivery. Under `parse_mode="HTML"`, a raw `<` in message text — including static glyphs like `< 60.00` or `<=` inside templates, not just dynamic values — makes Telegram reject the entire message. Entity-escape every `<` in card text and keep `TestHtmlEscaping.test_card_is_html_send_safe` plus the plain-text fallback tests green.
+- **Files affected**: `app/signal/btc_rsi_cross_alert/formatter.py`, `app/notification/telegram_bot.py`, `tests/test_btc_rsi_cross_alert_formatter.py`, `tests/test_telegram_bot_send_fallback.py`, `AGENTS.md`, `docs/08_execution_and_oms/notifications.md`, `docs/07_trading_strategies/btc-rsi-cross-alert-spec.md`, `docs/07_trading_strategies/btc-rsi-cross-alert-agent-prompt.md`, `docs/15_debugging/common-issues.md`.
+
 ## 2026-08-30: Verify native form-control popups in every theme mode
 
 - **Correction**: The dark Signal Review page styled the collapsed Replay scope control, but its Windows native popup used a light surface with inherited white option text, hiding most choices.

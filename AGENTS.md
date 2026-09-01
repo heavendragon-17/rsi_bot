@@ -95,6 +95,7 @@ Actions: `OpenPosition`, `ClosePosition`, `MoveSL`, `PartialClose`, `DoNothing`
 - `MarketDataStore` caps at 6,000 candles per symbol in memory
 - Main branch: `mua-tren-the-nang`
 - structlog for all logging (zero print statements)
+- All Telegram messages are sent with `parse_mode="HTML"` (`app/notification/telegram_bot.py`). A raw `<` anywhere in message text — including static template glyphs like `< 60.00` or `<=` — makes Telegram reject the WHOLE message (HTTP 400 "can't parse entities") and it is silently dropped. Entity-escape message text; never treat "enqueued" as "delivered". `send_message` retries once as plain text on entity rejection; send-safety is locked by `tests/test_telegram_bot_send_fallback.py` and each formatter's send-safety test.
 
 ## IMPORTANT: Documentation Maintenance
 

@@ -58,6 +58,14 @@ Non-negotiable boundaries:
 - Keep /test_signal trade-like fake cards scoped to ordinary strategies; the
   BTC alert must never fabricate a virtual position.
 - Never hard-code or display Telegram tokens, API keys, or other secrets.
+- Keep the alert card HTML-send-safe: every `<` in the card — dynamic text
+  and static comparison glyphs such as `&lt;= 50.00` or `M5 RSI21 &lt; 60.00`
+  — must be entity-escaped, because `TelegramBot` sends with
+  `parse_mode="HTML"` and a raw `<` makes Telegram reject the whole message
+  (HTTP 400 "can't parse entities"), silently dropping the alert. Extend
+  `TestHtmlEscaping.test_card_is_html_send_safe` whenever you add card lines,
+  and treat "enqueued" log counters as unverified until the send path
+  (or channel export) confirms delivery.
 
 Working rules:
 
