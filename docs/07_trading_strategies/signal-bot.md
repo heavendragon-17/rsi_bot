@@ -26,6 +26,11 @@ rollout slices in §14 were merged as separate commits.
 
 * Signal-bot messages are plain text (no HTML / parse_mode). The formatter
   lives in `app/signal/signal_formatter.py`.
+* The startup banner's `Active components` count is one per active config
+  entry, not one per timeframe or Telegram route. A multi-timeframe component
+  such as `btc_rsi_cross_alert` remains one component and lists its M5/M15
+  routes inline. Ordinary strategy labels may include a human-readable name
+  followed by the registered loader name.
 * Worker threads are `daemon=True`; shutdown waits up to
   `SIGNAL_SHUTDOWN_JOIN_SECONDS = 10` per worker before force-aborting via
   process exit.

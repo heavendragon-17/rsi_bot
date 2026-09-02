@@ -24,6 +24,13 @@
 - [x] Verify OpenSSH authentication with `BatchMode=yes` and password authentication disabled; the connection used `publickey` and both production services remained active.
 - [x] Leave password login unchanged as a fallback; no private key, password, or other credential is stored in this repository.
 
+## ⚠ ACTIVE — Enable RSI Momentum and clarify signal startup status (2026-09-02)
+
+- [x] Identify the newest non-BTC entry as `rsi_momentum` and name it `RSI Momentum` in the operator-facing startup message.
+- [x] Clarify the startup count as active configuration components, with M5/M15 routes shown inside the single BTC alert component.
+- [x] Enable `rsi_momentum` on its existing topic `44` using the global 15m / symbol scope.
+- [ ] Run focused/full validation, release, and verify both production workers and topic routing.
+
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
 
 - [x] Diagnose why 12 `btc_rsi_cross_alert_enqueued` produced only 3 channel messages (9 × Telegram 400 "can't parse entities", raw `<` in card text; all 4 M15 alerts lost).
