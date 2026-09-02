@@ -41,14 +41,36 @@ class NotificationService(INotifier):
         if hasattr(self._notifier, "attach_exchange"):
             self._notifier.attach_exchange(exchange)
 
-    def start_command_polling(self, extra_callbacks: dict | None = None) -> None:
+    def start_command_polling(
+        self,
+        extra_callbacks: dict | None = None,
+        update_observer=None,
+    ) -> None:
         """Start the Telegram polling loop.
 
         ``extra_callbacks`` is forwarded to the underlying notifier so signal
         mode can register runtime-bound commands (e.g. ``/test_signal``).
+        ``update_observer`` receives raw Telegram updates for lightweight
+        operator inventories such as observed forum topics.
         """
         if hasattr(self._notifier, "start_command_polling"):
-            self._notifier.start_command_polling(extra_callbacks=extra_callbacks)
+            self._notifier.start_command_polling(
+                extra_callbacks=extra_callbacks,
+                update_observer=update_observer,
+            )
+
+    def report_notification_failure(
+        self,
+        method_name: str,
+        *,
+        topic_id: int | None = None,
+        reason: str,
+    ) -> None:
+        """Report worker failures directly through the underlying notifier."""
+
+        reporter = getattr(self._notifier, "report_notification_failure", None)
+        if callable(reporter):
+            reporter(method_name, topic_id=topic_id, reason=reason)
 
     # ------------------------------------------------------------------
     # INotifier delegation — all calls go through the worker queue

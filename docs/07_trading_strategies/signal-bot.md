@@ -177,8 +177,13 @@ Signal mode also starts `StatusWriter` (so the deploy health check sees the new 
 | `/deploy_status` | Reads the deploy state file |
 | `/cancel_deploy` | Cancels a pending (waiting) deploy |
 | `/help` | Lists commands |
-| `/topics` | Lists configured strategy topic names and IDs, including inactive entries and the debug topic |
+| `/topics` | Separates configured routes, unconfigured strategy definitions, and observed Telegram topics without a route |
 | `/status`, `/history`, `/report`, `/winrate`, `/reset` | Reply "Not available in signal mode" (require a live exchange) |
+
+`/topics` keeps configured strategy definitions distinct from the Telegram
+forum inventory. The unconfigured-topic section contains only topics observed
+in updates received by the bot and is persisted at `topic_registry_path`; it
+is not a complete historical list of every forum topic.
 
 ### Data flow (signal mode)
 
@@ -274,6 +279,7 @@ symbols:                         # global default
 telegram:
   group_id: -1001234567890       # supergroup with topics enabled
   debug_topic_id: 99             # receives expiry alerts, failures, warnings
+  topic_registry_path: data/telegram_topics.json  # optional observed topic inventory
 
 strategies:
   - name: rsi_no_retest
@@ -526,8 +532,9 @@ def run(self) -> None:
 
 - Every `analyze()` call is inside try/except with the retry counter.
 - Every exit-monitor check is inside try/except — a VP-check bug skips that VP, doesn't break the loop.
-- **No direct `telegram.send()` calls** from worker threads — always through `NotificationService.send()` (queue-based; Telegram HTTP errors live in the worker, not the caller).
-- Result: the only way a worker thread dies is if its own `analyze()` fails `max_consecutive_failures` times in a row on a single symbol.
+- **No direct `telegram.send()` calls** from worker threads — always through `NotificationService.send()` (queue-based; Telegram HTTP errors are logged and reported through a direct developer alert, not silently swallowed).
+- The first strategy failure on a symbol sends a debug-topic alert; repeated failures up to `max_consecutive_failures` send a terminal disabled/dead alert before that worker exits for the symbol.
+- Result: the only expected worker exit is if its own `analyze()` fails `max_consecutive_failures` times in a row on a single symbol; the terminal alert is best-effort and the structured log is the source of truth if Telegram is unavailable.
 
 ---
 
@@ -636,11 +643,11 @@ Close 33% at 62,960
 | `analyze()` throws once                           | Log, skip this candle, increment counter                   |
 | `analyze()` throws N times on same symbol         | Debug-topic notice, thread exits (strategy dead on that sym)|
 | Exit monitor throws on one VP                     | Log, skip that VP, continue                                |
-| Telegram send fails                               | Absorbed by `NotificationService` worker, logged           |
+| Telegram send fails                               | Logged; plain-text retry handles HTML entity errors, then a rate-limited direct developer alert is attempted |
 | SL + TP both touched same candle                  | SL wins                                                    |
 | Strategy emits `OpenPosition` while VP exists     | Debug-topic warning, ignore                                |
 | Strategy emits exit action while no VP            | Debug-topic warning, ignore                                |
-| SIGKILL / OOM                                     | No warning fires (acceptable)                              |
+| SIGKILL / OOM                                     | Process cannot self-alert; VPS supervisor restarts and external monitoring must detect it |
 | Duplicate `telegram_topic_id`                     | Startup validation error                                   |
 | No `active: true` strategies                      | Warn and exit cleanly                                      |
 | WS disconnect                                     | Stream manager auto-reconnects (existing behavior)         |

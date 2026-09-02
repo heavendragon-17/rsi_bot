@@ -86,6 +86,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     configured_chat = config.get("telegram")
     configured_chat = configured_chat if isinstance(configured_chat, dict) else {}
+    configured_debug_topic = configured_chat.get("debug_topic_id")
+    failure_topic_id = (
+        int(configured_debug_topic)
+        if configured_debug_topic is not None
+        else None
+    )
     chat_id = (
         args.chat_id
         or os.getenv("TELEGRAM_CHAT_ID")
@@ -103,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         state_database=args.state_db,
         telegram_chat_id=chat_id,
         topic_by_symbol=topics,
+        failure_topic_id=failure_topic_id,
         poll_interval_seconds=args.poll_seconds,
         bootstrap_data_dir=args.data_dir,
     )

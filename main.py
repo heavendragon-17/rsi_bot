@@ -55,6 +55,7 @@ def _build_notifier(
     *,
     require_telegram: bool,
     chat_id_override: str | int | None = None,
+    failure_topic_id: int | None = None,
 ) -> NotificationService:
     """Build the NotificationService. Signal mode requires a real Telegram
     token — messages are the bot's only output. Live mode falls back to
@@ -68,7 +69,11 @@ def _build_notifier(
         from app.notification.telegram_notifier import TelegramNotifier
 
         ns = NotificationService(
-            TelegramNotifier(mode=bot_mode, chat_id_override=chat_id_override),
+            TelegramNotifier(
+                mode=bot_mode,
+                chat_id_override=chat_id_override,
+                failure_topic_id=failure_topic_id,
+            ),
             mode=bot_mode,
         )
         logger.info("telegram_initialized")
@@ -116,7 +121,7 @@ def _build_signal_startup_message(raw: dict) -> str:
 
     lines = [
         "🤖 Signal Bot Started",
-        f"Mode: SIGNAL",
+        "Mode: SIGNAL",
         f"Active components: {len(active)}",
         f"Trigger timeframes: {timeframe_label}",
     ]
@@ -210,6 +215,7 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     pay the cost of loading the multiplexer / stream manager / VP store.
     """
     from app.notification.command_handlers import handle_topics
+    from app.notification.forum_topics import ForumTopicRegistry
     from app.signal.runner import SignalRunner
     from app.signal.strategy_config import validate_telegram_config
     from app.signal.test_command import make_test_signal_callback
@@ -226,22 +232,51 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     # Re-resolve debug_topic_id; runner.start() already validated so this
     # cannot raise unless the config is mutated between calls.
     debug_topic_id = validate_telegram_config(raw)
+    telegram_config = raw.get("telegram") or {}
+    registry_path = telegram_config.get(
+        "topic_registry_path", "data/telegram_topics.json"
+    )
+    try:
+        topic_registry = ForumTopicRegistry(registry_path)
+    except (OSError, TypeError, ValueError) as exc:
+        logger.exception("telegram_topic_registry_init_failed", error=str(exc))
+        topic_registry = ForumTopicRegistry(None)
 
     # /test_signal fires a fake entry into every active strategy's topic so
     # operators can verify Telegram routing without waiting for a real signal.
     underlying = getattr(ns, "_notifier", None)
     extra_callbacks: dict | None = None
+    update_observer = None
     if underlying is not None:
         verify = getattr(underlying, "verify_chat_id", None)
         send_reply = getattr(getattr(underlying, "_bot", None), "send_message", None)
         prefix = getattr(underlying, "_prefix", "🤖 BOT")
         topic_entries = _build_signal_topic_entries(raw, debug_topic_id)
+        configured_topic_ids = {
+            topic_id for _, topic_id, _ in topic_entries if topic_id is not None
+        }
+
+        def _observe_update(update: dict) -> None:
+            topic_registry.observe_update(
+                update,
+                expected_chat_id=telegram_config.get("group_id"),
+            )
+
+        update_observer = _observe_update
 
         def _topics_callback(chat_id: str) -> None:
             if verify is not None and not verify(chat_id):
                 return
             if send_reply is not None:
-                handle_topics(topic_entries, prefix, send_reply, chat_id)
+                handle_topics(
+                    topic_entries,
+                    prefix,
+                    send_reply,
+                    chat_id,
+                    unconfigured_topics=topic_registry.unconfigured_topics(
+                        configured_topic_ids
+                    ),
+                )
 
         extra_callbacks = {"/topics": _topics_callback}
         if runner.strategies:
@@ -256,7 +291,10 @@ def _run_signal_mode(raw: dict, ns: NotificationService) -> None:
     # Enable Telegram command polling (/bot_version, /force_deploy, ...).
     # Exchange-scoped commands (/status, /history, ...) reply with a
     # "not available in signal mode" notice since no exchange is attached.
-    ns.start_command_polling(extra_callbacks=extra_callbacks)
+    ns.start_command_polling(
+        extra_callbacks=extra_callbacks,
+        update_observer=update_observer,
+    )
     try:
         ns.send_message(
             _build_signal_startup_message(raw), topic_id=debug_topic_id
@@ -360,11 +398,16 @@ def main(config_path: str = "config.yaml") -> None:
     chat_id_override: str | int | None = None
     if bot_mode == "signal":
         chat_id_override = (raw.get("telegram") or {}).get("group_id")
+    failure_topic_id: int | None = None
+    configured_debug_topic = (raw.get("telegram") or {}).get("debug_topic_id")
+    if configured_debug_topic is not None:
+        failure_topic_id = int(configured_debug_topic)
 
     ns = _build_notifier(
         bot_mode,
         require_telegram=(bot_mode == "signal"),
         chat_id_override=chat_id_override,
+        failure_topic_id=failure_topic_id,
     )
 
     try:

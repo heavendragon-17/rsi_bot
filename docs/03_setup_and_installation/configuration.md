@@ -352,6 +352,7 @@ bot:
 telegram:
     group_id: -1001234567890 # int, required — supergroup with topics enabled
     debug_topic_id: 99       # int, required — receives expiry/failure/warn messages
+    topic_registry_path: data/telegram_topics.json # optional — observed topic inventory
 
 timeframe: "15m"             # str, required — global default, overridable per strategy
 symbols:                     # List[str], required — global default, overridable per strategy
@@ -418,10 +419,14 @@ The banner also reports the distinct trigger timeframes separately, for example
 `Trigger timeframes: M5, M15`, so one multi-timeframe component cannot be
 mistaken for two independent strategy components.
 
-In signal mode, `/topics` shows the complete strategy/topic inventory rather
-than only entries currently present in `strategies`: configured active and
-inactive entries, legacy strategies that are `not configured`, the split BTC
-M5/M15 routes, the standalone Core V2.1 Long V2 route, and the debug topic.
+In signal mode, `/topics` separates configured active/inactive routes and
+strategy definitions that are `not configured` from Telegram forum topics
+observed by the bot that have no configured route. The split BTC M5/M15
+routes, the standalone Core V2.1 Long V2 route, and the debug topic are shown
+in the configured section. Observed topics are persisted to
+`telegram.topic_registry_path` (default `data/telegram_topics.json`). This is
+not a complete historical forum listing because Telegram's full topic
+enumeration method is available to user clients, not bots.
 
 #### `btc_rsi_cross_alert` component validation
 

@@ -11,6 +11,7 @@ import structlog
 
 from app.core.events import Candle
 from app.data.multiplexer import TimeframeMultiplexer
+from app.signal import signal_formatter
 from app.signal.btc_rsi_cross_alert.config import BtcRsiCrossAlertConfig
 from app.trading.strategy.btc_rsi_cross_alert.evaluator import (
     TRIGGER_DURATION_BY_TIMEFRAME,
@@ -163,12 +164,35 @@ def process_safely(
             trigger_close=iso_timestamp(trigger_close),
             attempt=attempt,
         )
+        if attempt == 1:
+            try:
+                context._notify_debug(
+                    signal_formatter.format_strategy_failure(
+                        context.config.name,
+                        symbol,
+                        attempt,
+                        repr(exc),
+                    )
+                )
+            except Exception:
+                logger.exception(
+                    "btc_rsi_cross_failure_notification_failed",
+                    timeframe=timeframe,
+                    trigger_close=iso_timestamp(trigger_close),
+                )
         if attempt >= context.max_failures:
             context._advance_cursor(timeframe, trigger_close)
-            context._notify_debug(
-                f"[{context.config.name}] worker dead after {attempt} consecutive "
-                f"failures ({timeframe} {iso_timestamp(trigger_close)}): {exc!r}"
-            )
+            try:
+                context._notify_debug(
+                    f"[{context.config.name}] worker dead after {attempt} consecutive "
+                    f"failures ({timeframe} {iso_timestamp(trigger_close)}): {exc!r}"
+                )
+            except Exception:
+                logger.exception(
+                    "btc_rsi_cross_dead_notification_failed",
+                    timeframe=timeframe,
+                    trigger_close=iso_timestamp(trigger_close),
+                )
             return True
         # Requeue the same event ahead of newer events while attempts remain.
         with context._queue_cond:

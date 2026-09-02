@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `/topics` now records observed Telegram forum topics and separates topics
+  without configured routes from unconfigured strategy definitions.
+- Rate-limited developer alerts for Telegram delivery failures, notification
+  queue drops, strategy worker failures, and unexpected worker exits.
 - Deterministic repository-local Markdown link validation in pre-commit and CI
 - Frontend build and deployment-shell validation in the main CI workflow
 - Frontend high/critical dependency audit gate and secure lockfile upgrades
@@ -27,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/adr/` — Architecture Decision Records
 
 ### Changed
+- Telegram delivery failures now retry HTML entity errors as plain text and
+  report failed delivery through the debug topic with a main-chat fallback.
 - Hardened tag promotion and VPS deployment with exact-ref CI, least-privilege
   workflow permissions, immutable action pins, fail-closed position checks,
   candidate health identity checks, and verified rollback attempts

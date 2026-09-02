@@ -41,6 +41,34 @@ class TestExceptionHandling:
         notifier.on_entry.assert_called_once()
         notifier.send_message.assert_called_once_with("after error")
 
+    def test_false_result_is_reported_outside_worker_queue(self):
+        notifier = MagicMock()
+        notifier.send_message.return_value = False
+        worker = NotificationWorker(notifier, max_queue_size=10)
+        worker.start()
+
+        worker.enqueue("send_message", "lost", topic_id=42)
+        worker.stop()
+
+        notifier.report_notification_failure.assert_called_once_with(
+            "send_message",
+            topic_id=42,
+            reason="notifier returned False",
+        )
+
+    def test_callback_exception_is_reported_outside_worker_queue(self):
+        notifier = MagicMock()
+        notifier.on_entry.side_effect = RuntimeError("boom")
+        worker = NotificationWorker(notifier, max_queue_size=10)
+        worker.start()
+
+        worker.enqueue("on_entry", symbol="BTC/USDT")
+        worker.stop()
+
+        assert notifier.report_notification_failure.call_args.kwargs["reason"] == (
+            "RuntimeError: boom"
+        )
+
 
 class TestNullNotifier:
     def test_null_notifier_completes_cleanly(self):
@@ -72,3 +100,16 @@ class TestFullQueue:
         # Some messages were processed, some dropped — no exception raised
         assert notifier.send_message.call_count >= 1
         assert notifier.send_message.call_count < 5
+
+    def test_full_queue_reports_drop_without_reusing_queue(self):
+        notifier = MagicMock()
+        worker = NotificationWorker(notifier, max_queue_size=1)
+
+        worker.enqueue("send_message", "first", topic_id=42)
+        worker.enqueue("send_message", "dropped", topic_id=42)
+
+        notifier.report_notification_failure.assert_called_once_with(
+            "send_message",
+            topic_id=42,
+            reason="notification queue is full; event was dropped",
+        )

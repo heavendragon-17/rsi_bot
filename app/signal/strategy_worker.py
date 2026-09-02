@@ -95,7 +95,7 @@ class StrategyWorker:
         return self.instance_cfg.telegram_topic_id
 
     def enqueue(self, symbol: str, timeframe: str, candle: Candle) -> None:
-        """Multiplexer close-callback. Drops + warns on queue overflow."""
+        """Multiplexer close-callback. Drops + reports queue overflow."""
         try:
             self._queue.put_nowait((symbol, timeframe, candle))
         except queue.Full:
@@ -104,6 +104,14 @@ class StrategyWorker:
                 strategy=self.instance_cfg.name,
                 symbol=symbol,
                 timeframe=timeframe,
+            )
+            self._report_failure(
+                "strategy_worker_queue",
+                topic_id=self.strategy_topic_id,
+                reason=(
+                    "strategy worker queue is full; candle was dropped "
+                    f"({symbol} {timeframe})"
+                ),
             )
 
     def request_stop(self) -> None:
@@ -184,12 +192,36 @@ class StrategyWorker:
                 symbol=symbol,
                 attempt=attempt,
             )
-            if attempt >= self.max_failures:
-                self._notify_debug(
-                    signal_formatter.format_strategy_dead(
-                        self.instance_cfg.name, symbol, repr(e)
+            if attempt == 1:
+                try:
+                    self._notify_debug(
+                        signal_formatter.format_strategy_failure(
+                            self.instance_cfg.name,
+                            symbol,
+                            attempt,
+                            repr(e),
+                        )
                     )
-                )
+                except Exception:
+                    logger.exception(
+                        "strategy_failure_notification_failed",
+                        strategy=self.instance_cfg.name,
+                        symbol=symbol,
+                        attempt=attempt,
+                    )
+            if attempt >= self.max_failures:
+                try:
+                    self._notify_debug(
+                        signal_formatter.format_strategy_dead(
+                            self.instance_cfg.name, symbol, repr(e)
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        "strategy_dead_notification_failed",
+                        strategy=self.instance_cfg.name,
+                        symbol=symbol,
+                    )
                 return True  # thread dies
             return False
 
@@ -350,6 +382,35 @@ class StrategyWorker:
 
     def _notify_debug(self, message: str) -> None:
         self.notifier.send_message(message, topic_id=self.debug_topic_id)
+
+    def _report_failure(
+        self,
+        operation: str,
+        *,
+        topic_id: int | None,
+        reason: str,
+    ) -> None:
+        """Report an operational failure without depending on the send queue."""
+
+        reporter = getattr(self.notifier, "report_notification_failure", None)
+        if not callable(reporter):
+            logger.error(
+                "strategy_failure_unreportable",
+                strategy=self.instance_cfg.name,
+                operation=operation,
+                topic_id=topic_id,
+                error=reason,
+            )
+            return
+        try:
+            reporter(operation, topic_id=topic_id, reason=reason)
+        except Exception:
+            logger.exception(
+                "strategy_failure_report_failed",
+                strategy=self.instance_cfg.name,
+                operation=operation,
+                topic_id=topic_id,
+            )
 
     def _warn_debug(self, symbol: str, reason: str) -> None:
         self._notify_debug(

@@ -243,6 +243,21 @@ class TestStop:
 
 
 class TestWait:
+    def test_worker_failure_report_uses_direct_notifier_hook(self):
+        runner, notifier, _ = _mk_runner()
+        runner._debug_topic_id = 99
+
+        runner._report_worker_failure(
+            "signal_runner_worker_liveness",
+            reason="signal-worker-rsi_no_retest stopped while active",
+        )
+
+        notifier.report_notification_failure.assert_called_once_with(
+            "signal_runner_worker_liveness",
+            topic_id=99,
+            reason="signal-worker-rsi_no_retest stopped while active",
+        )
+
     def test_wait_unblocks_promptly_on_stop(self):
         """wait() must react to stop() within a second, not the previous
         time.sleep(1) worst case."""

@@ -13,9 +13,11 @@ main.py
         └── injected into → MultiSymbolRunner  → SimFundingScheduler
 ```
 
-All notification calls are **non-blocking** — every method enqueues work into
+Most notification calls are **non-blocking** — every method enqueues work into
 `NotificationWorker` (a bounded daemon queue, max 100 items, drop-on-full policy).
-Trading threads are never blocked by Telegram latency.
+Trading threads are never blocked by Telegram latency. Delivery failures,
+worker exceptions, and queue drops are logged and reported through a direct,
+rate-limited developer alert when a Telegram debug topic is configured.
 
 ---
 
@@ -30,6 +32,7 @@ Trading threads are never blocked by Telegram latency.
 | `app/notification/notification_worker.py`  | Background daemon thread. Dispatches queue items to the underlying notifier.    |
 | `app/notification/telegram_bot.py`         | Low-level HTTP sender (`requests` → Telegram Bot API). Not an `INotifier`.      |
 | `app/notification/command_handlers.py`     | Handler logic for Telegram bot commands (extracted from notifier).               |
+| `app/notification/forum_topics.py`         | Persists topic IDs/names observed in incoming Telegram updates for `/topics`.  |
 | `app/notification/deploy_commands.py`      | Registers bot commands with the Telegram Bot API on startup.                     |
 | `app/notification/formatting.py`           | Shared HTML formatting helpers for notification messages.                        |
 
@@ -257,7 +260,7 @@ The following commands are wired up via `notification_service.attach_exchange(ex
 | `/winrate` | Shows total trades, wins, losses, and the overall win rate percentage.                                                |
 | `/report`  | Shows lifetime metrics: net PnL, gross PnL, total fees paid, and total funding paid.                                  |
 | `/reset`   | **DANGEROUS**: Clears all closed trades and resets the bot's standard balance. This is primarily for paper/sim mode.  |
-| `/topics`  | Signal mode only: lists configured strategy topic names and IDs, including inactive entries and the debug topic.       |
+| `/topics`  | Signal mode only: separates configured routes, unconfigured strategy definitions, and observed Telegram topics without a route. |
 
 To add a new command:
 
@@ -267,9 +270,9 @@ To add a new command:
 Signal-mode commands that depend on runtime strategy configuration, such as
 `/topics`, are registered through `start_command_polling(extra_callbacks=...)`
 by `main.py` after the signal configuration has been validated. `/topics`
-lists the configured strategy names as topic labels; inactive entries are
-included to make assigning a new strategy topic straightforward. The debug
-topic is listed separately with `always` status.
+separates configured routes from strategy definitions that have no route, then
+lists Telegram forum topics observed by the bot that are not mapped to any
+configured route. The debug topic is listed separately with `always` status.
 
 ---
 
@@ -348,6 +351,13 @@ ns.send_message("🤖 RSI Bot Started")
   `Telegram rejected HTML entities; retrying as plain text` followed by
   `Telegram message sent as plain text after entity rejection`. "Enqueued"
   on the worker side is not proof of delivery — diff against the channel.
+* **Delivery-failure alerting:** a failed Telegram request, a worker callback
+  exception, or a full notification queue emits a structured error log and
+  attempts a direct developer alert. The alert goes to `debug_topic_id` when
+  possible, falls back to the main chat if the debug topic itself fails, and
+  is rate-limited for 60 seconds so an outage does not create an alert loop.
+  If the alert cannot be delivered, the original failure and the alert failure
+  remain in the logs.
 * Topic uniqueness is validated across ordinary strategies, the BTC alert
   component and the debug topic together at startup; a collision raises
   `ValueError` before any stream starts. A disabled component reserves no
@@ -358,6 +368,15 @@ ns.send_message("🤖 RSI Bot Started")
 * `NullNotifier` and `TelegramNotifier` both implement
   `send_message(msg, *, topic_id=None)`. The kwarg-only form prevents
   accidental positional misuse (e.g. confusing `topic_id` with `chat_id`).
+
+### Observed Telegram forum topics
+
+Signal mode persists topic IDs and names seen in incoming updates to
+`telegram.topic_registry_path` (default: `data/telegram_topics.json`). This
+is an observed inventory, not a complete historical listing: the Bot API does
+not give bots the user-only full forum-topic enumeration method. A topic is
+therefore shown under **Unconfigured Telegram topics observed** only after the
+bot has seen it in an update and found no configured route for its ID.
 
 ---
 
@@ -417,6 +436,8 @@ See [Core V2.1 standalone durable runtime](../07_trading_strategies/signal-bot.m
 | No Telegram messages at all         | `telegram_enabled: false` or missing token   | Check config + `.env`                                                             |
 | `TelegramBot` init error on startup | `TELEGRAM_BOT_TOKEN` env var missing         | Add to `.env`, falls back to `NullNotifier`                                       |
 | Messages delayed                    | `NotificationWorker` queue backed up         | Normal under load — queue drains async                                            |
+| `notification_failure_unreportable` or `telegram_delivery_failure_alert_failed` | No usable debug/main-chat route, or Telegram is unavailable | Check `telegram.group_id`, `telegram.debug_topic_id`, bot membership/admin rights, and network/API errors |
+| `notification_queue_full`            | More than 100 notifications are pending     | Inspect the preceding delivery alerts/logs and investigate worker/API latency   |
 | Message never arrives, log shows `Telegram send failed ... can't parse entities` | Raw `<` in HTML-parsed message text | Escape the text (formatters must render `&lt;`); `send_message` retries as plain text — if that also fails, fix the formatter |
 | Duplicate on_entry messages         | Exchange and dispatcher both fire            | Check `_fires_entry_notification` flag — sim should leave it `False` so only the dispatcher fires after SL/TP are placed |
 | Entry card missing SL/TP lines      | Exchange fires the entry notification *before* SL/TP orders are placed | Set `_fires_entry_notification = False` on the exchange so `NotificationDispatcher.notify_entry` fires at the end of `TradeExecutor._handle_entry_signal` |

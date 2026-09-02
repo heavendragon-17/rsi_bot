@@ -134,6 +134,7 @@ class CoreV21LiveSignalRuntime:
         state_database: str | Path,
         telegram_chat_id: str | int,
         topic_by_symbol: Mapping[str, int | None] | None = None,
+        failure_topic_id: int | None = None,
         poll_interval_seconds: float = 15.0,
         clock: Callable[[], datetime] | None = None,
         finalization_delay: timedelta = DEFAULT_FINALIZATION_DELAY,
@@ -158,7 +159,11 @@ class CoreV21LiveSignalRuntime:
             )
         )
         sink = TelegramOutboxSink(
-            TelegramBot(token_env="TELEGRAM_BOT_TOKEN"),
+            TelegramBot(
+                token_env="TELEGRAM_BOT_TOKEN",
+                failure_topic_id=failure_topic_id,
+                failure_chat_id=telegram_chat_id,
+            ),
             chat_id=telegram_chat_id,
         )
         return cls(

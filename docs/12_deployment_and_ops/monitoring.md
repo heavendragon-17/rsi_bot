@@ -17,6 +17,43 @@ The bot sends Telegram messages for key events:
 - **No messages for extended period** = either no signals or bot may be stuck
 - **Error messages** = investigate immediately
 
+### Telegram delivery and strategy liveness
+
+Signal mode records forum topic IDs and names observed in incoming Telegram
+updates. `/topics` reports those observed topics separately when they have no
+configured strategy route. It cannot prove that an unobserved topic does not
+exist because bots cannot request Telegram's complete historical forum-topic
+list.
+
+Telegram send failures, notification queue drops, and notification-worker
+exceptions emit structured logs. With `telegram.debug_topic_id` configured,
+the bot also attempts a rate-limited developer alert directly, using the main
+chat as a fallback if the debug topic is unavailable. Search for:
+
+```text
+telegram_delivery_failure_alert_sent
+telegram_delivery_failure_alert_failed
+notification_queue_full
+notification_failed
+notification_delivery_failed
+strategy_worker_error
+strategy_worker_queue_full
+signal_runner_worker_not_alive
+```
+
+An alert is not generated for an intentional no-signal decision: warm-up or
+missing candles, rejected higher-timeframe context, cooldown/duplicate
+suppression, an inactive strategy, or a valid `DoNothing` result. Those are
+normal strategy decisions. An unexpected data/stream failure, strategy
+exception, dead worker, queue overflow, invalid topic, or Telegram API/network
+failure is operational and should produce a log plus a developer alert when a
+route remains available.
+
+If the whole process is killed or runs out of memory, it cannot send its own
+Telegram alert. The VPS service supervisor must restart it and an external
+uptime/process monitor should alert when the service or status file stops
+changing.
+
 ## structlog Inspection
 
 All bot output uses structured logging. Key patterns to monitor:

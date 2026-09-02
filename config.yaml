@@ -70,6 +70,7 @@ sim:
 telegram:
   group_id: -1003329642656 # supergroup with topics enabled
   debug_topic_id: 1006 # receives expiry + failure + warn messages
+  topic_registry_path: data/telegram_topics.json # observed forum-topic inventory
 
 strategies:
   - name: rsi_no_retest

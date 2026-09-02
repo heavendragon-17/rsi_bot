@@ -122,3 +122,9 @@
 - **Correction**: The human review guide used PowerShell commands for the one-time frontend build even though the reviewer workflow is Windows batch-file based.
 - **Rule**: For low-tech Windows reviewer instructions, use `cmd` syntax (`cd /d`, `npm ci`, `npm run build`) and keep shell-specific commands out of the copy-paste path.
 - **Files affected**: `wiki/btc-signal-review-guide.md`.
+
+## 2026-09-02: Interpret unconfigured Telegram topics as forum inventory
+
+- **Correction**: `/topics` was extended to list unconfigured strategy definitions, but the request meant Telegram forum topics that exist without a strategy/config mapping.
+- **Rule**: Keep strategy definitions and observed Telegram forum topics in separate sections. A Bot API polling bot can only discover forum topics from updates it receives; it must label the inventory as observed rather than claim a complete historical list.
+- **Files affected**: `app/notification/`, `main.py`, notification tests, and notification/operations documentation.

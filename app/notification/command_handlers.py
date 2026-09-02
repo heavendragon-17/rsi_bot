@@ -16,6 +16,7 @@ import structlog
 
 from app.core.interfaces import IExchange
 from app.notification.formatting import fmt_duration, fmt_pnl, mono, row
+from app.notification.forum_topics import ObservedForumTopic
 
 logger = structlog.get_logger(__name__)
 
@@ -262,23 +263,48 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
 
 
 def handle_topics(
-    topics: list[tuple[str, int | None, str]], prefix: str, send, chat_id: str
+    topics: list[tuple[str, int | None, str]],
+    prefix: str,
+    send,
+    chat_id: str,
+    *,
+    unconfigured_topics: list[ObservedForumTopic] | None = None,
 ) -> None:
-    """Show the complete signal strategy/topic inventory."""
+    """Show configured routes and observed Telegram topics without routes."""
     lines = [
         f"{prefix} | 🗂 TOPICS",
         "",
         "Strategy/topic inventory:",
     ]
-    if topics:
-        for name, topic_id, status in topics:
-            if topic_id is None:
-                lines.append(f"• {escape(name)} — {escape(status)}")
-            else:
-                lines.append(
-                    f"• {escape(name)} — topic ID: {topic_id} ({escape(status)})"
-                )
+    configured = [entry for entry in topics if entry[1] is not None]
+    unconfigured_strategies = [entry for entry in topics if entry[1] is None]
+
+    if configured:
+        lines.append("Configured routes:")
+        for name, topic_id, status in configured:
+            assert topic_id is not None
+            lines.append(
+                f"• {escape(name)} — topic ID: {topic_id} ({escape(status)})"
+            )
     else:
-        lines.append("No configured topics.")
+        lines.append("Configured routes: none.")
+
+    if unconfigured_strategies:
+        lines += ["", "Strategy definitions without a route:"]
+        for name, _, status in unconfigured_strategies:
+            lines.append(f"• {escape(name)} — {escape(status)}")
+
+    lines += ["", "Unconfigured Telegram topics observed:"]
+    if unconfigured_topics:
+        for topic in unconfigured_topics:
+            topic_name = escape(topic.name) if topic.name else "name not observed"
+            lines.append(f"• topic ID: {topic.topic_id} — {topic_name}")
+    else:
+        lines.append("None observed.")
+    lines += [
+        "",
+        "Only topics seen in incoming bot updates are listed; Telegram does not",
+        "provide this bot with a complete historical topic listing.",
+    ]
 
     send(mono("\n".join(lines)), chat_id=chat_id)

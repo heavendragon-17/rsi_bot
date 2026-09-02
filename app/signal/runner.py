@@ -216,11 +216,26 @@ class SignalRunner:
         when :meth:`stop` sets the event, vs. sleeping out the full second.
         """
         last_heartbeat = 0
+        reported_dead_threads: set[str] = set()
         all_threads = lambda: self._threads + self._alert_threads  # noqa: E731
         while not self._stop_event.wait(timeout=1):
+            threads = all_threads()
+            for thread in threads:
+                if not thread.is_alive() and thread.name not in reported_dead_threads:
+                    reported_dead_threads.add(thread.name)
+                    logger.error(
+                        "signal_runner_worker_not_alive",
+                        thread=thread.name,
+                    )
+                    self._report_worker_failure(
+                        "signal_runner_worker_liveness",
+                        reason=(
+                            f"{thread.name} stopped while the signal runner "
+                            "was still active"
+                        ),
+                    )
             now = int(time.time())
             if now - last_heartbeat >= 60:
-                threads = all_threads()
                 alive = sum(1 for t in threads if t.is_alive())
                 logger.info(
                     "signal_runner_heartbeat",
@@ -228,6 +243,25 @@ class SignalRunner:
                     total=len(threads),
                 )
                 last_heartbeat = now
+
+    def _report_worker_failure(self, operation: str, *, reason: str) -> None:
+        """Report worker liveness failures without using the send queue."""
+
+        reporter = getattr(self._notifier, "report_notification_failure", None)
+        if not callable(reporter):
+            logger.error(
+                "signal_runner_failure_unreportable",
+                operation=operation,
+                error=reason,
+            )
+            return
+        try:
+            reporter(operation, topic_id=self._debug_topic_id, reason=reason)
+        except Exception:
+            logger.exception(
+                "signal_runner_failure_report_failed",
+                operation=operation,
+            )
 
     # ------------------------------------------------------------------
     # Internals

@@ -206,7 +206,7 @@ class BtcRsiCrossAlertWorker:
             observed.update(keep)
 
     def enqueue(self, symbol: str, timeframe: str, candle: Candle) -> None:
-        """Queue a closed trigger candle. Drops new events on overflow."""
+        """Queue a closed trigger candle. Drops and reports overflow."""
 
         with self._queue_cond:
             if len(self._pending) >= self._queue_size:
@@ -214,6 +214,14 @@ class BtcRsiCrossAlertWorker:
                     "btc_rsi_cross_worker_queue_full",
                     timeframe=timeframe,
                     trigger_close=_iso(candle_close_time(candle.timestamp, TRIGGER_DURATION_BY_TIMEFRAME.get(timeframe, H4_DURATION))),
+                )
+                self._report_failure(
+                    "btc_rsi_cross_worker_queue",
+                    topic_id=self.config.topic_id_for(timeframe),
+                    reason=(
+                        "BTC RSI cross worker queue is full; candle was dropped "
+                        f"({symbol} {timeframe})"
+                    ),
                 )
                 return
             self._pending.append((symbol, timeframe, candle))
@@ -464,3 +472,30 @@ class BtcRsiCrossAlertWorker:
 
     def _notify_debug(self, message: str) -> None:
         self.notifier.send_message(message, topic_id=self.debug_topic_id)
+
+    def _report_failure(
+        self,
+        operation: str,
+        *,
+        topic_id: int | None,
+        reason: str,
+    ) -> None:
+        """Report an operational failure without depending on the send queue."""
+
+        reporter = getattr(self.notifier, "report_notification_failure", None)
+        if not callable(reporter):
+            logger.error(
+                "btc_rsi_cross_failure_unreportable",
+                operation=operation,
+                topic_id=topic_id,
+                error=reason,
+            )
+            return
+        try:
+            reporter(operation, topic_id=topic_id, reason=reason)
+        except Exception:
+            logger.exception(
+                "btc_rsi_cross_failure_report_failed",
+                operation=operation,
+                topic_id=topic_id,
+            )

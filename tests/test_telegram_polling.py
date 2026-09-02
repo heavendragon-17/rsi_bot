@@ -101,3 +101,41 @@ def test_telegram_polling_ignores_non_commands(mock_bot):
         mock_bot.stop_polling()
 
     assert not callback_executed.is_set(), "Callback should not have been executed"
+
+
+def test_telegram_polling_passes_forum_updates_to_observer(mock_bot):
+    observed = []
+    callback_executed = threading.Event()
+
+    def update_observer(update):
+        observed.append(update)
+
+    def my_callback(chat_id: str):
+        callback_executed.set()
+
+    def mock_get(url, params, timeout):
+        return MockResponse(
+            {
+                "ok": True,
+                "result": [
+                    {
+                        "update_id": 1003,
+                        "message": {
+                            "chat": {"id": 9876},
+                            "message_thread_id": 2000,
+                            "text": "/testcmd",
+                        },
+                    }
+                ],
+            }
+        )
+
+    with patch("requests.get", side_effect=mock_get):
+        mock_bot.start_polling(
+            {"/testcmd": my_callback},
+            update_observer=update_observer,
+        )
+        assert callback_executed.wait(timeout=2.0)
+        mock_bot.stop_polling()
+
+    assert observed[0]["message"]["message_thread_id"] == 2000

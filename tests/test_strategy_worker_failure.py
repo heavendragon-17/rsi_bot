@@ -64,10 +64,13 @@ class TestRetryCounter:
     def test_single_failure_does_not_kill(self):
         strategy = MagicMock()
         strategy.analyze.side_effect = RuntimeError("boom")
-        worker, _, _ = _mk_worker(strategy=strategy, max_failures=3)
+        worker, _, notifier = _mk_worker(strategy=strategy, max_failures=3)
         died = worker._process("BTC/USDT", "15m", _mk_candle())
         assert died is False
         assert worker._failure_counts["BTC/USDT"] == 1
+        notifier.send_message.assert_called_once()
+        assert notifier.send_message.call_args.kwargs["topic_id"] == DEBUG_TOPIC
+        assert "error on BTC/USDT" in notifier.send_message.call_args.args[0]
 
     def test_success_resets_counter(self):
         strategy = MagicMock()

@@ -24,6 +24,22 @@
 - [x] Verify OpenSSH authentication with `BatchMode=yes` and password authentication disabled; the connection used `publickey` and both production services remained active.
 - [x] Leave password login unchanged as a fallback; no private key, password, or other credential is stored in this repository.
 
+## ⚪ ACTIVE — Telegram forum-topic inventory and failure visibility (2026-09-02)
+
+- [x] Distinguish configured strategy routes from actual Telegram forum topics.
+- [x] Record observed forum topic IDs/names from incoming Telegram updates and
+      show observed topics with no configuration mapping in `/topics`.
+- [x] Make failed Telegram sends, notification queue drops, and worker
+      exceptions visible with a rate-limited fallback developer alert plus
+      structured logs.
+- [x] Add regression tests for topic discovery, fallback delivery, queue/drop
+      reporting, and strategy failure notification.
+- [x] Update notification and operations documentation.
+- [x] Run focused validation and review release/deployment status: 172 focused
+      signal/notification tests passed; architecture, Markdown-link, Ruff,
+      mypy, compile, and diff checks passed.
+- [ ] Release/push/deploy this change after explicit production approval.
+
 ## ⚠ ACTIVE — Enable RSI Momentum and clarify signal startup status (2026-09-02)
 
 - [x] Identify the newest non-BTC entry as `rsi_momentum` and name it `RSI Momentum` in the operator-facing startup message.

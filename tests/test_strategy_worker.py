@@ -104,9 +104,14 @@ class TestQueueEnqueue:
     def test_enqueue_drops_when_full(self):
         worker, *_ = _mk_worker(queue_size=1)
         worker.enqueue("BTC/USDT", "15m", _mk_candle())
-        # Second enqueue should drop silently (not raise).
+        # Second enqueue should drop and report without raising.
         worker.enqueue("BTC/USDT", "15m", _mk_candle(close="63000"))
         assert worker._queue.qsize() == 1
+        worker.notifier.report_notification_failure.assert_called_once_with(
+            "strategy_worker_queue",
+            topic_id=STRATEGY_TOPIC,
+            reason="strategy worker queue is full; candle was dropped (BTC/USDT 15m)",
+        )
 
     def test_untargeted_candle_ignored(self):
         worker, strategy, *_ = _mk_worker(symbols=("BTC/USDT",))

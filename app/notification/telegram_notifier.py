@@ -50,10 +50,18 @@ class TelegramNotifier(INotifier):
     Constructor reads TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from env.
     """
 
-    def __init__(self, mode: str = "sim", *, chat_id_override: str | int | None = None):
+    def __init__(
+        self,
+        mode: str = "sim",
+        *,
+        chat_id_override: str | int | None = None,
+        failure_topic_id: int | None = None,
+    ):
         self._bot = TelegramBot(
             token_env="TELEGRAM_BOT_TOKEN",
             chat_id_env="TELEGRAM_CHAT_ID",
+            failure_topic_id=failure_topic_id,
+            failure_chat_id=chat_id_override,
         )
         # Signal mode supplies telegram.group_id so topic-targeted sends use
         # the supergroup that hosts the topics, not TELEGRAM_CHAT_ID.
@@ -71,6 +79,7 @@ class TelegramNotifier(INotifier):
     def start_command_polling(
         self,
         extra_callbacks: dict | None = None,
+        update_observer=None,
     ) -> None:
         """Start the Telegram polling loop and register commands.
 
@@ -109,7 +118,25 @@ class TelegramNotifier(INotifier):
         }
         if extra_callbacks:
             callbacks.update(extra_callbacks)
-        self._bot.start_polling(callbacks)  # type: ignore[arg-type]
+        self._bot.start_polling(  # type: ignore[arg-type]
+            callbacks,
+            update_observer=update_observer,
+        )
+
+    def report_notification_failure(
+        self,
+        method_name: str,
+        *,
+        topic_id: int | None = None,
+        reason: str,
+    ) -> None:
+        """Report a queue/callback failure without reusing the queue."""
+
+        self._bot.report_failure(
+            f"notification.{method_name}",
+            topic_id=topic_id,
+            reason=reason,
+        )
 
     def verify_chat_id(self, chat_id: str) -> bool:
         """Public wrapper around :meth:`_verify_chat_id` for extension callbacks."""
@@ -395,5 +422,13 @@ class TelegramNotifier(INotifier):
     def _send(self, message: str, *, topic_id: int | None = None) -> None:
         try:
             self._bot.send_message(message, chat_id=self._chat_id, message_thread_id=topic_id)
-        except Exception:
-            logger.exception("TelegramNotifier: failed to send message")
+        except Exception as exc:
+            logger.exception("TelegramNotifier: failed to send message", error=str(exc))
+            try:
+                self._bot.report_failure(
+                    "telegram_notifier.send",
+                    topic_id=topic_id,
+                    reason=f"{type(exc).__name__}: {exc}",
+                )
+            except Exception:
+                logger.exception("TelegramNotifier: delivery failure alert failed")

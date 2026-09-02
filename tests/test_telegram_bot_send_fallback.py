@@ -43,6 +43,14 @@ def _make_bot() -> TelegramBot:
         return TelegramBot()
 
 
+def _make_bot_with_failure_topic() -> TelegramBot:
+    with patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "test-token", "TELEGRAM_CHAT_ID": "-100123"},
+    ):
+        return TelegramBot(failure_topic_id=1006)
+
+
 def _response(status_code: int, text: str) -> MagicMock:
     response = MagicMock()
     response.status_code = status_code
@@ -101,7 +109,9 @@ class TestEntityRejectionFallback:
             sent = bot.send_message("still < broken")
 
         assert sent is False
-        assert post.call_count == 2
+        # The failed primary + plain-text retry are followed by one direct
+        # failure alert in the configured/default chat.
+        assert post.call_count == 3
 
     def test_non_entity_rejection_does_not_retry(self):
         """A 400 that is not an entity-parse failure (e.g. chat not found)
@@ -114,7 +124,8 @@ class TestEntityRejectionFallback:
             sent = bot.send_message("normal text")
 
         assert sent is False
-        assert post.call_count == 1
+        # The original failure is followed by the default error alert.
+        assert post.call_count == 2
 
     def test_first_attempt_success_never_retries(self):
         bot = _make_bot()
@@ -126,3 +137,53 @@ class TestEntityRejectionFallback:
         assert sent is True
         assert post.call_count == 1
         assert post.call_args.kwargs["data"]["parse_mode"] == "HTML"
+
+
+class TestDeliveryFailureAlert:
+    def test_failed_message_alerts_the_debug_topic(self):
+        bot = _make_bot_with_failure_topic()
+        with patch("app.notification.telegram_bot.requests.post") as post:
+            post.side_effect = [
+                _response(400, _OTHER_BAD_REQUEST),
+                _response(200, _OK),
+            ]
+
+            sent = bot.send_message("important signal", message_thread_id=1147)
+
+        assert sent is False
+        assert post.call_count == 2
+        alert_payload = post.call_args.kwargs["data"]
+        assert alert_payload["message_thread_id"] == "1006"
+        assert "Telegram delivery failure" in alert_payload["text"]
+        assert "1147" in alert_payload["text"]
+
+    def test_debug_topic_alert_falls_back_to_main_chat(self):
+        bot = _make_bot_with_failure_topic()
+        with patch("app.notification.telegram_bot.requests.post") as post:
+            post.side_effect = [
+                _response(400, _OTHER_BAD_REQUEST),
+                _response(400, _OTHER_BAD_REQUEST),
+                _response(200, _OK),
+            ]
+
+            bot.send_message("important signal", message_thread_id=1147)
+
+        assert post.call_count == 3
+        fallback_payload = post.call_args.kwargs["data"]
+        assert "message_thread_id" not in fallback_payload
+
+    def test_repeated_failures_are_rate_limited(self):
+        bot = _make_bot_with_failure_topic()
+        with patch("app.notification.telegram_bot.requests.post") as post:
+            post.side_effect = [
+                _response(400, _OTHER_BAD_REQUEST),
+                _response(200, _OK),
+                _response(400, _OTHER_BAD_REQUEST),
+            ]
+
+            assert bot.send_message("first") is False
+            assert bot.send_message("second") is False
+
+        # The second primary failure is logged, but does not generate a second
+        # developer alert during the cooldown window.
+        assert post.call_count == 3

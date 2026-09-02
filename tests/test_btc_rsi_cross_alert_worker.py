@@ -129,6 +129,21 @@ def _stop(worker: BtcRsiCrossAlertWorker, thread: threading.Thread) -> None:
     assert not thread.is_alive()
 
 
+def test_queue_overflow_reports_dropped_trigger() -> None:
+    worker, _, notifier = _make_worker()
+    worker._queue_size = 1
+    candle = _candle(BASE, timedelta(minutes=5), 100.0)
+
+    worker.enqueue(SYMBOL, "5m", candle)
+    worker.enqueue(SYMBOL, "5m", candle)
+
+    notifier.report_notification_failure.assert_called_once_with(
+        "btc_rsi_cross_worker_queue",
+        topic_id=worker.config.telegram_topic_id,
+        reason="BTC RSI cross worker queue is full; candle was dropped (BTC/USDT 5m)",
+    )
+
+
 def _wait_for(predicate, timeout: float = 3.0, interval: float = 0.01) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -623,13 +638,15 @@ class TestFailureBudget:
         mux.on_kline_event(SYMBOL, "5m", _candle(t, step, 100.0))
 
         assert _wait_for(lambda: not thread.is_alive(), timeout=5)
-        # Debug notified exactly once about the terminal failure.
+        # The first failure is surfaced immediately, then the terminal death
+        # is reported when the consecutive-failure budget is exhausted.
         debug_calls = [
             c for c in notifier.send_message.call_args_list
             if c.kwargs.get("topic_id") == 99
         ]
-        assert len(debug_calls) == 1
-        assert "btc_rsi_cross_alert" in debug_calls[0].args[0]
+        assert len(debug_calls) == 2
+        assert "error on BTC/USDT" in debug_calls[0].args[0]
+        assert "worker dead after" in debug_calls[1].args[0]
         # Cursor advanced at budget exhaustion; no alert ever sent.
         assert worker.last_evaluated["5m"] == t
         assert worker.emitted_event_ids == frozenset()
