@@ -1,0 +1,14 @@
+{
+  "feature_anchor_open_utc": "2026-06-29T11:15:00+00:00",
+  "feature_anchor_version": "core-v2.1-anchor-2026-06-29T11:15Z-v1",
+  "first_open_utc": "2026-06-29T11:15:00+00:00",
+  "last_close_utc": "2026-08-20T13:15:00+00:00",
+  "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\HYPERLIQUID__PUMP_USDC_PERP_15m.csv",
+  "row_count": 5000,
+  "server_now_utc": "2026-08-20T13:21:41+00:00",
+  "sha256": "e20b3c397371012906ce174af7d7ef7690e87cf37f9499ccbd512188c09b599e",
+  "strategy_symbol": "PUMP",
+  "timeframe": "15m",
+  "venue": "HYPERLIQUID_PERP",
+  "venue_instrument": "PUMP/USDC:USDC"
+}

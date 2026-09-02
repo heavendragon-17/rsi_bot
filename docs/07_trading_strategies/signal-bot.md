@@ -43,6 +43,76 @@ Cross-references for implementation details:
 
 ---
 
+## Core V2.1 standalone durable runtime
+
+Core V2.1 does **not** run inside the v1 `SignalRunner` described by the rest
+of this document. It has a dedicated mixed-venue, restart-safe composition in
+`app/signal/core_v2_1/` and is started directly:
+
+```bash
+python -m app.signal.core_v2_1.live \
+  --state-db data/core_v2_1_signal.sqlite3 \
+  --data-dir app/backtest/data \
+  --chat-id -1001234567890 \
+  --topic-id 42 \
+  --poll-seconds 15
+```
+
+`--data-dir` defaults to `app/backtest/data`. `--chat-id` may be omitted when
+`TELEGRAM_CHAT_ID` is set. `--topic-id` is optional and, when supplied, is
+shared by all Core V2.1 symbols. The Telegram bot token comes from
+`TELEGRAM_BOT_TOKEN`. Binance and Hyperliquid market-data calls are public and
+require neither exchange API keys nor a wallet.
+
+### Runtime contract
+
+| Area | Core V2.1 behavior |
+|---|---|
+| Universe | Locked 25 candidates; PUMP on Hyperliquid; BTC Binance benchmark only |
+| Trigger | Fully closed M15, processed chronologically |
+| Context | Exact latest Alt H1, BTC H1, and BTC H4 available at the M15 close |
+| Data clock | Authoritative venue clocks plus a five-second finalization delay |
+| Cold state | Canonical anchored PUMP CSV seeds empty SQLite before public API tail reconciliation |
+| Bootstrap | Silent on a new installation; optimized/precomputed per unique series; semantic parity with uninterrupted evaluation |
+| Restart | Loads anchored raw candles and typed state, then emits any missed post-cursor lifecycle events through the durable outbox |
+| Poll readiness | Every required key must reach its exact expected finalized tail; stale, missing, gapped, conflicting, or misrouted data fails closed |
+| Persistence | SQLite raw candle cache, per-symbol cursor/state, transition audit, event dedupe, bootstrap record, and outbox |
+
+The programmatic factory
+`CoreV21LiveSignalRuntime.with_public_venues_and_telegram()` accepts
+`bootstrap_data_dir` and defaults it to the same canonical data directory.
+SQLite is part of the correctness boundary, not merely a cache. Candle rows
+already used for evaluation are immutable. Identical duplicates are
+idempotent; conflicting duplicate input rows or exchange rewrites stop the
+runtime. State advancement, transition audit, advisory event insertion, and
+notification enqueue share one transaction.
+
+The outbox provides at-least-once Telegram delivery. It uses expiring claim
+leases and tokens so an expired owner cannot acknowledge or reschedule a row
+after it is reclaimed. Delivery failures use bounded exponential retry. A
+crash in the small interval after Telegram accepts a message and before the
+SQLite `sent` update can cause a duplicate; the deterministic `event:<id>` tag
+allows that duplicate to be recognized.
+
+### Public events and deliberate limitations
+
+Only `A_PLUS_LONG`, `WAIT_FOR_PULLBACK`, `PULLBACK_LONG`, `WAIT_CANCELLED`,
+and `WAIT_EXPIRED` are sent. Rejection, no-signal, re-arm, and intermediate
+WAIT decisions are persisted but silent. `WAIT_FOR_PULLBACK` is a setup state,
+not an entry.
+
+This runtime has no exchange execution adapter. It cannot create, cancel, or
+manage orders, and it does not track positions, fills, fees, slippage, PnL,
+win rate, or taken/skipped decisions. Entry/stop/TP fields are advisory
+reference levels only. The future execution policy remains separate in
+[Core V2.1 execution decisions](core-v2-1-execution-decisions.md).
+
+See also [Core V2.1 signal contract](core-v2-1.md),
+[mixed-venue live data flow](../05_data_pipeline/live-data-flow.md#core-v21-mixed-venue-signal-runtime),
+and [durable notification semantics](../08_execution_and_oms/notifications.md#core-v21-durable-telegram-outbox).
+
+---
+
 ## 1. Goals & Non-Goals
 
 ### Goals (v1)

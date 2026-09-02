@@ -104,6 +104,35 @@ WebSocket (fstream.binance.com, multi-TF URL)
 See [docs/07_trading_strategies/signal-bot.md](../07_trading_strategies/signal-bot.md)
 for the full spec.
 
+### Core V2.1 standalone signal and replay flow
+
+Core V2.1 is an independent, signal-only runtime. It does not use
+`MultiSymbolRunner`, `PortfolioManager`, an exchange execution adapter, or the
+v1 in-memory virtual-position store. Historical replay and live advisories
+share the pure evaluator under `app/trading/strategy/core_v2_1/`.
+
+```text
+Historical:
+  venue-specific M15 CSVs -> strict UTC-close normalization + H1/H4 context
+    -> point-in-time bundles -> pure evaluator -> CSV/JSONL audit ledger
+
+Live signal-only:
+  Binance + Hyperliquid public REST -> venue-aware closed-candle poller
+    -> immutable SQLite source/state cache -> pure evaluator
+      -> atomic state/audit/event/outbox transaction
+        -> leased at-least-once Telegram delivery
+```
+
+The locked graph contains 25 M15 candidates plus shared Binance BTC H1/H4
+benchmark context. PUMP is structurally Hyperliquid `PUMP/USDC:USDC`; BTC is
+reference-only. Startup and polling fail closed on missing, stale, gapped,
+conflicting, or incorrectly routed data. The standalone process has no order
+adapter and cannot establish fills, PnL, or win-rate results.
+
+See [Core V2.1 signal contract](../07_trading_strategies/core-v2-1.md),
+[Core V2.1 replay](../11_testing_and_backtesting/backtest-engine.md#core-v21-point-in-time-replay),
+and [Core V2.1 standalone runtime](../07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime).
+
 **Alert-only branch:** the optional `btc_rsi_cross_alert` component hooks into
 the same multiplexer with a dedicated multi-timeframe worker. Native BTC
 `5m`/`15m` closed candles are evaluation triggers; native `1h`/`4h` closes
@@ -683,3 +712,6 @@ paper_sim:
 | `app/data/stream_manager.py` | BinanceStreamManager (WebSocket daemon) |
 | `main.py` | Live bot entry point |
 | `app/api/main.py` | FastAPI entry point for backtest UI |
+| `app/trading/strategy/core_v2_1/` | Pure Core V2.1 evaluator, typed state, indicators, and feature anchor |
+| `app/backtest/core_v2_1/` | Point-in-time replay, coverage, audit ledger, and Binance acquisition |
+| `app/signal/core_v2_1/` | Mixed-venue signal-only runtime, SQLite state, and durable Telegram outbox |

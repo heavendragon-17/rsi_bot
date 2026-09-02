@@ -161,6 +161,26 @@ python app/backtest/data/download.py --symbol BTC/USDT --timeframe 5m --limit 50
 python app/backtest/backtest.py --data app/backtest/data/BTCUSDT_5m.csv --balance 10000
 ```
 
+### Core V2.1 acquisition, replay, and signal runtime
+
+```bash
+# Refresh the locked Binance universe and BTC benchmark
+python -m app.backtest.core_v2_1.binance_data --data-dir app/backtest/data --candle-count 5000 --manifest artifacts/core_v2_1/binance_refresh.json
+
+# Extend canonical Hyperliquid PUMP history
+python -m app.signal.core_v2_1.hyperliquid_export --data-dir app/backtest/data --candle-count 5000 --manifest artifacts/core_v2_1/hyperliquid_refresh.json
+
+# Reproduce the full point-in-time audit
+python -m app.backtest.core_v2_1 --universe-mode full --data-dir app/backtest/data --output-dir artifacts/core_v2_1/full_replay
+
+# Run durable public-data Telegram advisories (no orders)
+python -m app.signal.core_v2_1.live --state-db data/core_v2_1_signal.sqlite3 --data-dir app/backtest/data --chat-id -1001234567890 --topic-id 42 --poll-seconds 15
+```
+
+The live process needs only `TELEGRAM_BOT_TOKEN` and the target chat/topic.
+Binance and Hyperliquid access is public; no exchange API key or wallet is
+used. The default SQLite path is `data/core_v2_1_signal.sqlite3`.
+
 ### Tests
 
 ```bash

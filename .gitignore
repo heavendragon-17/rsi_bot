@@ -29,10 +29,15 @@ htmlcov/
 *.csv
 !tests/data/*.csv
 *.db
+*.sqlite3
 /data/
 app/backtest/data/*.csv
 app/backtest/data/*.zip
 app/backtest/data/*.json
+
+# Core V2.1 full decision ledgers are reproducible local artifacts (about
+# 100 MB per run). Keep their compact metadata/manifests reviewable.
+artifacts/core_v2_1/**/*.jsonl
 
 # Versioned canonical inputs for the BTC Signal Review Lab
 !app/backtest/data/BTCUSDT_5m.csv

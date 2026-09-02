@@ -361,6 +361,55 @@ ns.send_message("🤖 RSI Bot Started")
 
 ---
 
+## Core V2.1 durable Telegram outbox
+
+The standalone Core V2.1 runtime does not use the in-memory,
+drop-on-full `NotificationWorker` queue described at the top of this file.
+Advisory events are persisted in the same SQLite transaction as the Core
+state/cursor transition, then delivered by
+`app/signal/core_v2_1/outbox.py`.
+
+| Status | Meaning |
+|---|---|
+| `pending` | Durable event is due for its first delivery attempt |
+| `inflight` | A worker owns the row until its lease expires |
+| `retry` | Prior attempt failed; `next_attempt_at` carries bounded exponential backoff |
+| `sent` | Telegram returned success and the owning claim recorded confirmation |
+
+Each claim receives a random token and an expiry. `sent`/`retry` updates
+require both `status='inflight'` and the current token, so a stale worker
+cannot overwrite a newer owner's result after lease reclamation. The default
+dispatcher claims up to 50 due rows, starts retry at five seconds, caps it at
+300 seconds, and uses a 30-second lease. The cap is applied while doubling, so
+even a row with thousands of prior attempts cannot overflow before the cap.
+If worker shutdown exceeds its timeout, it raises and refuses an apparent
+restart while the prior dispatcher thread is still alive.
+
+Delivery is **at-least-once**, not exactly-once. If the process dies after
+Telegram accepts a request but before SQLite records `sent`, the expired row
+is retried. Each message therefore ends with a deterministic short
+`event:<id>` tag so the unavoidable recovery duplicate can be recognized.
+Restart catch-up events are deliverable; events generated during a brand-new
+silent bootstrap are stored as suppressed and never enqueued.
+
+Only these Core V2.1 lifecycle events are notified:
+
+- `A_PLUS_LONG`;
+- `WAIT_FOR_PULLBACK`;
+- `PULLBACK_LONG`;
+- `WAIT_CANCELLED`; and
+- `WAIT_EXPIRED`.
+
+These messages contain advisory reference levels or a preferred zone. They do
+not report an order, position, fill, realized/unrealized PnL, fee, slippage,
+win/loss, or taken/skipped status. The standalone CLI uses
+`TELEGRAM_BOT_TOKEN` plus `--chat-id`/`TELEGRAM_CHAT_ID`; an optional
+`--topic-id` routes all Core V2.1 symbols to one Telegram forum topic.
+
+See [Core V2.1 standalone durable runtime](../07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime).
+
+---
+
 ## Troubleshooting
 
 | Symptom                             | Cause                                        | Fix                                                                               |

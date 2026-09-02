@@ -405,3 +405,32 @@ alert can originate from the hydration window regardless of how many crosses
 it contains. See
 [docs/07_trading_strategies/btc-rsi-cross-alert-spec.md](../07_trading_strategies/btc-rsi-cross-alert-spec.md)
 §7/§11 for the locked semantics.
+
+---
+
+## Core V2.1 mixed-venue signal runtime
+
+Core V2.1 uses public REST polling because its locked graph spans Binance
+USD-M and Hyperliquid perpetuals. The router keys every request by
+`(venue, instrument, timeframe)`; symbol names are never used to infer a
+venue or alias `PUMP/USDC:USDC` to a Binance market.
+
+```text
+Binance public REST -------┐
+                           ├─ CompositeMarketDataRouter
+Hyperliquid public REST ---┘       │ finalized closed candles
+                                    v
+                          exact-tail poller
+                                    v
+  immutable SQLite candle/state/audit/event/outbox transaction
+                                    v
+                      pure Core V2.1 evaluator
+                                    v
+                    leased Telegram advisory delivery
+```
+
+On an empty database the runtime may import the canonical anchored PUMP M15
+prefix before reconciling the public API tail. Every required market must
+reach its exact finalized cursor before polling starts. Bootstrap is silent;
+only post-bootstrap lifecycle events are eligible for delivery. A restart
+recovers the cursor and leased outbox rows from the same SQLite file.

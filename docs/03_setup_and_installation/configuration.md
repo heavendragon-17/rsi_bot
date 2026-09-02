@@ -2,6 +2,21 @@
 
 > Complete schema reference for `config.yaml`, typed config classes in `app/core/config.py`, and environment variables in `.env`. An AI agent should consult this before modifying any configuration-related code.
 
+## Local Python environment
+
+On the Windows development workstation, use the existing Conda environment
+named `rsi` for repository commands:
+
+```bat
+call C:\ProgramData\anaconda3\Scripts\activate.bat rsi
+python --version
+python -m pytest tests -q
+```
+
+The verified baseline on 2026-08-20 used Python 3.13.12 and pytest 9.0.2.
+Run pytest as `python -m pytest` so the selected Conda interpreter, rather
+than a different global launcher, owns test discovery.
+
 ---
 
 ## config.yaml Full Schema
@@ -245,6 +260,11 @@ Environment variables are loaded from `.env` in the project root via `python-dot
 | `PAPER_TELEGRAM_CHAT_ID` | paper sim (optional) | Override chat ID for paper/sim mode |
 | `RUN_INTEGRATION_TESTS` | testing | Set to `1` to enable live Binance integration tests |
 
+Core V2.1's standalone signal runtime uses `TELEGRAM_BOT_TOKEN` and either
+`--chat-id` or `TELEGRAM_CHAT_ID`. Its Binance and Hyperliquid market-data
+clients are public: it does not read Binance API keys,
+`HYPERLIQUID_PRIVATE_KEY`, or any trading-wallet credential.
+
 ### Credential Loading Behavior
 
 Credentials are loaded by `BinanceAdapter` at construction time (`app/trading/exchange/binance_adapter.py`):
@@ -260,6 +280,45 @@ env_path = Path(__file__).parent.parent.parent.parent / ".env"
 ```
 
 This resolves to the project root regardless of working directory.
+
+---
+
+## Core V2.1 standalone signal runtime
+
+Core V2.1 is launched separately from `main.py` and does not consume the
+`config.yaml` signal-mode schema below:
+
+```bat
+call C:\ProgramData\anaconda3\Scripts\activate.bat rsi
+python -m app.signal.core_v2_1.live ^
+  --state-db data\core_v2_1_signal.sqlite3 ^
+  --data-dir app\backtest\data ^
+  --chat-id -1001234567890 ^
+  --topic-id 42 ^
+  --poll-seconds 15
+```
+
+| CLI option | Default | Meaning |
+|---|---|---|
+| `--state-db` | `data/core_v2_1_signal.sqlite3` | Durable raw candles, strategy state/cursors, transition/event audit, bootstrap record, and Telegram outbox |
+| `--data-dir` | `app/backtest/data` | Canonical anchored CSV directory used to seed cold runtime state, especially Hyperliquid PUMP |
+| `--chat-id` | `TELEGRAM_CHAT_ID` | Target chat or supergroup; one of CLI/env is required |
+| `--topic-id` | none | Optional shared Telegram forum topic for every Core V2.1 candidate |
+| `--poll-seconds` | `15` | Public mixed-venue REST poll interval |
+
+On a cold database the production composition validates and, when present,
+seeds the locked Hyperliquid PUMP history from the canonical
+`app/backtest/data/HYPERLIQUID__PUMP_USDC_PERP_15m.csv`, then reconciles the
+latest public venue tails. If the file is absent, it falls through to public
+venue hydration, which still must reach the anchor and therefore fails closed
+after the rolling API window has advanced past it. A malformed or wrongly
+routed seed is always rejected. The runtime also requires authoritative
+exchange clocks and all required market keys to reach the exact finalized tail
+before it reports ready.
+
+This command is signal-only. It has no exchange adapter or order credentials,
+and the database contains no positions, fills, or PnL ledger. See
+[Core V2.1 standalone durable runtime](../07_trading_strategies/signal-bot.md#core-v21-standalone-durable-runtime).
 
 ---
 

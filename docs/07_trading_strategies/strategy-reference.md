@@ -18,6 +18,14 @@ Loaded dynamically by `app/trading/strategy/loader.py` via `STRATEGY_MAP`
 (`btc_rsi_cross_alert` excepted: it is a signal-runtime component resolved by
 `app/signal/btc_rsi_cross_alert/config.py`).
 
+Core V2.1 is an additional reviewer-approved, signal-only contract. It is a
+pure evaluator under `app/trading/strategy/core_v2_1/`, not a legacy
+`STRATEGY_MAP` entry and not an order-producing `IStrategy`. Replay and the
+standalone mixed-venue runtime share that evaluator. Its locked 25-candidate
+universe, deterministic indicators, point-in-time rules, WAIT state machine,
+feature anchor, and advisory-level limitations are specified in
+[Core V2.1 signal contract](core-v2-1.md).
+
 ---
 
 ## rsi_no_retest — Complete Parameter Reference
