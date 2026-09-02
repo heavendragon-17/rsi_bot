@@ -2,19 +2,20 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
-## ⚠ ACTIVE — Deploy-bot crash blocking production (2026-09-02)
+## ✅ COMPLETE — Deploy-bot crash fix and production rollout (2026-09-02)
 
-> Implementation, regression tests, and documentation are complete. The
-> remaining work is to pass the release workflow, promote the fixed tag, and
-> verify VPS self-heal or use the guarded force-deploy fallback. The detailed
+> Implementation, regression tests, documentation, release promotion, and VPS
+> self-heal are complete. The detailed
 > handover is intentionally kept local because it contains operational access
 > details and is not part of the tracked release.
 
 - [x] Diagnose why v1.2.8 never reached the VPS: `check_deploy.sh` `write_state` missing `import tempfile` → NameError kills the script between the production checkout and `deploy.sh`, every minute, silently (traceback only in journald).
 - [x] Fix `write_state` import + add EXIT trap and stderr-to-log redirection in `deploy/check_deploy.sh` (uncommitted).
 - [x] `tests/test_deploy_scripts.py` functional regression tests (embedded Python helpers execute for real; cross-platform Bash shim fixed).
-- [x] Finish tests → docs (common-issues row 19, lessons) → commit → tag `v1.2.9`.
-- [ ] Verify VPS auto-deploys (self-heal ~2–3 min after promotion) or run `force_deploy.sh v1.2.9` fallback; confirm bot healthy and M15/M5 alerts deliver.
+- [x] Finish tests → docs (common-issues row 19, lessons) → commit `cc33429`; the first `v1.2.9` tag remains immutable after its documentation-gate failure.
+- [x] Correct the local-only handover link in commit `e7b1166`, tag `v1.2.10`, and pass the full release workflow (`33589342525`, including production promotion `100120388350`).
+- [x] Verify VPS auto-deploy self-heals: the old checker failed once at 06:06:30 while resetting to `v1.2.10`; the repaired checker deployed it at 06:07:35, passed smoke test and health check, and completed at 06:08:14.
+- [x] Confirm production health: `/opt/rsi_bot/VERSION`, deploy state, runtime status, checkout, `rsi-bot`, and `check-deploy.timer` all report `v1.2.10` / `e7b1166c15ab25c54cd1846c9e5c22928f03b3ee` and running. The alert worker initialized and a Telegram startup message was logged as sent; no qualifying natural M5/M15 signal occurred during the bounded verification window, so no synthetic alert was sent.
 
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
 
