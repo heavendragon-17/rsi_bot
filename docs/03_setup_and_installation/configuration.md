@@ -414,6 +414,9 @@ The startup banner reports this same active-entry count as `Active components`.
 It does not count a component's individual timeframes or Telegram topic routes
 as separate strategies. For example, the BTC RSI cross component is one active
 entry even though it evaluates M5 and M15 and uses H1/H4 context.
+The banner also reports the distinct trigger timeframes separately, for example
+`Trigger timeframes: M5, M15`, so one multi-timeframe component cannot be
+mistaken for two independent strategy components.
 
 #### `btc_rsi_cross_alert` component validation
 

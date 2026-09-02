@@ -253,6 +253,7 @@ class TestBtcAlertStartupText:
         body = main._build_signal_startup_message(raw)
 
         assert "Active components: 2" in body
+        assert "Trigger timeframes: M5, M15" in body
         assert (
             "RSI Momentum (rsi_momentum) — topic 44 · 15m · 2 symbols · SHORT"
             in body

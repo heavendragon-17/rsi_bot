@@ -42,6 +42,7 @@ _STRATEGY_DISPLAY_NAMES = {
 _STRATEGY_SIDES = {
     "rsi_momentum": "SHORT",
 }
+_TIMEFRAME_ORDER = {"5m": 0, "15m": 1, "1h": 2, "4h": 3}
 
 
 def _load_raw_yaml(path: str) -> dict:
@@ -95,10 +96,29 @@ def _build_signal_startup_message(raw: dict) -> str:
     global_tf = raw.get("timeframe", "?")
     global_symbols = raw.get("symbols") or []
 
+    trigger_timeframes: set[str] = set()
+    for strategy in active:
+        if strategy.get("name") == COMPONENT_NAME:
+            values = strategy.get("trigger_timeframes") or ("5m", "15m")
+        else:
+            values = (strategy.get("timeframe", global_tf),)
+        trigger_timeframes.update(str(value).lower() for value in values if value)
+    ordered_timeframes = sorted(
+        trigger_timeframes,
+        key=lambda value: (_TIMEFRAME_ORDER.get(value, 99), value),
+    )
+    timeframe_label = ", ".join(
+        f"{value[-1].upper()}{value[:-1]}"
+        if len(value) > 1 and value[-1] in "mhd" and value[:-1].isdigit()
+        else value
+        for value in ordered_timeframes
+    ) or "none"
+
     lines = [
         "🤖 Signal Bot Started",
         f"Mode: SIGNAL",
         f"Active components: {len(active)}",
+        f"Trigger timeframes: {timeframe_label}",
     ]
     for s in active:
         if s.get("name") == COMPONENT_NAME:
