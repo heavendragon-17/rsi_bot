@@ -99,7 +99,13 @@ def bash_env(tmp_path: Path) -> dict[str, str]:
         env["PATH"] = f"{shim_dir.as_posix()}:/usr/bin:/bin"
     else:
         env["PATH"] = f"{shim_dir}:{env.get('PATH', '')}"
-    env["HARNESS_DIR"] = str(tmp_path)
+    # Git Bash may not be able to create directories through its /c mount on
+    # locked-down Windows hosts. A unique path relative to the checkout works
+    # for Bash while retaining a native path for Python-side assertions.
+    harness_name = f".deploy-test-harness-{tmp_path.name}"
+    (REPO_ROOT / harness_name).mkdir(exist_ok=True)
+    env["HARNESS_DIR"] = harness_name
+    env["HARNESS_HOST_DIR"] = str(REPO_ROOT / harness_name)
     return env
 
 
@@ -174,7 +180,7 @@ echo SURVIVED
         result = _run(body, bash_env, ("check_deploy", "write_state"))
         assert result.returncode == 0, result.stderr
         assert "SURVIVED" in result.stdout
-        log_text = (Path(bash_env["HARNESS_DIR"]) / "deploy.log").read_text(encoding="utf-8")
+        log_text = (Path(bash_env["HARNESS_HOST_DIR"]) / "deploy.log").read_text(encoding="utf-8")
         assert "could not persist deploy state" in log_text
 
     def test_get_position_count_states(self, bash_env):
