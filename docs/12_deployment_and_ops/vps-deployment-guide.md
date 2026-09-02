@@ -306,6 +306,7 @@ VPS (check-deploy.timer — runs every 60s)
 | Automatic deploy reports `status_file_unavailable` | Restore bot health/status output, or deliberately use `/force_deploy`; automatic deployment fails closed |
 | Candidate is marked failed and no longer retries | Fix or promote a newer tag; use `/force_deploy` only after reviewing the failure. This prevents one-minute restart loops |
 | Rollback reports failure | Inspect `journalctl -u rsi-bot` and `/var/log/rsi-bot-deploy.log`; keep production disabled until the prior release is healthy |
+| Deploy log repeats `Positions clear. Starting deploy` every minute but the service never restarts | The automatic checker hit an embedded Python runtime error after resetting the production checkout and before invoking `deploy.sh` | Inspect `sudo journalctl -u check-deploy.service -n 50` for the traceback and run `tests/test_deploy_scripts.py`. After promoting a fixed tag, allow the timer to self-heal; if it does not, use the guarded `deploy/force_deploy.sh <tag>` command after confirming the tag is on `production` |
 | Status file stale | Bot may have crashed — `systemctl restart rsi-bot` |
 | Sim balance reset after deploy | Snapshot at `/tmp/rsi_bot_sim_state.json` should restore it. If missing, check that `StatusWriter` is running and that the configured `sim.initial_balance` matches the snapshot's anchor (a config change discards the snapshot). |
 | Permission denied on `/opt` | `sudo chown -R your-user:your-user /opt/rsi_bot` |

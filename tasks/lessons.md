@@ -9,6 +9,12 @@
 - **Files affected**: app/strategies/*.py
 -->
 
+## 2026-09-02: Runtime-test embedded deployment helpers and log silent failures
+
+- **Correction**: `check_deploy.sh` passed shell syntax validation but crashed at runtime because an embedded Python helper used `tempfile` without importing it. The crash happened after the production checkout reset and before `deploy.sh`, so the deploy log looked healthy while journald held the only traceback.
+- **Rule**: Treat embedded interpreter code as executable production code: run helper functions in a sandboxed functional regression test, use the shell interpreter's path separator when constructing cross-platform test environments, redirect helper stderr to the operational log, and add an EXIT trap for abnormal checker termination. `bash -n` alone cannot prove embedded Python imports or runtime behavior.
+- **Files affected**: `deploy/check_deploy.sh`, `tests/test_deploy_scripts.py`, `docs/15_debugging/common-issues.md`, and `docs/12_deployment_and_ops/vps-deployment-guide.md`.
+
 ## 2026-09-01: "Enqueued" is not "delivered" — verify the whole send path
 
 - **Correction**: The production log reported 12 `btc_rsi_cross_alert_enqueued` events (8 M5, 4 M15) while the user's Telegram channel had received only 3 M5 cards and zero M15. Nine alerts were rejected by Telegram with HTTP 400 "can't parse entities" (raw `<` in the card text) and silently dropped.

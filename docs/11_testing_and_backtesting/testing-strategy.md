@@ -56,6 +56,16 @@ tests/
 └── ...
 ```
 
+### Deployment helper tests
+
+`tests/test_deploy_scripts.py` executes the embedded Python helpers from
+`deploy/check_deploy.sh` and `deploy/deploy.sh` under production-like
+`set -euo pipefail` semantics with sandboxed state files. It also runs
+`bash -n` across every deployment script. On Windows, the harness resolves
+the installed Git Bash executable and supplies a `python3` shim; on Linux CI,
+it uses the normal `bash` executable. These tests complement shell syntax
+checks by catching runtime errors such as missing imports in embedded Python.
+
 ---
 
 ## What to Test

@@ -9,12 +9,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/deploy_env.sh"
 
+# Record any abnormal exit in the deploy log. A silent death here stalled
+# the v1.2.8 release for ~10h with the only evidence in the journal
+# (embedded-python NameError killed the script between the production
+# checkout and deploy.sh).
+trap 'rc=$?; if [ "$rc" -ne 0 ]; then log "check_deploy.sh aborted rc=$rc (details: journalctl -u check-deploy.service)" || true; fi' EXIT
+
 write_state() {
     # Usage: write_state <state> <tag> <sha> [error]
     DS_STATE="$1" DS_TAG="$2" DS_SHA="$3" DS_ERROR="${4:-}" \
     DS_PATH="$DEPLOY_STATE" \
     python3 -c "
-import json, os
+import json, os, tempfile
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc).isoformat()
 path = os.environ['DS_PATH']
@@ -52,7 +58,7 @@ except Exception:
     except OSError:
         pass
     raise
-"
+" 2>>"$LOG_FILE" || log "ERROR: could not persist deploy state ($1); continuing"
 }
 
 get_position_count() {

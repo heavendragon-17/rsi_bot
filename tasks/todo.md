@@ -2,6 +2,19 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## ⚠ ACTIVE — Deploy-bot crash blocking v1.2.8 (2026-09-02)
+
+> **Next agent: read [`tasks/handover-2026-09-02-deploy-bot.md`](handover-2026-09-02-deploy-bot.md)
+> first.** It contains the full context, root cause, uncommitted-change state,
+> and exact remaining steps (finish `tests/test_deploy_scripts.py` PATH fix →
+> docs → commit → tag `v1.2.9` → verify VPS self-heal → force-deploy fallback).
+
+- [x] Diagnose why v1.2.8 never reached the VPS: `check_deploy.sh` `write_state` missing `import tempfile` → NameError kills the script between the production checkout and `deploy.sh`, every minute, silently (traceback only in journald).
+- [x] Fix `write_state` import + add EXIT trap and stderr-to-log redirection in `deploy/check_deploy.sh` (uncommitted).
+- [x] `tests/test_deploy_scripts.py` functional regression tests (embedded Python helpers execute for real; cross-platform Bash shim fixed).
+- [x] Finish tests → docs (common-issues row 19, lessons) → commit → tag `v1.2.9`.
+- [ ] Verify VPS auto-deploys (self-heal ~2–3 min after promotion) or run `force_deploy.sh v1.2.9` fallback; confirm bot healthy and M15/M5 alerts deliver.
+
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
 
 - [x] Diagnose why 12 `btc_rsi_cross_alert_enqueued` produced only 3 channel messages (9 × Telegram 400 "can't parse entities", raw `<` in card text; all 4 M15 alerts lost).
