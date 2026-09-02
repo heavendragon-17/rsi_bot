@@ -2,12 +2,13 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
-## ⚠ ACTIVE — Deploy-bot crash blocking v1.2.8 (2026-09-02)
+## ⚠ ACTIVE — Deploy-bot crash blocking production (2026-09-02)
 
-> **Next agent: read [`tasks/handover-2026-09-02-deploy-bot.md`](handover-2026-09-02-deploy-bot.md)
-> first.** It contains the full context, root cause, uncommitted-change state,
-> and exact remaining steps (finish `tests/test_deploy_scripts.py` PATH fix →
-> docs → commit → tag `v1.2.9` → verify VPS self-heal → force-deploy fallback).
+> Implementation, regression tests, and documentation are complete. The
+> remaining work is to pass the release workflow, promote the fixed tag, and
+> verify VPS self-heal or use the guarded force-deploy fallback. The detailed
+> handover is intentionally kept local because it contains operational access
+> details and is not part of the tracked release.
 
 - [x] Diagnose why v1.2.8 never reached the VPS: `check_deploy.sh` `write_state` missing `import tempfile` → NameError kills the script between the production checkout and `deploy.sh`, every minute, silently (traceback only in journald).
 - [x] Fix `write_state` import + add EXIT trap and stderr-to-log redirection in `deploy/check_deploy.sh` (uncommitted).
