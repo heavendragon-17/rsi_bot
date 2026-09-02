@@ -221,7 +221,43 @@ class TestBtcAlertStartupText:
         assert "btc_rsi_cross_alert — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H1/H4 filter" in body
         # The BTC line must not borrow global timeframe/symbol-count fields.
         assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
-        assert "Active strategies: 2" in body
+        assert "Active components: 2" in body
+
+    def test_startup_message_names_momentum_and_explains_component_count(self):
+        import main
+
+        raw = self._raw(
+            [
+                {
+                    "name": "rsi_momentum",
+                    "active": True,
+                    "telegram_topic_id": 44,
+                },
+                {
+                    "name": "btc_rsi_cross_alert",
+                    "active": True,
+                    "telegram_topic_id": 1147,
+                    "m15_telegram_topic_id": 1003,
+                    "symbol": "BTC/USDT",
+                    "trigger_timeframes": ["5m", "15m"],
+                    "confirmation_timeframe": "1h",
+                    "trend_timeframe": "4h",
+                    "rsi_period": 21,
+                    "rsi_ema_period": 9,
+                    "rsi_wma_period": 45,
+                    "context_settle_seconds": 5,
+                },
+            ]
+        )
+
+        body = main._build_signal_startup_message(raw)
+
+        assert "Active components: 2" in body
+        assert (
+            "RSI Momentum (rsi_momentum) — topic 44 · 15m · 2 symbols · SHORT"
+            in body
+        )
+        assert "M5 topic 1147 · M15 topic 1003" in body
 
     def test_topic_entries_include_inactive_strategies_and_debug_topic(self):
         import main

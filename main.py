@@ -36,6 +36,14 @@ from app.notification.null_notifier import NullNotifier  # noqa: E402
 logger = structlog.get_logger()
 
 
+_STRATEGY_DISPLAY_NAMES = {
+    "rsi_momentum": "RSI Momentum",
+}
+_STRATEGY_SIDES = {
+    "rsi_momentum": "SHORT",
+}
+
+
 def _load_raw_yaml(path: str) -> dict:
     with open(path) as f:
         return yaml.safe_load(f) or {}
@@ -73,18 +81,24 @@ def _build_notifier(
 
 
 def _build_signal_startup_message(raw: dict) -> str:
-    """Compose the start-up announcement sent to the debug topic."""
+    """Compose the start-up announcement sent to the debug topic.
+
+    The count is one per active configuration component. A component may own
+    multiple trigger timeframes or Telegram routes, as the BTC alert does.
+    """
     from app.signal.btc_rsi_cross_alert.config import COMPONENT_NAME
 
     strategies = raw.get("strategies") or []
-    active = [s for s in strategies if s.get("active") is True]
+    active = [
+        s for s in strategies if isinstance(s, dict) and s.get("active", True)
+    ]
     global_tf = raw.get("timeframe", "?")
     global_symbols = raw.get("symbols") or []
 
     lines = [
         "🤖 Signal Bot Started",
         f"Mode: SIGNAL",
-        f"Active strategies: {len(active)}",
+        f"Active components: {len(active)}",
     ]
     for s in active:
         if s.get("name") == COMPONENT_NAME:
@@ -99,9 +113,18 @@ def _build_signal_startup_message(raw: dict) -> str:
             continue
         tf = s.get("timeframe", global_tf)
         syms = s.get("symbols") or global_symbols
+        strategy_name = str(s.get("name"))
+        display_name = _STRATEGY_DISPLAY_NAMES.get(strategy_name, strategy_name)
+        name_label = (
+            f"{display_name} ({strategy_name})"
+            if display_name != strategy_name
+            else strategy_name
+        )
+        side_label = _STRATEGY_SIDES.get(strategy_name)
+        side_suffix = f" · {side_label}" if side_label else ""
         lines.append(
-            f"  • {s.get('name')} — topic {s.get('telegram_topic_id')}"
-            f" · {tf} · {len(syms)} symbols"
+            f"  • {name_label} — topic {s.get('telegram_topic_id')}"
+            f" · {tf} · {len(syms)} symbols{side_suffix}"
         )
     return "\n".join(lines)
 

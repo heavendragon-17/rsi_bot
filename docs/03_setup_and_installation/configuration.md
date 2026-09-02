@@ -351,6 +351,11 @@ data:
 | No strategy/component route uses `debug_topic_id` | `ValueError` |
 | If every strategy and component is inactive (or the list is empty), runner warn-logs and exits cleanly | (no raise) |
 
+The startup banner reports this same active-entry count as `Active components`.
+It does not count a component's individual timeframes or Telegram topic routes
+as separate strategies. For example, the BTC RSI cross component is one active
+entry even though it evaluates M5 and M15 and uses H1/H4 context.
+
 #### `btc_rsi_cross_alert` component validation
 
 Resolved by `resolve_btc_rsi_cross_alert_config()` (see
