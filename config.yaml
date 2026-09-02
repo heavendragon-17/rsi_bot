@@ -127,5 +127,5 @@ data:
 # Core V2.1 is a separate long-only, signal-only runtime. It has no order
 # adapter. Set active=true only after the target forum topic has been verified.
 core_v2_1:
-  active: false
-  telegram_topic_id: null
+  active: true
+  telegram_topic_id: 1576 # Long V2 forum topic
