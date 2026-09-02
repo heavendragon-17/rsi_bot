@@ -31,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/adr/` — Architecture Decision Records
 
 ### Changed
+- Disabled the legacy `rsi_momentum` runtime after its production queue
+  overflow and made the standalone Core Long V2 runtime explicit in the
+  startup card, including its M15, 25-candidate, LONG, signal-only scope.
 - Telegram delivery failures now retry HTML entity errors as plain text and
   report failed delivery through the debug topic with a main-chat fallback.
 - Hardened tag promotion and VPS deployment with exact-ref CI, least-privilege

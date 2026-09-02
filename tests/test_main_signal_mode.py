@@ -218,7 +218,11 @@ class TestBtcAlertStartupText:
             ]
         )
         body = main._build_signal_startup_message(raw)
-        assert "btc_rsi_cross_alert — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H1/H4 filter" in body
+        assert (
+            "BTC RSI Cross Alert (btc_rsi_cross_alert)"
+            " — M5 topic 1007 · M15 topic 1008 · BTC/USDT · H1/H4 filter"
+            in body
+        )
         # The BTC line must not borrow global timeframe/symbol-count fields.
         assert "2 symbols" not in body.split("btc_rsi_cross_alert")[1].split("\n")[0]
         assert "Active components: 2" in body
@@ -259,6 +263,57 @@ class TestBtcAlertStartupText:
             in body
         )
         assert "M5 topic 1147 · M15 topic 1003" in body
+
+    def test_startup_message_reports_core_long_v2_as_a_separate_runtime(self):
+        import main
+
+        raw = self._raw(
+            [
+                {
+                    "name": "btc_rsi_cross_alert",
+                    "active": True,
+                    "telegram_topic_id": 1147,
+                    "m15_telegram_topic_id": 1003,
+                    "symbol": "BTC/USDT",
+                    "trigger_timeframes": ["5m", "15m"],
+                },
+            ]
+        )
+        raw["core_v2_1"] = {"active": True, "telegram_topic_id": 1576}
+
+        body = main._build_signal_startup_message(raw)
+
+        assert "Mode: SIGNAL" in body
+        assert "Execution: ADVISORY ONLY · no orders" in body
+        assert "Active components: 2" in body
+        assert "Trigger timeframes: M5, M15" in body
+        assert "Runtimes: SignalRunner + Core V2.1" in body
+        assert (
+            "Core Long V2 (core_v2_1) — topic 1576 · M15 · 25 candidates · LONG"
+            in body
+        )
+        assert "Signal-only runtime; no orders" in body
+        assert (
+            "BTC RSI Cross Alert (btc_rsi_cross_alert)"
+            " — M5 topic 1147 · M15 topic 1003 · BTC/USDT · H1/H4 filter"
+            in body
+        )
+
+    def test_startup_message_does_not_count_inactive_momentum(self):
+        import main
+
+        raw = self._raw(
+            [
+                {"name": "rsi_momentum", "active": False, "telegram_topic_id": 44},
+            ]
+        )
+        raw["core_v2_1"] = {"active": True, "telegram_topic_id": 1576}
+
+        body = main._build_signal_startup_message(raw)
+
+        assert "Active components: 1" in body
+        assert "rsi_momentum" not in body
+        assert "Core Long V2 (core_v2_1)" in body
 
     def test_topic_entries_include_inactive_strategies_and_debug_topic(self):
         import main

@@ -411,13 +411,14 @@ data:
 | No strategy/component route uses `debug_topic_id` | `ValueError` |
 | If every strategy and component is inactive (or the list is empty), runner warn-logs and exits cleanly | (no raise) |
 
-The startup banner reports this same active-entry count as `Active components`.
-It does not count a component's individual timeframes or Telegram topic routes
-as separate strategies. For example, the BTC RSI cross component is one active
-entry even though it evaluates M5 and M15 and uses H1/H4 context.
-The banner also reports the distinct trigger timeframes separately, for example
-`Trigger timeframes: M5, M15`, so one multi-timeframe component cannot be
-mistaken for two independent strategy components.
+The startup banner reports one `Active components` entry for each active
+SignalRunner strategy/component plus the standalone Core V2.1 runtime when
+`core_v2_1.active: true`. It does not count an individual timeframe or
+Telegram topic route as a separate component. For example, the BTC RSI cross
+component is one active entry even though it evaluates M5 and M15 and uses
+H1/H4 context. The banner also reports the distinct trigger timeframes
+separately, for example `Trigger timeframes: M5, M15`, identifies the runtime
+groups, and labels Core Long V2 as advisory-only with no orders.
 
 In signal mode, `/topics` separates configured active/inactive routes and
 strategy definitions that are `not configured` from Telegram forum topics

@@ -89,15 +89,20 @@ def _build_notifier(
 def _build_signal_startup_message(raw: dict) -> str:
     """Compose the start-up announcement sent to the debug topic.
 
-    The count is one per active configuration component. A component may own
-    multiple trigger timeframes or Telegram routes, as the BTC alert does.
+    The count is one per active configuration component, including the
+    standalone Core V2.1 runtime. A component may own multiple trigger
+    timeframes or Telegram routes, as the BTC alert does.
     """
     from app.signal.btc_rsi_cross_alert.config import COMPONENT_NAME
+    from app.trading.strategy.core_v2_1.config import TRADE_CANDIDATES
 
     strategies = raw.get("strategies") or []
     active = [
         s for s in strategies if isinstance(s, dict) and s.get("active", True)
     ]
+    core_config = raw.get("core_v2_1")
+    core_config = core_config if isinstance(core_config, dict) else {}
+    core_active = core_config.get("active", False) is True
     global_tf = raw.get("timeframe", "?")
     global_symbols = raw.get("symbols") or []
 
@@ -108,6 +113,8 @@ def _build_signal_startup_message(raw: dict) -> str:
         else:
             values = (strategy.get("timeframe", global_tf),)
         trigger_timeframes.update(str(value).lower() for value in values if value)
+    if core_active:
+        trigger_timeframes.add("15m")
     ordered_timeframes = sorted(
         trigger_timeframes,
         key=lambda value: (_TIMEFRAME_ORDER.get(value, 99), value),
@@ -122,16 +129,36 @@ def _build_signal_startup_message(raw: dict) -> str:
     lines = [
         "🤖 Signal Bot Started",
         "Mode: SIGNAL",
-        f"Active components: {len(active)}",
+        "Execution: ADVISORY ONLY · no orders",
+        f"Active components: {len(active) + int(core_active)}",
         f"Trigger timeframes: {timeframe_label}",
     ]
+    if active:
+        runtime_labels = ["SignalRunner"]
+        if core_active:
+            runtime_labels.append("Core V2.1")
+        lines.append(f"Runtimes: {' + '.join(runtime_labels)}")
+    elif core_active:
+        lines.append("Runtimes: Core V2.1")
+
+    if core_active:
+        core_topic_id = core_config.get("telegram_topic_id")
+        lines.extend(
+            [
+                "",
+                "  • Core Long V2 (core_v2_1)"
+                f" — topic {core_topic_id} · M15 · {len(TRADE_CANDIDATES)} candidates · LONG",
+                "    Signal-only runtime; no orders",
+            ]
+        )
     for s in active:
         if s.get("name") == COMPONENT_NAME:
             # Alert-only component: fixed BTC/USDT scope across M5/M15 with
             # separate Telegram topics and H1/H4 filters — never show the
             # global symbol count/timeframe.
             lines.append(
-                f"  • {COMPONENT_NAME} — M5 topic {s.get('telegram_topic_id')}"
+                "  • BTC RSI Cross Alert (btc_rsi_cross_alert)"
+                f" — M5 topic {s.get('telegram_topic_id')}"
                 f" · M15 topic {s.get('m15_telegram_topic_id')}"
                 f" · BTC/USDT · H1/H4 filter"
             )

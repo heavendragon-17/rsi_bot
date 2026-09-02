@@ -38,13 +38,20 @@
 - [x] Run focused validation and review release/deployment status: 172 focused
       signal/notification tests passed; architecture, Markdown-link, Ruff,
       mypy, compile, and diff checks passed.
-- [ ] Release/push/deploy this change after explicit production approval.
+- [x] Release/push/deploy this change after explicit production approval: v1.2.12
+      (`e60dcc7`, GitHub workflow `33612360676`) promoted and picked up by the
+      VPS deploy check; `rsi-bot`, the Core V2.1 process, and
+      `check-deploy.timer` are running. Live follow-up remains for the
+      `rsi_momentum` topic-44 queue overflow observed immediately after restart.
 
-## ⚠ ACTIVE — Enable RSI Momentum and clarify signal startup status (2026-09-02)
+## ⚠ ACTIVE — Switch to Core Long V2 and clarify signal startup status (2026-09-02)
 
 - [x] Identify the newest non-BTC entry as `rsi_momentum` and name it `RSI Momentum` in the operator-facing startup message.
 - [x] Clarify the startup count as active configuration components, with M5/M15 routes shown inside the single BTC alert component.
-- [x] Enable `rsi_momentum` on its existing topic `44` using the global 15m / symbol scope.
+- [x] Disable `rsi_momentum` after the production queue-overflow evidence on topic `44`.
+- [x] Keep Core V2.1 active on the verified Long V2 topic `1576`.
+- [x] Improve startup output to show active runtime groups, advisory-only execution,
+      Core Long V2 scope, and BTC per-timeframe topics without ambiguous counts.
 - [ ] Run focused/full validation, release, and verify both production workers and topic routing.
 
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)

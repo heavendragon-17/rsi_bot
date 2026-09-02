@@ -87,7 +87,7 @@ strategies:
     risk:
       tp1_close_pct: 0.5 # merges into the global risk block
   - name: rsi_momentum
-    active: true
+    active: false
     telegram_topic_id: 44
     # strategy_params:
     #   max_holding_enabled: true
