@@ -17,6 +17,13 @@
 - [x] Verify VPS auto-deploy self-heals: the old checker failed once at 06:06:30 while resetting to `v1.2.10`; the repaired checker deployed it at 06:07:35, passed smoke test and health check, and completed at 06:08:14.
 - [x] Confirm production health: `/opt/rsi_bot/VERSION`, deploy state, runtime status, checkout, `rsi-bot`, and `check-deploy.timer` all report `v1.2.10` / `e7b1166c15ab25c54cd1846c9e5c22928f03b3ee` and running. The alert worker initialized and a Telegram startup message was logged as sent; no qualifying natural M5/M15 signal occurred during the bounded verification window, so no synthetic alert was sent.
 
+## ✅ COMPLETE — Passwordless VPS SSH access (2026-09-02)
+
+- [x] Reuse the device's existing Ed25519 key; no new private key was generated.
+- [x] Install only its public key for the VPS `cut_lap` account, idempotently.
+- [x] Verify OpenSSH authentication with `BatchMode=yes` and password authentication disabled; the connection used `publickey` and both production services remained active.
+- [x] Leave password login unchanged as a fallback; no private key, password, or other credential is stored in this repository.
+
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
 
 - [x] Diagnose why 12 `btc_rsi_cross_alert_enqueued` produced only 3 channel messages (9 × Telegram 400 "can't parse entities", raw `<` in card text; all 4 M15 alerts lost).
