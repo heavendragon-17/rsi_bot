@@ -91,6 +91,53 @@ install_requirements() {
     python -m pip install -r requirements.txt --quiet 2>&1 | tee -a "$LOG_FILE"
 }
 
+core_config_active() {
+    "$VENV_DIR/bin/python" - "$BOT_DIR/config.yaml" <<'PY'
+import sys
+import yaml
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+except (OSError, yaml.YAMLError):
+    print("0")
+else:
+    core = config.get("core_v2_1")
+    print("1" if isinstance(core, dict) and core.get("active") is True else "0")
+PY
+}
+
+restart_core_service_if_installed() {
+    if ! systemctl cat "$CORE_SERVICE_NAME.service" >/dev/null 2>&1; then
+        log "Core V2.1 service is not installed; main bot deploy continues."
+        return 0
+    fi
+    if [[ "$(core_config_active)" != "1" ]]; then
+        sudo -n systemctl stop "$CORE_SERVICE_NAME" >/dev/null 2>&1 || true
+        log "Core V2.1 is disabled in config; service stopped."
+        return 0
+    fi
+    log "Restarting $CORE_SERVICE_NAME service..."
+    sudo -n systemctl restart "$CORE_SERVICE_NAME"
+}
+
+wait_for_core_service() {
+    if [[ "$(core_config_active)" != "1" ]]; then
+        return 0
+    fi
+    if ! systemctl cat "$CORE_SERVICE_NAME.service" >/dev/null 2>&1; then
+        return 0
+    fi
+    for _ in $(seq 1 "$HEALTH_CHECK_ATTEMPTS"); do
+        if systemctl is-active --quiet "$CORE_SERVICE_NAME"; then
+            return 0
+        fi
+        sleep "$HEALTH_CHECK_INTERVAL"
+    done
+    log "ERROR: Core V2.1 service did not become active."
+    return 1
+}
+
 wait_for_health() {
     local expected_tag="$1" expected_sha="$2" minimum_started_epoch="$3"
     local status attempt timeout
@@ -183,6 +230,7 @@ rollback_release() {
         log "ERROR: Previous release was restored on disk but could not be restarted."
         return 1
     fi
+    restart_core_service_if_installed || true
 
     if wait_for_health "$PREVIOUS_TAG" "$ROLLBACK_SHA" "$rollback_started"; then
         update_deploy_state "failed" "${reason}_rolled_back"
@@ -263,6 +311,11 @@ RESTARTED_AT=$(date +%s)
 if ! sudo -n systemctl restart "$SERVICE_NAME"; then
     log "ERROR: Service restart failed."
     rollback_release "service_restart_failed" || true
+    exit 3
+fi
+if ! restart_core_service_if_installed || ! wait_for_core_service; then
+    log "ERROR: Core V2.1 service restart/health failed."
+    rollback_release "core_service_failed" || true
     exit 3
 fi
 

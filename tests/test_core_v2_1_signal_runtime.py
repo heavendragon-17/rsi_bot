@@ -1234,5 +1234,7 @@ def test_live_cli_loads_dotenv_before_building_composition(monkeypatch, tmp_path
     )
     monkeypatch.setattr(live_cli.signal, "signal", fake_signal)
 
-    assert live_cli.main(["--state-db", str(tmp_path / "cli.sqlite3")]) == 0
+    assert live_cli.main(
+        ["--state-db", str(tmp_path / "cli.sqlite3"), "--topic-id", "42"]
+    ) == 0
     assert calls == ["dotenv", "build", "start", "stop"]

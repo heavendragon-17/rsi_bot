@@ -123,3 +123,9 @@ data:
     "1h": 3000
     "4h": 1500
     "1d": 500
+
+# Core V2.1 is a separate long-only, signal-only runtime. It has no order
+# adapter. Set active=true only after the target forum topic has been verified.
+core_v2_1:
+  active: false
+  telegram_topic_id: null

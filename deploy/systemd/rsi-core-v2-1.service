@@ -1,0 +1,30 @@
+# TEMPLATE — Do not install directly.
+# Run: sudo deploy/install.sh
+
+[Unit]
+Description=RSI Core V2.1 Signal Runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+WorkingDirectory=__BOT_DIR__
+Environment=PATH=__VENV_DIR__/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-__BOT_DIR__/.env
+ExecStart=__VENV_DIR__/bin/python -m app.signal.core_v2_1.live --config __BOT_DIR__/config.yaml --state-db __CORE_STATE_FILE__ --data-dir __CORE_DATA_DIR__ --poll-seconds 15
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

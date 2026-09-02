@@ -21,6 +21,9 @@ LOG_FILE="/var/log/rsi-bot-deploy.log"
 
 # ── Systemd service name ─────────────────────────────────────────
 SERVICE_NAME="rsi-bot"
+CORE_SERVICE_NAME="rsi-core-v2-1"
+CORE_STATE_FILE="$BOT_DIR/data/core_v2_1_signal.sqlite3"
+CORE_DATA_DIR="$BOT_DIR/app/backtest/data"
 
 # ── Deploy behavior ──────────────────────────────────────────────
 STALE_THRESHOLD=300  # seconds before status file is considered stale
