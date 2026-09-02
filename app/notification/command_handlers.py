@@ -249,7 +249,7 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
         "/history        Last 10 closed trades",
         "/report         Full performance dashboard",
         "/reset          Reset balance & trades (sim)",
-        "/topics         Configured strategy topic names and IDs (signal)",
+        "/topics         Full strategy/topic inventory (signal)",
         "",
         "/force_deploy   Trigger immediate deploy",
         "/deploy_status  Current deploy state",
@@ -262,19 +262,22 @@ def handle_help(prefix: str, send, chat_id: str) -> None:
 
 
 def handle_topics(
-    topics: list[tuple[str, int, str]], prefix: str, send, chat_id: str
+    topics: list[tuple[str, int | None, str]], prefix: str, send, chat_id: str
 ) -> None:
-    """Show configured signal topic labels, IDs, and activation state."""
+    """Show the complete signal strategy/topic inventory."""
     lines = [
         f"{prefix} | 🗂 TOPICS",
         "",
-        "Configured topic IDs:",
+        "Strategy/topic inventory:",
     ]
     if topics:
         for name, topic_id, status in topics:
-            lines.append(
-                f"• {escape(name)} — topic ID: {topic_id} ({escape(status)})"
-            )
+            if topic_id is None:
+                lines.append(f"• {escape(name)} — {escape(status)}")
+            else:
+                lines.append(
+                    f"• {escape(name)} — topic ID: {topic_id} ({escape(status)})"
+                )
     else:
         lines.append("No configured topics.")
 

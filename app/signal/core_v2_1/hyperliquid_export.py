@@ -212,6 +212,7 @@ def export_latest_pump_m15(
     destination = Path(data_dir).expanduser().resolve() / PUMP_FILENAME
     existing_raw: pd.DataFrame | None = None
     existing_last_close: datetime | None = None
+    fetch_start: datetime
     if destination.exists():
         existing_raw = pd.read_csv(
             destination,
@@ -234,8 +235,12 @@ def export_latest_pump_m15(
                 "Existing PUMP file does not begin at the locked feature anchor; "
                 "explicit re-anchor migration required"
             )
-        assert existing.report.last_closed_at is not None
-        existing_last_close = existing.report.last_closed_at.to_pydatetime()
+        stored_last_close = existing.report.last_closed_at
+        if stored_last_close is None:
+            raise HyperliquidExportError("Existing PUMP file has no closed-candle watermark")
+        existing_last_close = stored_last_close.to_pydatetime()
+        if existing_last_close is None:
+            raise HyperliquidExportError("Existing PUMP file has no closed-candle watermark")
         if existing_last_close > last_close:
             raise HyperliquidExportError(
                 "Existing PUMP history extends beyond the authoritative finalized watermark"

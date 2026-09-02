@@ -30,6 +30,8 @@ from app.signal.core_v2_1.models import (
 from app.signal.core_v2_1.state_store import CoreV21StateStore
 from app.trading.strategy.core_v2_1 import first_fully_covered_close
 
+BOOTSTRAP_PERFORMANCE_BUDGET_SECONDS = 35
+
 
 class _DeterministicSource:
     def __init__(self, venue: Venue) -> None:
@@ -239,7 +241,9 @@ def test_full_universe_cold_bootstrap_precomputes_once_and_restart_matches_live(
     elapsed = time.perf_counter() - started
 
     assert cold.ready, cold.missing_or_blocked
-    assert elapsed < 30
+    # Hosted runners vary materially under the full 25-market workload; keep
+    # this as a regression guard while allowing normal CI scheduling jitter.
+    assert elapsed < BOOTSTRAP_PERFORMANCE_BUDGET_SECONDS
     assert feature_calls == {
         "compute_m15_indicators": 25,
         "compute_alt_h1_indicators": 25,

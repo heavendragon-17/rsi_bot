@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from email.utils import parsedate_to_datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import ccxt
 import requests
@@ -373,7 +373,7 @@ class HyperliquidPublicCandleSource:
         try:
             response = self._session.post(
                 self._url,
-                json=payload,
+                json=cast(Any, payload),
                 timeout=self._timeout,
             )
             response.raise_for_status()
@@ -455,7 +455,7 @@ class ReconnectingClosedCandlePoller:
         self,
         router: CompositeMarketDataRouter,
         keys: Iterable[MarketKey],
-        on_candle: Callable[[ClosedCandle], None],
+        on_candle: Callable[[ClosedCandle], object],
         *,
         poll_interval_seconds: float = 15.0,
         initial_backfill_candles: int = 3,

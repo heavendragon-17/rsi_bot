@@ -418,6 +418,11 @@ The banner also reports the distinct trigger timeframes separately, for example
 `Trigger timeframes: M5, M15`, so one multi-timeframe component cannot be
 mistaken for two independent strategy components.
 
+In signal mode, `/topics` shows the complete strategy/topic inventory rather
+than only entries currently present in `strategies`: configured active and
+inactive entries, legacy strategies that are `not configured`, the split BTC
+M5/M15 routes, the standalone Core V2.1 Long V2 route, and the debug topic.
+
 #### `btc_rsi_cross_alert` component validation
 
 Resolved by `resolve_btc_rsi_cross_alert_config()` (see

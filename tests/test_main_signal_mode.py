@@ -273,6 +273,11 @@ class TestBtcAlertStartupText:
         assert main._build_signal_topic_entries(raw, 99) == [
             ("rsi_no_retest", 42, "active"),
             ("rsi_wma_retest", 43, "inactive"),
+            ("rsi_no_retest_short", None, "not configured"),
+            ("rsi_no_retest_fade", None, "not configured"),
+            ("rsi_momentum", None, "not configured"),
+            ("rsi_alert", None, "not configured"),
+            ("core_v2_1 (Long V2)", None, "not configured"),
             ("debug", 99, "always"),
         ]
 
@@ -295,8 +300,29 @@ class TestBtcAlertStartupText:
             ("btc_rsi_cross_alert (M5)", 1147, "active"),
             ("btc_rsi_cross_alert (M15)", 1003, "active"),
             ("rsi_no_retest", 1003, "inactive"),
+            ("rsi_wma_retest", None, "not configured"),
+            ("rsi_no_retest_short", None, "not configured"),
+            ("rsi_no_retest_fade", None, "not configured"),
+            ("rsi_momentum", None, "not configured"),
+            ("rsi_alert", None, "not configured"),
+            ("core_v2_1 (Long V2)", None, "not configured"),
             ("debug", 1006, "always"),
         ]
+
+    def test_topic_inventory_includes_configured_core_v2_1(self):
+        import main
+
+        raw = self._raw(
+            [
+                {"name": "rsi_momentum", "active": True, "telegram_topic_id": 44},
+            ]
+        )
+        raw["core_v2_1"] = {"active": True, "telegram_topic_id": 1576}
+
+        entries = main._build_signal_topic_entries(raw, 1006)
+
+        assert ("core_v2_1 (Long V2)", 1576, "active") in entries
+        assert ("rsi_alert", None, "not configured") in entries
 
     def test_alert_only_mode_skips_fake_test_signal_callback(self, tmp_path, monkeypatch):
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "fake-token")

@@ -208,11 +208,21 @@ class TestHandleTopics:
 
         msg = send.call_args[0][0]
         assert "TOPICS" in msg
+        assert "Strategy/topic inventory:" in msg
         assert "rsi_no_retest" in msg
         assert "topic ID: 1003 (active)" in msg
         assert "rsi_wma_retest" in msg
         assert "topic ID: 43 (inactive)" in msg
         assert "topic ID: 1006 (always)" in msg
+
+    def test_lists_unconfigured_entries_without_fake_topic_id(self):
+        send = MagicMock()
+
+        handle_topics([("rsi_alert", None, "not configured")], "P", send, chat_id="c")
+
+        msg = send.call_args[0][0]
+        assert "rsi_alert — not configured" in msg
+        assert "topic ID: None" not in msg
 
     def test_escapes_topic_names_for_html(self):
         send = MagicMock()

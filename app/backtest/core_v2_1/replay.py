@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import numpy as np
 import pandas as pd
@@ -262,11 +262,15 @@ class CoreV21PointInTimeReplay:
         if evaluator is None or state_factory is None:
             from app.trading.strategy.core_v2_1 import CoreState, evaluate_core_v2_1
 
-            evaluator = evaluator or evaluate_core_v2_1
-            state_factory = state_factory or CoreState.initial
+            if evaluator is None:
+                evaluator = cast(Evaluator, evaluate_core_v2_1)
+            if state_factory is None:
+                state_factory = CoreState.initial
+        assert evaluator is not None
+        assert state_factory is not None
         self.frames = frames
-        self.evaluator = evaluator
-        self.state_factory = state_factory
+        self.evaluator: Evaluator = evaluator
+        self.state_factory: Callable[[], Any] = state_factory
 
     def run(
         self,

@@ -151,32 +151,53 @@ def _build_signal_startup_message(raw: dict) -> str:
 
 def _build_signal_topic_entries(
     raw: dict, debug_topic_id: int
-) -> list[tuple[str, int, str]]:
-    """Return configured signal topic labels and IDs for ``/topics``.
+) -> list[tuple[str, int | None, str]]:
+    """Return the full signal strategy/topic inventory for ``/topics``.
 
-    The raw config is used instead of resolved runtime objects so inactive
-    strategy entries remain visible while operators prepare a new strategy.
-    BTC alert routes are expanded into separate M5/M15 entries.
+    The raw config is used instead of resolved runtime objects so inactive and
+    unconfigured strategy entries remain visible while operators prepare a new
+    strategy. BTC alert routes are expanded into separate M5/M15 entries, and
+    Core V2.1 is shown as its standalone Long V2 component.
     ``runner.start()`` validates the entries before this helper is called.
     """
     from app.signal.btc_rsi_cross_alert.config import COMPONENT_NAME
+    from app.trading.strategy.loader import STRATEGY_MAP
 
-    entries: list[tuple[str, int, str]] = []
+    entries: list[tuple[str, int | None, str]] = []
+    configured_names: set[str] = set()
     for entry in raw.get("strategies") or []:
         if not isinstance(entry, dict):
             continue
         name = entry.get("name")
         topic_id = entry.get("telegram_topic_id")
-        if name is None or topic_id is None:
+        if name is None:
             continue
+        name = str(name)
+        configured_names.add(name)
         status = "active" if entry.get("active", True) else "inactive"
         if name == COMPONENT_NAME:
-            entries.append((f"{name} (M5)", int(topic_id), status))
+            if topic_id is not None:
+                entries.append((f"{name} (M5)", int(topic_id), status))
             m15_topic_id = entry.get("m15_telegram_topic_id")
             if m15_topic_id is not None:
                 entries.append((f"{name} (M15)", int(m15_topic_id), status))
             continue
-        entries.append((str(name), int(topic_id), status))
+        entries.append((name, int(topic_id) if topic_id is not None else None, status))
+
+    for name in STRATEGY_MAP:
+        if name not in configured_names:
+            entries.append((name, None, "not configured"))
+
+    core_config = raw.get("core_v2_1") or {}
+    core_topic_id = core_config.get("telegram_topic_id")
+    core_status = "active" if core_config.get("active", False) else "inactive"
+    entries.append(
+        (
+            "core_v2_1 (Long V2)",
+            int(core_topic_id) if core_topic_id is not None else None,
+            core_status if core_topic_id is not None else "not configured",
+        )
+    )
 
     entries.append(("debug", debug_topic_id, "always"))
     return entries
