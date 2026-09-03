@@ -53,17 +53,16 @@ Configuration and exchange-mode details are in
 
 ## Backtest UI
 
-Build the frontend locally, then the one-process launcher serves the generated
-`ui/build/` bundle and API on `http://localhost:8100` by default. The bundle is
-ignored by Git and rebuilt from the locked frontend sources:
+The one-process launcher serves the committed `ui/build/` bundle and API on
+`http://localhost:8100` by default. The bundle ships with the repository, so a
+plain `git pull` plus Python is enough:
 
 ```bash
-cd ui
-npm ci
-npm run build
-cd ..
 python run_backtest_ui.py
 ```
+
+After a frontend source change, rebuild and re-commit the bundle with
+`release_ui.bat`, which runs the production build and commits `ui/build/`.
 
 On Windows, a non-technical reviewer can double-click `run_backtest_ui.bat`
 after the one-time setup. It uses the local project environment and opens the

@@ -19,8 +19,9 @@ if not defined RSI_PYTHON (
 )
 
 if not exist "%~dp0ui\build" (
-    echo [ERROR] The UI has not been prepared yet.
-    echo         Ask the developer to run: cd ui ^&^& npm ci ^&^& npm run build
+    echo [ERROR] ui\build is missing from this repository copy.
+    echo         Run "git pull" to receive the committed UI build, or ask the
+    echo         developer to rebuild it with release_ui.bat.
     pause
     exit /b 1
 )

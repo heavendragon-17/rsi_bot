@@ -20,10 +20,11 @@ htmlcov/
 /.venv/
 /tmp/
 
-# Frontend dependencies and generated output; rebuild locally, never commit
+# Frontend dependencies stay local. ui/build is committed on purpose so a
+# client can run run_backtest_ui.bat straight after git pull without Node.
+# Rebuild + commit it with release_ui.bat after any UI source change.
 /ui/node_modules/
 /ui/dist/
-/ui/build/
 
 # Data
 *.csv

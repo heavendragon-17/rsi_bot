@@ -22,10 +22,10 @@ npm run type-check
 npm run build
 ```
 
-`npm run build` writes the Git-ignored `ui/build/` directory. CI always rebuilds
-it from `package-lock.json`; generated assets are not committed. Once built,
-`python run_backtest_ui.py` can serve the complete application without Node.js
-remaining active at runtime.
+`npm run build` writes `ui/build/`, which is committed to the repository so
+`run_backtest_ui.bat` works after a plain `git pull` with no Node.js involved.
+After UI changes, rebuild and commit it with `release_ui.bat`; CI still
+rebuilds from `package-lock.json` to verify the committed bundle.
 
 Current architecture and configuration live in
 [`docs/10_frontend_dashboard/`](../docs/10_frontend_dashboard/). Files under

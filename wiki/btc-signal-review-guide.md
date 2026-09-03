@@ -149,14 +149,7 @@ The developer prepares the computer before handing it to the reviewer:
    fresh checkout has the data needed by the reviewer. Other downloaded market
    data remains local and ignored.
 
-3. Build the UI once:
-
-   ```cmd
-   cd /d ui
-   npm ci
-   npm run build
-   cd /d ..
-   ```
-
-After a frontend code change, run `npm run build` again. The reviewer only
-needs to double-click `run_backtest_ui.bat` afterward.
+The UI bundle is committed to the repository, so `git pull` delivers it and no
+build step is needed. After a frontend code change, the developer runs
+`release_ui.bat` to rebuild and push the bundle. The reviewer only needs to
+double-click `run_backtest_ui.bat` afterward.
