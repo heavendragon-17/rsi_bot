@@ -1,7 +1,7 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-08-30T06:32:19Z
+ * Generated: 2026-09-02T10:33:09Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
@@ -9,6 +9,8 @@ export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
 export type SignalQuality = "UNREVIEWED" | "GOOD" | "BAD" | "UNCERTAIN";
 
 export type SignalHumanOutcome = "UNSET" | "WIN" | "LOSS" | "SKIP";
+
+export type SignalTradeExit = "TAKE_PROFIT" | "STOP_LOSS" | "BOTH_SAME_CANDLE" | "OPEN" | "NO_DATA";
 
 export interface SignalReplayRunSummary {
   id: number;
@@ -110,6 +112,8 @@ export interface SignalReviewUpdate {
   quality?: SignalQuality | null;
   human_outcome?: SignalHumanOutcome | null;
   note?: string | null;
+  take_profit_price?: string | null;
+  stop_loss_price?: string | null;
 }
 
 export interface SignalReplaySourceAvailability {
@@ -143,6 +147,14 @@ export interface HistoryResponse {
 }
 
 export interface SignalReviewResponse {
+  entry_price: string;
+  take_profit_price: string | null;
+  stop_loss_price: string | null;
+  exit_reason: SignalTradeExit | null;
+  exit_at: string | null;
+  duration_minutes: number | null;
+  evaluation_warning: string | null;
+  evaluated_at: string | null;
   quality: SignalQuality;
   human_outcome: SignalHumanOutcome;
   note: string | null;

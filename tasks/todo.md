@@ -2,6 +2,42 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## ⚪ ACTIVE — BTC Signal Review TP/SL outcome capture (2026-09-02)
+
+- [x] Add fixed signal-candle entry with adjacent TP/SL inputs to the Signal Review UI.
+- [x] Evaluate the signal-timeframe candles for the first TP/SL touch and elapsed time,
+      without deriving a 1R win/loss classification.
+- [x] Persist the configured levels and objective first-touch result without changing
+      the separate human quality/outcome labels.
+- [x] Allow TP/SL to be saved before quality selection; defer first-touch
+      evaluation until quality unlocks the future candles.
+- [x] Keep the Human review section above the chart and TP/SL work area.
+- [x] Add focused tests, regenerate schema/database docs, and run frontend/backend checks.
+
+### Review
+
+The Signal Review detail view starts with the Human review section, followed by
+a chart-left, TP/SL-right work area. The signal candle close is the read-only
+entry; both positive long-side levels must be entered together before quality
+selection. Saving the plan persists it while future candles remain hidden.
+Selecting a quality label unlocks the future, then scans later native M5/M15
+candles and stores the first-touch reason, exit candle, elapsed minutes,
+evaluation warning, and evaluation timestamp.
+TP-first, SL-first, open, no-data, and same-candle ambiguity are explicit
+states. The automatic result never calculates 1R/PnL and never changes the
+manual quality or WIN/LOSS/SKIP fields.
+
+| Check | Result |
+|---|---|
+| Focused replay/review/database tests | **24 passed** |
+| Full repository tests | **1297 passed, 12 skipped, 49 warnings** |
+| Feature-file Ruff | **Passed**; repository-wide run still reports four pre-existing generic-type errors in `app/signal/core_v2_1` and `app/trading/strategy/utils` |
+| Frontend production build | **Passed** (`tsc --noEmit` + Vite) |
+| Live browser layout and interaction check | **Passed** at 1850px and 1280px; chart left, TP/SL right, inputs enabled before quality selection, no console errors |
+| Python compilation | **Passed** |
+| Markdown links | **133 files passed** |
+| `git diff --check` | **Passed**; only existing Windows LF→CRLF warnings |
+
 ## ✅ COMPLETE — Deploy-bot crash fix and production rollout (2026-09-02)
 
 > Implementation, regression tests, documentation, release promotion, and VPS
@@ -52,7 +88,10 @@
 - [x] Keep Core V2.1 active on the verified Long V2 topic `1576`.
 - [x] Improve startup output to show active runtime groups, advisory-only execution,
       Core Long V2 scope, and BTC per-timeframe topics without ambiguous counts.
-- [ ] Run focused/full validation, release, and verify both production workers and topic routing.
+- [x] Run focused/full validation, release, and verify both production workers and topic routing:
+      30 focused tests passed; release `v1.2.13` (`4c88e4d`) passed all hosted
+      CI gates and production promotion; the VPS restarted `rsi-bot` and
+      `rsi-core-v2-1`, and the fresh startup log reports no legacy strategies.
 
 ## Telegram alert delivery: HTML entity rejection fix (2026-09-01)
 
@@ -769,3 +808,36 @@ precomputes RSI21, EMA9/WMA45 of RSI21, and price EMA21 once per contiguous
 segment, then reuses the existing M5/M15 decision functions. Initial events
 before the 67-row trigger and 21-row H4 minimums are skipped and counted as
 warmup rather than logged as repeated not-ready failures.
+
+## BTC signal-only EV study (2026-09-02)
+
+- [x] Build a focused research notebook from the current BTC M5/M15 replay.
+- [x] Measure complete-horizon forward return, MFE, and MAE by timeframe.
+- [x] Compare alerts with same-timeframe all-candle baselines.
+- [x] Add block-bootstrap uncertainty, non-overlapping robustness, monthly
+  stability, and explicit cost-hurdle sensitivity.
+- [x] Execute the notebook and validate source coverage, row counts, and
+  calculations.
+
+#### Review
+
+The focused notebook [2026-04-28_btc_signal_ev.ipynb](../research/2026-04-28_btc_signal_ev.ipynb)
+replayed the current working-tree definition `btc-rsi-cross-v1` against the
+canonical BTC M5, M15, H1, and H4 CSVs. It emitted 1,399 M5 and 589 M15
+signals. All four source files passed duplicate/cadence checks, and the
+provenance export records row counts, SHA-256 hashes, Git revision, and the
+working-tree-dirty state.
+
+The executed study found small positive point estimates at several horizons,
+but every 95% chronological block-bootstrap interval crossed zero. At 4h,
+M5 mean return was 0.0133% versus a 0.0116% same-timeframe baseline; M15 mean
+return was 0.0422% versus a 0.0117% baseline. Neither lift is statistically
+supported by this study, and neither survives the illustrative 0.10% cost
+hurdle. The non-overlapping checks and monthly table are included for further
+review; no timeframe is currently confirmed as robust EV+.
+
+Validation: executed notebook passed `nbformat.validate` with no error cells;
+signal invariants passed for all 1,988 alerts; two independent 4h return spot
+checks matched exactly; compilation and tracked-file whitespace checks passed.
+Ruff was not available in the named `rsi` environment, so lint remains an
+environment limitation rather than a passed check.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -30,9 +31,15 @@ from app.backtest import signal_replay_service
 from app.backtest.signal_replay import run_btc_alert_replay
 from app.backtest.signal_replay_analysis import (
     CHART_CHUNK_CANDLES,
+    TRADE_EXIT_BOTH_SAME_CANDLE,
+    TRADE_EXIT_NO_DATA,
+    TRADE_EXIT_OPEN,
+    TRADE_EXIT_STOP_LOSS,
+    TRADE_EXIT_TAKE_PROFIT,
     calculate_forward_metrics,
     chart_candles,
     chart_window_from_frame,
+    evaluate_long_trade,
     prepare_forward_metric_source,
     source_metadata,
 )
@@ -172,6 +179,74 @@ def test_forward_metrics_use_trigger_close_and_report_partial_horizons():
     assert metrics[0]["mae_pct"] == pytest.approx(-1.0)
     assert metrics[-1]["complete"] is False
     assert metrics[-1]["warning"]
+
+
+def test_trade_plan_uses_future_native_candles_and_marks_ambiguous_wicks():
+    opens = pd.date_range("2026-01-01 00:00:00", periods=5, freq="5min", tz="UTC")
+    frame = pd.DataFrame(
+        {
+            "open": [100.0, 100.0, 101.0, 102.0, 103.0],
+            "high": [110.0, 102.0, 106.0, 103.0, 104.0],
+            "low": [90.0, 99.0, 100.0, 101.0, 102.0],
+            "close": [100.0, 101.0, 105.0, 102.0, 103.0],
+            "volume": 1.0,
+        },
+        index=opens,
+    )
+    trigger_close = opens[0].to_pydatetime() + timedelta(minutes=5)
+
+    take_profit = evaluate_long_trade(
+        frame,
+        "5m",
+        trigger_close=trigger_close,
+        take_profit_price=Decimal("105"),
+        stop_loss_price=Decimal("95"),
+    )
+
+    assert take_profit.exit_reason == TRADE_EXIT_TAKE_PROFIT
+    assert take_profit.duration_minutes == 10
+    assert take_profit.exit_at == opens[2].to_pydatetime() + timedelta(minutes=5)
+
+    ambiguous = evaluate_long_trade(
+        frame,
+        "5m",
+        trigger_close=trigger_close,
+        take_profit_price=Decimal("101"),
+        stop_loss_price=Decimal("99"),
+    )
+
+    assert ambiguous.exit_reason == TRADE_EXIT_BOTH_SAME_CANDLE
+    assert ambiguous.duration_minutes == 5
+    assert ambiguous.warning is not None
+
+    stop_loss = evaluate_long_trade(
+        frame,
+        "5m",
+        trigger_close=trigger_close,
+        take_profit_price=Decimal("107"),
+        stop_loss_price=Decimal("99"),
+    )
+    assert stop_loss.exit_reason == TRADE_EXIT_STOP_LOSS
+    assert stop_loss.duration_minutes == 5
+
+    still_open = evaluate_long_trade(
+        frame,
+        "5m",
+        trigger_close=trigger_close,
+        take_profit_price=Decimal("200"),
+        stop_loss_price=Decimal("1"),
+    )
+    assert still_open.exit_reason == TRADE_EXIT_OPEN
+    assert still_open.exit_at is None
+
+    no_data = evaluate_long_trade(
+        frame.iloc[:1],
+        "5m",
+        trigger_close=trigger_close,
+        take_profit_price=Decimal("105"),
+        stop_loss_price=Decimal("95"),
+    )
+    assert no_data.exit_reason == TRADE_EXIT_NO_DATA
 
 
 def test_signal_rows_prepare_metric_sources_once_and_report_progress(
@@ -555,12 +630,47 @@ def test_signal_api_filters_persists_review_and_reloads_chart(tmp_path):
         assert locked_h1.json()["anchor_time"] <= locked_h1.json()["signal_time"]
         assert sum(candle["is_trigger"] for candle in locked_h1.json()["candles"]) == 1
 
+        source_path = Path(_run.source_metadata["5m"]["path"])
+        source_frame = pd.read_csv(source_path)
+        m5_signal = next(row for row in rows if row.id == m5_id)
+        entry = Decimal(m5_signal.trigger_close_price)
+        future_row = source_frame.tail(1).copy()
+        future_row.loc[:, "timestamp"] = (
+            pd.Timestamp(source_frame.iloc[-1]["timestamp"]) + timedelta(minutes=5)
+        ).strftime("%Y-%m-%d %H:%M:%S")
+        future_row.loc[:, "open"] = float(entry)
+        future_row.loc[:, "high"] = float(entry + Decimal("10"))
+        future_row.loc[:, "low"] = float(entry)
+        future_row.loc[:, "close"] = float(entry + Decimal("1"))
+        source_frame = pd.concat([source_frame, future_row], ignore_index=True)
+        source_frame.to_csv(source_path, index=False)
+
+        plan_before_quality = client.patch(
+            f"/api/signal-replays/signals/{m5_id}/review",
+            json={
+                "take_profit_price": str(entry + Decimal("5")),
+                "stop_loss_price": str(entry - Decimal("5")),
+            },
+        )
+        assert plan_before_quality.status_code == 200
+        staged_plan = plan_before_quality.json()
+        assert staged_plan["quality"] == SignalQuality.UNREVIEWED.value
+        assert staged_plan["entry_price"] == m5_signal.trigger_close_price
+        assert staged_plan["take_profit_price"] == str(entry + Decimal("5"))
+        assert staged_plan["stop_loss_price"] == str(entry - Decimal("5"))
+        assert staged_plan["exit_reason"] is None
+        assert staged_plan["evaluated_at"] is None
+        assert staged_plan["human_outcome"] == SignalHumanOutcome.UNSET.value
+
         review = client.patch(
             f"/api/signal-replays/signals/{m5_id}/review",
             json={"quality": SignalQuality.GOOD.value},
         )
         assert review.status_code == 200
-        assert review.json()["quality"] == SignalQuality.GOOD.value
+        plan_review = review.json()
+        assert plan_review["quality"] == SignalQuality.GOOD.value
+        assert plan_review["exit_reason"] == TRADE_EXIT_TAKE_PROFIT
+        assert plan_review["duration_minutes"] == 5
 
         unlocked = client.get(f"/api/signal-replays/signals/{m5_id}/chart")
         assert unlocked.status_code == 200
@@ -584,7 +694,6 @@ def test_signal_api_filters_persists_review_and_reloads_chart(tmp_path):
         assert invalid_chart.status_code == 400
         assert "5m, 15m, 1h, or 4h" in invalid_chart.json()["detail"]
 
-        source_path = Path(_run.source_metadata["5m"]["path"])
         source_frame = pd.read_csv(source_path)
         extra_row = source_frame.tail(1).copy()
         extra_row.loc[:, "timestamp"] = (

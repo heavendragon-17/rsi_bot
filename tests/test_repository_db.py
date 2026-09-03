@@ -131,6 +131,7 @@ class TestBacktestDatabase:
             _migrate_add_benchmark_curve,
             _migrate_add_dispersion_range,
             _migrate_add_final_balance,
+            _migrate_add_signal_trade_review,
         )
         eng = sa.create_engine("sqlite:///:memory:")
         # Set up minimal tables
@@ -139,11 +140,14 @@ class TestBacktestDatabase:
             conn.execute(sa.text("CREATE TABLE batches (id INTEGER PRIMARY KEY)"))
             conn.execute(sa.text("CREATE TABLE run_results (id INTEGER PRIMARY KEY)"))
             conn.execute(sa.text("CREATE TABLE run_timeseries (id INTEGER PRIMARY KEY)"))
+            conn.execute(sa.text("CREATE TABLE signal_reviews (id INTEGER PRIMARY KEY)"))
             conn.commit()
         _migrate_add_batch_id(eng)
         _migrate_add_final_balance(eng)
         _migrate_add_dispersion_range(eng)
         _migrate_add_benchmark_curve(eng)
+        _migrate_add_signal_trade_review(eng)
         # Idempotent: running again should be a no-op
         _migrate_add_batch_id(eng)
         _migrate_add_final_balance(eng)
+        _migrate_add_signal_trade_review(eng)

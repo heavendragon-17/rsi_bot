@@ -175,17 +175,25 @@ the anchor is the latest fully closed candle at or before the signal timestamp,
 so H1/H4 inspection cannot use a forming or future candle.
 
 Every chart includes price EMA21/EMA200 plus RSI21, EMA9(RSI21), and
-WMA45(RSI21). Saving any explicit quality label unlocks 2,000 candles in the
-selected chart timeframe and the human outcome controls. Each manual/lazy
+WMA45(RSI21). Reviewers can save the fixed-entry TP/SL plan before selecting a
+quality label; saving any explicit quality label then unlocks 2,000 candles in
+the selected chart timeframe and the human outcome controls. Each manual/lazy
 extension adds another 2,000 candles. The browser initially frames a smaller
 signal-centered range and lets the reviewer pan through the loaded future
 instead of compressing every candle into one unreadable viewport.
 
 The chart uses the trigger candle close as its reference and shows 1h, 4h, 12h,
 and 24h close-return, maximum favorable excursion, and maximum adverse
-excursion observations. These are market observations, not simulated trade
-PnL: there are no fills, TP/SL levels, sizing, fees, leverage, or execution
-assumptions.
+excursion observations. Reviewers may also save an optional long TP/SL plan
+beside the chart. The entry is fixed to the signal candle close; the plan is
+saved before quality selection and its outcome stays unevaluated while the
+future is locked. After quality unlocks the future, the review service scans
+future candles from the signal's native timeframe and records the first touched
+level plus elapsed time. A same-candle TP and SL touch is marked ambiguous
+because OHLC data cannot establish intrabar order. These remain market
+observations, not simulated trade PnL: there are no fills, sizing, fees,
+leverage, or execution assumptions, and no 1R-based WIN/LOSS classification.
+The separate human outcome remains manual.
 
 The availability endpoint validates the current M5, M15, H1, and H4 CSVs and
 returns their common candle-close range. Omitted replay boundaries default to

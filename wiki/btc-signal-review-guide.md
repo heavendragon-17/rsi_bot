@@ -71,10 +71,16 @@ RSI21 below 60, and the extra M5 checks. For an M15 signal, the card should
 show EMA9 crossing above WMA45. Both timeframes require the price and H1/H4
 confirmation checks.
 
-### 5. Save your decision
+### 5. Set the trade plan, then save your decision
 
-The **Human review** bar is directly above the chart. Under **1. Entry
-quality**, choose one:
+Start with the **TP/SL trade plan** box beside the chart. The **Signal entry**
+is read-only and is always the signal candle close. Enter both **Take profit**
+and **Stop loss**, then click **Save TP/SL**. Set these levels before choosing
+whether the chart is good, bad, or uncertain. The plan is stored immediately,
+but future candles remain hidden until a quality label is selected.
+
+The **Human review** bar is above the chart and trade-plan work area. Under
+**1. Entry quality**, choose one:
 
 - **Good** — the alert and chart look correct;
 - **Bad** — something is clearly wrong; or
@@ -86,15 +92,23 @@ to inspect what happened. The green chart message shows how much future time
 is loaded. When needed, use **Extend by 2,000 candles** at the bottom of the
 chart.
 
-Then choose **WIN**, **LOSS**, or **SKIP** under **2. What happened next?**. If
-the result cannot be decided, use **SKIP**.
+Once the quality label unlocks the future, the chart draws the saved levels and
+the box reports which level was touched first and how long it took, using future
+candles from the signal's native timeframe. If both levels are inside the same
+candle, the result is shown as ambiguous because candle data cannot prove which
+wick came first.
+
+This is not a 1R, PnL, or automatic WIN/LOSS calculation. The TP/SL result is
+separate from the manual review label. You may still choose **WIN**, **LOSS**,
+or **SKIP** under **2. Manual outcome** if you want to record your own human
+judgment.
 
 Write a short explanation in the notes box. Notes save automatically, and the
 status line confirms when the review is saved.
 
-The quality decision and the later outcome are separate. A good-looking chart
-can still have a bad later outcome. This screen does not calculate trading
-profit or loss.
+The quality decision, manual outcome, and TP/SL observation are separate. A
+good-looking chart can still have a bad later outcome. This screen does not
+calculate trading profit or loss.
 
 ### 6. Move to the next signal
 

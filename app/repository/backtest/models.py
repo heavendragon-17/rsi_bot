@@ -7,8 +7,10 @@ The database contains two deliberately separate result domains:
 * signal-review replays (`signal_replay_runs`, `replay_signals`,
   `signal_reviews`, and `signal_forward_metrics`).
 
-The second domain must not be represented as trades because a raw BTC alert
-does not contain an execution, fill, stop, target, or PnL model.
+The second domain must not be represented as live trades because a raw BTC
+alert does not contain an execution, fill, sizing, or PnL model. It can store
+an optional reviewer-entered TP/SL plan and the objective candle-level result
+of that plan without claiming that an order was executed.
 """
 
 from datetime import datetime
@@ -324,7 +326,7 @@ class SignalReplaySignal(Base):
 
 
 class SignalReview(Base):
-    """Latest single-operator quality/outcome review for one signal."""
+    """Latest quality, human outcome, and optional TP/SL review for one signal."""
 
     __tablename__ = "signal_reviews"
 
@@ -347,6 +349,13 @@ class SignalReview(Base):
         DateTime, default=datetime.utcnow
     )
     future_unlocked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    take_profit_price: Mapped[str | None] = mapped_column(Text)
+    stop_loss_price: Mapped[str | None] = mapped_column(Text)
+    exit_reason: Mapped[str | None] = mapped_column(Text)
+    exit_at: Mapped[datetime | None] = mapped_column(DateTime)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer)
+    evaluation_warning: Mapped[str | None] = mapped_column(Text)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     signal = relationship("SignalReplaySignal", back_populates="review")
 

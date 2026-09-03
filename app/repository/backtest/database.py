@@ -78,6 +78,30 @@ def _migrate_add_benchmark_curve(eng) -> None:
             conn.commit()
 
 
+def _migrate_add_signal_trade_review(eng) -> None:
+    """Add reviewer-entered TP/SL observation fields to signal_reviews."""
+    columns_to_add = (
+        ("take_profit_price", "TEXT"),
+        ("stop_loss_price", "TEXT"),
+        ("exit_reason", "TEXT"),
+        ("exit_at", "DATETIME"),
+        ("duration_minutes", "INTEGER"),
+        ("evaluation_warning", "TEXT"),
+        ("evaluated_at", "DATETIME"),
+    )
+    with eng.connect() as conn:
+        result = conn.execute(sa.text("PRAGMA table_info(signal_reviews)"))
+        existing_columns = {row[1] for row in result}
+        for column_name, column_type in columns_to_add:
+            if column_name not in existing_columns:
+                conn.execute(
+                    sa.text(
+                        f"ALTER TABLE signal_reviews ADD COLUMN {column_name} {column_type}"
+                    )
+                )
+        conn.commit()
+
+
 def init_db() -> None:
     """
     Create all tables (idempotent) and seed initial strategy rows.
@@ -96,6 +120,7 @@ def init_db() -> None:
     _migrate_add_final_balance(engine)
     _migrate_add_dispersion_range(engine)
     _migrate_add_benchmark_curve(engine)
+    _migrate_add_signal_trade_review(engine)
 
     session = SessionLocal()
     try:

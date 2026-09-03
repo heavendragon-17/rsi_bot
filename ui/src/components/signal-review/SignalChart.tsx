@@ -17,6 +17,8 @@ import {
 interface SignalChartProps {
   chart: SignalChartResponse;
   triggerClosePrice: number;
+  takeProfitPrice?: number | null;
+  stopLossPrice?: number | null;
   onLoadMore: () => Promise<void>;
   onTimeframeChange: (timeframe: ReviewChartTimeframe) => Promise<void>;
   isLoading: boolean;
@@ -88,6 +90,8 @@ function formatUtc7(value: string): string {
 export function SignalChart({
   chart,
   triggerClosePrice,
+  takeProfitPrice,
+  stopLossPrice,
   onLoadMore,
   onTimeframeChange,
   isLoading,
@@ -195,6 +199,26 @@ export function SignalChart({
         axisLabelVisible: true,
         title: "Signal price",
       });
+      if (takeProfitPrice != null && Number.isFinite(takeProfitPrice)) {
+        candles.createPriceLine({
+          price: takeProfitPrice,
+          color: "#22c55e",
+          lineWidth: 2,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: "TP",
+        });
+      }
+      if (stopLossPrice != null && Number.isFinite(stopLossPrice)) {
+        candles.createPriceLine({
+          price: stopLossPrice,
+          color: "#ef4444",
+          lineWidth: 2,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: "SL",
+        });
+      }
     }
 
     let syncing = false;
@@ -261,7 +285,7 @@ export function SignalChart({
       priceChart.remove();
       rsiChart.remove();
     };
-  }, [chart, onLoadMore, triggerClosePrice]);
+  }, [chart, onLoadMore, stopLossPrice, takeProfitPrice, triggerClosePrice]);
 
   const warning = chart.warning;
   const rows = chart.candles as unknown as ChartCandle[];
@@ -307,6 +331,13 @@ export function SignalChart({
           <span className="inline-flex items-center gap-1.5 text-sky-300"><span className="h-1.5 w-1.5 rounded-full bg-sky-300" />EMA9 RSI</span>
           <span className="inline-flex items-center gap-1.5 text-pink-300"><span className="h-1.5 w-1.5 rounded-full bg-pink-300" />WMA45 RSI</span>
         </div>
+        {(takeProfitPrice != null || stopLossPrice != null) && (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">
+            <span className="font-sans font-medium text-text-muted">Plan</span>
+            {takeProfitPrice != null && <span className="inline-flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />TP</span>}
+            {stopLossPrice != null && <span className="inline-flex items-center gap-1.5 text-rose-300"><span className="h-1.5 w-1.5 rounded-full bg-rose-300" />SL</span>}
+          </div>
+        )}
       </div>
       {usesEarlierAnchor && chart.anchor_time && (
         <div className="rounded-lg border border-sky-400/25 bg-sky-400/5 px-3 py-2 text-xs text-sky-200">

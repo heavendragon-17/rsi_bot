@@ -10,12 +10,19 @@ import shutil
 # Only used for the fixed-argv git revision probe below (no user input).
 import subprocess  # nosec B404
 from datetime import UTC, datetime, time, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from app.backtest import executor
 from app.backtest.signal_replay import _default_paths
-from app.backtest.signal_replay_analysis import chart_window_from_frame, source_metadata
+from app.backtest.signal_replay_analysis import (
+    TRADE_EXIT_NO_DATA,
+    TradeExitEvaluation,
+    chart_window_from_frame,
+    evaluate_long_trade,
+    source_metadata,
+)
 from app.backtest.signal_replay_data import load_ohlcv_csv
 from app.backtest.signal_replay_persistence import DEFINITION_VERSION
 from app.backtest.signal_replay_worker import run_signal_replay_worker
@@ -95,9 +102,21 @@ def current_git_hash() -> str | None:
     return value or None
 
 
-def _review_values(review: SignalReview | None) -> dict[str, Any]:
+def _review_values(
+    review: SignalReview | None,
+    *,
+    entry_price: str | None = None,
+) -> dict[str, Any]:
     if review is None:
         return {
+            "entry_price": entry_price,
+            "take_profit_price": None,
+            "stop_loss_price": None,
+            "exit_reason": None,
+            "exit_at": None,
+            "duration_minutes": None,
+            "evaluation_warning": None,
+            "evaluated_at": None,
             "quality": "UNREVIEWED",
             "human_outcome": "UNSET",
             "note": None,
@@ -106,6 +125,14 @@ def _review_values(review: SignalReview | None) -> dict[str, Any]:
             "future_unlocked_at": None,
         }
     return {
+        "entry_price": entry_price,
+        "take_profit_price": review.take_profit_price,
+        "stop_loss_price": review.stop_loss_price,
+        "exit_reason": review.exit_reason,
+        "exit_at": api_datetime(review.exit_at),
+        "duration_minutes": review.duration_minutes,
+        "evaluation_warning": review.evaluation_warning,
+        "evaluated_at": api_datetime(review.evaluated_at),
         "quality": review.quality,
         "human_outcome": review.human_outcome,
         "note": review.note,
@@ -152,7 +179,7 @@ def run_summary(run: SignalReplayRun, db) -> dict[str, Any]:
 
 
 def signal_summary(signal: SignalReplaySignal) -> dict[str, Any]:
-    review = _review_values(signal.review)
+    review = _review_values(signal.review, entry_price=signal.trigger_close_price)
     return {
         "id": signal.id,
         "replay_run_id": signal.replay_run_id,
@@ -192,7 +219,10 @@ def signal_detail(signal: SignalReplaySignal) -> dict[str, Any]:
         "decision_reason": signal.decision_reason,
         "telegram_card": signal.telegram_card,
         "snapshot": signal.snapshot,
-        "review": _review_values(signal.review),
+        "review": _review_values(
+            signal.review,
+            entry_price=signal.trigger_close_price,
+        ),
         "forward_metrics": [_metric_values(metric) for metric in signal.forward_metrics],
     }
 
@@ -550,23 +580,150 @@ class SignalReplayService:
             **chart_metadata,
         }
 
+    @staticmethod
+    def _parse_trade_price(raw: str | None, label: str) -> Decimal:
+        """Parse a positive reviewer-entered exchange-style price."""
+
+        if raw is None or not raw.strip():
+            raise ValueError(f"{label} is required")
+        try:
+            value = Decimal(raw.strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError(f"{label} must be a valid price") from exc
+        if not value.is_finite() or value <= 0:
+            raise ValueError(f"{label} must be a positive finite price")
+        return value
+
+    @staticmethod
+    def _evaluate_trade_plan(
+        signal: SignalReplaySignal,
+        run: SignalReplayRun,
+        *,
+        take_profit_price: Decimal,
+        stop_loss_price: Decimal,
+    ) -> TradeExitEvaluation:
+        """Evaluate a plan against the signal's native replay source."""
+
+        metadata = (run.source_metadata or {}).get(signal.timeframe, {})
+        csv_path_raw = metadata.get("path")
+        csv_path = Path(csv_path_raw) if csv_path_raw else None
+        if csv_path is None or not csv_path.is_file():
+            return TradeExitEvaluation(
+                exit_reason=TRADE_EXIT_NO_DATA,
+                exit_at=None,
+                duration_minutes=None,
+                warning=(
+                    f"{signal.timeframe.upper()} replay source is unavailable "
+                    "for this dataset."
+                ),
+            )
+        try:
+            frame = load_ohlcv_csv(csv_path, signal.timeframe)
+        except (OSError, ValueError) as exc:
+            return TradeExitEvaluation(
+                exit_reason=TRADE_EXIT_NO_DATA,
+                exit_at=None,
+                duration_minutes=None,
+                warning=f"Could not evaluate the replay source: {exc}",
+            )
+        return evaluate_long_trade(
+            frame,
+            signal.timeframe,
+            trigger_close=signal.trigger_close_at.replace(tzinfo=UTC),
+            take_profit_price=take_profit_price,
+            stop_loss_price=stop_loss_price,
+        )
+
     def update_review(self, signal_id: int, patch, db) -> dict[str, Any]:
         signal = db.query(SignalReplaySignal).filter_by(id=signal_id).first()
         if signal is None:
             raise LookupError("Signal not found")
         review = signal.review
+        fields = patch.model_fields_set
+        quality_was_unreviewed = review is None or review.quality == "UNREVIEWED"
+        effective_quality = (
+            patch.quality.value
+            if "quality" in fields and patch.quality is not None
+            else (review.quality if review is not None else "UNREVIEWED")
+        )
+        quality_unlocks_future = (
+            "quality" in fields
+            and patch.quality is not None
+            and patch.quality.value != "UNREVIEWED"
+            and quality_was_unreviewed
+        )
+        plan_touched = "take_profit_price" in fields or "stop_loss_price" in fields
+        existing_take_profit = review.take_profit_price if review is not None else None
+        existing_stop_loss = review.stop_loss_price if review is not None else None
+        proposed_take_profit = (
+            patch.take_profit_price
+            if "take_profit_price" in fields
+            else existing_take_profit
+        )
+        proposed_stop_loss = (
+            patch.stop_loss_price
+            if "stop_loss_price" in fields
+            else existing_stop_loss
+        )
+        evaluation: TradeExitEvaluation | None = None
+        canonical_take_profit: Decimal | None = None
+        canonical_stop_loss: Decimal | None = None
+        if plan_touched:
+            if proposed_take_profit is None and proposed_stop_loss is None:
+                canonical_take_profit = None
+                canonical_stop_loss = None
+            elif proposed_take_profit is None or proposed_stop_loss is None:
+                raise ValueError("Take-profit and stop-loss must be set together")
+        if proposed_take_profit is not None and proposed_stop_loss is not None:
+            if plan_touched or quality_unlocks_future:
+                entry_price = self._parse_trade_price(
+                    signal.trigger_close_price,
+                    "Signal entry price",
+                )
+                canonical_take_profit = self._parse_trade_price(
+                    proposed_take_profit,
+                    "Take-profit price",
+                )
+                canonical_stop_loss = self._parse_trade_price(
+                    proposed_stop_loss,
+                    "Stop-loss price",
+                )
+                if canonical_take_profit <= entry_price:
+                    raise ValueError("Take-profit price must be above the signal entry")
+                if canonical_stop_loss >= entry_price:
+                    raise ValueError("Stop-loss price must be below the signal entry")
+                if effective_quality != "UNREVIEWED":
+                    run = db.query(SignalReplayRun).filter_by(id=signal.replay_run_id).first()
+                    if run is None:
+                        raise LookupError("Replay run not found")
+                    evaluation = self._evaluate_trade_plan(
+                        signal,
+                        run,
+                        take_profit_price=canonical_take_profit,
+                        stop_loss_price=canonical_stop_loss,
+                    )
+
         if review is None:
-            review = SignalReview(signal_id=signal_id, quality="UNREVIEWED", human_outcome="UNSET")
+            review = SignalReview(
+                signal_id=signal_id,
+                quality="UNREVIEWED",
+                human_outcome="UNSET",
+            )
             db.add(review)
             db.flush()
 
-        fields = patch.model_fields_set
         if "quality" in fields and patch.quality is not None:
             review.quality = patch.quality.value
             if review.quality == "UNREVIEWED":
                 review.human_outcome = "UNSET"
                 review.reviewed_at = None
                 review.future_unlocked_at = None
+                if review.take_profit_price is not None and review.stop_loss_price is not None:
+                    review.exit_reason = None
+                    review.exit_at = None
+                    review.duration_minutes = None
+                    review.evaluation_warning = None
+                    review.evaluated_at = None
             else:
                 reviewed_at = _now_utc_naive()
                 review.reviewed_at = reviewed_at
@@ -577,7 +734,38 @@ class SignalReplayService:
             review.human_outcome = patch.human_outcome.value
         if "note" in fields:
             review.note = patch.note
+        if plan_touched:
+            review.take_profit_price = (
+                str(canonical_take_profit) if canonical_take_profit is not None else None
+            )
+            review.stop_loss_price = (
+                str(canonical_stop_loss) if canonical_stop_loss is not None else None
+            )
+            if (
+                canonical_take_profit is None
+                or canonical_stop_loss is None
+                or evaluation is None
+            ):
+                review.exit_reason = None
+                review.exit_at = None
+                review.duration_minutes = None
+                review.evaluation_warning = None
+                review.evaluated_at = None
+        if evaluation is not None:
+            assert canonical_take_profit is not None
+            assert canonical_stop_loss is not None
+            review.take_profit_price = str(canonical_take_profit)
+            review.stop_loss_price = str(canonical_stop_loss)
+            review.exit_reason = evaluation.exit_reason
+            review.exit_at = (
+                evaluation.exit_at.replace(tzinfo=None)
+                if evaluation.exit_at is not None
+                else None
+            )
+            review.duration_minutes = evaluation.duration_minutes
+            review.evaluation_warning = evaluation.warning
+            review.evaluated_at = _now_utc_naive()
         review.updated_at = _now_utc_naive()
         db.commit()
         db.refresh(review)
-        return _review_values(review)
+        return _review_values(review, entry_price=signal.trigger_close_price)

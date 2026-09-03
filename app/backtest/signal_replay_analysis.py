@@ -38,6 +38,22 @@ CHART_INITIAL_FORWARD_CANDLES = 0
 CHART_CHUNK_CANDLES = 2_000
 CHART_INDICATOR_WARMUP_CANDLES = 1_000
 
+TRADE_EXIT_TAKE_PROFIT = "TAKE_PROFIT"
+TRADE_EXIT_STOP_LOSS = "STOP_LOSS"
+TRADE_EXIT_BOTH_SAME_CANDLE = "BOTH_SAME_CANDLE"
+TRADE_EXIT_OPEN = "OPEN"
+TRADE_EXIT_NO_DATA = "NO_DATA"
+
+
+@dataclass(frozen=True, slots=True)
+class TradeExitEvaluation:
+    """Candle-level result for a reviewer-configured long TP/SL plan."""
+
+    exit_reason: str
+    exit_at: datetime | None
+    duration_minutes: int | None
+    warning: str | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class ForwardMetricSource:
@@ -187,6 +203,81 @@ def calculate_forward_metrics(
             }
         )
     return rows
+
+
+def evaluate_long_trade(
+    frame: pd.DataFrame | ForwardMetricSource,
+    timeframe: str,
+    *,
+    trigger_close: datetime,
+    take_profit_price: Decimal,
+    stop_loss_price: Decimal,
+) -> TradeExitEvaluation:
+    """Find the first TP/SL touch after the signal candle.
+
+    This is an observation of native OHLC candles, not an execution or PnL
+    simulation. The signal candle is excluded because entry is at its close.
+    If both levels appear inside one candle, OHLC data cannot establish their
+    intrabar order, so the result is explicitly marked indeterminate.
+    """
+
+    source = (
+        frame
+        if isinstance(frame, ForwardMetricSource)
+        else prepare_forward_metric_source(frame, timeframe)
+    )
+    trigger_close_utc = trigger_close.astimezone(UTC)
+    future_start = int(
+        source.close_times.searchsorted(
+            pd.Timestamp(trigger_close_utc),
+            side="right",
+        )
+    )
+    if future_start >= len(source.close_times):
+        return TradeExitEvaluation(
+            exit_reason=TRADE_EXIT_NO_DATA,
+            exit_at=None,
+            duration_minutes=None,
+            warning="No candles exist after the signal candle.",
+        )
+
+    for position in range(future_start, len(source.close_times)):
+        take_profit_hit = Decimal(str(float(source.highs[position]))) >= take_profit_price
+        stop_loss_hit = Decimal(str(float(source.lows[position]))) <= stop_loss_price
+        if not take_profit_hit and not stop_loss_hit:
+            continue
+
+        exit_at = source.close_times[position].to_pydatetime()
+        duration_minutes = max(
+            0,
+            int((exit_at - trigger_close_utc).total_seconds() // 60),
+        )
+        if take_profit_hit and stop_loss_hit:
+            return TradeExitEvaluation(
+                exit_reason=TRADE_EXIT_BOTH_SAME_CANDLE,
+                exit_at=exit_at,
+                duration_minutes=duration_minutes,
+                warning=(
+                    "Both TP and SL were touched in the same candle; "
+                    "intrabar order is unavailable from OHLC data."
+                ),
+            )
+        return TradeExitEvaluation(
+            exit_reason=(
+                TRADE_EXIT_TAKE_PROFIT
+                if take_profit_hit
+                else TRADE_EXIT_STOP_LOSS
+            ),
+            exit_at=exit_at,
+            duration_minutes=duration_minutes,
+        )
+
+    return TradeExitEvaluation(
+        exit_reason=TRADE_EXIT_OPEN,
+        exit_at=None,
+        duration_minutes=None,
+        warning="Neither TP nor SL was touched before the source data ended.",
+    )
 
 
 def _indicator_frame(frame: pd.DataFrame) -> pd.DataFrame:

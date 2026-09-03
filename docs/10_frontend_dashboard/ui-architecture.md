@@ -48,12 +48,27 @@ makes the Next signal action visually primary. The exact Telegram card,
 structured signal snapshot, objective forward observations, and Lightweight
 Charts market replay remain supporting evidence below the review controls.
 
-The human decision surface is a sticky two-step bar above the chart on desktop:
-**1. Entry quality** (`GOOD`, `BAD`, `UNCERTAIN`) followed by **2. What happened
-next?** (`WIN`, `LOSS`, `SKIP`). Buttons use explicit labels, icons, selected
-states, and at least 40–48 px heights. Notes and autosave state remain in the
-same decision surface, so the reviewer does not need to scroll below secondary
-cards to record a judgment.
+The detail view presents the market replay and an optional **TP/SL trade plan**
+side by side on desktop, with the chart on the left and the exchange-style
+controls on the right. The signal candle close is a read-only entry; the
+reviewer enters both long take-profit and stop-loss prices before deciding
+whether the chart is good, bad, or uncertain. Saving the plan draws both levels
+on the price chart and stores the plan while future candles are still hidden.
+After an explicit quality label unlocks the future, the native signal-timeframe
+candles are evaluated and the result records the first level touched and
+elapsed time, or reports an open/no-data/ambiguous same-candle state. This is
+an objective OHLC observation only: it does not calculate 1R, PnL, or overwrite
+the manual outcome label.
+
+At the desktop `lg` breakpoint and above, the work area uses an eight-column
+chart region and a four-column TP/SL region. Below that breakpoint it stacks
+the controls below the chart so both surfaces remain usable on narrower screens.
+
+The human decision surface is a sticky bar above that work area on desktop:
+**1. Entry quality** (`GOOD`, `BAD`, `UNCERTAIN`) followed by an optional
+**2. Manual outcome** (`WIN`, `LOSS`, `SKIP`). Buttons use explicit labels,
+icons, selected states, and at least 40–48 px heights. Notes and autosave state
+remain in the same decision surface.
 
 The chart can switch independently between the run's native **M5**, **M15**,
 **H1**, and **H4** sources without changing the selected signal or its human

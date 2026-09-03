@@ -3001,6 +3001,86 @@
       },
       "SignalReviewResponse": {
         "properties": {
+          "entry_price": {
+            "type": "string",
+            "title": "Entry Price"
+          },
+          "take_profit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit Price"
+          },
+          "stop_loss_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Loss Price"
+          },
+          "exit_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalTradeExit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exit_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit At"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "evaluation_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Warning"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
           "quality": {
             "$ref": "#/components/schemas/SignalQuality"
           },
@@ -3054,6 +3134,14 @@
         },
         "type": "object",
         "required": [
+          "entry_price",
+          "take_profit_price",
+          "stop_loss_price",
+          "exit_reason",
+          "exit_at",
+          "duration_minutes",
+          "evaluation_warning",
+          "evaluated_at",
           "quality",
           "human_outcome",
           "note",
@@ -3095,10 +3183,43 @@
               }
             ],
             "title": "Note"
+          },
+          "take_profit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit Price"
+          },
+          "stop_loss_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Loss Price"
           }
         },
         "type": "object",
         "title": "SignalReviewUpdate"
+      },
+      "SignalTradeExit": {
+        "type": "string",
+        "enum": [
+          "TAKE_PROFIT",
+          "STOP_LOSS",
+          "BOTH_SAME_CANDLE",
+          "OPEN",
+          "NO_DATA"
+        ],
+        "title": "SignalTradeExit"
       },
       "StrategyInfo": {
         "properties": {

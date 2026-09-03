@@ -38,6 +38,14 @@ class SignalHumanOutcome(StrEnum):
     SKIP = "SKIP"
 
 
+class SignalTradeExit(StrEnum):
+    TAKE_PROFIT = "TAKE_PROFIT"
+    STOP_LOSS = "STOP_LOSS"
+    BOTH_SAME_CANDLE = "BOTH_SAME_CANDLE"
+    OPEN = "OPEN"
+    NO_DATA = "NO_DATA"
+
+
 # ---------------------------------------------------------------------------
 # Request
 # ---------------------------------------------------------------------------
@@ -284,6 +292,14 @@ class SignalForwardMetricResponse(BaseModel):
 
 
 class SignalReviewResponse(BaseModel):
+    entry_price: str
+    take_profit_price: str | None
+    stop_loss_price: str | None
+    exit_reason: SignalTradeExit | None
+    exit_at: str | None
+    duration_minutes: int | None
+    evaluation_warning: str | None
+    evaluated_at: str | None
     quality: SignalQuality
     human_outcome: SignalHumanOutcome
     note: str | None
@@ -296,6 +312,8 @@ class SignalReviewUpdate(BaseModel):
     quality: SignalQuality | None = None
     human_outcome: SignalHumanOutcome | None = None
     note: str | None = None
+    take_profit_price: str | None = None
+    stop_loss_price: str | None = None
 
 
 class SignalReplaySignalSummary(BaseModel):

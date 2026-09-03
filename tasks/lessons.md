@@ -128,3 +128,58 @@
 - **Correction**: `/topics` was extended to list unconfigured strategy definitions, but the request meant Telegram forum topics that exist without a strategy/config mapping.
 - **Rule**: Keep strategy definitions and observed Telegram forum topics in separate sections. A Bot API polling bot can only discover forum topics from updates it receives; it must label the inventory as observed rather than claim a complete historical list.
 - **Files affected**: `app/notification/`, `main.py`, notification tests, and notification/operations documentation.
+
+## 2026-09-02: Keep TP/SL review separate from 1R and human outcome labels
+
+- **Correction**: The BTC Signal Review UI needs optional exchange-style TP/SL
+  inputs with the entry fixed to the signal candle; it must not classify a
+  result as a win or loss from whether it reached 1R.
+- **Rule**: Persist the configured TP/SL and objectively report the first
+  signal-timeframe level touched plus elapsed time, while leaving the existing
+  manual quality and WIN/LOSS/SKIP review fields independent.
+- **Files affected**: `app/backtest/signal_replay_analysis.py`,
+  `app/backtest/signal_replay_service.py`, `app/api/`, `app/repository/`,
+  `ui/src/components/signal-review/`, tests, and routed documentation.
+
+## 2026-09-02: Capture the TP/SL plan before revealing future candles
+
+- **Correction**: Reviewers must be able to enter and save exchange-style TP/SL
+  levels before choosing whether the signal chart is good, bad, or uncertain.
+- **Rule**: Keep the future-candle gate on the quality label, but allow the
+  fixed-entry plan to persist while quality is `UNREVIEWED`; defer its objective
+  outcome evaluation until the quality label unlocks future data. Present the
+  chart on the left and the TP/SL controls in a dedicated right-side panel.
+- **Files affected**: `app/backtest/signal_replay_service.py`,
+  `ui/src/components/signal-review/SignalReviewLab.tsx`, tests, and routed
+  documentation.
+
+## 2026-09-02: Verify responsive layouts in the built browser before handoff
+
+- **Correction**: The source used an arbitrary `xl:grid-cols-[...]` utility,
+  but the built CSS omitted that class, so the live page stacked the chart and
+  TP/SL panel despite a wide viewport.
+- **Rule**: Verify the rendered layout at the user's target viewport after the
+  production build. Prefer utility classes already emitted by the project's
+  Tailwind build (the review work area now uses `lg:grid-cols-12` with explicit
+  column spans), and check the actual interaction state in the browser.
+- **Files affected**: `ui/src/components/signal-review/SignalReviewLab.tsx`,
+  frontend documentation, and review task records.
+
+## 2026-09-02: Keep Human review at the top of the signal detail
+
+- **Correction**: The Human review section should be the first review surface,
+  before the chart and TP/SL panel, even though the chart and plan remain
+  side-by-side below it on desktop.
+- **Rule**: Render the Human review section immediately after the signal header,
+  then render the chart-left / TP/SL-right work area.
+- **Files affected**: `ui/src/components/signal-review/SignalReviewLab.tsx`,
+  frontend/reviewer documentation, and review task records.
+
+## 2026-09-02: Resolve escaped research notebook paths correctly
+
+- **Correction**: A notebook path shown with backslashes before underscores was
+  Markdown-escaped text, not a nested directory path.
+- **Rule**: When a user references a research notebook, check the repository's
+  actual `research` tree and normalize display escaping before reporting it as
+  missing.
+- **Files affected**: `research/2026-04-28_phase1_audit_exploration.ipynb`.

@@ -14,6 +14,7 @@ import {
   Play,
   RefreshCw,
   Save,
+  Target,
   TrendingDown,
   Trophy,
   XCircle,
@@ -52,6 +53,22 @@ function pct(value?: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
+
+function duration(value?: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (value < 60) return `${value}m`;
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+}
+
+const EXIT_REASON_LABELS: Record<string, string> = {
+  TAKE_PROFIT: "Take-profit touched",
+  STOP_LOSS: "Stop-loss touched",
+  BOTH_SAME_CANDLE: "Both levels touched in one candle",
+  OPEN: "Neither level touched",
+  NO_DATA: "Could not evaluate",
+};
 
 const ACTIVE_QUALITY_CLASSES: Record<string, string> = {
   emerald: "border-emerald-400/60 bg-emerald-400/20 text-emerald-200",
@@ -360,13 +377,13 @@ function ReviewerDecisionBar() {
         ? "Review could not be saved"
         : "Autosave ready";
   const futureLabel = !futureUnlocked
-    ? "Future chart locked"
+    ? "Future chart locked until quality review"
     : chart?.future_allowed && futureCandlesLoaded > 0
       ? `${futureCandlesLoaded.toLocaleString()} future candles loaded`
       : "Loading future candles…";
 
   return (
-    <section className="xl:sticky xl:top-0 z-20 rounded-xl border border-accent-main/30 bg-bg-primary/95 p-4 shadow-xl shadow-black/10 backdrop-blur-md">
+    <section className="rounded-xl border border-accent-main/30 bg-bg-primary/95 p-4 shadow-xl shadow-black/10 backdrop-blur-md">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
           <div className="mt-0.5 rounded-lg bg-accent-main/15 p-2 text-accent-main">
@@ -374,7 +391,7 @@ function ReviewerDecisionBar() {
           </div>
           <div>
             <h2 className="font-semibold text-text-primary">Human review</h2>
-            <p className="mt-0.5 text-xs text-text-muted">Judge the entry first. Then inspect the revealed future and record what happened.</p>
+            <p className="mt-0.5 text-xs text-text-muted">Set optional TP/SL levels first, then judge the chart and inspect the revealed future.</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
@@ -418,8 +435,8 @@ function ReviewerDecisionBar() {
           <div className="mb-2.5 flex items-center gap-2">
             <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${futureUnlocked ? "bg-violet-500 text-white" : "bg-bg-elevated text-text-muted"}`}>2</span>
             <div>
-              <h3 className="text-sm font-semibold text-text-primary">What happened next?</h3>
-              <p className="text-[11px] text-text-muted">{futureUnlocked ? "Pan right through the future chart, then decide." : "Rate entry quality to reveal future candles."}</p>
+              <h3 className="text-sm font-semibold text-text-primary">Manual outcome</h3>
+              <p className="text-[11px] text-text-muted">{futureUnlocked ? "Optional human label; TP/SL results stay separate." : "Choose a label when ready to reveal future candles."}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -459,6 +476,124 @@ function ReviewerDecisionBar() {
             Autosaves after you pause typing{review.updated_at ? ` · Updated ${displayDate(review.updated_at)}` : ""}
           </p>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function TradePlanPanel() {
+  const selected = useSignalReviewStore((state) => state.selected);
+  const saveReview = useSignalReviewStore((state) => state.saveReview);
+  const reviewSaveState = useSignalReviewStore((state) => state.reviewSaveState);
+  const [takeProfit, setTakeProfit] = useState("");
+  const [stopLoss, setStopLoss] = useState("");
+
+  const review = selected?.review;
+  useEffect(() => {
+    setTakeProfit(review?.take_profit_price ?? "");
+    setStopLoss(review?.stop_loss_price ?? "");
+  }, [selected?.id, review?.take_profit_price, review?.stop_loss_price]);
+
+  if (!selected || !review) return null;
+
+  const hasOnePrice = Boolean(takeProfit.trim()) !== Boolean(stopLoss.trim());
+  const existingTakeProfit = review.take_profit_price ?? "";
+  const existingStopLoss = review.stop_loss_price ?? "";
+  const isDirty = takeProfit.trim() !== existingTakeProfit || stopLoss.trim() !== existingStopLoss;
+  const isSaving = reviewSaveState === "saving";
+  const hasPlan = Boolean(existingTakeProfit && existingStopLoss);
+  const resultLabel = review.exit_reason
+    ? EXIT_REASON_LABELS[review.exit_reason] ?? review.exit_reason
+    : hasPlan
+      ? review.quality === "UNREVIEWED" ? "Waiting for quality review" : "Not evaluated"
+      : "No TP/SL plan saved";
+
+  return (
+    <section className="rounded-xl border border-accent-main/25 bg-bg-primary/50 p-4">
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 rounded-lg bg-accent-main/15 p-2 text-accent-main"><Target size={16} /></div>
+        <div>
+          <h3 className="font-semibold text-text-primary">TP/SL trade plan</h3>
+          <p className="mt-0.5 text-[11px] text-text-muted">Set this before deciding whether the chart is good, bad, or uncertain.</p>
+        </div>
+      </div>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (isSaving || hasOnePrice || !isDirty) return;
+          void saveReview({
+            take_profit_price: takeProfit.trim() || null,
+            stop_loss_price: stopLoss.trim() || null,
+          });
+        }}
+      >
+        <div className="space-y-3">
+          <label className="block text-[11px] text-text-muted">
+            <span className="flex items-center justify-between gap-2">
+              <span>Signal entry</span>
+              <span className="text-[10px] text-text-secondary">Fixed</span>
+            </span>
+            <input
+              aria-label="Signal entry"
+              value={selected.trigger_close_price}
+              readOnly
+              className="mt-1 w-full rounded-md border border-border-main bg-bg-elevated/60 px-3 py-2.5 font-mono text-sm text-text-secondary"
+            />
+          </label>
+          <label className="block text-[11px] text-emerald-300">
+            <span className="flex items-center justify-between gap-2">
+              <span>Take profit</span>
+              <span className="text-[10px] text-text-muted">Long target</span>
+            </span>
+            <input
+              aria-label="Take profit"
+              inputMode="decimal"
+              value={takeProfit}
+              onChange={(event) => setTakeProfit(event.target.value)}
+              disabled={isSaving}
+              placeholder="e.g. 65000"
+              className="mt-1 w-full rounded-md border border-emerald-400/35 bg-input px-3 py-2.5 font-mono text-sm text-text-primary placeholder:text-text-muted focus:border-emerald-300 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </label>
+          <label className="block text-[11px] text-rose-300">
+            <span className="flex items-center justify-between gap-2">
+              <span>Stop loss</span>
+              <span className="text-[10px] text-text-muted">Long protection</span>
+            </span>
+            <input
+              aria-label="Stop loss"
+              inputMode="decimal"
+              value={stopLoss}
+              onChange={(event) => setStopLoss(event.target.value)}
+              disabled={isSaving}
+              placeholder="e.g. 63000"
+              className="mt-1 w-full rounded-md border border-rose-400/35 bg-input px-3 py-2.5 font-mono text-sm text-text-primary placeholder:text-text-muted focus:border-rose-300 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </label>
+        </div>
+        {review.quality === "UNREVIEWED" && <p className="text-[11px] text-amber-300">Save both levels now. Future candles stay hidden until you select the chart quality.</p>}
+        {review.quality !== "UNREVIEWED" && <p className="text-[11px] text-text-muted">The saved plan is evaluated against future candles from the signal timeframe.</p>}
+        {hasOnePrice && <p className="text-[11px] text-rose-300">Enter both TP and SL, or clear both to remove the plan.</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="submit"
+            disabled={isSaving || hasOnePrice || !isDirty}
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent-main px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Save size={14} />{hasPlan ? "Update TP/SL" : "Save TP/SL"}
+          </button>
+          {hasPlan && <span className="text-[10px] text-text-muted">Saved with the signal review</span>}
+        </div>
+      </form>
+      <div className="mt-4 rounded-lg border border-border-main bg-bg-elevated/35 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-text-primary">Candle result</span>
+          <span className={`text-xs font-semibold ${review.exit_reason === "TAKE_PROFIT" ? "text-emerald-300" : review.exit_reason === "STOP_LOSS" ? "text-rose-300" : "text-text-secondary"}`}>{resultLabel}</span>
+        </div>
+        {review.exit_at && <p className="mt-1 text-[11px] text-text-muted">Exit candle: {displayDate(review.exit_at)} · Time to exit: {duration(review.duration_minutes)}</p>}
+        {review.evaluation_warning && <p className="mt-1 text-[11px] text-amber-300">{review.evaluation_warning}</p>}
+        <p className="mt-2 text-[10px] text-text-muted">This reports the first level touched from native {selected.timeframe.toUpperCase()} candles. It does not calculate 1R, PnL, or a WIN/LOSS label.</p>
       </div>
     </section>
   );
@@ -511,8 +646,8 @@ function SignalDetail() {
       </div>
       {isLoading && <div className="text-sm text-text-muted">Loading signal…</div>}
       <ReviewerDecisionBar />
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)] gap-4">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+        <div className="min-w-0 space-y-4 lg:col-span-8">
           <SignalChart
             chart={chart ?? {
               signal_id: selected.id,
@@ -530,6 +665,8 @@ function SignalDetail() {
               warning: "Loading chart…",
             }}
             triggerClosePrice={Number(selected.trigger_close_price)}
+            takeProfitPrice={selected.review.take_profit_price ? Number(selected.review.take_profit_price) : null}
+            stopLossPrice={selected.review.stop_loss_price ? Number(selected.review.stop_loss_price) : null}
             onLoadMore={loadMoreChart}
             onTimeframeChange={setChartTimeframe}
             isLoading={isLoadingChart}
@@ -548,7 +685,8 @@ function SignalDetail() {
             </div>
           </section>
         </div>
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4 lg:col-span-4">
+          <TradePlanPanel />
           <section className="rounded-xl border border-border-main bg-bg-primary/50 p-4">
             <div className="flex items-center justify-between mb-3"><h3 className="font-semibold text-text-primary">Telegram alert snapshot</h3><span className="text-[10px] text-text-muted">{displayDate(selected.trigger_close_at)}</span></div>
             <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 font-mono text-xs leading-5 text-text-secondary">{selected.telegram_card}</pre>
@@ -587,7 +725,7 @@ export function SignalReviewLab() {
     <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4">
       <header>
         <div className="flex items-center gap-3"><CircleAlert size={22} className="text-accent-main" /><h1 className="text-xl font-semibold text-text-primary">BTC Signal Review Lab</h1></div>
-        <p className="mt-1 text-sm text-text-secondary">Work through one replay dataset at a time, label chart quality first, then inspect the future outcome.</p>
+        <p className="mt-1 text-sm text-text-secondary">Work through one replay dataset at a time, set optional TP/SL first, then label chart quality and inspect the future outcome.</p>
       </header>
       <ReplayLauncher />
       <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">

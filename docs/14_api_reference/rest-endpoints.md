@@ -138,7 +138,7 @@ indicator fields, latest human review, and objective forward observations.
 | `GET` | `/api/signal-replays/signals/{signal_id}` | Full card, structured snapshot, review, and metrics |
 | `GET` | `/api/signal-replays/signals/{signal_id}/chart` | Review-gated M5/M15/H1/H4 OHLCV/indicator chart window |
 | `GET` | `/api/signal-replays/signals/{signal_id}/forward-metrics` | 1h/4h/12h/24h market observations |
-| `PATCH` | `/api/signal-replays/signals/{signal_id}/review` | Save quality, outcome, and note |
+| `PATCH` | `/api/signal-replays/signals/{signal_id}/review` | Save quality, manual outcome, note, and optional TP/SL plan |
 
 ### `POST /api/signal-replays/runs`
 
@@ -182,11 +182,25 @@ anchor and returns `future_allowed: false` with a warning. Saving `GOOD`, `BAD`,
 or `UNCERTAIN` sets `future_allowed: true`; an omitted chart `end` then returns
 up to 2,000 future candles in the requested chart timeframe. Only after quality
 review can `WIN`, `LOSS`, or `SKIP` be recorded. `quality` and `human_outcome`
-remain independent fields.
+remain independent fields. TP/SL may be saved while quality is still
+`UNREVIEWED`; the plan is returned but future candles remain locked and its
+result fields are empty until quality is selected.
 
 Forward metrics use the trigger candle close as the baseline. A missing or
 shortened CSV returns partial metrics with `complete: false` and a warning
 instead of silently presenting a complete result.
+
+The review response always exposes the immutable signal-candle `entry_price`.
+The optional `take_profit_price` and `stop_loss_price` fields are saved on the
+review row and must be supplied together. Both are validated as positive long
+prices relative to the signal entry. The levels may be saved before quality
+review. Once a quality label has unlocked future inspection, the API scans
+future candles from the signal's native M5 or M15 source and returns `exit_reason`, `exit_at`, `duration_minutes`,
+`evaluation_warning`, and `evaluated_at`. `exit_reason` is `TAKE_PROFIT`,
+`STOP_LOSS`, `BOTH_SAME_CANDLE`, `OPEN`, or `NO_DATA`. A same-candle TP and SL
+touch is not forced into either result because OHLC data cannot prove intrabar
+order. This evaluation is not a trade, PnL, 1R, or automatic WIN/LOSS
+classification.
 
 ---
 
