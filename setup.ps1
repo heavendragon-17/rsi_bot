@@ -1,5 +1,14 @@
 $ErrorActionPreference = "Stop"
 
+# ---- Run from the repo root so venv/ and requirements.txt resolve ----
+# Relative paths below break if the script is launched via an absolute path
+# from another directory (e.g. powershell -File "...\rsi_bot\setup.ps1" from $HOME).
+if (-not $PSScriptRoot) {
+    Write-Host "Run setup.ps1 as a file (powershell -NoProfile -ExecutionPolicy Bypass -File setup.ps1), not by pasting its contents." -ForegroundColor Red
+    exit 1
+}
+Set-Location $PSScriptRoot
+
 # ---- Find Python (prefers newest >= 3.13, supports py launcher) ----
 
 function Get-CandidateVersion($Exe, $ExtraArgs) {
