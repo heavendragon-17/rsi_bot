@@ -14,7 +14,7 @@ The first investment should be reliable outcome measurement and independent vali
 
 ### BTC evidence
 
-The saved [BTC summary](results/btc_signal_ev_summary.csv) contains 1,399 M5 and 589 M15 signals. At the four-hour horizon:
+The saved `results/btc_signal_ev_summary.csv` (local-only output, git-ignored) contains 1,399 M5 and 589 M15 signals. At the four-hour horizon:
 
 | Measure | M5 | M15 |
 |---|---:|---:|
@@ -25,7 +25,7 @@ The saved [BTC summary](results/btc_signal_ev_summary.csv) contains 1,399 M5 and
 
 All eight timeframe/horizon intervals in the saved summary cross zero. These are forward-return observations, not a simulated TP/SL trading strategy. The 0.10% hurdle is an illustration, not a verified account fee schedule. Actual assessment needs fees, spread, slippage, funding, and executable entry/exit timing.
 
-An interesting exploratory result appears in the [feature buckets](results/btc_signal_ev_feature_buckets_4h.csv): M15 signals in the lowest H4 price-to-EMA gap group averaged +0.1546% over four hours (197 observations), versus -0.0411% in the highest group (196). M5 shows the same ordering: +0.0799% versus -0.0408%. This motivates an anti-extension hypothesis; it is not confirmation. The groups were examined on the same history, and their boundaries and selection need out-of-sample testing.
+An interesting exploratory result appears in the `results/btc_signal_ev_feature_buckets_4h.csv` (local-only output, git-ignored): M15 signals in the lowest H4 price-to-EMA gap group averaged +0.1546% over four hours (197 observations), versus -0.0411% in the highest group (196). M5 shows the same ordering: +0.0799% versus -0.0408%. This motivates an anti-extension hypothesis; it is not confirmation. The groups were examined on the same history, and their boundaries and selection need out-of-sample testing.
 
 The historical task record mentions a BTC study notebook/script and provenance export that are absent from this checkout. The four CSV outputs survive. This assessment checked their contents and summary arithmetic; it did not independently reproduce the original confidence intervals. Recover or rebuild the generating source before using the study as a reproducibility benchmark.
 
