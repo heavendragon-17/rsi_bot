@@ -821,7 +821,7 @@ warmup rather than logged as repeated not-ready failures.
 
 #### Review
 
-The focused notebook [2026-04-28_btc_signal_ev.ipynb](../research/2026-04-28_btc_signal_ev.ipynb)
+The focused notebook `2026-04-28_btc_signal_ev.ipynb` (not committed; its outputs live under `research/results/btc_signal_ev_*.csv`)
 replayed the current working-tree definition `btc-rsi-cross-v1` against the
 canonical BTC M5, M15, H1, and H4 CSVs. It emitted 1,399 M5 and 589 M15
 signals. All four source files passed duplicate/cadence checks, and the
@@ -841,3 +841,25 @@ signal invariants passed for all 1,988 alerts; two independent 4h return spot
 checks matched exactly; compilation and tracked-file whitespace checks passed.
 Ruff was not available in the named `rsi` environment, so lint remains an
 environment limitation rather than a passed check.
+
+## Long Core V2 / BTC alpha and AI research pipeline assessment (2026-09-04)
+
+- [x] Inspect current strategy logic, existing research results, and reusable validation infrastructure.
+- [x] Review primary research and relevant open-source research automation options.
+- [x] Produce prioritized alpha hypotheses and a concrete pipeline proposal with independent evaluation gates.
+- [x] Verify cited results and save the assessment; record scope and limitations.
+
+Review: saved [the assessment](../research/2026-09-04_alpha_research_pipeline_proposal.md).
+Independent read-only reviews covered Core V2.1, BTC signals, and the research/audit
+infrastructure. Checked saved BTC summary arithmetic, Core event counts, source
+contracts, and primary web references. The proposal's local Markdown links pass;
+tracked-file whitespace checks pass. No trading code or configuration changed,
+no new backtest/model was run, and the original BTC confidence intervals were not
+independently reproduced because their source notebook/script is absent here.
+
+## Research manager and worker architecture comparison (2026-09-04)
+
+- [ ] Compare a strong research manager with cheaper workers against the prior validation-focused proposal.
+- [ ] Check primary sources for orchestration, model routing, and on-chain data caveats.
+- [ ] Explain a BTC-first workflow, sustainability criteria, and reusable research architecture.
+- [ ] Save the architectural clarification and verify its references.

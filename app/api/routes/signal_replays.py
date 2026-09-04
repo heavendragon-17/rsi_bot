@@ -22,11 +22,8 @@ from app.api.schemas import (
     SignalReviewResponse,
     SignalReviewUpdate,
 )
-from app.backtest.signal_replay_service import (
-    SignalReplayService,
-    api_datetime,
-    run_summary,
-)
+from app.backtest.signal_replay_service import SignalReplayService
+from app.backtest.signal_replay_support import api_datetime, run_summary
 from app.repository.backtest.database import SessionLocal
 from app.repository.backtest.models import SignalReplayRun, SignalReplaySignal
 
