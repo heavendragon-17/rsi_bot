@@ -23,23 +23,22 @@ interface RsiChartProps {
 
 const CHART_MARGIN = { top: 24, right: 20, bottom: 20, left: 0 };
 
-// Colors picked for maximum hue separation on a dark slate background.
-// Using three widely-spaced hues (warm yellow, cool blue, warm pink) so that
-// even users with red-green colorblindness can tell the series apart.
-const COLOR_RSI = "#FBBF24";   // amber-400  — the primary signal
-const COLOR_EMA9 = "#38BDF8";  // sky-400    — fast moving average
-const COLOR_WMA45 = "#F472B6"; // pink-400   — slow moving average (dashed)
+// Colors match the signal-review chart: black RSI, green EMA9, red WMA45
+// on a beige background (same palette as the reference TradingView theme).
+const COLOR_RSI = "#000000";   // black      — the primary signal
+const COLOR_EMA9 = "#16A34A";  // green-600  — fast moving average
+const COLOR_WMA45 = "#DC2626"; // red-600    — slow moving average
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "rgba(15, 23, 42, 0.95)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
+  backgroundColor: "rgba(231, 226, 198, 0.97)",
+  border: "1px solid rgba(120, 113, 86, 0.5)",
   borderRadius: "8px",
   padding: "12px",
 };
 
-const TOOLTIP_LABEL_STYLE = { color: "#94a3b8", fontSize: "12px" };
+const TOOLTIP_LABEL_STYLE = { color: "#57534E", fontSize: "12px" };
 const TOOLTIP_ITEM_STYLE = {
-  color: "#e2e8f0",
+  color: "#1C1917",
   fontSize: "12px",
   fontFamily: "monospace",
 };
@@ -82,13 +81,13 @@ function TriangleLayer({ xAxisMap, yAxisMap, chartData }: TriangleLayerProps) {
         const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="entry-flag">
-            <polygon points={pts} fill="#22c55e" opacity={0.9} />
+            <polygon points={pts} fill="#16A34A" opacity={0.9} />
             <text
               x={cx}
               y={baseY - 2}
               textAnchor="middle"
               dominantBaseline="auto"
-              fill="#22c55e"
+              fill="#16A34A"
               fontSize={9}
               fontFamily="monospace"
             >
@@ -110,13 +109,13 @@ function TriangleLayer({ xAxisMap, yAxisMap, chartData }: TriangleLayerProps) {
         const pts = `${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`;
         return (
           <g key="exit-flag">
-            <polygon points={pts} fill="#ef4444" opacity={0.9} />
+            <polygon points={pts} fill="#DC2626" opacity={0.9} />
             <text
               x={cx}
               y={baseY + 9}
               textAnchor="middle"
               dominantBaseline="auto"
-              fill="#ef4444"
+              fill="#DC2626"
               fontSize={9}
               fontFamily="monospace"
             >
@@ -168,14 +167,14 @@ function CustomTooltip({
         </p>
       ))}
       {point.spread !== null && (
-        <p style={{ ...TOOLTIP_ITEM_STYLE, color: "#a78bfa" }}>
+        <p style={{ ...TOOLTIP_ITEM_STYLE, color: "#57534E" }}>
           Spread:{" "}
           {(point.spread ?? 0) > 0 ? "+" : ""}
           {(point.spread ?? 0).toFixed(2)}
         </p>
       )}
       {point.above_ema21 !== null && (
-        <p style={{ ...TOOLTIP_ITEM_STYLE, color: "#fbbf24" }}>
+        <p style={{ ...TOOLTIP_ITEM_STYLE, color: "#16A34A" }}>
           Above EMA21: {point.above_ema21 ? "Yes" : "No"}
         </p>
       )}
@@ -225,11 +224,11 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
   const config = (indicatorConfig ?? DEFAULT_INDICATOR_CONFIG).oscillator;
 
   return (
-    <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
+    <div className="rounded-xl p-6 border" style={{ backgroundColor: "#E7E2C6", borderColor: "#C9C3A3" }}>
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-white font-bold mb-1">RSI(21)</h3>
-          <p className="text-xs text-slate-400">
+          <h3 className="font-bold mb-1" style={{ color: "#1C1917" }}>RSI(21)</h3>
+          <p className="text-xs" style={{ color: "#57534E" }}>
             OB/OS 70/30. Hover for Spread &amp; EMA21 status.
           </p>
         </div>
@@ -243,22 +242,22 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
         <ComposedChart data={data} syncId="tradeDeepDive" margin={CHART_MARGIN}>
           <defs>
             <linearGradient id="rsiGradientDive" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={COLOR_RSI} stopOpacity={0.22} />
+              <stop offset="0%" stopColor={COLOR_RSI} stopOpacity={0.15} />
               <stop offset="100%" stopColor={COLOR_RSI} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#C4BE9E" opacity={0.6} />
           <XAxis
             type="number"
             dataKey="index"
             domain={[-0.5, data.length - 0.5]}
-            stroke="#64748b"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            stroke="#78716C"
+            tick={{ fill: "#57534E", fontSize: 10 }}
             tickFormatter={(value: number) => dateBreakFormatter(data, value)}
           />
           <YAxis
-            stroke="#64748b"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            stroke="#78716C"
+            tick={{ fill: "#57534E", fontSize: 11 }}
             domain={[0, 100]}
             width={35}
           />
@@ -293,13 +292,12 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
             isAnimationActive={false}
           />
 
-          {/* WMA45 of RSI — slow MA, dashed so it's clearly the "other" MA */}
+          {/* WMA45 of RSI — slow MA */}
           <Line
             type="monotone"
             dataKey={config.wma45DataKey}
             stroke={COLOR_WMA45}
-            strokeWidth={1.25}
-            strokeDasharray="5 3"
+            strokeWidth={2}
             dot={false}
             name="WMA45"
             connectNulls
@@ -311,7 +309,7 @@ export function RsiChart({ data, indicatorConfig }: RsiChartProps) {
             type="monotone"
             dataKey={config.ema9DataKey}
             stroke={COLOR_EMA9}
-            strokeWidth={1.25}
+            strokeWidth={2}
             dot={false}
             name="EMA9"
             connectNulls

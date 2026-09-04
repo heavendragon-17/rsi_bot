@@ -52,8 +52,8 @@ export interface IndicatorConfig {
 
 export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
   priceOverlays: [
-    { type: "ema", dataKey: "ema21",  color: "#F59E0B", label: "EMA21"  },
-    { type: "ema", dataKey: "ema200", color: "#3B82F6", label: "EMA200" },
+    { type: "ema", dataKey: "ema21",  color: "#16A34A", label: "EMA21"  },
+    { type: "ema", dataKey: "ema200", color: "#DC2626", label: "EMA200" },
   ],
   oscillator: {
     type: "rsi",

@@ -18,10 +18,10 @@ interface CandlestickShapeProps {
   };
 }
 
-const BULL_COLOR = "#22c55e";
-const BEAR_COLOR = "#ef4444";
-const ENTRY_GLOW = "#22c55e";
-const EXIT_GLOW = "#ef4444";
+const BULL_COLOR = "#16A34A";
+const BEAR_COLOR = "#DC2626";
+const ENTRY_GLOW = "#16A34A";
+const EXIT_GLOW = "#DC2626";
 
 /**
  * Custom Recharts Bar shape that renders a proper OHLC candlestick.

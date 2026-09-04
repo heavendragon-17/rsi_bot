@@ -48,15 +48,15 @@ const DEFAULT_VISIBLE_FUTURE = 240;
 
 const CHART_OPTIONS = {
   layout: {
-    background: { type: ColorType.Solid, color: "#0f172a" },
-    textColor: "#94a3b8",
+    background: { type: ColorType.Solid, color: "#E7E2C6" },
+    textColor: "#57534E",
   },
   grid: {
-    vertLines: { color: "rgba(51, 65, 85, 0.35)" },
-    horzLines: { color: "rgba(51, 65, 85, 0.35)" },
+    vertLines: { color: "rgba(120, 113, 86, 0.35)" },
+    horzLines: { color: "rgba(120, 113, 86, 0.35)" },
   },
-  rightPriceScale: { borderColor: "rgba(148, 163, 184, 0.25)" },
-  timeScale: { borderColor: "rgba(148, 163, 184, 0.25)", timeVisible: true },
+  rightPriceScale: { borderColor: "rgba(120, 113, 86, 0.55)" },
+  timeScale: { borderColor: "rgba(120, 113, 86, 0.55)", timeVisible: true },
   crosshair: { mode: 0 },
 };
 
@@ -137,17 +137,17 @@ export function SignalChart({
       wickDownColor: "#ef4444",
     });
     const ema21 = priceChart.addSeries(LineSeries, {
-      color: "#fbbf24",
+      color: "#16A34A",
       lineWidth: 2,
       title: "EMA21",
     });
     const ema200 = priceChart.addSeries(LineSeries, {
-      color: "#22d3ee",
+      color: "#DC2626",
       lineWidth: 2,
       title: "EMA200",
     });
     const rsi = rsiChart.addSeries(LineSeries, {
-      color: "#a78bfa",
+      color: "#000000",
       lineWidth: 2,
       title: "RSI21",
       autoscaleInfoProvider: (original) => {
@@ -157,14 +157,13 @@ export function SignalChart({
       },
     });
     const rsiEma = rsiChart.addSeries(LineSeries, {
-      color: "#38bdf8",
-      lineWidth: 1,
+      color: "#16A34A",
+      lineWidth: 2,
       title: "EMA9 RSI",
     });
     const rsiWma = rsiChart.addSeries(LineSeries, {
-      color: "#f472b6",
-      lineWidth: 1,
-      lineStyle: 2,
+      color: "#DC2626",
+      lineWidth: 2,
       title: "WMA45 RSI",
     });
 
@@ -187,13 +186,13 @@ export function SignalChart({
       createSeriesMarkers(candles, [{
         time: triggerRow.time,
         position: "belowBar",
-        color: "#a78bfa",
+        color: "#292524",
         shape: "arrowUp",
         text: "Signal",
       }] as any);
       candles.createPriceLine({
         price: triggerClosePrice,
-        color: "#a78bfa",
+        color: "#292524",
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
@@ -202,7 +201,7 @@ export function SignalChart({
       if (takeProfitPrice != null && Number.isFinite(takeProfitPrice)) {
         candles.createPriceLine({
           price: takeProfitPrice,
-          color: "#22c55e",
+          color: "#16A34A",
           lineWidth: 2,
           lineStyle: 2,
           axisLabelVisible: true,
@@ -212,7 +211,7 @@ export function SignalChart({
       if (stopLossPrice != null && Number.isFinite(stopLossPrice)) {
         candles.createPriceLine({
           price: stopLossPrice,
-          color: "#ef4444",
+          color: "#DC2626",
           lineWidth: 2,
           lineStyle: 2,
           axisLabelVisible: true,
@@ -322,14 +321,14 @@ export function SignalChart({
       <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-text-secondary">
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">
           <span className="font-sans font-medium text-text-muted">Price</span>
-          <span className="inline-flex items-center gap-1.5 text-amber-300"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />EMA21</span>
-          <span className="inline-flex items-center gap-1.5 text-cyan-300"><span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />EMA200</span>
+          <span className="inline-flex items-center gap-1.5 text-text-secondary"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#16A34A" }} />EMA21</span>
+          <span className="inline-flex items-center gap-1.5 text-text-secondary"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#DC2626" }} />EMA200</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">
           <span className="font-sans font-medium text-text-muted">RSI</span>
-          <span className="inline-flex items-center gap-1.5 text-violet-300"><span className="h-1.5 w-1.5 rounded-full bg-violet-300" />RSI21</span>
-          <span className="inline-flex items-center gap-1.5 text-sky-300"><span className="h-1.5 w-1.5 rounded-full bg-sky-300" />EMA9 RSI</span>
-          <span className="inline-flex items-center gap-1.5 text-pink-300"><span className="h-1.5 w-1.5 rounded-full bg-pink-300" />WMA45 RSI</span>
+          <span className="inline-flex items-center gap-1.5 text-text-secondary"><span className="h-1.5 w-1.5 rounded-full border" style={{ backgroundColor: "#000000", borderColor: "rgba(255,255,255,0.6)" }} />RSI21</span>
+          <span className="inline-flex items-center gap-1.5 text-text-secondary"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#16A34A" }} />EMA9 RSI</span>
+          <span className="inline-flex items-center gap-1.5 text-text-secondary"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#DC2626" }} />WMA45 RSI</span>
         </div>
         {(takeProfitPrice != null || stopLossPrice != null) && (
           <div className="flex flex-wrap items-center gap-3 rounded-md border border-border-main bg-bg-elevated/35 px-2.5 py-1.5">

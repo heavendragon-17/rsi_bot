@@ -60,8 +60,8 @@ safe point-in-time anchor.
 Check that:
 
 - the signal marker is on the correct candle;
-- the price chart shows the yellow EMA21 and cyan EMA200 lines;
-- the RSI pane shows violet RSI21, blue EMA9 RSI, and pink WMA45 RSI;
+- the price chart (beige background) shows the green EMA21 and red EMA200 lines;
+- the RSI pane shows black RSI21, green EMA9 RSI, and red WMA45 RSI;
 - the H1 and H4 confirmation lines are marked with a green check; and
 - the chart does not look broken, empty, or obviously contradictory to the
   card.

@@ -27,14 +27,14 @@ interface PriceCandlestickChartProps {
 const CHART_MARGIN = { top: 24, right: 20, bottom: 20, left: 0 };
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "rgba(15, 23, 42, 0.95)",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
+  backgroundColor: "rgba(231, 226, 198, 0.97)",
+  border: "1px solid rgba(120, 113, 86, 0.5)",
   borderRadius: "8px",
   padding: "12px",
 };
-const TOOLTIP_LABEL_STYLE = { color: "#94a3b8", fontSize: "12px" };
+const TOOLTIP_LABEL_STYLE = { color: "#57534E", fontSize: "12px" };
 const TOOLTIP_ITEM_STYLE = {
-  color: "#e2e8f0",
+  color: "#1C1917",
   fontSize: "12px",
   fontFamily: "monospace",
 };
@@ -48,22 +48,22 @@ function OhlcBar({ candle }: { candle: ChartDataPoint | null }) {
   const change = candle.close - candle.open;
   const changePct = (change / candle.open) * 100;
   const isUp = change >= 0;
-  const changeColor = isUp ? "#22c55e" : "#ef4444";
+  const changeColor = isUp ? "#15803D" : "#B91C1C";
   const sign = isUp ? "+" : "";
 
   return (
     <div className="flex items-center gap-3 text-[11px] font-mono leading-none">
-      <span className="text-slate-500">
-        O <span className="text-slate-200">{formatPrice(candle.open, false)}</span>
+      <span style={{ color: "#78716C" }}>
+        O <span style={{ color: "#1C1917" }}>{formatPrice(candle.open, false)}</span>
       </span>
-      <span className="text-slate-500">
-        H <span className="text-slate-200">{formatPrice(candle.high, false)}</span>
+      <span style={{ color: "#78716C" }}>
+        H <span style={{ color: "#1C1917" }}>{formatPrice(candle.high, false)}</span>
       </span>
-      <span className="text-slate-500">
-        L <span className="text-slate-200">{formatPrice(candle.low, false)}</span>
+      <span style={{ color: "#78716C" }}>
+        L <span style={{ color: "#1C1917" }}>{formatPrice(candle.low, false)}</span>
       </span>
-      <span className="text-slate-500">
-        C <span className="text-slate-200">{formatPrice(candle.close, false)}</span>
+      <span style={{ color: "#78716C" }}>
+        C <span style={{ color: "#1C1917" }}>{formatPrice(candle.close, false)}</span>
       </span>
       <span style={{ color: changeColor }}>
         {sign}{formatPrice(Math.abs(change), false)}&nbsp;
@@ -115,7 +115,7 @@ function CandlestickLayer({
         const yClose = yScale(d.close);
 
         const isUp = d.close >= d.open;
-        const color = isUp ? "#22c55e" : "#ef4444";
+        const color = isUp ? "#16A34A" : "#DC2626";
 
         const bodyTop = Math.min(yOpen, yClose);
         const bodyBottom = Math.max(yOpen, yClose);
@@ -135,14 +135,14 @@ function CandlestickLayer({
               <rect
                 x={bodyX - 1} y={bodyTop - 1}
                 width={barWidth + 2} height={bodyHeight + 2}
-                fill="none" stroke="#22c55e" strokeWidth={2} strokeOpacity={0.9} rx={1}
+                fill="none" stroke="#16A34A" strokeWidth={2} strokeOpacity={0.9} rx={1}
               />
             )}
             {d.isExit && (
               <rect
                 x={bodyX - 1} y={bodyTop - 1}
                 width={barWidth + 2} height={bodyHeight + 2}
-                fill="none" stroke="#ef4444" strokeWidth={2} strokeOpacity={0.9} rx={1}
+                fill="none" stroke="#DC2626" strokeWidth={2} strokeOpacity={0.9} rx={1}
               />
             )}
           </g>
@@ -160,10 +160,10 @@ function CandlestickLayer({
           <g key="entry-flag">
             <polygon
               points={`${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`}
-              fill="#22c55e" opacity={0.9}
+              fill="#16A34A" opacity={0.9}
             />
             <text x={cx} y={baseY - 2} textAnchor="middle" dominantBaseline="auto"
-              fill="#22c55e" fontSize={9} fontFamily="monospace">
+              fill="#16A34A" fontSize={9} fontFamily="monospace">
               Entry
             </text>
           </g>
@@ -181,10 +181,10 @@ function CandlestickLayer({
           <g key="exit-flag">
             <polygon
               points={`${cx},${tipY} ${cx - size},${baseY} ${cx + size},${baseY}`}
-              fill="#ef4444" opacity={0.9}
+              fill="#DC2626" opacity={0.9}
             />
             <text x={cx} y={baseY + 9} textAnchor="middle" dominantBaseline="auto"
-              fill="#ef4444" fontSize={9} fontFamily="monospace">
+              fill="#DC2626" fontSize={9} fontFamily="monospace">
               Exit
             </text>
           </g>
@@ -210,7 +210,7 @@ export function PriceCandlestickChart({
 
   const entryIdx = data.findIndex((d) => d.isEntry);
   const exitIdx = data.findLastIndex((d) => d.isExit);
-  const shadeColor = isWin ? "#22c55e" : "#ef4444";
+  const shadeColor = isWin ? "#16A34A" : "#DC2626";
 
   const domainMin = Math.min(...data.map((d) => d.low)) * 0.9995;
   const domainMax = Math.max(...data.map((d) => d.high)) * 1.0005;
@@ -230,13 +230,13 @@ export function PriceCandlestickChart({
   };
 
   return (
-    <div className="bg-slate-900/50 rounded-xl p-6 border border-white/10">
+    <div className="rounded-xl p-6 border" style={{ backgroundColor: "#E7E2C6", borderColor: "#C9C3A3" }}>
       <div className="mb-3">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-          <h3 className="text-white font-bold">Price Action</h3>
+          <h3 className="font-bold" style={{ color: "#1C1917" }}>Price Action</h3>
           <OhlcBar candle={displayCandle} />
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs" style={{ color: "#57534E" }}>
           Candlestick chart — entry/exit markers, {overlayLabels}
         </p>
       </div>
@@ -248,18 +248,18 @@ export function PriceCandlestickChart({
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredCandle(null)}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#C4BE9E" opacity={0.6} />
           <XAxis
             type="number"
             dataKey="index"
             domain={[-0.5, data.length - 0.5]}
-            stroke="#64748b"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            stroke="#78716C"
+            tick={{ fill: "#57534E", fontSize: 10 }}
             tickFormatter={(value: number) => dateBreakFormatter(data, value)}
           />
           <YAxis
-            stroke="#64748b"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            stroke="#78716C"
+            tick={{ fill: "#57534E", fontSize: 11 }}
             domain={[domainMin, domainMax]}
             tickFormatter={(v: number) => formatPrice(v)}
             width={yAxisWidth}
@@ -296,9 +296,8 @@ export function PriceCandlestickChart({
               type="monotone"
               dataKey={overlay.dataKey}
               stroke={overlay.color}
-              strokeWidth={1.5}
+              strokeWidth={2}
               dot={false}
-              strokeDasharray="5 3"
               name={overlay.label}
               connectNulls
               isAnimationActive={false}
