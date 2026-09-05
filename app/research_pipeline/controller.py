@@ -1,0 +1,799 @@
+"""Campaign controller for the bounded thinker/executor/checker/reviewer loop."""
+
+from __future__ import annotations
+
+import json
+import math
+import uuid
+from functools import partial
+from pathlib import Path
+from typing import Any, Callable, Mapping
+
+from .contracts import (
+    BudgetExceededError,
+    ContractError,
+    M5_VERIFICATION_TASK,
+    PipelineConfig,
+    Provider,
+    ProviderError,
+    ProviderRequest,
+    ProviderResponse,
+    VerifyM5HorizonsParameters,
+    canonical_json,
+    object_hash,
+    proposal_schema,
+    review_schema,
+    execution_schema,
+    validate_execution_plan,
+    validate_proposal,
+    validate_review,
+)
+from .providers import FixtureProvider, provider_from_config, preflight_provider
+from .storage import PipelineStore
+from .tools import (
+    ToolContext,
+    ToolInputAccessError,
+    ToolRestrictionError,
+    ToolVerificationError,
+    current_input_identity,
+    execute_registered_tool,
+    registered_tools,
+    verification_cache_key,
+)
+
+DEFAULT_BASELINE = "research/results/phase1_four_year_runs/run_20260904T084317586748Z_97d3c169"
+DEFAULT_HORIZON = "research/results/m5_four_year_horizon_runs/run_20260904T084448776441Z_97d3c169"
+TERMINAL_STATUSES = {"STOPPED", "REJECTED", "COMPLETED", "LIMIT_REACHED", "FAILED", "BUDGET_EXHAUSTED"}
+
+
+def _id(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:16]}"
+
+
+def _hash_if_file(path: str | None) -> str | None:
+    if not path:
+        return None
+    candidate = Path(path)
+    try:
+        if not candidate.is_file():
+            return None
+        import hashlib
+
+        digest = hashlib.sha256()
+        with candidate.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def _estimate_tokens(value: str) -> int:
+    """Use a conservative local estimate for controller-owned size gates."""
+
+    return max(1, math.ceil(len(value.encode("utf-8")) / 4))
+
+
+class PipelineController:
+    """Orchestrate one bounded research job with durable state transitions."""
+
+    def __init__(
+        self,
+        config: PipelineConfig,
+        *,
+        thinkers: dict[str, Provider] | None = None,
+        executors: dict[str, Provider] | None = None,
+        provider_factory: Callable[..., Provider] = provider_from_config,
+    ) -> None:
+        self.config = config
+        self.repo_root = Path(config.repo_root).resolve()
+        self.output_dir = self._repo_path(config.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.store = PipelineStore(self._repo_path(config.db_path))
+        # Provider construction is deliberately lazy. A read-only status query
+        # and an offline authorization rejection must not initialize a runtime
+        # provider or touch its executable.
+        self.thinkers = dict(thinkers) if thinkers is not None else {}
+        self.executors = dict(executors) if executors is not None else {}
+        self.provider_factory = provider_factory
+
+    def _repo_path(self, raw: str | Path) -> Path:
+        path = Path(raw).expanduser()
+        return (self.repo_root / path).resolve() if not path.is_absolute() else path.resolve()
+
+    def _provider(self, role: str) -> Provider:
+        provider_name = self.config.thinker_provider if role == "thinker" else self.config.executor_provider
+        providers = self.thinkers if role == "thinker" else self.executors
+        provider = providers.get(provider_name)
+        if provider is None:
+            provider = self.provider_factory(provider_name, role=role, model=self.config.thinker_model if role == "thinker" else self.config.executor_model, repo_root=self.repo_root)
+            providers[provider_name] = provider
+        return provider
+
+    def create_campaign(self, *, name: str = "btc-ai-mvp", question: str = "Independently verify one existing BTC M5 1h/2h/3h result.") -> str:
+        campaign_id = _id("campaign")
+        data_dir = self._repo_path(self.config.data_dir) if self.config.data_dir else self.repo_root / "research" / "data" / "btc_four_year_20220828_20260828"
+        baseline_packet = self._repo_path(self.config.baseline_packet) if self.config.baseline_packet else self.repo_root / DEFAULT_BASELINE
+        horizon_packet = self._repo_path(self.config.horizon_packet) if self.config.horizon_packet else self.repo_root / DEFAULT_HORIZON
+        horizon_manifest = self._read_optional_json(horizon_packet / "manifest.json")
+        source_info = horizon_manifest.get("inputs", {}).get("files", {}).get("5m", {}) if isinstance(horizon_manifest, dict) else {}
+        source_path = source_info.get("path") if isinstance(source_info, dict) else None
+        if isinstance(source_path, str) and not Path(source_path).is_absolute():
+            source_path = str(self._repo_path(source_path))
+        evidence_hashes = {
+            "baseline_manifest_sha256": _hash_if_file(str(baseline_packet / "manifest.json")),
+            "horizon_manifest_sha256": _hash_if_file(str(horizon_packet / "manifest.json")),
+            "horizon_signals_sha256": _hash_if_file(str(horizon_packet / "signals.csv")),
+            # The manifest value is the frozen expected source identity. The
+            # checker also hashes the currently readable source before reuse.
+            "source_sha256": source_info.get("sha256") if isinstance(source_info, dict) else None,
+            "source_path": source_path,
+        }
+        context = {
+            "question": question,
+            "data_dir": str(data_dir),
+            "baseline_packet": str(baseline_packet),
+            "horizon_packet": str(horizon_packet),
+            "verification_mode": self.config.verification_mode,
+            "evidence_hashes": evidence_hashes,
+            "previous_decisions": [],
+            "previous_failures": [],
+            "alpha_assessment": "NOT_ASSESSED",
+        }
+        self.store.create_campaign(campaign_id, name, question, self.config.as_dict(), context)
+        return campaign_id
+
+    def run(self, campaign_id: str, *, branch: str | None = None, reconcile_uncertain: bool = False) -> dict[str, Any]:
+        campaign = self.store.campaign(campaign_id)
+        status = campaign["status"]
+        if status in TERMINAL_STATUSES:
+            self._write_report(campaign_id)
+            return self.status(campaign_id)
+        current_job_id: str | None = None
+        try:
+            self._assert_invocation_authorized()
+            if self._reconcile_running_attempts(campaign_id) and not reconcile_uncertain:
+                self._write_report(campaign_id)
+                return self.status(campaign_id)
+            if reconcile_uncertain:
+                self.store.reconcile_uncertain_attempts(campaign_id)
+            if self.store.uncertain_attempts(campaign_id):
+                self._write_report(campaign_id)
+                return self.status(campaign_id)
+
+            jobs = self.store.jobs(campaign_id)
+            job = self._propose_initial(campaign_id) if not jobs else self._next_incomplete_job(jobs)
+            if job is None:
+                if any(row["status"] == "DEFERRED_LIMIT" for row in jobs):
+                    self.store.set_campaign_status(campaign_id, "LIMIT_REACHED")
+                self._write_report(campaign_id)
+                return self.status(campaign_id)
+            current_job_id = job["id"]
+            if job["status"] == "REPAIR_REQUIRED":
+                self.store.set_campaign_status(campaign_id, "PAUSED")
+            elif job["status"] == "DEFERRED_LIMIT":
+                self.store.set_campaign_status(campaign_id, "LIMIT_REACHED")
+            elif job["status"] in {"PROPOSING", "PROPOSED"} and not self.store.claim_job_reservation(job["id"]):
+                self.store.set_campaign_status(campaign_id, "LIMIT_REACHED")
+            else:
+                if job["status"] == "PROPOSING":
+                    job = self._propose_job(campaign_id, job["id"])
+                if job["status"] == "PROPOSED":
+                    self._execute_and_check(campaign_id, job["id"], branch=branch)
+                    job = self.store.job(job["id"])
+                if job["status"] == "CHECKED":
+                    self._review(campaign_id, job["id"], branch=branch)
+        except (ProviderError, ContractError, ToolRestrictionError, ToolVerificationError, ValueError, RuntimeError, OSError) as caught:
+            error = self._as_provider_error(caught)
+            self._record_failure(campaign_id, getattr(error, "job_id", None) or current_job_id, getattr(error, "attempt_id", None), error)
+            if isinstance(error, BudgetExceededError):
+                self.store.set_campaign_status(campaign_id, "BUDGET_EXHAUSTED")
+            else:
+                self.store.set_campaign_status(campaign_id, "PAUSED" if error.retryable else "FAILED")
+        self._write_report(campaign_id)
+        return self.status(campaign_id)
+
+    def resume(self, campaign_id: str, *, branch: str | None = None, reconcile_uncertain: bool = False) -> dict[str, Any]:
+        """Restore the persisted campaign configuration before any provider lookup."""
+
+        self._restore_campaign_config(campaign_id)
+        return self.run(campaign_id, branch=branch, reconcile_uncertain=reconcile_uncertain)
+
+    def status(self, campaign_id: str) -> dict[str, Any]:
+        summary = self.store.summary(campaign_id)
+        return {
+            "campaign_id": campaign_id,
+            "status": summary["campaign"]["status"],
+            "budget": summary["budget"],
+            "jobs": summary["jobs"],
+            "attempt_count": len(summary["attempts"]),
+            "result_count": len(summary["results"]),
+            "decisions": summary["decisions"],
+            "failures": summary["failures"],
+            "report_path": str(self.output_dir / campaign_id / "report.json"),
+        }
+
+    def _restore_campaign_config(self, campaign_id: str) -> None:
+        persisted = self.store.config(campaign_id)
+        self.config = PipelineConfig.from_dict(persisted)
+        self.repo_root = Path(self.config.repo_root).resolve()
+        self.output_dir = self._repo_path(self.config.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _assert_invocation_authorized(self) -> None:
+        configured = (self.config.thinker_provider, self.config.executor_provider)
+        non_fixture = [provider for provider in configured if provider != "fixture"]
+        if non_fixture and not self.config.live_opt_in:
+            raise ProviderError(
+                "non-fixture providers require explicit live opt-in",
+                kind="authorization",
+                details={"providers": non_fixture, "provider_call_performed": False, "live_call_performed": False},
+            )
+        if self.config.live_opt_in and self.config.verification_mode != "real":
+            raise ProviderError("live opt-in requires real local-data verification mode", kind="authorization", details={"provider_call_performed": False, "live_call_performed": False})
+
+    def _next_incomplete_job(self, jobs: list[Any]) -> Any | None:
+        for job in jobs:
+            decision = self.store.decision_for_job(job["campaign_id"], job["id"])
+            if job["status"] == "CHECKED" and decision is not None:
+                # A review decision and its state effects are separate durable
+                # mutations. If the process stopped between those commits, the
+                # decision is authoritative and must be replayed before this
+                # completed job is skipped. Each effect is idempotent, so this
+                # also safely handles a resume after the normal path applied it.
+                self._apply_decision_status(job["campaign_id"], job["id"], decision["action"], decision["next_job_id"])
+                continue
+            if job["status"] in {"PROPOSING", "PROPOSED", "CHECKED", "REPAIR_REQUIRED", "DEFERRED_LIMIT"}:
+                return job
+        return None
+
+    def _provider_call(
+        self,
+        campaign_id: str,
+        job_id: str,
+        *,
+        role: str,
+        phase: str,
+        prompt: str,
+        schema: dict[str, Any],
+        metadata: dict[str, Any],
+        validator: Callable[[Any], dict[str, Any]],
+    ) -> dict[str, Any]:
+        provider_name = self.config.thinker_provider if role == "thinker" else self.config.executor_provider
+        model = self.config.thinker_model if role == "thinker" else self.config.executor_model
+        provider = self._provider(role)
+        input_tokens_estimate = _estimate_tokens(prompt)
+        if input_tokens_estimate > self.config.context_budget:
+            raise ProviderError(
+                "provider request exceeds the controller context budget",
+                kind="context_budget_exceeded",
+                details={"requested": self.config.context_budget, "estimated": input_tokens_estimate, "provider_call_performed": False},
+            )
+        try:
+            self.store.reserve_call(campaign_id, role)
+        except RuntimeError as exc:
+            error = BudgetExceededError(role)
+            error.job_id = job_id
+            self.store.set_campaign_status(campaign_id, "BUDGET_EXHAUSTED")
+            raise error from exc
+        attempt_id = _id("attempt")
+        schema_dir = self.output_dir / campaign_id / "schemas"
+        schema_dir.mkdir(parents=True, exist_ok=True)
+        schema_path = schema_dir / f"{phase}.json"
+        schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        controller_limits = {
+            "context_budget": {"requested": self.config.context_budget, "enforced": "prompt_utf8_estimate", "estimated_input_tokens": input_tokens_estimate},
+            "output_budget": {"requested": self.config.output_budget, "enforced": "response_utf8_estimate"},
+        }
+        request = ProviderRequest(
+            role=role,
+            phase=phase,
+            prompt=prompt,
+            schema=schema,
+            model=model,
+            effort=self.config.thinker_effort if role == "thinker" else self.config.executor_effort,
+            timeout_seconds=self.config.timeout_seconds,
+            context_budget=self.config.context_budget,
+            output_budget=self.config.output_budget,
+            metadata={**metadata, "schema_path": str(schema_path), "controller_limits": controller_limits},
+        )
+        self.store.create_attempt(
+            attempt_id,
+            campaign_id,
+            job_id,
+            role,
+            phase,
+            provider_name,
+            model,
+            {
+                "phase": phase,
+                "role": role,
+                "provider": provider_name,
+                "model": model,
+                "effort": request.effort,
+                "context_budget": request.context_budget,
+                "output_budget": request.output_budget,
+                "controller_limits": controller_limits,
+            },
+        )
+        response: ProviderResponse | None = None
+        provider_invoked = False
+        try:
+            provider_invoked = True
+            response = provider.complete(request)
+            if not isinstance(response, ProviderResponse):
+                raise ProviderError("provider returned an invalid response object", kind="provider_contract")
+            output_tokens_estimate = _estimate_tokens(canonical_json(response.payload))
+            if output_tokens_estimate > self.config.output_budget:
+                raise ProviderError(
+                    "provider response exceeds the controller output budget",
+                    kind="output_budget_exceeded",
+                    details={"requested": self.config.output_budget, "estimated": output_tokens_estimate, "provider_call_performed": True},
+                )
+            payload = validator(response.payload)
+        except (ProviderError, ContractError, TypeError, ValueError, OSError) as caught:
+            if isinstance(caught, ProviderError):
+                error = caught
+            elif isinstance(caught, ContractError):
+                error = ProviderError(str(caught), kind="malformed_json", details={"provider_call_performed": provider_invoked})
+            else:
+                error = self._as_provider_error(caught)
+                error.details["provider_call_performed"] = provider_invoked
+            error.attempt_id = attempt_id
+            error.job_id = job_id
+            error.details.setdefault("provider_call_performed", provider_invoked)
+            usage = self._usage_record(request, response) if response is not None else None
+            rejected_payload = None
+            if isinstance(response, ProviderResponse) and isinstance(response.payload, Mapping):
+                try:
+                    if _estimate_tokens(canonical_json(response.payload)) <= self.config.output_budget:
+                        rejected_payload = dict(response.payload)
+                except (TypeError, ValueError):
+                    pass
+            self.store.finish_attempt(attempt_id, status="FAILED", response=rejected_payload, usage=usage, error_kind=error.kind, error_message=str(error))
+            self.store.set_campaign_status(campaign_id, "PAUSED" if error.retryable else "FAILED")
+            raise error from caught
+        usage = self._usage_record(request, response)
+        self.store.finish_attempt(attempt_id, status="COMPLETED", response=payload, usage=usage)
+        return payload
+
+    @staticmethod
+    def _usage_record(request: ProviderRequest, response: ProviderResponse | None) -> dict[str, Any]:
+        if response is None:
+            return {"provider": None, "requested_model": request.model, "reported_model": None, "provider_usage": None, "controls": {}, "controller_limits": request.metadata.get("controller_limits", {})}
+        return {
+            "provider": response.provider,
+            "requested_model": request.model,
+            "reported_model": response.reported_model,
+            "provider_usage": response.usage,
+            "controls": response.controls or {},
+            "controller_limits": request.metadata.get("controller_limits", {}),
+        }
+
+    def _completed_response(self, campaign_id: str, job_id: str, phase: str, validator: Callable[[Any], dict[str, Any]]) -> dict[str, Any] | None:
+        attempt = self.store.completed_attempt(campaign_id, job_id, phase)
+        if attempt is None:
+            return None
+        try:
+            raw = json.loads(attempt["response_json"])
+            return validator(raw)
+        except (json.JSONDecodeError, ContractError, ValueError) as exc:
+            error = ProviderError("durable completed provider response is no longer contract-valid", kind="recovery_contract", details={"attempt_id": attempt["id"], "provider_call_performed": True})
+            error.attempt_id = attempt["id"]
+            error.job_id = job_id
+            raise error from exc
+
+    def _registered_task_context(self, campaign_id: str) -> dict[str, Any]:
+        """Supply the actual callable contract, not just a schema field name."""
+
+        tool = registered_tools()[M5_VERIFICATION_TASK]
+        mode = self.store.context(campaign_id)["verification_mode"]
+        return {
+            "registered_tasks": [{
+                "task": tool.name,
+                "tool": tool.name,
+                "description": tool.description,
+                "parameters_schema": proposal_schema()["properties"]["parameters"],
+                "example_parameters": {"mode": mode, "event_index": 0},
+                "evidence_scope": "One existing M5 event: source identity, trigger identity and exact 1h/2h/3h close-to-close outcomes. No new signal replay, fills, P&L or alpha conclusion.",
+            }],
+            "verification_mode": mode,
+            "parameter_rules": "mode must equal verification_mode. event_index is a non-negative integer. Packet/source paths are supplied by the controller, not model parameters.",
+            "campaign_budget": dict(self.store.budget(campaign_id)),
+        }
+
+    def _propose_initial(self, campaign_id: str) -> Any:
+        requested_job_id = _id("job")
+        try:
+            job_id = self.store.ensure_initial_job(requested_job_id, campaign_id, 1, {}, "pending", status="PROPOSING")
+        except RuntimeError as exc:
+            error = BudgetExceededError("job")
+            error.job_id = requested_job_id
+            self.store.set_campaign_status(campaign_id, "BUDGET_EXHAUSTED")
+            raise error from exc
+        return self._propose_job(campaign_id, job_id)
+
+    def _validate_proposal_payload(self, campaign_id: str, proposal: dict[str, Any], expected_parent_result_id: str | None) -> dict[str, Any]:
+        proposal = validate_proposal(proposal)
+        if proposal["task"] not in registered_tools():
+            raise ToolRestrictionError(f"proposal selected an unregistered task: {proposal['task']}")
+        typed = VerifyM5HorizonsParameters.from_mapping(proposal["parameters"])
+        context = self.store.context(campaign_id)
+        if typed.mode != context["verification_mode"]:
+            raise ToolRestrictionError("proposal mode does not match the campaign's frozen verification mode")
+        supplied_parent = proposal.get("parent_result_id")
+        if supplied_parent != expected_parent_result_id:
+            raise ToolRestrictionError("proposal parent_result_id does not match the frozen parent result")
+        return proposal
+
+    def _validate_proposal_for_job(self, campaign_id: str, job_id: str, proposal: dict[str, Any]) -> dict[str, Any]:
+        job = self.store.job(job_id)
+        expected_parent_result_id = None
+        if job["parent_job_id"]:
+            parent = self.store.job(job["parent_job_id"])
+            if not parent["result_id"]:
+                raise ToolRestrictionError("follow-up proposal has no completed parent result")
+            expected_parent_result_id = str(parent["result_id"])
+        return self._validate_proposal_payload(campaign_id, proposal, expected_parent_result_id)
+
+    def _propose_job(self, campaign_id: str, job_id: str) -> Any:
+        context = self.store.context(campaign_id)
+        history = {"previous_decisions": [dict(row) for row in self.store.decisions(campaign_id)][-3:], "previous_failures": [dict(row) for row in self.store.failures(campaign_id)][-3:]}
+        job = self.store.job(job_id)
+        proposal: dict[str, Any] | None = None
+        if job["specification_hash"] != "pending":
+            try:
+                proposal = self._validate_proposal_for_job(campaign_id, job_id, json.loads(job["specification_json"]))
+            except (json.JSONDecodeError, ContractError, ValueError) as exc:
+                raise ToolRestrictionError("durable proposal is invalid; refusing to redispatch the thinker") from exc
+        else:
+            validator = partial(self._validate_proposal_for_job, campaign_id, job_id)
+            proposal = self._completed_response(campaign_id, job_id, "proposal", validator)
+            if proposal is None:
+                prompt = (
+                    f"Return only a schema-valid research proposal. Set task exactly to {M5_VERIFICATION_TASK!r}; it is a registered identifier. "
+                    "Put descriptive prose in hypothesis, question and rationale. For this initial proposal, parent_result_id must be null. "
+                    "Propose the bounded check for event_index 0 in the supplied mode. The controller and registered tool perform the numerical work; "
+                    "your role is to specify this job from the supplied context. Task contract, context and history: "
+                    + json.dumps({**context, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
+                )
+                proposal = self._provider_call(campaign_id, job_id, role="thinker", phase="proposal", prompt=prompt, schema=proposal_schema(), metadata={"context": context, "verification_mode": context["verification_mode"]}, validator=validator)
+        proposal = self._validate_proposal_for_job(campaign_id, job_id, proposal)
+        self.store.update_job_specification(job_id, proposal, object_hash(proposal))
+        self.store.update_job(job_id, status="PROPOSED")
+        return self.store.job(job_id)
+
+    def _validate_execution_plan_for_proposal(self, plan: dict[str, Any], proposal: dict[str, Any]) -> dict[str, Any]:
+        plan = validate_execution_plan(plan)
+        if plan["task"] != proposal["task"] or plan["tool"] != M5_VERIFICATION_TASK:
+            raise ToolRestrictionError("executor may only select the proposal task and registered verify_m5_horizons tool")
+        if canonical_json(plan["parameters"]) != canonical_json(proposal["parameters"]):
+            raise ToolRestrictionError("executor parameters differ from the frozen proposal")
+        if plan["invariants"] != proposal["invariants"]:
+            raise ToolRestrictionError("executor invariants differ from the frozen proposal")
+        return plan
+
+    def _execute_and_check(self, campaign_id: str, job_id: str, *, branch: str | None = None) -> None:
+        job = self.store.job(job_id)
+        existing = self.store.result_for_job(job_id)
+        if existing is not None:
+            if job["result_id"] != existing["id"] or job["status"] != "CHECKED":
+                self.store.update_job(job_id, status="CHECKED", result_id=existing["id"])
+            return
+        proposal = self._validate_proposal_for_job(campaign_id, job_id, json.loads(job["specification_json"]))
+        history = {"previous_decisions": [dict(row) for row in self.store.decisions(campaign_id)][-3:], "previous_failures": [dict(row) for row in self.store.failures(campaign_id)][-3:]}
+        prompt = (
+            f"Return only a schema-valid execution plan. Set task and tool exactly to {M5_VERIFICATION_TASK!r}. "
+            "Copy parameters and the ordered invariants array verbatim from the frozen proposal. Do not paraphrase or add paths. "
+            "Use workspace_manifest=null unless a manifest actually exists. The controller executes the registered numerical tool after validating your plan. "
+            "Frozen proposal, task contract and history: "
+            + json.dumps({"proposal": proposal, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
+        )
+        validator = partial(self._validate_execution_plan_for_proposal, proposal=proposal)
+        plan = self._completed_response(campaign_id, job_id, "execution", validator)
+        if plan is None:
+            plan = self._provider_call(campaign_id, job_id, role="executor", phase="execution", prompt=prompt, schema=execution_schema(), metadata={"proposal": proposal}, validator=validator)
+        plan = self._validate_execution_plan_for_proposal(plan, proposal)
+        context = self.store.context(campaign_id)
+        params = dict(proposal["parameters"])
+        params.update({"baseline_packet": context["baseline_packet"], "horizon_packet": context["horizon_packet"]})
+        if context.get("evidence_hashes", {}).get("source_path") and proposal["parameters"]["mode"] == "real":
+            params["source_csv"] = context["evidence_hashes"]["source_path"]
+        params["mode"] = context["verification_mode"]
+        if branch == "tamper":
+            params["tamper_target_timestamp"] = "1999-01-01T00:00:00Z"
+        workspace = self.output_dir / campaign_id / job_id
+        workspace.mkdir(parents=True, exist_ok=True)
+        tool_context = ToolContext(self.repo_root, workspace, frozen_inputs=context.get("evidence_hashes", {}))
+        input_identity = current_input_identity(params, tool_context)
+        cache_key = verification_cache_key(params, tool_context)
+        cached = self.store.cached_result(cache_key)
+        cache_rejection: str | None = None
+        artifact_dir = workspace / "artifacts"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        if cached is not None:
+            valid, cache_rejection = self._validate_cached_result(cached, cache_key, input_identity)
+        else:
+            valid = False
+        if valid and cached is not None:
+            evidence = json.loads(cached["evidence_json"])
+            evidence = {**evidence, "reused_evidence": True, "reused_from_result_id": cached["id"], "reused_from_artifact_dir": cached["artifact_dir"]}
+            result_id = _id("result")
+        else:
+            evidence = execute_registered_tool(plan["tool"], params, tool_context)
+            evidence["reused_evidence"] = False
+            # The registered tool's deterministic ID identifies its numerical
+            # output; the durable result ID must remain unique across
+            # campaigns so a recomputation cannot collide with historical DB
+            # rows.
+            result_id = _id("result")
+        evidence["result_id"] = result_id
+        evidence["cache_key"] = cache_key
+        evidence["input_identity"] = input_identity
+        if cache_rejection:
+            evidence["cache_reuse_rejected"] = cache_rejection
+        (artifact_dir / "evidence.json").write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if evidence.get("status") not in {"VERIFIED", "FAILED"}:
+            raise ToolVerificationError("registered checker returned an unsupported status")
+        self.store.create_result(result_id, job_id, str(evidence["status"]), str(artifact_dir), evidence, object_hash(evidence), cache_key=cache_key)
+
+    def _validate_cached_result(self, row: Mapping[str, Any], cache_key: str, input_identity: dict[str, Any]) -> tuple[bool, str | None]:
+        try:
+            if row["status"] != "VERIFIED" or row["cache_key"] != cache_key:
+                return False, "stored result row is not a matching VERIFIED cache entry"
+            evidence = json.loads(row["evidence_json"])
+            if not isinstance(evidence, dict) or evidence.get("status") != "VERIFIED":
+                return False, "stored evidence is not VERIFIED"
+            if evidence.get("cache_key") != cache_key:
+                return False, "stored evidence cache key differs"
+            if evidence.get("result_id") != row["id"]:
+                return False, "stored evidence result_id differs from the result row"
+            if evidence.get("input_identity") != input_identity:
+                return False, "stored evidence input identity differs from current inputs"
+            if object_hash(evidence) != row["result_hash"]:
+                return False, "stored evidence hash differs from result_hash"
+            artifact_dir = Path(row["artifact_dir"]).resolve()
+            allowed_roots = (self.output_dir.resolve(), (self.repo_root / "research" / "results").resolve())
+            if not any(artifact_dir == root or root in artifact_dir.parents for root in allowed_roots):
+                return False, "stored artifact directory is outside the research boundary"
+            artifact = json.loads((artifact_dir / "evidence.json").read_text(encoding="utf-8"))
+            if artifact != evidence:
+                return False, "stored artifact evidence differs from the durable result"
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            return False, f"stored cache artifact is unreadable or malformed: {type(exc).__name__}"
+        return True, None
+
+    def _review(self, campaign_id: str, job_id: str, *, branch: str | None) -> None:
+        existing_decision = self.store.decision_for_job(campaign_id, job_id)
+        if existing_decision is not None:
+            self._apply_decision_status(campaign_id, job_id, existing_decision["action"], existing_decision["next_job_id"])
+            return
+        job = self.store.job(job_id)
+        if not job["result_id"]:
+            raise ToolRestrictionError("cannot review a job without a checker result")
+        evidence_row = self.store.result(job["result_id"])
+        evidence = json.loads(evidence_row["evidence_json"])
+        self._validate_result_artifact(evidence_row, evidence)
+        metadata = {"evidence": evidence}
+        if branch and self.config.thinker_provider == "fixture":
+            fixture = self._provider("thinker")
+            if isinstance(fixture, FixtureProvider):
+                fixture.branch = branch
+        history = {"previous_decisions": [dict(row) for row in self.store.decisions(campaign_id)][-3:], "previous_failures": [dict(row) for row in self.store.failures(campaign_id)][-3:]}
+        prompt = (
+            "Review the supplied deterministic checker evidence and return only schema-valid JSON. Include the exact current result_id in evidence_refs. "
+            "Choose STOP, REJECT, REPAIR, or PROPOSE_NEXT with non-empty reasons; next_job must be null unless proposing a follow-up. "
+            f"A follow-up requires VERIFIED evidence, task={M5_VERIFICATION_TASK!r}, the same verification mode and parent_result_id equal to the current result_id. "
+            "Respect the supplied budget: a next proposal at the job cap is saved only. A verified event does not establish alpha. Evidence, task contract and history: "
+            + json.dumps({"evidence": evidence, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
+        )
+        validator = partial(self._validate_review_for_evidence, campaign_id, evidence=evidence)
+        review = self._completed_response(campaign_id, job_id, "review", validator)
+        if review is None:
+            review = self._provider_call(campaign_id, job_id, role="thinker", phase="review", prompt=prompt, schema=review_schema(), metadata=metadata, validator=validator)
+        next_job_id = None
+        if review["action"] == "PROPOSE_NEXT":
+            if evidence["status"] != "VERIFIED":
+                raise ToolRestrictionError("PROPOSE_NEXT requires VERIFIED checker evidence")
+            next_spec = validate_proposal(review["next_job"])
+            self._validate_proposal_payload(campaign_id, next_spec, str(evidence["result_id"]))
+            existing_child = self.store.followup_for_parent(campaign_id, job_id)
+            if existing_child is not None:
+                if object_hash(json.loads(existing_child["specification_json"])) != object_hash(next_spec):
+                    raise ToolRestrictionError("durable follow-up proposal differs from the reviewed proposal")
+                next_job_id = existing_child["id"]
+            else:
+                requested_job_id = _id("job")
+                next_job_id, _ = self.store.ensure_followup_job(requested_job_id, campaign_id, int(job["sequence"]) + 1, next_spec, object_hash(next_spec), job_id)
+                durable_child = self.store.job(next_job_id)
+                if object_hash(json.loads(durable_child["specification_json"])) != object_hash(next_spec):
+                    raise ToolRestrictionError("durable follow-up proposal differs from the reviewed proposal")
+        decision_evidence = {
+            "result_id": evidence["result_id"],
+            "checker_status": evidence["status"],
+            "verification_status": evidence["status"],
+            "evidence_path": str(Path(evidence_row["artifact_dir"]) / "evidence.json"),
+            "review_evidence_refs": list(review["evidence_refs"]),
+            "reused_evidence": bool(evidence.get("reused_evidence", False)),
+        }
+        self.store.create_decision(_id("decision"), campaign_id, job_id, "review", review["action"], review["reasons"], decision_evidence, next_job_id)
+        self._apply_decision_status(campaign_id, job_id, review["action"], next_job_id)
+
+    def _validate_review_for_evidence(self, campaign_id: str, value: Any, evidence: dict[str, Any]) -> dict[str, Any]:
+        review = validate_review(value)
+        if evidence["result_id"] not in review["evidence_refs"]:
+            raise ToolRestrictionError("review evidence_refs must include the current checker result_id")
+        if review["action"] == "PROPOSE_NEXT":
+            if evidence["status"] != "VERIFIED":
+                raise ToolRestrictionError("PROPOSE_NEXT requires VERIFIED checker evidence")
+            self._validate_proposal_payload(campaign_id, review["next_job"], str(evidence["result_id"]))
+        return review
+
+    def _validate_result_artifact(self, row: Mapping[str, Any], evidence: dict[str, Any]) -> None:
+        if row["status"] != evidence.get("status") or object_hash(evidence) != row["result_hash"]:
+            raise ToolRestrictionError("durable checker evidence failed integrity validation")
+        try:
+            artifact = json.loads((Path(row["artifact_dir"]) / "evidence.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ToolRestrictionError("durable checker artifact is unreadable") from exc
+        if artifact != evidence:
+            raise ToolRestrictionError("durable checker artifact differs from durable evidence")
+
+    def _apply_decision_status(self, campaign_id: str, job_id: str, action: str, next_job_id: str | None) -> None:
+        if action == "REPAIR":
+            self.store.update_job(job_id, status="REPAIR_REQUIRED")
+            self.store.set_campaign_status(campaign_id, "PAUSED")
+        elif action == "STOP":
+            self.store.set_campaign_status(campaign_id, "STOPPED")
+        elif action == "REJECT":
+            self.store.set_campaign_status(campaign_id, "REJECTED")
+        elif action == "PROPOSE_NEXT":
+            next_status = self.store.job(next_job_id)["status"] if next_job_id else "DEFERRED_LIMIT"
+            self.store.set_campaign_status(campaign_id, "LIMIT_REACHED" if next_status == "DEFERRED_LIMIT" else "RUNNING")
+
+    def _as_provider_error(self, caught: Exception) -> ProviderError:
+        if isinstance(caught, ProviderError):
+            return caught
+        if isinstance(caught, ToolInputAccessError):
+            return ProviderError(str(caught), kind="data_access", retryable=True, details={"exception_type": type(caught).__name__, "infrastructure": True, "provider_call_performed": False})
+        if isinstance(caught, ContractError):
+            return ProviderError(str(caught), kind="contract_error", details={"exception_type": type(caught).__name__, "provider_call_performed": False})
+        if isinstance(caught, ToolRestrictionError):
+            return ProviderError(str(caught), kind="tool_restriction", details={"exception_type": type(caught).__name__, "provider_call_performed": False})
+        if isinstance(caught, ToolVerificationError):
+            return ProviderError(str(caught), kind="tool_verification", details={"exception_type": type(caught).__name__, "provider_call_performed": False})
+        return ProviderError(str(caught), kind="pipeline_error", retryable=isinstance(caught, OSError), details={"exception_type": type(caught).__name__, "provider_call_performed": False})
+
+    def _record_failure(self, campaign_id: str, job_id: str | None, attempt_id: str | None, error: ProviderError) -> None:
+        details = dict(error.details)
+        details.setdefault("resume_safe", error.retryable)
+        details.setdefault("provider_call_performed", False)
+        self.store.create_failure(_id("failure"), campaign_id, job_id=job_id, attempt_id=attempt_id, kind=error.kind, message=str(error), retryable=error.retryable, details=details)
+
+    def _reconcile_running_attempts(self, campaign_id: str) -> bool:
+        attempts = self.store.running_attempts(campaign_id)
+        for attempt in attempts:
+            error = ProviderError("previous process ended with an uncertain in-flight attempt; explicit reconciliation is required", kind="interrupted_uncertain", retryable=True, details={"manual_reconciliation_required": True, "provider_call_performed": None})
+            self.store.finish_attempt(attempt["id"], status="PAUSED", error_kind=error.kind, error_message=str(error))
+            self._record_failure(campaign_id, attempt["job_id"], attempt["id"], error)
+            self.store.set_campaign_status(campaign_id, "PAUSED")
+        return bool(attempts)
+
+    @staticmethod
+    def _read_optional_json(path: Path) -> dict[str, Any]:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+        return value if isinstance(value, dict) else {}
+
+    def _write_report(self, campaign_id: str) -> None:
+        directory = self.output_dir / campaign_id
+        directory.mkdir(parents=True, exist_ok=True)
+        report = self.store.summary(campaign_id)
+        report["scope"] = "offline fixture or explicitly opted-in local provider; no strategy/config changes"
+        attempts = report["attempts"]
+        real_attempts: list[dict[str, Any]] = []
+        for attempt in attempts:
+            if attempt["provider"] == "fixture" or attempt["status"] != "COMPLETED":
+                continue
+            usage = self._read_optional_json_text(attempt.get("usage_json"))
+            real_attempts.append({"attempt_id": attempt["id"], "role": attempt["role"], "phase": attempt["phase"], "requested_model": attempt["model"], "reported_model": usage.get("reported_model"), "usage_available": bool((usage.get("provider_usage") or {}).get("usage_available", False)), "provider": attempt["provider"]})
+        report["live_model_verified"] = bool(real_attempts)
+        report["provider_reporting"] = {
+            "live_model_verified": bool(real_attempts),
+            "successful_real_provider_attempts": real_attempts,
+            "requested_models": {"thinker": self.config.thinker_model, "executor": self.config.executor_model},
+            "reported_models": {item["attempt_id"]: item["reported_model"] for item in real_attempts},
+            "model_identity_verified": bool(real_attempts) and all(item["reported_model"] == item["requested_model"] for item in real_attempts),
+        }
+        report["provider_controls"] = {
+            "thinker": self._control_summary(self.config.thinker_provider, self.config.thinker_model, self.config.thinker_effort),
+            "executor": self._control_summary(self.config.executor_provider, self.config.executor_model, self.config.executor_effort),
+        }
+        report["verification"] = {
+            "requested_mode": self.store.context(campaign_id).get("verification_mode"),
+            "result_modes": sorted({mode for row in report["results"] if row.get("evidence_json") for mode in [self._read_optional_json_text(row.get("evidence_json")).get("verification_mode")] if mode}),
+            "live_model_verified": bool(real_attempts),
+        }
+        report["next_missing_capability"] = "GLM adapter integration"
+        report["reproduction"] = {
+            "preflight": "python btc_ai_pipeline.py preflight",
+            "offline_fixture": "python btc_ai_pipeline.py run --offline-fixture --fixture-case stop",
+            "offline_saved_data": "python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop",
+            "live_opt_in": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>",
+            "live_opencode_executor": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor",
+        }
+        (directory / "report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        modes = sorted({mode for row in report["results"] if row.get("evidence_json") for mode in [self._read_optional_json_text(row.get("evidence_json")).get("verification_mode")] if mode})
+        lines = [f"# BTC AI pipeline campaign {campaign_id}", "", f"Status: `{report['campaign']['status']}`", "", f"Jobs: {len(report['jobs'])}; attempts: {len(report['attempts'])}; results: {len(report['results'])}", f"Verification modes: `{', '.join(modes) or 'none'}`", "", "The checker evidence is authoritative; model prose is not proof.", "", f"Live model verified: `{report['live_model_verified']}`", f"Provider model identity verified: `{report['provider_reporting']['model_identity_verified']}`", f"Next missing capability: {report['next_missing_capability']}", "", "Reproduction:", "", "- `python btc_ai_pipeline.py preflight`", "- `python btc_ai_pipeline.py run --offline-fixture --fixture-case stop`", "- `python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop`", "- `python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>`", "- `python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor`"]
+        (directory / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    @staticmethod
+    def _read_optional_json_text(value: Any) -> dict[str, Any]:
+        if not isinstance(value, str):
+            return {}
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    @staticmethod
+    def _control_summary(provider: str, model: str, effort: str) -> dict[str, Any]:
+        if provider == "opencode":
+            return {
+                "provider": provider,
+                "model": model,
+                "effort": {
+                    "requested": effort,
+                    "enforced": "request_parameter",
+                    "provider_supported": "preflight_or_success_response",
+                    "mechanism": "session.prompt.variant",
+                },
+                "context_budget": {"enforced": "controller_prompt_estimate", "provider_flag": False},
+                "output_budget": {"enforced": "controller_response_estimate", "provider_flag": False},
+                "timeout": {"enforced": "overall_http_deadline", "provider_supported": True, "owned_process_cleanup": False},
+            }
+        return {
+            "provider": provider,
+            "model": model,
+            "effort": {"requested": effort, "enforced": provider == "codex", "provider_supported": provider == "codex"},
+            "context_budget": {"enforced": "controller_prompt_estimate", "provider_flag": False},
+            "output_budget": {"enforced": "controller_response_estimate", "provider_flag": False},
+            "timeout": {"enforced": "owned_process_group" if provider == "codex" else False},
+        }
+
+
+def preflight(config: PipelineConfig) -> dict[str, Any]:
+    repo_root = Path(config.repo_root).resolve()
+
+    def resolve(raw: str | None, fallback: Path) -> Path:
+        if not raw:
+            return fallback.resolve()
+        value = Path(raw).expanduser()
+        return (repo_root / value).resolve() if not value.is_absolute() else value.resolve()
+
+    data_path = resolve(config.data_dir, repo_root / "research" / "data" / "btc_four_year_20220828_20260828")
+    packets = {"baseline": resolve(config.baseline_packet, repo_root / DEFAULT_BASELINE), "horizon": resolve(config.horizon_packet, repo_root / DEFAULT_HORIZON)}
+    required_files = [data_path / filename for filename in ("BTCUSDT_5m.csv", "BTCUSDT_15m.csv", "BTCUSDT_1h.csv", "BTCUSDT_4h.csv")]
+    inaccessible: list[str] = []
+    for path in required_files:
+        try:
+            with path.open("rb") as stream:
+                stream.read(1)
+        except OSError:
+            inaccessible.append(str(path))
+    return {
+        "live_call_performed": False,
+        "providers": {
+            "thinker": preflight_provider(config.thinker_provider, config.thinker_model, effort=config.thinker_effort, context_budget=config.context_budget, output_budget=config.output_budget, timeout_seconds=config.timeout_seconds),
+            "executor": preflight_provider(config.executor_provider, config.executor_model, effort=config.executor_effort, context_budget=config.context_budget, output_budget=config.output_budget, timeout_seconds=config.timeout_seconds),
+        },
+        "data": {"path": str(data_path), "exists": data_path.exists(), "readable": data_path.is_dir() and not inaccessible, "inaccessible_files": inaccessible, "note": "dataset may be ACL-restricted in the managed sandbox; no access controls are changed"},
+        "evidence": {name: {"path": str(path), "exists": path.is_dir(), "manifest": (path / "manifest.json").is_file()} for name, path in packets.items()},
+        "limits": {"max_thinker_calls": config.max_thinker_calls, "max_executor_calls": config.max_executor_calls, "max_jobs": config.max_jobs, "timeout_seconds": config.timeout_seconds, "context_budget": config.context_budget, "output_budget": config.output_budget},
+        "verification_mode": config.verification_mode,
+        "live_opt_in": config.live_opt_in,
+        "opencode": "local server and provider catalog are probed without invoking a model",
+    }

@@ -859,7 +859,419 @@ independently reproduced because their source notebook/script is absent here.
 
 ## Research manager and worker architecture comparison (2026-09-04)
 
-- [ ] Compare a strong research manager with cheaper workers against the prior validation-focused proposal.
-- [ ] Check primary sources for orchestration, model routing, and on-chain data caveats.
-- [ ] Explain a BTC-first workflow, sustainability criteria, and reusable research architecture.
-- [ ] Save the architectural clarification and verify its references.
+- [x] Compare a strong research manager with cheaper workers against the prior validation-focused proposal.
+- [x] Check primary sources for orchestration, model routing, and on-chain data caveats.
+- [x] Explain a BTC-first workflow, sustainability criteria, and reusable research architecture.
+- [x] Save the architectural clarification and verify its references.
+
+Review: saved the [manager/worker architecture comparison](../research/2026-09-04_hierarchical_research_architecture.md)
+and linked it from the earlier assessment. Independent conceptual review found no
+necessary corrections. Proposal links and whitespace checks pass. This remains
+an architecture discussion; no model benchmark, API-backed pipeline, scheduled
+research job, or strategy implementation was performed in this task.
+
+## BTC implementation handoff with limited usage (2026-09-04)
+
+- [x] Check current account usage and prepare a bounded BTC-only first milestone.
+- [x] Save the worker brief in tasks/btc_research_phase1_handoff.md.
+- [x] Implement the reproducible baseline in a subsequent implementation task.
+
+Review: prepared a standalone handoff for one offline baseline CLI. It defers
+model orchestration, statistical selection, trading-rule changes, and on-chain
+research. No new task or implementation was started in this planning turn.
+
+## Subscription-backed BTC orchestration options (2026-09-04)
+
+- [x] Verify supported subscription/programmatic access for the thinker and executor.
+- [x] Compare Astra on ChatGPT Pro with Z.AI Lite/API and OpenCode Go executor routes.
+- [x] Record a practical recommendation, limits, and unresolved model/plan details.
+
+Review: checked the installed Codex CLI's non-interactive and structured-output
+options and current official provider documentation. A personal local controller
+can use saved Codex CLI authentication and OpenCode's documented headless server;
+subscription access does not provide unrestricted general-purpose API access.
+Astra access in this account remains unverified. The documented GLM model is
+GLM-5.3-Flash. OpenCode Go is a low-commitment worker pilot; Z.AI Lite has different
+allowances and explicit supported-tool restrictions. Select the worker using
+independently checked BTC jobs before committing to a provider or larger plan.
+No paid model request, purchase, authentication change, or orchestration
+implementation was performed. The BTC baseline handoff remains the first build
+milestone.
+
+## BTC research Phase 1 reproducible baseline (2026-09-04)
+
+- [x] Inspect the existing BTC replay/evaluator, data contracts, targeted tests, and worktree state.
+- [x] Implement one repository-root CLI for provenance-validated M5/M15 signal replay and exact-horizon research outputs.
+- [x] Add focused tests for exact horizon matching, gaps/incomplete tails, return units, determinism, and provenance/source validation.
+- [x] Update the matching research/backtest documentation and validate local Markdown links.
+- [x] Run the focused tests, a real local-data reproduction, and applicable static/whitespace verification.
+- [x] Record the review handoff with changed files, command, artifact paths, validation, differences, and limitations.
+
+#### Review
+
+Implemented the bounded repository-root CLI `btc_research_phase1.py` and the
+thin `app/backtest/btc_research_phase1.py` wrapper around the existing
+point-in-time BTC replay/evaluator. It validates the four native CSV identities,
+schema, timestamps, duplicate/cadence facts, common coverage, and warmup;
+records SHA-256/config/Git/environment provenance; and writes exact-horizon
+`manifest.json`, `signals.csv`, `summary.json`, and `report.md` packets. Exact
+target candles are required, gaps invalidate affected outcomes, and no later
+candle or partial tail is substituted. Signal rules, live configuration, and
+execution behavior were unchanged.
+
+Reproduction command:
+
+```powershell
+C:\ProgramData\anaconda3\envs\rsi\python.exe btc_research_phase1.py `
+  --data-dir app/backtest/data `
+  --output-dir research/results/phase1_runs `
+  --start 2024-09-01 `
+  --end 2026-08-28
+```
+
+Final packet: the latest timestamped child under
+`research/results/phase1_runs/` (the exact path is printed by the command and
+linked in the task handoff).
+It emitted 1,399 M5 and 589 M15 signals, matching the available historical
+artifact counts exactly. The historical 4h means also match to the recorded
+precision: M5 `0.01327507724%`, M15 `0.042164508657%`. The run is operationally
+`INCOMPLETE` only because the requested window reaches beyond common source
+coverage and 12 signal-horizon tails lack exact 12h/24h targets; alpha is
+`NOT_ASSESSED`.
+
+Validation: focused Phase 1 tests `5 passed`; existing replay/review regression
+tests plus Phase 1 tests `37 passed, 6 warnings`; canonical real-data run and
+unchanged-input repeat both completed; `signals.csv` and `summary.json` were
+byte-identical across repeats; three independent pandas spot checks matched;
+`python scripts/check_markdown_links.py` passed with 154 Markdown files;
+`compileall` passed; `git diff --check` was clean. Ruff was unavailable because
+the installed Python wrapper could not locate its platform binary. Pytest's
+default global temp root was permission-blocked, so the passing test commands
+used the workspace-local `--basetemp .pytest-basetemp`.
+
+The original historical generator/notebook is absent, so this is an auditable
+baseline rebuild and does not claim to reproduce the prior bootstrap algorithm.
+No bootstrap/DSR/PBO, reserved evaluation, walk-forward, strategy search,
+fills/P&L simulation, UI, service, agent framework, on-chain research, or paid
+API work was started.
+
+## BTC Phase 1 research-manager review (2026-09-04)
+
+- [x] Review implementation timing, eligibility, provenance, and status contracts against the handoff.
+- [x] Independently check saved packet arithmetic and source hashes; run focused regression tests.
+- [x] Record any blocking findings and the next bounded BTC milestone.
+
+Review: independently verified four source hashes/cadences, all 7,940 complete
+returns, 12 incomplete tails, horizon statistics, context timing, and cooldown
+spacing in the supplied packet. Three saved repeat packets have identical
+signals/summaries; focused tests pass (5 tests). The full two-year generator and
+combined 37-test suite were not rerun in this review. Reproduced staged-code
+fingerprint collisions in an isolated Git fixture. One read-only review agent
+also reproduced false VALID status without warmup and comparator inclusion of
+bars with missing context/post-gap insufficient history. Saved the bounded
+correction brief in [btc_research_phase1_review_handoff.md](btc_research_phase1_review_handoff.md).
+Saved baseline arithmetic is accepted; automation readiness requires those
+corrections. No strategy or implementation code changed in this review.
+
+## BTC Phase 1 bounded readiness/provenance corrections (2026-09-04)
+
+- [x] Reproduce the three review counterexamples with focused regressions.
+- [x] Make operational status reflect warmup/readiness and evaluable requested coverage.
+- [x] Restrict all-eligible-bar baselines to shared per-event preparation readiness and record exclusions.
+- [x] Include staged, unstaged, and untracked content in the dirty-code identity while excluding generated packets.
+- [x] Update matching documentation, run focused regressions and a canonical baseline, and record the final review handoff.
+
+### Review
+
+The bounded correction is implemented in the Phase 1 baseline runner. Each
+requested M5/M15 trigger close is checked through shared point-in-time
+preparation, with requested/evaluable counts and exclusion reasons persisted in
+the manifest and summary. Missing warmup or no evaluable requested coverage is
+`INVALID`; a fully prepared, complete zero-signal period remains `VALID`.
+Comparator rows use those per-event readiness results without bullish gates or
+cooldown. Dirty-code identity hashes the actual tracked and untracked working
+files, which covers staged and unstaged content changes, while generated packet
+directories are excluded.
+
+Validation completed with 27 focused replay/research tests passed, Python
+compilation passed, 175 Markdown files passing link checks, and
+`git diff --check` clean. Ruff could not run because the installed Python
+wrapper could not locate its platform binary. The canonical command completed
+with `SUCCESS` execution and `INCOMPLETE` operational status; it retained 1,399
+M5 and 589 M15 signals, 7,940 complete signal-horizon outcomes plus 12
+incomplete tails, and byte-identical `signals.csv`/unchanged signal and
+baseline arithmetic versus the accepted packet. The resulting packet path is
+returned with the final review handoff.
+
+## BTC Phase 1 correction acceptance and next experiment (2026-09-04)
+
+- [x] Recheck the three corrections and run the 27 focused replay/research tests.
+- [x] Compare the new packet with the accepted baseline and verify source hashes.
+- [x] Freeze one BTC M15 extension experiment in a bounded worker handoff.
+
+Review so far: all three prior findings are closed. The independent reviewer
+reran the original missing-H4/post-gap cases and confirmed exclusion, while an
+unaffected bar remained eligible. The 27 tests pass after creating the absent
+local pytest parent directory. Signals are byte-identical to the accepted
+packet; signal/replay counts and every horizon/monthly numerical summary match.
+All four current source hashes match the new manifest. Preparation is
+278,974/278,974 and the comparator 277,887/277,887. The packet remains INCOMPLETE
+for documented coverage/tails and alpha NOT_ASSESSED. No new two-year replay or
+full repository suite was needed to resolve this review.
+
+Next worker brief: [btc_research_phase2_m15_extension_handoff.md](btc_research_phase2_m15_extension_handoff.md).
+It freezes one feature, one fit-period lower-third cutoff, one temporal split,
+one four-hour primary comparison, and a paired calendar-block uncertainty
+diagnostic. Prior history remains exploratory; no alpha promotion or changed
+cooldown semantics are authorized. No experiment code or challenger results
+were generated during this review.
+
+## BTC M5 one-to-three-hour horizon correction (2026-09-04)
+
+- [x] Replace the unexecuted M15/4h plan with the user's M5 1h/2h/3h diagnostic.
+- [x] Implement and run a bounded reproducible horizon profile with 4h reference.
+- [x] Independently verify returns, inspect excursion definitions, and record results.
+- [x] Acquire and validate a separate four-year dataset with earlier warmup and exact outcome coverage.
+- [x] Run the unchanged signal logic over four years and report fixed-horizon results by year and causal regime.
+
+Review: saved [four-year findings](../research/2026-09-04_btc_m5_four_year_findings.md)
+with reproducible commands and exact evidence links. Verified 108 public archive
+checksums and native overlaps; canonical inputs remain unchanged. The new
+four-year replay has 2,865 M5 signals and the M5 horizon diagnostic has 11,460
+complete outcomes with zero exclusions, plus 420,176 comparator bars. All
+2,000 bootstrap replicates per horizon are valid. Raw-CSV recalculation matches
+all horizon summaries; original and expanded M5 IDs agree on the 1,398-event
+common window. All four-year events have causal regime labels; 60 focused tests
+pass. Parent Phase 1 remains INCOMPLETE for longer horizons; M5 1h-4h evidence
+is complete and alpha NOT_ASSESSED. No strategy/configuration or live execution
+changed. The earlier M15 extension brief is superseded before execution.
+
+## Refocus on BTC AI orchestration MVP (2026-09-04)
+
+- [x] Record the owner's scope correction and freeze a pipeline-building handoff.
+- [x] Reuse existing BTC data/evaluators as tools and define one full feedback-loop demo.
+- [x] Implement the orchestrator, durable job state, first provider adapter, checker gates, and bounded demo in the Luna task.
+
+Review: the active next implementation is
+[btc_ai_pipeline_mvp_handoff.md](btc_ai_pipeline_mvp_handoff.md). It distinguishes
+Luna as software builder from configurable runtime models, specifies Codex first
+with OpenCode next, and requires evidence-driven thinker feedback, durable
+history, controlled execution and explicit budgets. No further alpha campaign,
+model calls, purchases, task creation, or orchestrator implementation was started
+in this handoff-preparation turn.
+
+## BTC AI research pipeline MVP (2026-09-04)
+
+- [x] Implement configurable thinker/executor provider contracts and Codex CLI adapter.
+- [x] Add SQLite campaign/job/attempt/decision/budget persistence with resume-safe state.
+- [x] Register bounded BTC research tools and implement deterministic evidence checking.
+- [x] Implement fixture loop plus explicit preflight/live opt-in CLI commands.
+- [x] Add contract, branching, budget, timeout/failure, tamper, and crash/resume tests.
+- [x] Run the existing-data verification demo, update matching documentation, and record limitations.
+
+## BTC AI research pipeline MVP implementation (2026-09-04)
+
+- [x] Implement the bounded thinker/executor/checker/reviewer loop.
+- [x] Persist campaign, job, attempt, decision, failure, result, and budget state in SQLite.
+- [x] Add offline fixtures, tamper/branch cases, resume-safe idempotency, and the Codex adapter boundary.
+- [x] Document preflight, offline reproduction, explicit live opt-in, and known limitations.
+- [x] Run targeted tests/static checks and record artifact paths.
+
+Review: the offline STOP loop, PROPOSE_NEXT limit branch, and tampered-evidence
+REPAIR branch completed with durable SQLite state. The real-data checker verified
+one saved four-year M5 event at 1h/2h/3h under approved local read access. No
+runtime model was called, so live thinker/executor integration remains
+unverified; OpenCode is intentionally unsupported. Targeted pipeline tests and
+Markdown link checks pass; Ruff could not run because its wrapper cannot locate
+the platform binary.
+
+Final review correction: fixture providers can now run the complete loop over the
+saved raw BTC CSV with `--use-saved-data`; auth failures pause resumably; provider
+exit/usage metadata and failure-to-attempt links are retained; and verified
+evidence reuse is keyed by parameters, source/packet hashes, horizon definitions,
+and checker/evaluator code identity. Final focused validation is 57 tests passed.
+
+## ✅ COMPLETED — BTC AI pipeline bounded acceptance corrections (2026-09-04)
+
+- [x] Reproduce and close the review handoff's consent, frozen-resume,
+      crash-recovery, job-cap, evidence-binding, cache-integrity, and provider
+      control/reporting findings without invoking a model or adding OpenCode.
+- [x] Add focused regressions for unauthorized dispatch, stored-config resume,
+      durable completed-attempt recovery, idempotent job reservations, changed
+      execution/review references, current-input cache validation, evidence and
+      packet tampering, and provider timeout cleanup.
+- [x] Demonstrate corrected offline STOP, follow-up-limit, tamper/REPAIR, and
+      crash/resume paths; update matching docs and task records.
+
+Plan: preserve the existing thinker/executor/checker architecture and BTC
+evaluator, keep provider calls explicitly bounded, and leave live verification
+as an owner-selected follow-up.
+
+Review evidence: `tests/test_btc_ai_pipeline.py` plus the four existing BTC
+research suites pass with 79 tests. Corrected offline artifacts are recorded in
+`research/results/btc_ai_pipeline_mvp_review_corrected_stop_final/`,
+`research/results/btc_ai_pipeline_mvp_review_corrected_limit2_final/`,
+`research/results/btc_ai_pipeline_mvp_review_corrected_repair_final/`, and the
+approved local-data run in
+`research/results/btc_ai_pipeline_mvp_review_corrected_saved_final2/`. The
+local-data run verified one existing M5 event at 1h/2h/3h with fixture
+providers and no model call. The explicit live Codex smoke command remains
+unrun; OpenCode is unsupported at this milestone, and alpha assessment remains
+`NOT_ASSESSED`.
+
+## Independent BTC AI pipeline MVP acceptance review (2026-09-04)
+
+- [x] Inspect implementation and saved evidence against the bounded handoff.
+- [x] Re-run the focused offline pipeline tests.
+- [x] Reproduce material gaps in opt-in, evidence binding, cache identity, and durable recovery without model calls.
+- [x] Deliver a bounded correction brief before provider expansion or a live run.
+
+Review: the 15 existing pipeline tests pass with a new repository-local pytest
+base directory. Independent no-call probes reproduced offline dispatch to a
+patched Codex adapter, saved configuration loss on resume, repeated completed
+executor work after interruption, job-limit bypass, unbound event/review
+references, and stale source validation on a cache hit. See the bounded
+[acceptance correction handoff](btc_ai_pipeline_mvp_review_handoff.md) and its
+linked evidence. Source review also found unenforced provider settings.
+The main pipeline implementation was not changed by this review; live usage and
+OpenCode integration remain deferred until these corrections pass.
+
+## Prepare the first BTC pipeline live integration test (2026-09-04)
+
+- [x] Read the correction report and independently run 37 pipeline tests.
+- [x] Verify normal-local CLI login and dataset access without model calls.
+- [x] Prepare a bounded live-test handoff with exact candidate models and caps.
+- [x] Fix the post-decision-commit recovery gap and run its focused regression.
+- [x] Attempt one live loop only after explicit owner opt-in to the selected pairing.
+
+### Live smoke follow-through plan
+
+- [x] Replay committed review-decision effects idempotently on resume.
+- [x] Regression-test a crash after decision commit for STOP, REJECT, and REPAIR
+      without new provider calls, results, decisions, or budget reservations.
+- [x] Run the focused pipeline regression and matching static/documentation checks.
+- [x] Run the no-call preflight with Sol/high and Luna/high under supported local access.
+- [x] Run exactly one fresh live campaign with the owner-authorized invocation caps.
+- [x] Save and report the proposal, execution plan, checker evidence, decision,
+      usage, counters, models, campaign ID, and elapsed time; then stop.
+
+Review: The controller now replays the committed review decision's state effects
+before skipping its checked job. The focused recovery regression passed all three
+STOP/REJECT/REPAIR cases; the complete pipeline file passed 40 tests; Python
+compilation and the 186-file Markdown-link check passed. No-call preflight found
+the selected Codex executable, models, high efforts, and all BTC inputs; login
+status reported ChatGPT.
+
+The single live campaign was created at
+`research/results/btc_ai_pipeline_live_smoke_v1/` with ID
+`campaign_9fedf039c2974b23`. It failed on its first thinker proposal call with
+`provider_exit` (Codex exit 1), after one thinker reservation and one job
+reservation; executor calls, results, decisions, and model-reported usage were
+zero/absent. No retry, substitution, second campaign, or fixture fallback was
+performed. Stop here; the failure is the live integration finding for this
+milestone.
+
+## Diagnose and repair failed BTC live proposal without retry (2026-09-04)
+
+- [x] Recover the exact rejection from the original saved Codex session.
+- [x] Correct strict structured-output schemas and add offline compatibility tests.
+- [x] Retain bounded, sanitized provider failure diagnostics for actionable reports.
+- [x] Run focused validation and document the diagnosis with unchanged live counters.
+
+Plan: the saved session reports HTTP 400 invalid_json_schema: the schema field
+lacks a type key. Fix provider integration locally; no model calls, retries,
+substitutions, authentication changes, campaign edits, or new live campaign.
+
+Review: recovered HTTP 400 invalid_json_schema from the original saved CLI
+session, fixed all three strict output schemas, and added actionable redacted
+failure reporting. Pipeline/schema/provider-error tests: 69 passed; Python
+compilation and whitespace checks passed. No new runtime model calls. The
+original campaign/report/database were not changed. See
+[diagnosis and next-call boundary](../research/2026-09-04_btc_pipeline_live_failure_diagnosis.md).
+A newly authorized complete smoke test needs two thinker invocations and one
+executor invocation; the original remaining thinker budget is insufficient.
+
+## Authorized BTC live smoke v2 (2026-09-04)
+
+- [x] Record explicit owner authorization for one new smoke test after the schema repair.
+- [x] Run no-call readiness checks in the supported local execution context.
+- [x] Run exactly one new campaign with Sol/high and Luna/high, at most two thinker invocations, one executor invocation, and one job.
+- [x] Verify saved evidence/counters and report the outcome; stop without retries on any failure.
+
+Plan: use research/results/btc_ai_pipeline_live_smoke_v2, which does not yet
+exist. Preserve the failed v1 campaign. No model substitution, extra campaign,
+budget increase, provider integration, or new research study is authorized.
+
+Review: normal-local login status is ChatGPT and all BTC inputs are readable.
+The v2 campaign `campaign_3a869ced481f44ab` ran once with a read-only Codex
+child sandbox. Sol/high completed one proposal call with usage available, but
+the controller rejected the returned `task` string because it was a natural
+language instruction rather than the registered `verify_m5_horizons` task.
+The campaign stopped before proposal persistence, executor dispatch, checker
+verification, or thinker review. Counters are thinker 1/2, executor 0/1, jobs
+1/1; no retry, substitution, extra campaign, or v1 mutation occurred. Full
+proposal response, usage, and diagnostic details are in the saved report.
+
+## Correct the BTC v2 task identifier contract without a live retry (2026-09-04)
+
+- [x] Inspect the saved natural-language task rejection and current schemas/prompts.
+- [x] Constrain task/tool identifiers and supply the registered task contract explicitly to all role prompts.
+- [x] Replay the rejected response through offline regressions and verify the fixture loop.
+- [x] Document fixes, validation, preserved v1/v2 evidence, and remaining live integration status.
+
+Plan: this is a local contract fix. Do not mutate a saved proposal to force
+acceptance, retry a model, alter budgets, or start a v3 campaign.
+
+Review: canonical registered task constants, explicit role task context, matching
+nonempty schema constraints, and semantic validation within the attempt boundary
+are implemented. Existing 69 pipeline tests plus 14 new regressions pass. The
+saved v2 response is rejected without rewriting it or dispatching an executor;
+a complete offline fixture still succeeds. v1/v2 live counters remain 1/0/1
+(thinker/executor/jobs), with no new runtime calls or live campaign. See
+[v2 task-contract diagnosis](../research/2026-09-04_btc_pipeline_v2_task_contract.md).
+
+## Add the OpenCode local-server executor adapter (2026-09-04)
+
+- [x] Implement the provider-neutral OpenCode server adapter for the configured
+      `opencode-go/muse-spark-1.3-contributor` model.
+- [x] Add no-call contract, structured-output, usage, timeout, auth, and
+      preflight regressions without invoking a model.
+- [x] Update the matching architecture/research documentation and report
+      reproduction metadata while preserving the existing Codex path and live
+      campaign artifacts.
+- [x] Run focused tests, offline fixture validation, compilation, and Markdown
+      link checks; do not launch a new live campaign in this adapter milestone.
+
+Plan: use OpenCode's documented local HTTP server (`opencode serve`) so its
+provider authentication remains in OpenCode's own credential store. Pass the
+fully qualified provider/model ID, structured JSON schema, explicit zero
+structured-output retries, and a deny-all tool permission set; the controller
+continues to execute only its registered BTC tool. Keep the server URL and
+optional local basic-auth settings outside the repository via environment
+variables, and report server/model reachability separately from any model call.
+
+Review: implemented `OpenCodeProvider` as a provider-neutral local HTTP adapter
+using the documented OpenCode server routes. It requires an explicit qualified
+provider/model ID, sends the structured pipeline schema with `retryCount=0`,
+denies the OpenCode session's tool permissions, applies the configured variant,
+records reported model/usage/cost metadata, redacts bounded server errors, and
+uses one overall request deadline. `preflight` checks local health and the
+provider catalog without invoking a model. The controller's registered BTC tool
+remains the only execution surface; the OpenCode server process is not owned or
+terminated by the pipeline.
+
+Validation: 89 focused BTC pipeline tests passed; targeted Python compilation
+passed; the no-call OpenCode preflight reported the local server reachable, the
+`opencode-go` provider connected, the exact Muse Spark model available with the
+requested `high` variant, and `live_call_performed=false`; and the Markdown link
+check passed for 194 files. The fixture artifact is
+[report.json](../research/results/btc_ai_pipeline_opencode_offline_fixture_final/campaign_6f9da3a0f03648a2/report.json)
+with [report.md](../research/results/btc_ai_pipeline_opencode_offline_fixture_final/campaign_6f9da3a0f03648a2/report.md).
+The existing-data artifact is
+[report.json](../research/results/btc_ai_pipeline_opencode_offline_saved_final/campaign_4fdb9927075b43cf/report.json),
+whose checker evidence is
+[evidence.json](../research/results/btc_ai_pipeline_opencode_offline_saved_final/campaign_4fdb9927075b43cf/job_07bf41462a3147b4/artifacts/evidence.json).
+That packet is `STOPPED` after one `VERIFIED` job and independently matches the
+existing event at 1h, 2h, and 3h; it is real-local-data evidence, not live-model
+evidence. No model invocation, new live campaign, authentication change,
+credential file, or BTC evaluator change was made in this milestone.

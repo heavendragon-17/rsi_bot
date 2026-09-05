@@ -12,6 +12,7 @@ The backtest module is organized into sub-packages under `app/backtest/`:
 app/backtest/
 ├── signal_replay.py       # Offline BTC alert replay and Markdown audit log
 ├── signal_replay_cli.py   # Replay command-line argument parsing
+├── btc_research_phase1.py # Reproducible BTC signal-return evidence baseline
 ├── signal_replay_data.py  # Vectorized CSV normalization and event loading
 ├── signal_replay_models.py # Typed replay result models
 ├── signal_replay_preparation.py # Cached point-in-time indicator preparation
@@ -151,6 +152,165 @@ Each Markdown report includes a confirmed-signal count and blank `WIN`,
 `LOSS`, and `SKIP` review fields. It does not calculate win rate, PnL, SL/TP,
 orders, or any automated outcome because the alert card has no trade-lifecycle
 levels; outcomes remain manual chart-review decisions.
+
+## BTC Research Phase 1 Baseline
+
+The repository-root [`btc_research_phase1.py`](../../btc_research_phase1.py)
+command creates a run-specific evidence packet for the current BTC alert
+baseline. It accepts a data directory containing the native
+`BTCUSDT_5m.csv`, `BTCUSDT_15m.csv`, `BTCUSDT_1h.csv`, and `BTCUSDT_4h.csv`
+files, an output-directory parent, and optional inclusive trigger-close
+boundaries:
+
+```powershell
+C:\ProgramData\anaconda3\envs\rsi\python.exe btc_research_phase1.py `
+    --data-dir app/backtest/data `
+    --output-dir research/results/phase1_runs `
+    --start 2024-09-01 `
+    --end 2026-08-28
+```
+
+The command reuses [`run_btc_alert_replay()`](../../app/backtest/signal_replay.py)
+and the existing BTC evaluator, including point-in-time preparation and the
+independent one-hour M5/M15 cooldowns. It validates the source filename/schema,
+timestamps, duplicates, native cadence, common coverage, and replay warmup.
+Preparation is also audited for every requested M5/M15 trigger close through
+the shared point-in-time preparation path. The packet records requested versus
+evaluable bars and exclusion reasons such as missing context or insufficient
+contiguous history. A missing required warmup or a timeframe with no evaluable
+requested coverage is `INVALID`; partial readiness is `INCOMPLETE`; a fully
+prepared, complete period with zero signals remains a valid descriptive result.
+For each emitted M5/M15 signal, it reports gross close-to-close returns at
+exactly 1h, 4h, 12h, and 24h. A missing exact target is recorded as incomplete
+or missing, and any native cadence gap invalidates the affected outcome; a
+later candle is never substituted.
+
+Each run writes `manifest.json`, `signals.csv`, `summary.json`, and `report.md`
+under a timestamped child directory. The manifest records source SHA-256
+hashes, coverage, warmup, strategy/config identity, Git revision and dirty-code
+identity, environment versions, the command, metric definitions, warnings, and
+completion status. Summaries include complete/total counts, means, medians,
+monthly rows, and a same-timeframe baseline over matched signal coverage. The
+baseline applies shared per-event preparation only: it does not apply bullish
+signal gates or cooldown, and its preparation exclusions are recorded in the
+packet. The 0.10% return-minus-cost value is illustrative sensitivity only;
+it is not a fill, fee, slippage, funding, order, or P&L simulation. Operational
+status is reported separately from alpha assessment, which remains
+`NOT_ASSESSED` in this milestone.
+
+Replay cooldown state starts at the requested window boundary and is independent
+for M5 and M15. Separate replay windows therefore do not inherit alerts from
+one another; comparisons across separately replayed windows must account for
+that boundary behavior.
+
+### BTC AI research pipeline MVP
+
+The repository-root [`btc_ai_pipeline.py`](../../btc_ai_pipeline.py) provides an
+offline-first thinker/executor/checker/reviewer loop over the saved BTC evidence.
+`preflight` performs no model call; `run --offline-fixture` completes the loop
+with deterministic fixture providers; `--use-saved-data` keeps those providers
+stubbed while checking the existing raw CSV; and `run --live --confirm-live` is
+the explicit opt-in for configured non-fixture provider calls. Runtime thinker
+and executor provider/model/effort/budget settings are separate. SQLite records the campaign,
+frozen specification hash, every attempt and usage record, results, failures,
+budgets, and evidence-linked decisions. `resume` skips completed provider
+phases and replays a committed review decision's status effects before
+skipping its checked job; uncertain in-flight attempts remain paused until an
+explicit `--reconcile-uncertain` acknowledgement. A `REPAIR` decision is a durable
+actionable pause rather than a second identical thinker call. A verified result
+is reusable only when current source bytes, source/packet hashes, horizon
+definitions, checker/evaluator code identity, durable evidence/result hashes,
+and the evidence artifact all match.
+
+The executor can select only the registered `verify_m5_horizons` tool. That tool
+reuses `research.btc_m5_horizon_diagnostic.profile` and the Phase 1 exact-target
+evaluator to check one existing M5 event at 1h, 2h, and 3h. The checker records
+source/packet hashes and labels synthesized fixture evidence separately from
+real local-data verification. Offline mode rejects non-fixture providers before
+dispatch. The Codex adapter uses read-only structured output, passes the
+supported `model_reasoning_effort` override, and cleans up its owned process
+group on timeout. The OpenCode adapter uses the local `opencode serve` API with
+an explicit provider/model reference, a no-call health/catalog preflight,
+structured JSON schema, zero structured-output retries, and denied tool
+permissions; it uses an overall HTTP deadline but does not own the server
+process. Controller-side context/output estimates are not provider token caps.
+Offline schema regressions validate all three provider schemas against the
+strict output subset and realistic payloads, including nullable metadata and
+nested follow-ups. Mocked provider-failure tests cover structured HTTP 400
+schema rejection, actionable error persistence, redaction, and stopping after
+one rejected call. These tests do not establish live acceptance of a new schema.
+Task-contract regressions replay the saved v2 natural-language task rejection,
+check exact registered IDs and nonempty schema fields, and exercise the full
+fixture loop using the role prompts' task catalogs. Proposal, execution and
+review context mismatches must retain the response and failure-to-attempt link
+while preventing the next stage from dispatching.
+OpenCode is implemented as the first subsequent executor adapter; GLM remains
+the next missing provider integration. No candidate code, arbitrary shell,
+strategy/configuration change, or alpha approval is in scope.
+
+### Offline M5 horizon diagnostic
+
+[`research/btc_m5_horizon_diagnostic.py`](../../research/btc_m5_horizon_diagnostic.py)
+profiles fixed parent Phase 1 M5 IDs at exactly 1h, 2h, 3h, and 4h. Run it with
+`python -m research.btc_m5_horizon_diagnostic --baseline-run <phase1-packet> --output-dir research/results/m5_horizon_runs`.
+The command verifies all four native source SHA-256 hashes against the parent,
+records hashes for the parent manifest/signals/summary/report, checks original
+1h/4h outcome parity, and fails if parent or source content changes during the
+run. Signals are read from the accepted packet rather than replayed, preserving
+their emission IDs and one-hour cooldown boundary history.
+
+The matched all-eligible-bar comparator calls shared preparation for every M5
+bar between the first and last parent signal. Every horizon uses the same
+all-four-complete signal IDs and baseline bars. `COMPLETE`, `INCOMPLETE_TAIL`,
+`MISSING_TARGET`, and `GAP` remain explicit; later targets and partial excursions
+are not substituted. MFE is nonnegative and MAE is nonpositive, each measured
+from signal close using only future native candles through target close. These
+are hindsight bounds, not captured P&L. UTC monthly summaries and optional
+2,000-replicate paired circular seven-day calendar-block percentile intervals
+are descriptive only; alpha is `NOT_ASSESSED`.
+
+Each timestamped packet contains `signals.csv`, `baseline.csv`, `manifest.json`,
+`summary.json`, and `report.md`. Long rows retain excluded outcomes and the
+`included_all_horizons` flag. Summary metrics include total/complete/matched
+counts, exact statuses, mean/median returns, positive-return share,
+mean/median excursions, baseline means, and signal-minus-baseline differences.
+The bootstrap resamples the same UTC calendar blocks for signal and baseline,
+retains zero-signal days, and computes observation-weighted means from daily
+sums/counts. `--no-bootstrap` omits it. There is no significance claim or
+per-signal hindsight choice of horizon.
+
+Focused offline tests:
+
+```powershell
+C:\ProgramData\anaconda3\envs\rsi\python.exe -m pytest tests/test_btc_m5_horizon_diagnostic.py -q
+```
+
+They cover exact 2h/3h targets, trigger/post-target candle exclusion,
+zero-referenced excursions, gaps versus missing targets versus tails, fixed
+complete populations, per-event baseline eligibility, parent price parity,
+and reproducible paired calendar-block resampling.
+
+### BTC M5 calendar and regime diagnostics
+
+After producing the four-year M5 horizon packet, run:
+
+```powershell
+C:\ProgramData\anaconda3\envs\rsi\python.exe -m research.btc_m5_regime_review `
+  --horizon-run <horizon-packet-directory> `
+  --output-dir research/results/m5_regime_runs
+```
+
+This exports signal labels, population summaries, comparisons, and a report by
+calendar year, consecutive August-to-August study year, and fixed trend/volatility
+regime. It verifies the H1 input hash, requires complete native hourly cadence,
+aggregates only completed UTC days, and joins regime features backward as of the
+signal close. Trend uses trailing 90-day return (+/-10%); volatility uses 30-day
+sample standard deviation of daily simple returns annualized by sqrt(365), with
+a 60% boundary. Missing labels remain explicit. No subgroup significance or
+executable P&L is claimed. Tests in `tests/test_btc_m5_regime_review.py` verify
+future invariance, daily availability, missing hours, warmup, and study boundaries.
+The separate acquisition fixtures in `tests/test_btc_four_year_data.py` cover
+checksum, parsing, overlap, and source-validation behavior without network calls.
 
 ### BTC Signal Review Lab
 

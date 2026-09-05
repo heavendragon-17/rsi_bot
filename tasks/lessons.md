@@ -183,3 +183,102 @@
   actual `research` tree and normalize display escaping before reporting it as
   missing.
 - **Files affected**: `research/2026-04-28_phase1_audit_exploration.ipynb`.
+
+## 2026-09-04: Distinguish model orchestration from research validation
+
+- **Correction**: The intended AI research pipeline uses a strong lead model to
+  generate hypotheses and direct cheaper execution models, then adapt from their
+  results; the first domain is BTC signals.
+- **Rule**: Address the manager/worker model hierarchy, delegation contracts,
+  economics, and research autonomy explicitly. Treat deterministic validation as
+  a complementary part of that architecture, not a replacement for it. Keep
+  architecture discussion distinct from authorization to implement or schedule it.
+- **Files affected**: research architecture proposals and task planning.
+
+## 2026-09-04: Make research validity reflect evaluability and staged code
+
+- **Correction**: The BTC Phase 1 packet could label a two-candle, zero-signal
+  dataset `VALID`, compare all bars that lacked shared H1/H4 preparation, and
+  reuse the same dirty-code fingerprint after staged content changed.
+- **Rule**: Treat preparation readiness and evaluable requested coverage as part
+  of operational validity; derive comparator eligibility from the shared
+  point-in-time preparation path without applying signal gates or cooldown; and
+  fingerprint HEAD-to-index, index-to-worktree, and untracked content while
+  excluding generated evidence packets.
+- **Files affected**: BTC Phase 1 baseline module/tests, research/backtest
+  documentation, and task records.
+
+## 2026-09-04: Match BTC research horizons to the intended M5 setup
+
+- **Correction**: The owner wants the M5 setup assessed over one and two hours,
+  with three hours also checked, before pursuing the proposed M15/four-hour
+  extension experiment.
+- **Rule**: Distinguish signal timeframe from holding horizon and higher-timeframe
+  confirmation gates. Test the requested horizon profile on the same signals
+  before selecting a filter experiment. Treat early-move timing as a hypothesis;
+  report close-to-close returns and within-window excursions separately, since
+  a favorable intrabar move is not a captured trade return.
+- **Files affected**: Phase 2 research handoff and BTC horizon diagnostic.
+
+## 2026-09-04: Expand the BTC study across four years and explicit regimes
+
+- **Correction**: The owner wants four years of history to assess the setup
+  across different crypto market conditions.
+- **Rule**: Freeze exact signal/outcome boundaries, include earlier warmup,
+  preserve the old dataset, and label regimes from information available at each
+  signal. Four years is a requested coverage window, not proof that every regime
+  or a complete independent market cycle has been sampled. Longer recursive
+  indicator history can legitimately change early overlap signals.
+- **Files affected**: Four-year BTC acquisition, regime review, and task records.
+
+## 2026-09-04: Keep BTC research tools subordinate to the AI pipeline objective
+
+- **Correction**: The owner pointed out that repeated manual studies displaced
+  the primary objective: a strong thinker orchestrating cheaper executors and
+  learning from verified research results.
+- **Rule**: Once a reproducible dataset and evaluator exist, make the next
+  milestone the working orchestration loop. Treat further alpha experiments as
+  jobs for that pipeline rather than prerequisites invented by the assistant.
+  Distinguish the model building the software from runtime thinker/executor
+  roles and give the worker a bounded implementation brief.
+- **Files affected**: BTC AI pipeline MVP handoff and architecture priorities.
+
+## 2026-09-04: Keep the first AI research loop bounded and evidence-led
+
+- **Correction**: The BTC milestone requires orchestration software around the
+  existing evaluator, not another manual alpha campaign or an implicit model
+  integration.
+- **Rule**: Keep thinker/executor providers configurable, validate model JSON,
+  map only registered tools to fixed callables, persist every transition before
+  advancing, and label fixture, real-local, and live-model verification
+  separately. Require explicit live opt-in and preserve the next missing
+  adapter instead of faking support.
+- **Files affected**: `app/research_pipeline/`, `btc_ai_pipeline.py`, matching
+  architecture/research/backtest docs, and task records.
+
+## 2026-09-04: Make bounded AI research resumes state-safe
+
+- **Correction**: The acceptance review found that consent, resume recovery,
+  budget reservation, evidence references, and cache identity could diverge
+  from the persisted campaign state.
+- **Rule**: Restore the stored configuration before dispatch, construct
+  providers lazily, recover completed phases idempotently, reserve every job
+  and provider call atomically, pause uncertain work until explicit
+  reconciliation, and require current typed inputs plus authoritative checker
+  and artifact hashes before reuse or follow-up. Report provider controls,
+  runtime model/usage metadata, and live verification only when they actually
+  occurred.
+- **Files affected**: `app/research_pipeline/`, `btc_ai_pipeline.py`, focused
+  pipeline regressions, architecture/research/backtest docs, and task records.
+
+## 2026-09-04: Keep Codex and OpenCode authentication domains separate
+
+- **Correction**: The owner clarified that the existing Codex CLI ChatGPT login
+  is already available and that no API-key setup or `.env` change is wanted.
+- **Rule**: Do not treat Codex login as OpenCode provider authentication. Keep
+  the OpenCode adapter on its local `opencode serve` API so OpenCode retains its
+  own credential store; use only non-secret endpoint/basic-auth environment
+  settings when explicitly configured, and never persist credentials in the
+  research campaign.
+- **Files affected**: `app/research_pipeline/providers.py`, OpenCode pipeline
+  documentation, and the adapter task record.

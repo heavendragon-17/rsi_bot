@@ -693,6 +693,70 @@ paper_sim:
 
 ---
 
+## Bounded BTC AI Research Pipeline
+
+`app/research_pipeline/` is a separate, offline-first orchestration subsystem.
+The repository-root `btc_ai_pipeline.py` CLI coordinates a configurable thinker,
+a configurable executor, the fixed registered BTC checker, and a second thinker
+review. SQLite stores campaigns, frozen job specifications, attempts, usage,
+budgets, failures, results, and decisions so a resumed process does not repeat
+completed work. A committed review decision is replayed idempotently before its
+checked job is skipped, covering a crash between decision persistence and the
+campaign/job status mutation. Model JSON is schema-validated before the controller accepts it;
+the controller maps the executor's named tool to a fixed Python callable and
+never executes model-provided shell text.
+
+The first adapters are the opt-in Codex CLI adapter and the OpenCode local-server
+adapter. Both return structured JSON through the same provider contract. OpenCode
+uses the explicitly qualified `provider/model` value (for example,
+`opencode-go/muse-spark-1.3-contributor`) and a separately started local
+`opencode serve` HTTP server. Its preflight checks `/global/health` and
+`/provider` without invoking a model; the actual request creates a denied-tool
+session and uses `/session/{id}/message` with the schema and requested variant.
+OpenCode keeps upstream authentication in its own credential store; the adapter
+only uses `OPENCODE_SERVER_URL` (default `http://127.0.0.1:4096`) and optional
+local server basic-auth environment variables.
+
+`--offline-fixture` completes the loop without a model call; add
+`--use-saved-data` to run those stubbed model responses over the existing raw BTC
+CSV; and `--live --confirm-live` is required for a configured non-fixture
+provider. This pipeline is research evidence only and cannot change production
+strategy/configuration. Offline mode rejects non-fixture providers centrally
+before dispatch, and `status` is provider-free. A resume
+restores the campaign's persisted provider/model/effort, paths, verification
+mode, and limits rather than accepting silent CLI drift. Completed proposal,
+execution, and review attempts are replayed from SQLite before another call is
+considered; uncertain in-flight attempts require explicit
+`resume --reconcile-uncertain`, while a `REPAIR` decision becomes a durable
+`REPAIR_REQUIRED` pause.
+
+Each job owns one atomic budget reservation, including follow-ups. Execution
+parameters are typed and must equal the frozen proposal; packet/source paths are
+controller-owned. Reviews must cite the current result and follow-up proposals
+must cite their parent result. The checker remains authoritative, so a failed
+checker can be stopped or repaired but cannot authorize a follow-up as verified.
+Cache reuse hashes current source bytes and packet manifests/signals, then
+requires matching durable evidence, result hashes, and `evidence.json` artifacts.
+Codex reasoning effort is passed with its supported `model_reasoning_effort`
+config override. OpenCode reasoning effort is sent as the local server's
+`session.prompt.variant` and is accepted only when the provider reports the same
+variant (or the catalog preflight confirms it). Context/output budgets are
+controller-side estimates because neither adapter receives a provider token cap
+from these settings. The Codex adapter owns process-group cleanup on timeout;
+OpenCode uses one overall HTTP deadline and does not own the server process.
+Runtime model and usage fields remain null/annotated when a provider does not
+report them, and `live_model_verified` is true only after a successful
+non-fixture provider attempt.
+Provider-facing schemas use explicit types, fully required closed objects and
+nullable metadata. Failed CLI calls preserve bounded, redacted error details
+instead of only an exit code; full provider messages are not logged as failure
+diagnostics. Schema rejection is a non-retryable integration error and never
+waives the already-reserved invocation budget.
+The task registry and response schemas share one canonical M5 task identifier.
+Role prompts carry the tool contract explicitly. Both structural and campaign
+context checks run inside the attempt boundary, retaining rejected bounded
+responses and usage on FAILED attempts before subsequent work can dispatch.
+
 ## Key Source Files
 
 | File | Role |

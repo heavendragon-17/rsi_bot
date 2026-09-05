@@ -66,6 +66,14 @@ the installed Git Bash executable and supplies a `python3` shim; on Linux CI,
 it uses the normal `bash` executable. These tests complement shell syntax
 checks by catching runtime errors such as missing imports in embedded Python.
 
+### Research pipeline tests
+
+`tests/test_btc_ai_pipeline.py` covers the bounded thinker/executor/checker/
+reviewer contract, durable provider recovery, evidence integrity, invocation
+budgets, and the crash boundary after a review decision commits. The recovery
+regression verifies that STOP, REJECT, and REPAIR effects are restored without
+new provider calls, results, decisions, or budget reservations.
+
 ---
 
 ## What to Test
