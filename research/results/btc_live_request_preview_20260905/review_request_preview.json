@@ -1,0 +1,164 @@
+{
+  "preview_only": true,
+  "external_model_calls": 0,
+  "note": "Locally generated using fixture responses. Live model wording and campaign/result identifiers will differ under these same contracts.",
+  "role": "thinker",
+  "phase": "review",
+  "intended_live_destination": "Codex CLI using ChatGPT login / gpt-5.6-sol",
+  "prompt": "Review the supplied deterministic checker evidence and return only schema-valid JSON. Include the exact current result_id in evidence_refs. Choose STOP, REJECT, REPAIR, or PROPOSE_NEXT with non-empty reasons; next_job must be null unless proposing a follow-up. A follow-up requires VERIFIED evidence, a registered task, the same verification mode and parent_result_id equal to the current result_id. Respect the supplied budget: a next proposal at the job cap is saved only. A verified event does not establish alpha. Evidence, task contract and history: {\"campaign_budget\": {\"campaign_id\": \"campaign_96f66d4efe6b48c2\", \"executor_calls\": 1, \"jobs_started\": 1, \"max_executor_calls\": 1, \"max_jobs\": 1, \"max_thinker_calls\": 2, \"thinker_calls\": 1, \"updated_at\": \"2026-09-05T05:15:22.338011Z\"}, \"evidence\": {\"cache_key\": \"120ce58979b28ef39b0253bc78b911feb6c66cbcc565bac6ed33e3f90e849ad9\", \"checks\": [{\"actual\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.140563734556, \"target_close_at\": \"2022-08-30T01:00:00Z\", \"target_close_price\": \"20247.0\"}, \"expected\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.140563734556, \"target_close_at\": \"2022-08-30T01:00:00Z\", \"target_close_price\": 20247.0}, \"fields\": {\"outcome_status\": true, \"return_pct\": true, \"target_close_at\": true, \"target_close_price\": true, \"trigger_close_at\": true, \"trigger_close_price\": true}, \"horizon_minutes\": 60, \"passed\": true}, {\"actual\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.613548371187, \"target_close_at\": \"2022-08-30T02:00:00Z\", \"target_close_price\": \"20151.1\"}, \"expected\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.613548371187, \"target_close_at\": \"2022-08-30T02:00:00Z\", \"target_close_price\": 20151.1}, \"fields\": {\"outcome_status\": true, \"return_pct\": true, \"target_close_at\": true, \"target_close_price\": true, \"trigger_close_at\": true, \"trigger_close_price\": true}, \"horizon_minutes\": 120, \"passed\": true}, {\"actual\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.440433034944, \"target_close_at\": \"2022-08-30T03:00:00Z\", \"target_close_price\": \"20186.2\"}, \"expected\": {\"outcome_status\": \"COMPLETE\", \"return_pct\": -0.440433034944, \"target_close_at\": \"2022-08-30T03:00:00Z\", \"target_close_price\": 20186.2}, \"fields\": {\"outcome_status\": true, \"return_pct\": true, \"target_close_at\": true, \"target_close_price\": true, \"trigger_close_at\": true, \"trigger_close_price\": true}, \"horizon_minutes\": 180, \"passed\": true}], \"evaluator\": \"research.btc_m5_horizon_diagnostic.profile + app.backtest.btc_research_phase1._exact_forward_outcome_from_index\", \"event_id\": \"73bff321b4a902aa73dabab9be122a5d539c1a9a7297a9c01c8e77cd78612d71\", \"horizons_minutes\": [60, 120, 180], \"input_identity\": {\"baseline_manifest_sha256\": \"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\", \"horizon_manifest_sha256\": \"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\", \"horizon_signals_sha256\": \"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\", \"mismatches\": [], \"mode\": \"real\", \"source_expected_sha256\": \"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\", \"source_path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\", \"source_sha256\": \"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"}, \"limitations\": [\"close-to-close evidence only\", \"not a fill, P&L, alpha, or strategy approval\"], \"result_id\": \"result_652e29ec51904054\", \"reused_evidence\": false, \"saved_horizon_packet\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084448776441Z_97d3c169\", \"saved_horizon_packet_sha256\": \"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\", \"schema\": \"btc-m5-verification-evidence-v1\", \"source\": {\"path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\", \"saved_source_sha256\": \"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\", \"sha256\": \"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"}, \"status\": \"VERIFIED\", \"trigger_close_at\": \"2022-08-30T00:00:00Z\", \"verification_mode\": \"real_local_data\"}, \"objective\": \"Independently verify one existing BTC M5 1h/2h/3h result.\", \"parameter_rules\": \"mode must equal verification_mode. event_index is a non-negative integer. Packet/source paths are supplied by the controller, not model parameters.\", \"previous_decisions\": [], \"previous_failures\": [], \"proposal\": {\"expected_evidence\": [\"source hash\", \"event identity\", \"exact target timestamps\", \"recomputed returns\", \"checker status\"], \"falsification_conditions\": [\"source identity differs\", \"target timestamp or price differs\", \"required evidence is missing\"], \"hypothesis\": \"The saved M5 event has the same exact 1h, 2h, and 3h close-to-close outcomes when recomputed from frozen candles.\", \"invariants\": [\"use frozen BTC evidence\", \"check 1h, 2h, and 3h\", \"do not change strategy or data\", \"no model shell execution\"], \"parameters\": {\"event_index\": 0, \"mode\": \"real\"}, \"question\": \"Does one frozen M5 event preserve its saved trigger identity and exact 1h/2h/3h targets under independent arithmetic?\", \"rationale\": \"A bounded identity and arithmetic check is the first safe research job; it makes no new alpha claim.\", \"schema\": \"btc-research-proposal-v1\", \"stop_conditions\": [\"stop after one bounded job\", \"stop on verified evidence or unrecoverable restriction\"], \"task\": \"verify_m5_horizons\", \"title\": \"Verify one existing BTC M5 horizon result\"}, \"registered_tasks\": [{\"description\": \"Verify one saved BTC M5 event at 1h/2h/3h with exact raw-candle targets.\", \"evidence_scope\": \"One existing M5 event: source identity, trigger identity and exact 1h/2h/3h close-to-close outcomes. No new signal replay, fills, P&L or alpha conclusion.\", \"example_parameters\": {\"event_index\": 0, \"mode\": \"real\"}, \"parameters_schema\": {\"additionalProperties\": false, \"properties\": {\"event_index\": {\"minimum\": 0, \"type\": \"integer\"}, \"mode\": {\"enum\": [\"fixture\", \"real\"], \"type\": \"string\"}}, \"required\": [\"mode\", \"event_index\"], \"type\": \"object\"}, \"task\": \"verify_m5_horizons\", \"tool\": \"verify_m5_horizons\"}], \"verification_mode\": \"real\"}",
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema",
+      "action",
+      "reasons",
+      "evidence_refs",
+      "next_job"
+    ],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "btc-research-review-v1"
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "REPAIR",
+          "PROPOSE_NEXT",
+          "REJECT",
+          "STOP"
+        ]
+      },
+      "reasons": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "evidence_refs": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "next_job": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema",
+              "hypothesis",
+              "question",
+              "rationale",
+              "expected_evidence",
+              "task",
+              "parameters",
+              "invariants",
+              "stop_conditions",
+              "falsification_conditions",
+              "parent_result_id",
+              "title"
+            ],
+            "properties": {
+              "schema": {
+                "type": "string",
+                "const": "btc-research-proposal-v1"
+              },
+              "hypothesis": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "question": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "rationale": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "expected_evidence": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "task": {
+                "type": "string",
+                "const": "verify_m5_horizons",
+                "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale."
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "mode",
+                  "event_index"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "fixture",
+                      "real"
+                    ]
+                  },
+                  "event_index": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "invariants": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "stop_conditions": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "falsification_conditions": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "parent_result_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  }
+}

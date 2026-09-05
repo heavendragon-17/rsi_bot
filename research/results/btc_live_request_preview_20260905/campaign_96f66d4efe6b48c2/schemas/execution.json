@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "invariants": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "event_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "fixture",
+            "real"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "event_index"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "btc-research-execution-plan-v1",
+      "type": "string"
+    },
+    "task": {
+      "const": "verify_m5_horizons",
+      "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale.",
+      "type": "string"
+    },
+    "tool": {
+      "const": "verify_m5_horizons",
+      "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale.",
+      "type": "string"
+    },
+    "workspace_manifest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "task",
+    "tool",
+    "parameters",
+    "invariants",
+    "workspace_manifest"
+  ],
+  "type": "object"
+}

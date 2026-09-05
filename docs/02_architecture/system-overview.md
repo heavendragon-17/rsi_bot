@@ -752,10 +752,47 @@ nullable metadata. Failed CLI calls preserve bounded, redacted error details
 instead of only an exit code; full provider messages are not logged as failure
 diagnostics. Schema rejection is a non-retryable integration error and never
 waives the already-reserved invocation budget.
-The task registry and response schemas share one canonical M5 task identifier.
+The default task registry and response schemas share one canonical M5 task identifier.
 Role prompts carry the tool contract explicitly. Both structural and campaign
 context checks run inside the attempt boundary, retaining rejected bounded
 responses and usage on FAILED attempts before subsequent work can dispatch.
+
+Opt-in adaptive campaigns add population summaries and cohort comparisons.
+`study_tools.py` handles deterministic aggregation; `study_checks.py` validates
+all-four-horizon population/return identity and causal regime availability.
+`study_materialize.py` can reconstruct a missing frozen all-bar comparator into
+a new packet after checking historical statistics. `inputs.py` resolves current
+paths and frozen hashes; provider dispatch rechecks these and parent ancestry.
+`adaptive.py` provides constrained diagnostic selection and study execution,
+while separate controller runtime/reporting modules keep durable orchestration
+and provider measurement cohesive. `controller_context.py` declares their
+typed shared state and required host callbacks. Adaptive defaults allow two distinct jobs,
+three thinker calls and two executor calls; the executor may resolve only a
+proposal's `grouping=choose` field and must explain its diagnostic choice.
+All adaptive execution schemas require nonblank `diagnostic_rationale` text,
+including fixed-parameter summaries, matching the local study validator.
+
+OpenCode attempts durably record session identity before posting the prompt.
+A wildcard permission rule denies every tool, with only `StructuredOutput`
+allowed for the response schema. A failed request attempts a bounded abort;
+unconfirmed cancellation requires explicit external-state reconciliation.
+Reports separately expose successful provider calls, completed live loops and
+two-study sequences. Accepted-spec Python replay verifies numerical equivalence
+and measures provider overhead without inventing missing monetary costs.
+Usage aggregation recognizes Codex reasoning/cache-write aliases alongside
+OpenCode's native fields and preserves separate bucket coverage without adding
+supplemental reasoning counts to reported output-token totals.
+
+Architecture lint permits the research subsystem while rejecting its direct
+imports of trading execution, API and notification modules. Model output is
+always data passed to registered callables; it cannot create executable code.
+
+OpenCode output mode is an explicit persisted setting. Default `json_schema`
+uses the server's structured-output operation; `json_text` omits that format
+and denies all tools for endpoints that reject forced tool choice. In text
+mode, the schema is embedded before input-budget measurement, and the local
+typed and frozen-proposal validators remain mandatory. Invalid responses fail
+the attempt; mode changes never trigger an automatic fallback or retry.
 
 ## Key Source Files
 
@@ -779,3 +816,17 @@ responses and usage on FAILED attempts before subsequent work can dispatch.
 | `app/trading/strategy/core_v2_1/` | Pure Core V2.1 evaluator, typed state, indicators, and feature anchor |
 | `app/backtest/core_v2_1/` | Point-in-time replay, coverage, audit ledger, and Binance acquisition |
 | `app/signal/core_v2_1/` | Mixed-venue signal-only runtime, SQLite state, and durable Telegram outbox |
+
+The offline selection benchmark adds a separate read-only path through the CLI.
+`benchmark_source.py` validates a single accepted two-study campaign using a
+transactional SQLite snapshot and exact artifact/proposal/decision checks.
+`benchmark.py` freezes choices and identities before executing a scripted policy
+and a shared evaluator. `benchmark_data.py` reuses one full standard verifier,
+checks causal labels and constructs nine standard cohort tables without changing
+the historical checker. `benchmark_statistics.py` computes paired calendar-block
+uncertainty and deletion influence from shared daily sufficient statistics;
+`benchmark_reporting.py` presents descriptive results and separate resource
+accounting. This path never constructs a controller or provider, mutates the
+source database or chooses a hindsight winner. The
+[benchmark contract](../06_quant_research/research-selection-benchmark.md)
+distinguishes computational completion from evidence of selection benefit.

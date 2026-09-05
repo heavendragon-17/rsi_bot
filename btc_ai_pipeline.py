@@ -5,11 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
+
 from app.research_pipeline.contracts import PipelineConfig
 from app.research_pipeline.controller import PipelineController, preflight
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--adaptive", action="store_true", help="enable bounded population research and automatic follow-up progression")
     parser.add_argument("--db", default="research/results/btc_ai_pipeline_mvp/pipeline.sqlite")
     parser.add_argument("--output-dir", default="research/results/btc_ai_pipeline_mvp")
     parser.add_argument("--repo-root", default=".")
@@ -22,19 +25,25 @@ def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--executor-provider", default="fixture", choices=["fixture", "codex", "opencode"])
     parser.add_argument("--executor-model", default="fixture-executor")
     parser.add_argument("--executor-effort", default="minimal")
+    parser.add_argument("--opencode-output-mode", choices=["json_schema", "json_text"], default="json_schema",
+                        help="explicit OpenCode response mode; json_text uses local validation without forced tool choice")
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--context-budget", type=int, default=6000)
     parser.add_argument("--output-budget", type=int, default=2000)
-    parser.add_argument("--max-thinker-calls", type=int, default=2)
-    parser.add_argument("--max-executor-calls", type=int, default=1)
-    parser.add_argument("--max-jobs", type=int, default=1)
+    parser.add_argument("--max-thinker-calls", type=int, default=None)
+    parser.add_argument("--max-executor-calls", type=int, default=None)
+    parser.add_argument("--max-jobs", type=int, default=None)
 
 
 def _config(args: argparse.Namespace) -> PipelineConfig:
     live = getattr(args, "live", False)
     use_saved_data = getattr(args, "use_saved_data", False)
-    verification_mode = "real" if live or use_saved_data else "fixture"
-    return PipelineConfig(db_path=args.db, output_dir=args.output_dir, repo_root=args.repo_root, data_dir=args.data_dir, baseline_packet=args.baseline_packet, horizon_packet=args.horizon_packet, thinker_provider=args.thinker_provider, thinker_model=args.thinker_model, thinker_effort=args.thinker_effort, executor_provider=args.executor_provider, executor_model=args.executor_model, executor_effort=args.executor_effort, timeout_seconds=args.timeout_seconds, context_budget=args.context_budget, output_budget=args.output_budget, max_thinker_calls=args.max_thinker_calls, max_executor_calls=args.max_executor_calls, max_jobs=args.max_jobs, verification_mode=verification_mode, live_opt_in=live)
+    verification_mode = "real" if live or use_saved_data or args.command == "preflight" else "fixture"
+    adaptive = args.adaptive
+    args.max_thinker_calls = args.max_thinker_calls if args.max_thinker_calls is not None else (3 if adaptive else 2)
+    args.max_executor_calls = args.max_executor_calls if args.max_executor_calls is not None else (2 if adaptive else 1)
+    args.max_jobs = args.max_jobs if args.max_jobs is not None else (2 if adaptive else 1)
+    return PipelineConfig(db_path=args.db, output_dir=args.output_dir, repo_root=args.repo_root, data_dir=args.data_dir, baseline_packet=args.baseline_packet, horizon_packet=args.horizon_packet, thinker_provider=args.thinker_provider, thinker_model=args.thinker_model, thinker_effort=args.thinker_effort, executor_provider=args.executor_provider, executor_model=args.executor_model, executor_effort=args.executor_effort, timeout_seconds=args.timeout_seconds, context_budget=args.context_budget, output_budget=args.output_budget, max_thinker_calls=args.max_thinker_calls, max_executor_calls=args.max_executor_calls, max_jobs=args.max_jobs, verification_mode=verification_mode, live_opt_in=live, adaptive=adaptive, opencode_output_mode=args.opencode_output_mode)
 
 
 def _print(value: object) -> int:
@@ -47,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     preflight_parser = subparsers.add_parser("preflight", help="inspect local setup without calling a model")
     _common(preflight_parser)
+    prepare_parser = subparsers.add_parser("prepare-study", help="reconstruct a missing frozen comparator into a new derived packet without models")
+    prepare_parser.add_argument("--repo-root", default=".")
+    prepare_parser.add_argument("--data-dir", default="research/data/btc_four_year_20220828_20260828")
+    prepare_parser.add_argument("--baseline-packet", required=True)
+    prepare_parser.add_argument("--horizon-packet", required=True)
+    prepare_parser.add_argument("--workspace", required=True, help="new output directory; existing outputs are never overwritten")
     run_parser = subparsers.add_parser("run", help="run one bounded campaign")
     _common(run_parser)
     mode = run_parser.add_mutually_exclusive_group(required=True)
@@ -56,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--use-saved-data", action="store_true", help="with --offline-fixture, run stubbed models over the saved BTC raw data")
     run_parser.add_argument("--fixture-case", choices=["stop", "next", "reject", "tamper"], default="stop")
     run_parser.add_argument("--name", default="btc-ai-mvp")
+    run_parser.add_argument("--question", default=None)
     resume_parser = subparsers.add_parser("resume", help="resume a paused or limit-reached campaign")
     _common(resume_parser)
     resume_parser.add_argument("campaign_id")
@@ -64,7 +80,27 @@ def main(argv: list[str] | None = None) -> int:
     status_parser = subparsers.add_parser("status", help="show durable campaign state")
     _common(status_parser)
     status_parser.add_argument("campaign_id")
+    baseline_parser = subparsers.add_parser("baseline", help="replay a campaign's accepted study specs without models")
+    _common(baseline_parser)
+    baseline_parser.add_argument("campaign_id")
+    benchmark_parser = subparsers.add_parser("benchmark", help="compare a saved live study choice with a scripted policy without models")
+    benchmark_parser.add_argument("campaign_id")
+    benchmark_parser.add_argument("--db", required=True)
+    benchmark_parser.add_argument("--repo-root", default=".")
+    benchmark_parser.add_argument("--workspace", required=True, help="new directory below research/results; never overwritten")
     args = parser.parse_args(argv)
+    if args.command == "benchmark":
+        from app.research_pipeline.benchmark import run_selection_benchmark
+
+        root = Path(args.repo_root).resolve()
+        return _print(run_selection_benchmark(root, root / args.db, args.campaign_id, root / args.workspace))
+    if args.command == "prepare-study":
+        from app.research_pipeline.study_materialize import materialize_study_packet
+
+        root = Path(args.repo_root).resolve()
+        return _print(materialize_study_packet(repo_root=root, data_dir=root / args.data_dir,
+                      baseline_packet=root / args.baseline_packet, horizon_packet=root / args.horizon_packet,
+                      workspace=root / args.workspace))
     if args.command == "preflight":
         return _print(preflight(_config(args)))
     if args.command == "run" and args.live and not args.confirm_live:
@@ -75,12 +111,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--live requires at least one configured non-fixture provider")
     if args.command == "run" and args.use_saved_data and not args.offline_fixture:
         parser.error("--use-saved-data is only valid with --offline-fixture")
+    if args.command == "run" and args.adaptive and args.offline_fixture and not args.use_saved_data:
+        parser.error("--adaptive --offline-fixture requires --use-saved-data and a complete study packet")
     if args.command == "run":
         config = _config(args)
         controller = PipelineController(config)
-        campaign_id = controller.create_campaign(name=args.name)
+        campaign_id = controller.create_campaign(name=args.name, **({"question": args.question} if args.question else {}))
         return _print(controller.run(campaign_id, branch=args.fixture_case if args.offline_fixture else None))
     controller = PipelineController(_config(args))
+    if args.command == "baseline":
+        from app.research_pipeline.measurements import replay_baseline
+        return _print(replay_baseline(controller, args.campaign_id))
     if args.command == "resume":
         return _print(controller.resume(args.campaign_id, branch=args.fixture_case, reconcile_uncertain=args.reconcile_uncertain))
     return _print(controller.status(args.campaign_id))

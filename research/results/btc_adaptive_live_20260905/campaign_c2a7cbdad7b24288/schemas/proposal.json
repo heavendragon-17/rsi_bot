@@ -1,0 +1,164 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expected_evidence": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "falsification_conditions": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "hypothesis": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "invariants": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "event_index": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode",
+            "event_index"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "grouping": {
+              "enum": [
+                "calendar_year",
+                "trend",
+                "volatility",
+                "choose"
+              ],
+              "type": "string"
+            },
+            "horizon_minutes": {
+              "enum": [
+                60,
+                120,
+                180
+              ],
+              "type": "integer"
+            },
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode",
+            "horizon_minutes",
+            "grouping"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "parent_result_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "rationale": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "schema": {
+      "const": "btc-research-proposal-v1",
+      "type": "string"
+    },
+    "stop_conditions": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "task": {
+      "enum": [
+        "verify_m5_horizons",
+        "summarize_m5_horizons",
+        "compare_m5_cohorts"
+      ],
+      "type": "string"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "hypothesis",
+    "question",
+    "rationale",
+    "expected_evidence",
+    "task",
+    "parameters",
+    "invariants",
+    "stop_conditions",
+    "falsification_conditions",
+    "parent_result_id",
+    "title"
+  ],
+  "type": "object"
+}

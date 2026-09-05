@@ -1,0 +1,57 @@
+{
+  "controls": {
+    "context_budget": {
+      "enforced": "controller_prompt_estimate",
+      "provider_flag": false,
+      "provider_supported": false,
+      "requested": 6000
+    },
+    "effort": {
+      "enforced": false,
+      "mechanism": "session.prompt.variant",
+      "provider_supported": false,
+      "requested": "high"
+    },
+    "output_budget": {
+      "enforced": "controller_response_estimate",
+      "provider_flag": false,
+      "provider_supported": false,
+      "requested": 2000
+    },
+    "timeout": {
+      "abort_cleanup_timeout_seconds": 5.0,
+      "enforced": "overall_http_deadline",
+      "owned_process_cleanup": false,
+      "provider_supported": true,
+      "requested_seconds": 3
+    }
+  },
+  "error": {
+    "kind": "provider_connect",
+    "message": "OpenCode server could not be reached"
+  },
+  "installation_discovery": {
+    "approval_rejection": null,
+    "credentials_read": false,
+    "executable_found": false,
+    "local_port_4096_listener_found": false,
+    "model_calls": 0,
+    "running_opencode_process_found": false,
+    "sandbox_escalations_approved": true,
+    "software_installed": false,
+    "windows_install_metadata_found": false,
+    "wsl_distributions": [
+      "docker-desktop"
+    ]
+  },
+  "live_call_performed": false,
+  "model_available": false,
+  "model_configured": true,
+  "model_id": "opencode-go/muse-spark-1.3-contributor",
+  "model_metadata": null,
+  "notes": "OpenCode local server is not reachable; no model call was attempted",
+  "provider": "opencode",
+  "provider_connected": false,
+  "server_reachable": false,
+  "server_url": "http://127.0.0.1:4096"
+}

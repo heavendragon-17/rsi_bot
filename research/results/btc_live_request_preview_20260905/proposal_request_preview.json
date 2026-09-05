@@ -1,0 +1,115 @@
+{
+  "preview_only": true,
+  "external_model_calls": 0,
+  "note": "Locally generated using fixture responses. Live model wording and campaign/result identifiers will differ under these same contracts.",
+  "role": "thinker",
+  "phase": "proposal",
+  "intended_live_destination": "Codex CLI using ChatGPT login / gpt-5.6-sol",
+  "prompt": "Return only a schema-valid research proposal. Set task exactly to 'verify_m5_horizons'; it is a registered identifier. Put descriptive prose in hypothesis, question and rationale. For this initial proposal, parent_result_id must be null. Propose the bounded check for event_index 0 in the supplied mode. The controller and registered tool perform the numerical work; your role is to specify this job from the supplied context. Task contract, context and history: {\"alpha_assessment\": \"NOT_ASSESSED\", \"baseline_packet\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084317586748Z_97d3c169\", \"campaign_budget\": {\"campaign_id\": \"campaign_96f66d4efe6b48c2\", \"executor_calls\": 0, \"jobs_started\": 1, \"max_executor_calls\": 1, \"max_jobs\": 1, \"max_thinker_calls\": 2, \"thinker_calls\": 0, \"updated_at\": \"2026-09-05T05:15:22.225975Z\"}, \"data_dir\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\", \"evidence_hashes\": {\"baseline_manifest_sha256\": \"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\", \"h1_source_original_path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\", \"h1_source_path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\", \"h1_source_sha256\": \"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\", \"horizon_baseline_sha256\": \"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\", \"horizon_manifest_sha256\": \"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\", \"horizon_signals_sha256\": \"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\", \"source_original_path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\", \"source_path\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\", \"source_sha256\": \"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"}, \"horizon_packet\": \"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084448776441Z_97d3c169\", \"parameter_rules\": \"mode must equal verification_mode. event_index is a non-negative integer. Packet/source paths are supplied by the controller, not model parameters.\", \"previous_decisions\": [], \"previous_failures\": [], \"question\": \"Independently verify one existing BTC M5 1h/2h/3h result.\", \"registered_tasks\": [{\"description\": \"Verify one saved BTC M5 event at 1h/2h/3h with exact raw-candle targets.\", \"evidence_scope\": \"One existing M5 event: source identity, trigger identity and exact 1h/2h/3h close-to-close outcomes. No new signal replay, fills, P&L or alpha conclusion.\", \"example_parameters\": {\"event_index\": 0, \"mode\": \"real\"}, \"parameters_schema\": {\"additionalProperties\": false, \"properties\": {\"event_index\": {\"minimum\": 0, \"type\": \"integer\"}, \"mode\": {\"enum\": [\"fixture\", \"real\"], \"type\": \"string\"}}, \"required\": [\"mode\", \"event_index\"], \"type\": \"object\"}, \"task\": \"verify_m5_horizons\", \"tool\": \"verify_m5_horizons\"}], \"verification_mode\": \"real\"}",
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema",
+      "hypothesis",
+      "question",
+      "rationale",
+      "expected_evidence",
+      "task",
+      "parameters",
+      "invariants",
+      "stop_conditions",
+      "falsification_conditions",
+      "parent_result_id",
+      "title"
+    ],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "btc-research-proposal-v1"
+      },
+      "hypothesis": {
+        "type": "string",
+        "pattern": "\\S"
+      },
+      "question": {
+        "type": "string",
+        "pattern": "\\S"
+      },
+      "rationale": {
+        "type": "string",
+        "pattern": "\\S"
+      },
+      "expected_evidence": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "task": {
+        "type": "string",
+        "const": "verify_m5_horizons",
+        "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale."
+      },
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "event_index"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fixture",
+              "real"
+            ]
+          },
+          "event_index": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "invariants": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "stop_conditions": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "falsification_conditions": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "\\S"
+        }
+      },
+      "parent_result_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "checker_sha256": {
+    "btc_m5_horizon_diagnostic.py": "08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094",
+    "btc_m5_regime_review.py": "dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541",
+    "signal_replay_data.py": "d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9",
+    "study_checks.py": "79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f",
+    "study_tools.py": "2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca"
+  },
+  "checks": [
+    {
+      "mismatches": [],
+      "name": "frozen_input_identity",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.trigger_present",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.trigger_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.target_close_at",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.outcome_status",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.target_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.return_pct",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.included_all_horizons",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.trigger_present",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.trigger_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.target_close_at",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.outcome_status",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.target_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.return_pct",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.included_all_horizons",
+      "passed": true
+    },
+    {
+      "name": "parent_event_identity",
+      "passed": true
+    },
+    {
+      "name": "parent_signal_count",
+      "passed": true
+    },
+    {
+      "name": "parent_signal_ids_sha256",
+      "passed": true
+    },
+    {
+      "name": "parent_cooldown",
+      "passed": true
+    },
+    {
+      "name": "comparator_window",
+      "passed": true
+    },
+    {
+      "name": "baseline_inside_window",
+      "passed": true
+    },
+    {
+      "name": "signals_in_baseline",
+      "passed": true
+    },
+    {
+      "name": "baseline_eligible_count",
+      "passed": true
+    },
+    {
+      "name": "baseline_candidate_count",
+      "passed": true
+    },
+    {
+      "name": "baseline_exclusion_count",
+      "passed": true
+    },
+    {
+      "name": "nonempty_matched_population",
+      "passed": true
+    },
+    {
+      "name": "inputs_unchanged_during_check",
+      "passed": true
+    }
+  ],
+  "evidence_id": "22a343db0a1fb8ee46494c62f2fc111b2e2bedb1e235e7121b66912d2bec9c01",
+  "horizons_minutes": [
+    60,
+    120,
+    180
+  ],
+  "input_identity": {
+    "baseline_manifest_sha256": "c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575",
+    "baseline_signals_sha256": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+    "h1_source_path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv",
+    "h1_source_sha256": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+    "horizon_baseline_sha256": "bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9",
+    "horizon_manifest_sha256": "806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a",
+    "horizon_signals_sha256": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+    "mismatches": [],
+    "mode": "real",
+    "source_path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+    "source_sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d"
+  },
+  "limitations": [
+    "Descriptive gross close-to-close historical returns; not fills, profit, or executable P&L.",
+    "Fees, spread, slippage, funding and overlapping-position constraints are omitted.",
+    "All four saved horizons must be complete to include an event at any reported horizon.",
+    "Preparation eligibility is inherited from the hash-bound parent packet; strategy gates are not replayed.",
+    "Cohort sizes vary, calendar years may be partial, and no selection-adjusted significance or alpha is assessed."
+  ],
+  "parameters": {
+    "mode": "real"
+  },
+  "population_rule": "Saved parent IDs and preparation-eligible baseline; all-four-complete at 60/120/180/240 minutes.",
+  "schema": "btc-m5-study-evidence-v1",
+  "status": "VERIFIED",
+  "tables": [
+    {
+      "baseline_complete_n": 420176,
+      "baseline_mean_return_pct": 0.0051784910970838075,
+      "baseline_median_return_pct": 0.0032522411135,
+      "baseline_n": 420176,
+      "baseline_positive_return_share": 0.5050217051902061,
+      "baseline_total_n": 420176,
+      "group": "ALL",
+      "grouping": "all",
+      "horizon_minutes": 60,
+      "signal_complete_n": 2865,
+      "signal_mean_return_pct": -6.080974382373371e-05,
+      "signal_median_return_pct": -0.023712242813,
+      "signal_minus_baseline_pp": -0.005239300840907541,
+      "signal_n": 2865,
+      "signal_positive_return_share": 0.45968586387434557,
+      "signal_total_n": 2865
+    },
+    {
+      "baseline_complete_n": 420176,
+      "baseline_mean_return_pct": 0.010318990397209536,
+      "baseline_median_return_pct": 0.008460594795,
+      "baseline_n": 420176,
+      "baseline_positive_return_share": 0.5090485891626366,
+      "baseline_total_n": 420176,
+      "group": "ALL",
+      "grouping": "all",
+      "horizon_minutes": 120,
+      "signal_complete_n": 2865,
+      "signal_mean_return_pct": 0.0026052682627232143,
+      "signal_median_return_pct": -0.028007118476,
+      "signal_minus_baseline_pp": -0.007713722134486322,
+      "signal_n": 2865,
+      "signal_positive_return_share": 0.46596858638743455,
+      "signal_total_n": 2865
+    },
+    {
+      "baseline_complete_n": 420176,
+      "baseline_mean_return_pct": 0.015491746576841187,
+      "baseline_median_return_pct": 0.01082469358,
+      "baseline_n": 420176,
+      "baseline_positive_return_share": 0.509788755188302,
+      "baseline_total_n": 420176,
+      "group": "ALL",
+      "grouping": "all",
+      "horizon_minutes": 180,
+      "signal_complete_n": 2865,
+      "signal_mean_return_pct": 0.004100938818008029,
+      "signal_median_return_pct": -0.026338081306,
+      "signal_minus_baseline_pp": -0.011390807758833159,
+      "signal_n": 2865,
+      "signal_positive_return_share": 0.4732984293193717,
+      "signal_total_n": 2865
+    }
+  ],
+  "task": "summarize_m5_horizons",
+  "verification_mode": "real_local_data"
+}

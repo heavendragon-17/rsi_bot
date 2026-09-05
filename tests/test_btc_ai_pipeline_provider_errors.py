@@ -11,7 +11,6 @@ from app.research_pipeline.contracts import PipelineConfig, ProviderError, Provi
 from app.research_pipeline.controller import PipelineController
 from app.research_pipeline.providers import CodexCLIProvider, _provider_failure_details, _provider_failure_kind
 
-
 SCHEMA_ERROR = {
     "type": "error",
     "error": {

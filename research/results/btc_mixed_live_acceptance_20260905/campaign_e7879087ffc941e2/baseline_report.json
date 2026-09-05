@@ -1,0 +1,68 @@
+{
+  "campaign_id": "campaign_e7879087ffc941e2",
+  "campaign_measurements": {
+    "adaptive_sequence_verified": false,
+    "all_attempts_have_cost": false,
+    "all_attempts_have_token_usage": true,
+    "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+    "campaign_span_seconds": 148.227925,
+    "checker_timed_results": 1,
+    "completed_provider_attempts": 3,
+    "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+    "distinct_verified_studies": 1,
+    "failed_provider_attempts": 0,
+    "failure_records": 0,
+    "fixture_attempts": 0,
+    "input_usage_attempts": 3,
+    "invalid_execution_plan_attempts": 0,
+    "live_loop_verified": true,
+    "model_provider_attempts": 3,
+    "output_usage_attempts": 3,
+    "provider_elapsed_seconds": 71.401259,
+    "recorded_checker_seconds": 29.721026100218296,
+    "repair_decisions": 0,
+    "reported_cost": 0.0008059,
+    "reported_input_tokens": 51774,
+    "reported_output_tokens": 1496,
+    "supplemental_token_usage": {
+      "cache_read": {
+        "attempts": 3,
+        "reported_tokens": 0
+      },
+      "cache_write": {
+        "attempts": 1,
+        "reported_tokens": 0
+      },
+      "reasoning": {
+        "attempts": 1,
+        "reported_tokens": 648
+      },
+      "total": {
+        "attempts": 1,
+        "reported_tokens": 6982
+      }
+    },
+    "verified_results": 1
+  },
+  "elapsed_seconds": 29.47281609941274,
+  "jobs": [
+    {
+      "elapsed_seconds": 29.47281609941274,
+      "job_id": "job_76223452f3cb4eab",
+      "parameters": {
+        "mode": "real"
+      },
+      "same_evidence": true,
+      "status": "VERIFIED",
+      "task": "summarize_m5_horizons"
+    }
+  ],
+  "limitations": [
+    "Measures numerical equivalence and orchestration overhead, not independent hypothesis-selection quality.",
+    "This local run does not establish monetary savings; provider costs may be unavailable."
+  ],
+  "provider_calls": 0,
+  "schema": "btc-research-baseline-v1",
+  "selection_policy": "Replay the campaign's accepted experimental specifications without a model.",
+  "status": "MATCHED"
+}

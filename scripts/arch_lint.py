@@ -37,6 +37,10 @@ IMPORT_RULES = {
         "deny": ["app.trading", "app.data", "app.backtest", "app.api", "app.notification"],
         "reason": "repository/ may only import from core/",
     },
+    "app.research_pipeline": {
+        "deny": ["app.api", "app.notification", "app.trading"],
+        "reason": "research_pipeline/ orchestrates checked research without execution or notification access",
+    },
 }
 
 # ─── Rule 2: File size limits ────────────────────────────────────────────────
@@ -91,6 +95,7 @@ ALLOWED_APP_DIRS = {
     "notification",
     "repository",
     "signal",
+    "research_pipeline",
     "__pycache__",
 }
 

@@ -1275,3 +1275,90 @@ That packet is `STOPPED` after one `VERIFIED` job and independently matches the
 existing event at 1h, 2h, and 3h; it is real-local-data evidence, not live-model
 evidence. No model invocation, new live campaign, authentication change,
 credential file, or BTC evaluator change was made in this milestone.
+
+## Review AI research pipeline progress and next milestone (2026-09-05)
+
+- [x] Trace recent commits, implemented orchestration, and provider boundaries.
+- [x] Compare saved campaign evidence with the intended thinker/executor workflow.
+- [x] Run focused offline tests and assess material remaining gaps.
+- [x] Record findings and recommend a concrete next milestone.
+
+Scope: review existing implementation and evidence without runtime model calls,
+new research campaigns, or implementation changes.
+
+Review: 109 focused tests passed. Saved live v3 evidence confirms the complete
+Codex thinker/executor/checker/review loop; OpenCode has offline validation only.
+Read-only probes reproduced a relocated-source-path failure despite healthy
+preflight and lost OpenCode session identity after a message timeout. Current
+research remains limited to a single registered evidence-verification task.
+See the [progress review and next milestones](btc_ai_pipeline_progress_review_20260905.md)
+for evidence, provider-boundary findings, and the recommended readiness repair,
+mixed-provider smoke, and meaningful two-experiment adaptive campaign.
+
+## Implement bounded adaptive BTC research (2026-09-05)
+
+Owner approved the reviewed next milestones with "yes lets do it".
+Plan: [bounded adaptive pipeline](btc_adaptive_pipeline_plan.md).
+
+- [x] Correct exact-input readiness and checkout portability.
+- [x] Correct OpenCode lifecycle persistence, uncertainty and tool permissions.
+- [x] Add checked population research tools and adaptive controller behavior.
+- [x] Verify offline and saved-data integrations; measure the scripted baseline.
+- [x] Run bounded mixed-provider live acceptance and adaptive demonstration:
+      one checked/reviewed summary passed, then the owner raised the total limit
+      to twelve calls. The final five-call campaign verified a horizon summary
+      and an evidence-dependent 180-minute volatility comparison, then stopped.
+      Both original failed campaigns remain preserved. No automatic retries.
+- [x] Complete independent review and matching documentation.
+
+Review closure: independent review reproduced and closed both readiness findings:
+mismatched parent packets fail before any provider attempt, and changed source
+bytes prevent resumed review. The final suite passes 221 pipeline tests; the
+earlier 42 related horizon/regime/Phase 1/acquisition tests also passed. Ruff,
+mypy (21 modules) and Markdown link checks pass. The existing Phase 1 module's
+architecture size violation remains unchanged.
+
+OpenCode 1.18.29 is installed and authenticated, with a healthy local server.
+Live testing exposed and corrected forced-tool-choice incompatibility through
+explicit JSON-text mode, then a nullable-schema/nonblank-rationale mismatch.
+All failed responses and usage remain preserved. The successful one-job live
+acceptance verified the full loop; the final two-job campaign independently
+checked a horizon summary and its selected 180-minute volatility comparison.
+Both real-data fixture and live accepted-spec replays produce identical evidence.
+
+The owner approved the [research payload preview](../research/results/btc_live_request_preview_20260905/README.md)
+after the initial automatic approval rejection, then raised the call limit from
+eight to twelve. Exactly twelve calls were used: ten completed and two failed.
+No automatic retries, subscription purchases, trading changes or strategy edits
+were made. Reported cost coverage remains partial, and alpha is unassessed.
+
+Final evidence and remaining next step are recorded in
+[the implementation outcome](btc_adaptive_pipeline_outcome_20260905.md).
+
+## Research selection quality benchmark (2026-09-05)
+
+User approved measuring diagnostic value after the live two-study campaign.
+Plan: [selection benchmark](btc_selection_benchmark_plan.md).
+
+- [x] Freeze a zero-new-model-call retrospective comparison design.
+- [x] Implement source validation, checked candidate catalog and paired statistics.
+- [x] Run the historical comparison and assess diagnostic value versus resources.
+- [x] Verify implementation, review results and update affected documentation.
+
+Review: [measured outcome](btc_selection_benchmark_outcome_20260905.md) and
+[independent review](btc_selection_benchmark_review.md). The offline pilot
+completed with zero new provider calls; AI selection benefit is not established.
+293 tests, Ruff, mypy (26 modules) and Markdown links (216 files) pass.
+Architecture lint reports only the unchanged 865-line Phase 1 module.
+
+## Portable research handoff and GitHub publication (2026-09-05)
+
+- [x] Write a root handoff with findings, limits, implementation map and safe continuation commands.
+- [x] Package the related pipeline code, tests, compact evidence and reproducibility notes; keep local credentials and large regenerated CSVs out.
+- [x] Verify the publication contents, tests, documentation links and frozen evidence bytes.
+- [x] Prepare the dedicated codex branch and reviewed publication contents.
+
+Publication target: `origin/codex/research-pipeline-handoff-20260905`.
+The pushed commit and remote verification are reported in the final response.
+Review: [portable handoff](../RESEARCH_PIPELINE_HANDOFF.md) and
+[publication checks and known limitations](btc_research_handoff_publication.md).

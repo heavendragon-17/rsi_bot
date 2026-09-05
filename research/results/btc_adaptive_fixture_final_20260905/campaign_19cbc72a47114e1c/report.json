@@ -1,0 +1,303 @@
+{
+  "attempts": [
+    {
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "elapsed_ms": 11.19,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T04:56:12.151584Z",
+      "id": "attempt_7dd7308e5b374536",
+      "job_id": "job_f9ffa9cd62984dbf",
+      "model": "fixture-thinker",
+      "phase": "proposal",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1748,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"medium\",\"model\":\"fixture-thinker\",\"output_budget\":2000,\"phase\":\"proposal\",\"provider\":\"fixture\",\"role\":\"thinker\"}",
+      "response_json": "{\"expected_evidence\":[\"source identity\",\"matched population counts\",\"signal and baseline means\",\"mean differences\"],\"falsification_conditions\":[\"raw outcomes disagree with saved evidence\",\"insufficient matched observations\"],\"hypothesis\":\"The signal-minus-baseline difference varies across horizons and may be concentrated in particular cohorts.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"mode\":\"real\"},\"parent_result_id\":null,\"question\":\"Which descriptive comparison most clearly tests concentration of the observed difference?\",\"rationale\":\"Use verified population summaries to choose a bounded follow-up, retaining independent numerical checks.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop at persisted campaign budget or failed evidence\"],\"task\":\"summarize_m5_horizons\",\"title\":\"Compare M5 population outcomes\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T04:56:12.140394Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1748,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"medium\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-thinker\"}"
+    },
+    {
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "elapsed_ms": 6.296,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T04:56:33.416993Z",
+      "id": "attempt_b7c82879580649dc",
+      "job_id": "job_f9ffa9cd62984dbf",
+      "model": "fixture-executor",
+      "phase": "execution",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1553,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"minimal\",\"model\":\"fixture-executor\",\"output_budget\":2000,\"phase\":\"execution\",\"provider\":\"fixture\",\"role\":\"executor\"}",
+      "response_json": "{\"diagnostic_rationale\":\"Use horizon comparisons first, then calendar cohorts to check temporal concentration without selecting a trading filter.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"mode\":\"real\"},\"schema\":\"btc-research-execution-plan-v1\",\"task\":\"summarize_m5_horizons\",\"tool\":\"summarize_m5_horizons\",\"workspace_manifest\":null}",
+      "role": "executor",
+      "started_at": "2026-09-05T04:56:33.410697Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1553,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"minimal\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-executor\"}"
+    },
+    {
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "elapsed_ms": 26.629,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T04:57:01.843658Z",
+      "id": "attempt_764d7eb58d1a4017",
+      "job_id": "job_f9ffa9cd62984dbf",
+      "model": "fixture-thinker",
+      "phase": "review",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2412,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"medium\",\"model\":\"fixture-thinker\",\"output_budget\":2000,\"phase\":\"review\",\"provider\":\"fixture\",\"role\":\"thinker\"}",
+      "response_json": "{\"action\":\"PROPOSE_NEXT\",\"evidence_refs\":[\"result_c1dfc6c4bd134d32\"],\"next_job\":{\"expected_evidence\":[\"source identity\",\"matched population counts\",\"signal and baseline means\",\"mean differences\"],\"falsification_conditions\":[\"raw outcomes disagree with saved evidence\",\"insufficient matched observations\"],\"hypothesis\":\"The signal-minus-baseline difference varies across horizons and may be concentrated in particular cohorts.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"grouping\":\"choose\",\"horizon_minutes\":180,\"mode\":\"real\"},\"parent_result_id\":\"result_c1dfc6c4bd134d32\",\"question\":\"Which descriptive comparison most clearly tests concentration of the observed difference?\",\"rationale\":\"Use verified population summaries to choose a bounded follow-up, retaining independent numerical checks.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop at persisted campaign budget or failed evidence\"],\"task\":\"compare_m5_cohorts\",\"title\":\"Diagnose 180-minute cohort concentration\"},\"reasons\":[\"The 180-minute horizon has the largest absolute descriptive difference (-0.011391 percentage points); examine its cohort concentration.\"],\"schema\":\"btc-research-review-v1\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T04:57:01.817029Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2412,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"medium\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-thinker\"}"
+    },
+    {
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "elapsed_ms": 6.552,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T04:57:23.483799Z",
+      "id": "attempt_1270b08a82894c9f",
+      "job_id": "job_25aa9215cec649e6",
+      "model": "fixture-executor",
+      "phase": "execution",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1571,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"minimal\",\"model\":\"fixture-executor\",\"output_budget\":2000,\"phase\":\"execution\",\"provider\":\"fixture\",\"role\":\"executor\"}",
+      "response_json": "{\"diagnostic_rationale\":\"Use horizon comparisons first, then calendar cohorts to check temporal concentration without selecting a trading filter.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"mode\":\"real\"},\"schema\":\"btc-research-execution-plan-v1\",\"task\":\"compare_m5_cohorts\",\"tool\":\"compare_m5_cohorts\",\"workspace_manifest\":null}",
+      "role": "executor",
+      "started_at": "2026-09-05T04:57:23.477247Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":1571,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"minimal\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-executor\"}"
+    },
+    {
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "elapsed_ms": 6.098,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T04:57:52.563668Z",
+      "id": "attempt_3e0b64bafb0f468a",
+      "job_id": "job_25aa9215cec649e6",
+      "model": "fixture-thinker",
+      "phase": "review",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2960,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"medium\",\"model\":\"fixture-thinker\",\"output_budget\":2000,\"phase\":\"review\",\"provider\":\"fixture\",\"role\":\"thinker\"}",
+      "response_json": "{\"action\":\"STOP\",\"evidence_refs\":[\"result_61dd7c5830644de0\"],\"next_job\":null,\"reasons\":[\"The bounded study is complete; alpha remains NOT_ASSESSED.\"],\"schema\":\"btc-research-review-v1\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T04:57:52.557570Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2960,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"medium\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-thinker\"}"
+    }
+  ],
+  "budget": {
+    "campaign_id": "campaign_19cbc72a47114e1c",
+    "executor_calls": 2,
+    "jobs_started": 2,
+    "max_executor_calls": 2,
+    "max_jobs": 2,
+    "max_thinker_calls": 3,
+    "thinker_calls": 3,
+    "updated_at": "2026-09-05T04:57:52.548295Z"
+  },
+  "campaign": {
+    "config_json": "{\"adaptive\":true,\"baseline_packet\":\"research/results/btc_adaptive_prepared_20260905/run_20260904T084317586748Z_97d3c169\",\"context_budget\":6000,\"data_dir\":\"research/data/btc_four_year_20220828_20260828\",\"db_path\":\"research/results/btc_adaptive_fixture_final_20260905/pipeline.sqlite\",\"executor_effort\":\"minimal\",\"executor_model\":\"fixture-executor\",\"executor_provider\":\"fixture\",\"horizon_packet\":\"research/results/btc_adaptive_prepared_20260905/run_20260904T084448776441Z_97d3c169\",\"live_opt_in\":false,\"max_executor_calls\":2,\"max_jobs\":2,\"max_thinker_calls\":3,\"output_budget\":2000,\"output_dir\":\"research/results/btc_adaptive_fixture_final_20260905\",\"repo_root\":\".\",\"thinker_effort\":\"medium\",\"thinker_model\":\"fixture-thinker\",\"thinker_provider\":\"fixture\",\"timeout_seconds\":120.0,\"verification_mode\":\"real\"}",
+    "context_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"baseline_packet\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084317586748Z_97d3c169\",\"data_dir\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\",\"evidence_hashes\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"h1_source_original_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"source_original_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"horizon_packet\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084448776441Z_97d3c169\",\"previous_decisions\":[],\"previous_failures\":[],\"question\":\"Compare BTC M5 gross signal and eligible-baseline outcomes, then use verified evidence to investigate concentration across time or point-in-time regimes.\",\"verification_mode\":\"real\"}",
+    "created_at": "2026-09-05T04:55:53.530097Z",
+    "id": "campaign_19cbc72a47114e1c",
+    "name": "final-saved-data-two-study",
+    "question": "Compare BTC M5 gross signal and eligible-baseline outcomes, then use verified evidence to investigate concentration across time or point-in-time regimes.",
+    "status": "STOPPED",
+    "updated_at": "2026-09-05T04:57:52.576157Z"
+  },
+  "decisions": [
+    {
+      "action": "PROPOSE_NEXT",
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "created_at": "2026-09-05T04:57:01.875305Z",
+      "evidence_json": "{\"checker_status\":\"VERIFIED\",\"evidence_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_fixture_final_20260905\\\\campaign_19cbc72a47114e1c\\\\job_f9ffa9cd62984dbf\\\\artifacts\\\\evidence.json\",\"result_id\":\"result_c1dfc6c4bd134d32\",\"reused_evidence\":false,\"review_evidence_refs\":[\"result_c1dfc6c4bd134d32\"],\"verification_status\":\"VERIFIED\"}",
+      "id": "decision_583bb2a71eaf4370",
+      "job_id": "job_f9ffa9cd62984dbf",
+      "next_job_id": "job_25aa9215cec649e6",
+      "phase": "review",
+      "reasons_json": "[\"The 180-minute horizon has the largest absolute descriptive difference (-0.011391 percentage points); examine its cohort concentration.\"]"
+    },
+    {
+      "action": "STOP",
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "created_at": "2026-09-05T04:57:52.571049Z",
+      "evidence_json": "{\"checker_status\":\"VERIFIED\",\"evidence_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_fixture_final_20260905\\\\campaign_19cbc72a47114e1c\\\\job_25aa9215cec649e6\\\\artifacts\\\\evidence.json\",\"result_id\":\"result_61dd7c5830644de0\",\"reused_evidence\":false,\"review_evidence_refs\":[\"result_61dd7c5830644de0\"],\"verification_status\":\"VERIFIED\"}",
+      "id": "decision_16fae3ee746b43c8",
+      "job_id": "job_25aa9215cec649e6",
+      "next_job_id": null,
+      "phase": "review",
+      "reasons_json": "[\"The bounded study is complete; alpha remains NOT_ASSESSED.\"]"
+    }
+  ],
+  "failures": [],
+  "jobs": [
+    {
+      "budget_reserved": 1,
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "created_at": "2026-09-05T04:55:53.577783Z",
+      "id": "job_f9ffa9cd62984dbf",
+      "parent_job_id": null,
+      "result_id": "result_c1dfc6c4bd134d32",
+      "sequence": 1,
+      "specification_hash": "5e8be4cf3ec49cfcf33fbb26f694eddc0140814fac88c31c2d854cbec9253c89",
+      "specification_json": "{\"expected_evidence\":[\"source identity\",\"matched population counts\",\"signal and baseline means\",\"mean differences\"],\"falsification_conditions\":[\"raw outcomes disagree with saved evidence\",\"insufficient matched observations\"],\"hypothesis\":\"The signal-minus-baseline difference varies across horizons and may be concentrated in particular cohorts.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"mode\":\"real\"},\"parent_result_id\":null,\"question\":\"Which descriptive comparison most clearly tests concentration of the observed difference?\",\"rationale\":\"Use verified population summaries to choose a bounded follow-up, retaining independent numerical checks.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop at persisted campaign budget or failed evidence\"],\"task\":\"summarize_m5_horizons\",\"title\":\"Compare M5 population outcomes\"}",
+      "status": "CHECKED",
+      "updated_at": "2026-09-05T04:57:01.301106Z"
+    },
+    {
+      "budget_reserved": 1,
+      "campaign_id": "campaign_19cbc72a47114e1c",
+      "created_at": "2026-09-05T04:57:01.864643Z",
+      "id": "job_25aa9215cec649e6",
+      "parent_job_id": "job_f9ffa9cd62984dbf",
+      "result_id": "result_61dd7c5830644de0",
+      "sequence": 2,
+      "specification_hash": "e6b62d489df0beddd996ff2af042aca0b05d6607b687cd075b745482ea77cae9",
+      "specification_json": "{\"expected_evidence\":[\"source identity\",\"matched population counts\",\"signal and baseline means\",\"mean differences\"],\"falsification_conditions\":[\"raw outcomes disagree with saved evidence\",\"insufficient matched observations\"],\"hypothesis\":\"The signal-minus-baseline difference varies across horizons and may be concentrated in particular cohorts.\",\"invariants\":[\"use frozen data and registered comparisons\",\"no executable P&L or alpha claim\"],\"parameters\":{\"grouping\":\"choose\",\"horizon_minutes\":180,\"mode\":\"real\"},\"parent_result_id\":\"result_c1dfc6c4bd134d32\",\"question\":\"Which descriptive comparison most clearly tests concentration of the observed difference?\",\"rationale\":\"Use verified population summaries to choose a bounded follow-up, retaining independent numerical checks.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop at persisted campaign budget or failed evidence\"],\"task\":\"compare_m5_cohorts\",\"title\":\"Diagnose 180-minute cohort concentration\"}",
+      "status": "CHECKED",
+      "updated_at": "2026-09-05T04:57:52.085380Z"
+    }
+  ],
+  "live_loop_verified": false,
+  "live_model_verified": false,
+  "measurements": {
+    "adaptive_sequence_verified": true,
+    "all_attempts_have_cost": false,
+    "all_attempts_have_token_usage": false,
+    "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+    "campaign_span_seconds": 119.04606,
+    "checker_timed_results": 2,
+    "completed_provider_attempts": 0,
+    "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+    "distinct_verified_studies": 2,
+    "failed_provider_attempts": 0,
+    "failure_records": 0,
+    "fixture_attempts": 5,
+    "input_usage_attempts": 0,
+    "invalid_execution_plan_attempts": 0,
+    "live_loop_verified": false,
+    "model_provider_attempts": 0,
+    "output_usage_attempts": 0,
+    "provider_elapsed_seconds": 0.0,
+    "recorded_checker_seconds": 56.43494030088186,
+    "repair_decisions": 0,
+    "reported_cost": null,
+    "reported_input_tokens": null,
+    "reported_output_tokens": null,
+    "supplemental_token_usage": {
+      "cache_read": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "cache_write": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "reasoning": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "total": {
+        "attempts": 0,
+        "reported_tokens": null
+      }
+    },
+    "verified_results": 2
+  },
+  "next_missing_capability": "Complete a live thinker/executor/checker/review loop",
+  "provider_controls": {
+    "executor": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": false,
+        "provider_supported": false,
+        "requested": "minimal"
+      },
+      "model": "fixture-executor",
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "fixture",
+      "timeout": {
+        "enforced": false
+      }
+    },
+    "thinker": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": false,
+        "provider_supported": false,
+        "requested": "medium"
+      },
+      "model": "fixture-thinker",
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "fixture",
+      "timeout": {
+        "enforced": false
+      }
+    }
+  },
+  "provider_reporting": {
+    "live_model_verified": false,
+    "model_identity_verified": false,
+    "reported_models": {},
+    "requested_models": {
+      "executor": "fixture-executor",
+      "thinker": "fixture-thinker"
+    },
+    "successful_real_provider_attempts": []
+  },
+  "reproduction": {
+    "live_opencode_executor": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor",
+    "live_opt_in": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>",
+    "offline_fixture": "python btc_ai_pipeline.py run --offline-fixture --fixture-case stop",
+    "offline_saved_data": "python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop",
+    "preflight": "python btc_ai_pipeline.py preflight"
+  },
+  "results": [
+    {
+      "artifact_dir": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_fixture_final_20260905\\campaign_19cbc72a47114e1c\\job_f9ffa9cd62984dbf\\artifacts",
+      "cache_key": "d49b1aba1014637695d55c41d153f0bfac658a9682db184441c2ddff845e2b4e",
+      "created_at": "2026-09-05T04:57:01.299488Z",
+      "evidence_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"cache_key\":\"d49b1aba1014637695d55c41d153f0bfac658a9682db184441c2ddff845e2b4e\",\"checker_elapsed_seconds\":27.86105430033058,\"checker_sha256\":{\"btc_m5_horizon_diagnostic.py\":\"08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094\",\"btc_m5_regime_review.py\":\"dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541\",\"signal_replay_data.py\":\"d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9\",\"study_checks.py\":\"79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f\",\"study_tools.py\":\"2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca\"},\"checks\":[{\"mismatches\":[],\"name\":\"frozen_input_identity\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_present\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_at\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.outcome_status\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.return_pct\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.included_all_horizons\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_present\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_at\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.outcome_status\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.return_pct\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.included_all_horizons\",\"passed\":true},{\"name\":\"parent_event_identity\",\"passed\":true},{\"name\":\"parent_signal_count\",\"passed\":true},{\"name\":\"parent_signal_ids_sha256\",\"passed\":true},{\"name\":\"parent_cooldown\",\"passed\":true},{\"name\":\"comparator_window\",\"passed\":true},{\"name\":\"baseline_inside_window\",\"passed\":true},{\"name\":\"signals_in_baseline\",\"passed\":true},{\"name\":\"baseline_eligible_count\",\"passed\":true},{\"name\":\"baseline_candidate_count\",\"passed\":true},{\"name\":\"baseline_exclusion_count\",\"passed\":true},{\"name\":\"nonempty_matched_population\",\"passed\":true},{\"name\":\"inputs_unchanged_during_check\",\"passed\":true}],\"evidence_id\":\"22a343db0a1fb8ee46494c62f2fc111b2e2bedb1e235e7121b66912d2bec9c01\",\"executor_diagnostic\":\"Use horizon comparisons first, then calendar cohorts to check temporal concentration without selecting a trading filter.\",\"horizons_minutes\":[60,120,180],\"input_identity\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"baseline_signals_sha256\":\"3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"mismatches\":[],\"mode\":\"real\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"limitations\":[\"Descriptive gross close-to-close historical returns; not fills, profit, or executable P&L.\",\"Fees, spread, slippage, funding and overlapping-position constraints are omitted.\",\"All four saved horizons must be complete to include an event at any reported horizon.\",\"Preparation eligibility is inherited from the hash-bound parent packet; strategy gates are not replayed.\",\"Cohort sizes vary, calendar years may be partial, and no selection-adjusted significance or alpha is assessed.\"],\"parameters\":{\"mode\":\"real\"},\"population_rule\":\"Saved parent IDs and preparation-eligible baseline; all-four-complete at 60/120/180/240 minutes.\",\"result_id\":\"result_c1dfc6c4bd134d32\",\"reused_evidence\":false,\"schema\":\"btc-m5-study-evidence-v1\",\"status\":\"VERIFIED\",\"tables\":[{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.0051784910970838075,\"baseline_median_return_pct\":0.0032522411135,\"baseline_n\":420176,\"baseline_positive_return_share\":0.5050217051902061,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":60,\"signal_complete_n\":2865,\"signal_mean_return_pct\":-6.080974382373371e-05,\"signal_median_return_pct\":-0.023712242813,\"signal_minus_baseline_pp\":-0.005239300840907541,\"signal_n\":2865,\"signal_positive_return_share\":0.45968586387434557,\"signal_total_n\":2865},{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.010318990397209536,\"baseline_median_return_pct\":0.008460594795,\"baseline_n\":420176,\"baseline_positive_return_share\":0.5090485891626366,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":120,\"signal_complete_n\":2865,\"signal_mean_return_pct\":0.0026052682627232143,\"signal_median_return_pct\":-0.028007118476,\"signal_minus_baseline_pp\":-0.007713722134486322,\"signal_n\":2865,\"signal_positive_return_share\":0.46596858638743455,\"signal_total_n\":2865},{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.015491746576841187,\"baseline_median_return_pct\":0.01082469358,\"baseline_n\":420176,\"baseline_positive_return_share\":0.509788755188302,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":180,\"signal_complete_n\":2865,\"signal_mean_return_pct\":0.004100938818008029,\"signal_median_return_pct\":-0.026338081306,\"signal_minus_baseline_pp\":-0.011390807758833159,\"signal_n\":2865,\"signal_positive_return_share\":0.4732984293193717,\"signal_total_n\":2865}],\"task\":\"summarize_m5_horizons\",\"verification_mode\":\"real_local_data\"}",
+      "id": "result_c1dfc6c4bd134d32",
+      "job_id": "job_f9ffa9cd62984dbf",
+      "result_hash": "377d7ccbbf7fdfa4cd423516e85172dca14c5a69abe6e83f53c80ab874bd7680",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_dir": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_fixture_final_20260905\\campaign_19cbc72a47114e1c\\job_25aa9215cec649e6\\artifacts",
+      "cache_key": "c2f3eee2cc30dcfcc76ada74d4352660d287746320aad7cb31397eb5e83dcb93",
+      "created_at": "2026-09-05T04:57:52.083883Z",
+      "evidence_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"cache_key\":\"c2f3eee2cc30dcfcc76ada74d4352660d287746320aad7cb31397eb5e83dcb93\",\"checker_elapsed_seconds\":28.573886000551283,\"checker_sha256\":{\"btc_m5_horizon_diagnostic.py\":\"08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094\",\"btc_m5_regime_review.py\":\"dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541\",\"signal_replay_data.py\":\"d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9\",\"study_checks.py\":\"79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f\",\"study_tools.py\":\"2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca\"},\"checks\":[{\"mismatches\":[],\"name\":\"frozen_input_identity\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_present\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_at\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.outcome_status\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.return_pct\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.included_all_horizons\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_present\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_at\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.outcome_status\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.return_pct\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.included_all_horizons\",\"passed\":true},{\"name\":\"parent_event_identity\",\"passed\":true},{\"name\":\"parent_signal_count\",\"passed\":true},{\"name\":\"parent_signal_ids_sha256\",\"passed\":true},{\"name\":\"parent_cooldown\",\"passed\":true},{\"name\":\"comparator_window\",\"passed\":true},{\"name\":\"baseline_inside_window\",\"passed\":true},{\"name\":\"signals_in_baseline\",\"passed\":true},{\"name\":\"baseline_eligible_count\",\"passed\":true},{\"name\":\"baseline_candidate_count\",\"passed\":true},{\"name\":\"baseline_exclusion_count\",\"passed\":true},{\"name\":\"nonempty_matched_population\",\"passed\":true},{\"name\":\"calendar_year_uses_trigger_close_utc\",\"passed\":true},{\"name\":\"inputs_unchanged_during_check\",\"passed\":true}],\"evidence_id\":\"51b6d8a0641fd6046f924333790e07b16285856aa45d0c8a00fb0e6dba7530ec\",\"executor_diagnostic\":\"Use horizon comparisons first, then calendar cohorts to check temporal concentration without selecting a trading filter.\",\"horizons_minutes\":[60,120,180],\"input_identity\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"baseline_signals_sha256\":\"3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"mismatches\":[],\"mode\":\"real\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"limitations\":[\"Descriptive gross close-to-close historical returns; not fills, profit, or executable P&L.\",\"Fees, spread, slippage, funding and overlapping-position constraints are omitted.\",\"All four saved horizons must be complete to include an event at any reported horizon.\",\"Preparation eligibility is inherited from the hash-bound parent packet; strategy gates are not replayed.\",\"Cohort sizes vary, calendar years may be partial, and no selection-adjusted significance or alpha is assessed.\"],\"parameters\":{\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"mode\":\"real\"},\"population_rule\":\"Saved parent IDs and preparation-eligible baseline; all-four-complete at 60/120/180/240 minutes.\",\"result_id\":\"result_61dd7c5830644de0\",\"reused_evidence\":false,\"schema\":\"btc-m5-study-evidence-v1\",\"status\":\"VERIFIED\",\"tables\":[{\"baseline_complete_n\":35712,\"baseline_mean_return_pct\":-0.01567223601019652,\"baseline_median_return_pct\":-0.0074349515535,\"baseline_n\":35712,\"baseline_positive_return_share\":0.49246751792114696,\"baseline_total_n\":35712,\"group\":\"2022\",\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"signal_complete_n\":226,\"signal_mean_return_pct\":0.008706075891190273,\"signal_median_return_pct\":-0.05869675796,\"signal_minus_baseline_pp\":0.02437831190138679,\"signal_n\":226,\"signal_positive_return_share\":0.42920353982300885,\"signal_total_n\":226},{\"baseline_complete_n\":105120,\"baseline_mean_return_pct\":0.035372844931827824,\"baseline_median_return_pct\":0.010078194282,\"baseline_n\":105120,\"baseline_positive_return_share\":0.5114821156773212,\"baseline_total_n\":105120,\"group\":\"2023\",\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"signal_complete_n\":759,\"signal_mean_return_pct\":0.01818107027871146,\"signal_median_return_pct\":-0.027755468418,\"signal_minus_baseline_pp\":-0.017191774653116363,\"signal_n\":759,\"signal_positive_return_share\":0.4743083003952569,\"signal_total_n\":759},{\"baseline_complete_n\":105408,\"baseline_mean_return_pct\":0.03163476281809426,\"baseline_median_return_pct\":0.028653816583,\"baseline_n\":105408,\"baseline_positive_return_share\":0.5213076806314512,\"baseline_total_n\":105408,\"group\":\"2024\",\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"signal_complete_n\":769,\"signal_mean_return_pct\":0.034841139496118334,\"signal_median_return_pct\":-0.016938712658,\"signal_minus_baseline_pp\":0.0032063766780240713,\"signal_n\":769,\"signal_positive_return_share\":0.48244473342002603,\"signal_total_n\":769},{\"baseline_complete_n\":105120,\"baseline_mean_return_pct\":0.0010558760952775377,\"baseline_median_return_pct\":0.01184382512,\"baseline_n\":105120,\"baseline_positive_return_share\":0.509845890410959,\"baseline_total_n\":105120,\"group\":\"2025\",\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"signal_complete_n\":695,\"signal_mean_return_pct\":-0.058345170705719415,\"signal_median_return_pct\":-0.037424531781,\"signal_minus_baseline_pp\":-0.059401046800996955,\"signal_n\":695,\"signal_positive_return_share\":0.46618705035971225,\"signal_total_n\":695},{\"baseline_complete_n\":68816,\"baseline_mean_return_pct\":-0.0013804526771686214,\"baseline_median_return_pct\":-0.001403484697,\"baseline_n\":68816,\"baseline_positive_return_share\":0.49845966054405955,\"baseline_total_n\":68816,\"group\":\"2026\",\"grouping\":\"calendar_year\",\"horizon_minutes\":180,\"signal_complete_n\":416,\"signal_mean_return_pct\":0.023411638434139428,\"signal_median_return_pct\":-0.0110317522375,\"signal_minus_baseline_pp\":0.02479209111130805,\"signal_n\":416,\"signal_positive_return_share\":0.49038461538461536,\"signal_total_n\":416}],\"task\":\"compare_m5_cohorts\",\"verification_mode\":\"real_local_data\"}",
+      "id": "result_61dd7c5830644de0",
+      "job_id": "job_25aa9215cec649e6",
+      "result_hash": "bcaec3eba6464fb98d042cabe733f44188e8b39d9af124ebf0c3448340c23d1e",
+      "status": "VERIFIED"
+    }
+  ],
+  "scope": "offline fixture or explicitly opted-in local provider; no strategy/config changes",
+  "verification": {
+    "live_model_verified": false,
+    "requested_mode": "real",
+    "result_modes": [
+      "real_local_data"
+    ]
+  }
+}

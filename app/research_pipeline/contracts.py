@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields
-from typing import Any, Mapping, Protocol
+from typing import Any, Protocol
+
+from .study_contracts import STUDY_TASKS, extend_schema, validate_study_parameters
 
 SCHEMA_VERSION = "btc-ai-pipeline-mvp-v1"
 PROPOSAL_SCHEMA = "btc-research-proposal-v1"
@@ -48,7 +51,7 @@ class VerifyM5HorizonsParameters:
     event_index: int
 
     @classmethod
-    def from_mapping(cls, value: Any) -> "VerifyM5HorizonsParameters":
+    def from_mapping(cls, value: Any) -> VerifyM5HorizonsParameters:
         if not isinstance(value, dict):
             raise ContractError("verify_m5_horizons.parameters must be an object")
         extra = sorted(set(value) - {"mode", "event_index"})
@@ -134,8 +137,12 @@ class PipelineConfig:
     horizon_packet: str | None = None
     verification_mode: str = "fixture"
     live_opt_in: bool = False
+    adaptive: bool = False
+    opencode_output_mode: str = "json_schema"
 
     def __post_init__(self) -> None:
+        if self.opencode_output_mode not in {"json_schema", "json_text"}:
+            raise ValueError("opencode_output_mode must be json_schema or json_text")
         if self.verification_mode not in {"fixture", "real"}:
             raise ValueError("verification_mode must be fixture or real")
         if self.timeout_seconds <= 0:
@@ -148,7 +155,7 @@ class PipelineConfig:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "PipelineConfig":
+    def from_dict(cls, value: Mapping[str, Any]) -> PipelineConfig:
         """Restore only persisted configuration fields, including defaults."""
 
         allowed = {item.name for item in fields(cls)}
@@ -193,13 +200,16 @@ def validate_proposal(value: Any) -> dict[str, Any]:
         raise ContractError(f"proposal.schema must be {PROPOSAL_SCHEMA!r}")
     for key in ("hypothesis", "question", "rationale", "task"):
         _require_string(obj, key, "proposal")
-    if obj["task"] != M5_VERIFICATION_TASK:
+    if obj["task"] not in (M5_VERIFICATION_TASK, *STUDY_TASKS):
         raise ContractError(f"proposal.task must be the registered identifier {M5_VERIFICATION_TASK!r}")
     _require_string_list(obj, "expected_evidence", "proposal")
     _require_string_list(obj, "invariants", "proposal")
     _require_string_list(obj, "stop_conditions", "proposal")
     _require_string_list(obj, "falsification_conditions", "proposal")
-    VerifyM5HorizonsParameters.from_mapping(obj["parameters"])
+    if obj["task"] == M5_VERIFICATION_TASK:
+        VerifyM5HorizonsParameters.from_mapping(obj["parameters"])
+    else:
+        validate_study_parameters(obj["task"], obj["parameters"])
     if "parent_result_id" in obj and obj["parent_result_id"] is not None and (not isinstance(obj["parent_result_id"], str) or not obj["parent_result_id"].strip()):
         raise ContractError("proposal.parent_result_id must be a non-empty string or null")
     allowed = set(required) | {"parent_result_id", "title"}
@@ -215,12 +225,16 @@ def validate_execution_plan(value: Any) -> dict[str, Any]:
         raise ContractError(f"execution plan.schema must be {EXECUTION_SCHEMA!r}")
     for key in ("task", "tool"):
         _require_string(obj, key, "execution plan")
-        if obj[key] != M5_VERIFICATION_TASK:
+        if obj[key] not in (M5_VERIFICATION_TASK, *STUDY_TASKS):
             raise ContractError(f"execution plan.{key} must be the registered identifier {M5_VERIFICATION_TASK!r}")
-    VerifyM5HorizonsParameters.from_mapping(obj.get("parameters"))
+    if obj["task"] == M5_VERIFICATION_TASK:
+        VerifyM5HorizonsParameters.from_mapping(obj.get("parameters"))
+    else:
+        validate_study_parameters(obj["task"], obj.get("parameters"), execution=True)
+        _require_string(obj, "diagnostic_rationale", "execution plan")
     if not isinstance(obj.get("invariants"), list) or any(not isinstance(item, str) for item in obj["invariants"]):
         raise ContractError("execution plan.invariants must be a list of strings")
-    allowed = {"schema", "task", "tool", "parameters", "invariants", "workspace_manifest"}
+    allowed = {"schema", "task", "tool", "parameters", "invariants", "workspace_manifest", "diagnostic_rationale"}
     extra = sorted(set(obj) - allowed)
     if extra:
         raise ContractError(f"execution plan has unsupported fields: {', '.join(extra)}")
@@ -278,10 +292,10 @@ def _task_identifier_schema() -> dict[str, Any]:
     }
 
 
-def proposal_schema() -> dict[str, Any]:
+def proposal_schema(*, adaptive: bool = False) -> dict[str, Any]:
     # Strict provider schemas require every property. Optional metadata uses
     # null on the wire; local validators still accept older persisted omissions.
-    return {
+    schema = {
         "type": "object",
         "additionalProperties": False,
         "required": [
@@ -304,10 +318,11 @@ def proposal_schema() -> dict[str, Any]:
             "title": {"type": ["string", "null"]},
         },
     }
+    return extend_schema(schema) if adaptive else schema
 
 
-def execution_schema() -> dict[str, Any]:
-    return {
+def execution_schema(*, adaptive: bool = False) -> dict[str, Any]:
+    schema = {
         "type": "object",
         "additionalProperties": False,
         "required": ["schema", "task", "tool", "parameters", "invariants", "workspace_manifest"],
@@ -320,9 +335,10 @@ def execution_schema() -> dict[str, Any]:
             "workspace_manifest": {"type": ["string", "null"]},
         },
     }
+    return extend_schema(schema, execution=True) if adaptive else schema
 
 
-def review_schema() -> dict[str, Any]:
+def review_schema(*, adaptive: bool = False) -> dict[str, Any]:
     # Keep the follow-up proposal schema identical to the standalone proposal
     # contract, including the closed typed-parameter object for the registered
     # tool. Local validation remains authoritative after provider output.
@@ -335,6 +351,6 @@ def review_schema() -> dict[str, Any]:
             "action": {"type": "string", "enum": ["REPAIR", "PROPOSE_NEXT", "REJECT", "STOP"]},
             "reasons": _nonempty_text_list_schema(),
             "evidence_refs": _nonempty_text_list_schema(),
-            "next_job": {"anyOf": [proposal_schema(), {"type": "null"}]},
+            "next_job": {"anyOf": [proposal_schema(adaptive=adaptive), {"type": "null"}]},
         },
     }

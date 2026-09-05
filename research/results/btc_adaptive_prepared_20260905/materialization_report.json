@@ -1,0 +1,177 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "baseline_events": 420176,
+  "baseline_rows": 1680704,
+  "checks": [
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.trigger_present",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.trigger_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.target_close_at",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.outcome_status",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.target_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.return_pct",
+      "passed": true
+    },
+    {
+      "checked_rows": 11460,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "signals.included_all_horizons",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.trigger_present",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.trigger_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.target_close_at",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.outcome_status",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.target_close_price",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.return_pct",
+      "passed": true
+    },
+    {
+      "checked_rows": 1680704,
+      "examples": [],
+      "mismatch_count": 0,
+      "name": "baseline.included_all_horizons",
+      "passed": true
+    },
+    {
+      "name": "parent_event_identity",
+      "passed": true
+    },
+    {
+      "name": "parent_signal_count",
+      "passed": true
+    },
+    {
+      "name": "parent_signal_ids_sha256",
+      "passed": true
+    },
+    {
+      "name": "parent_cooldown",
+      "passed": true
+    },
+    {
+      "name": "comparator_window",
+      "passed": true
+    },
+    {
+      "name": "baseline_inside_window",
+      "passed": true
+    },
+    {
+      "name": "signals_in_baseline",
+      "passed": true
+    },
+    {
+      "name": "baseline_eligible_count",
+      "passed": true
+    },
+    {
+      "name": "baseline_candidate_count",
+      "passed": true
+    },
+    {
+      "name": "baseline_exclusion_count",
+      "passed": true
+    },
+    {
+      "name": "nonempty_matched_population",
+      "passed": true
+    }
+  ],
+  "historical_input_sha256": {
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_15m.csv": "991fd4d1a132331bccaba6de3eddfb800505db3cfc7afcd3268720156542b58f",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_4h.csv": "729aacc845656014250ca39e22adf2e79753f8ecfeff001e3b9d5fade674f842",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169\\manifest.json": "30db2b2597666c815ebe3a9fc754e2e3c46f7203dec661c399963dca48024ec7",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169\\report.md": "02f811471f547497b4ca00dbf41e9fb5bd4d2699f2895113d6c8620e479f0bd4",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169\\signals.csv": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169\\summary.json": "c51a61d5ea2a801788d3f0b94e7fcca017ae34ee3ba8735fb38a07844f804162",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\phase1_four_year_runs\\run_20260904T084317586748Z_97d3c169\\manifest.json": "c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\phase1_four_year_runs\\run_20260904T084317586748Z_97d3c169\\report.md": "00395de3f54b88115b4304928b89d767bba837a5fd43f1d505f85567180f89d8",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\phase1_four_year_runs\\run_20260904T084317586748Z_97d3c169\\signals.csv": "8d57c786430e420c90399c44a074fa4a5e4940304d845e2d433279d382bd2140",
+    "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\phase1_four_year_runs\\run_20260904T084317586748Z_97d3c169\\summary.json": "2332987e35e049b89952ab97655f1954f3381107f491eceebbbba8d398e7da04"
+  },
+  "output_sha256": {
+    "run_20260904T084317586748Z_97d3c169\\manifest.json": "c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575",
+    "run_20260904T084317586748Z_97d3c169\\report.md": "00395de3f54b88115b4304928b89d767bba837a5fd43f1d505f85567180f89d8",
+    "run_20260904T084317586748Z_97d3c169\\signals.csv": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+    "run_20260904T084317586748Z_97d3c169\\summary.json": "2332987e35e049b89952ab97655f1954f3381107f491eceebbbba8d398e7da04",
+    "run_20260904T084448776441Z_97d3c169\\baseline.csv": "bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9",
+    "run_20260904T084448776441Z_97d3c169\\manifest.json": "806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a",
+    "run_20260904T084448776441Z_97d3c169\\report.md": "02f811471f547497b4ca00dbf41e9fb5bd4d2699f2895113d6c8620e479f0bd4",
+    "run_20260904T084448776441Z_97d3c169\\signals.csv": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+    "run_20260904T084448776441Z_97d3c169\\summary.json": "c51a61d5ea2a801788d3f0b94e7fcca017ae34ee3ba8735fb38a07844f804162"
+  },
+  "saved_summary_parity": true,
+  "schema": "btc-m5-study-materialization-v1",
+  "status": "VERIFIED"
+}
