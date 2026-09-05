@@ -1,0 +1,1933 @@
+{
+  "calendar_grid": {
+    "baseline_zero_days": 0,
+    "days": 1459,
+    "end_utc": "2026-08-27",
+    "signal_zero_days": 621,
+    "start_utc": "2022-08-30"
+  },
+  "candidates": [
+    {
+      "cohorts": [
+        {
+          "baseline_n": 35712,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.006937483966573781,
+                0.09800590075353435
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.013775033161427018,
+                0.09595765910993836
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.005945521985746135,
+                0.10564670965694122
+              ],
+              "contrast_valid_replicates": 1991,
+              "delta_ci_pp": [
+                -0.015129780012299678,
+                0.10189198744085784
+              ],
+              "delta_valid_replicates": 1991,
+              "undefined_replicates": 9,
+              "valid_replicates": 1991
+            }
+          ],
+          "contrast_pp": 0.0432245354435161,
+          "delta_pp": 0.03798523460260855,
+          "group": "2022",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.027556776521321123,
+            "max_abs_delta_change_pp": 0.03023910092985874,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 226,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 18,
+              "max_utc_week_share": 0.056451612903225805
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 17,
+              "max_utc_week_share": 0.10619469026548672
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.03543968872203384,
+                0.01064464613574726
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0436501038366113,
+                0.01063657138443226
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.035739614796045406,
+                0.010013807809172964
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.04310019840858987,
+                0.009270288764084542
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.011920375232394373,
+          "delta_pp": -0.017159676073301922,
+          "group": "2023",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.0063317848577915965,
+            "max_abs_delta_change_pp": 0.008484383255901638,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 759,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.043478260869565216
+            }
+          }
+        },
+        {
+          "baseline_n": 105408,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.014096403131339509,
+                0.033528911208334976
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.02287255427133651,
+                0.032889672538688706
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.012696716311964258,
+                0.029923683275803557
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0213370767244277,
+                0.027010316163110656
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.00930557655378057,
+          "delta_pp": 0.0040662757128730204,
+          "group": "2024",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.003229503992060954,
+            "max_abs_delta_change_pp": 0.0035971465941640694,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 769,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.01912568306010929
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.04031209362808843
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.049710550037573555,
+                0.00035391575660121696
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.057332365032247506,
+                -0.0012729173354587237
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.04899860981768602,
+                -0.0005067261981662809
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.05515781537287343,
+                -0.0037107142123753486
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.022557690367311055,
+          "delta_pp": -0.027796991208218602,
+          "group": "2025",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.0057567792338484025,
+            "max_abs_delta_change_pp": 0.00711349382243838,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 695,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.0460431654676259
+            }
+          }
+        },
+        {
+          "baseline_n": 68816,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.011642561050691851,
+                0.04381612158443353
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.018367402584410844,
+                0.039984173626739006
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.012263182391116696,
+                0.04541409862325594
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.01944946355785614,
+                0.03885440253570057
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.01601635707374304,
+          "delta_pp": 0.01077705623283549,
+          "group": "2026",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.007892269737716943,
+            "max_abs_delta_change_pp": 0.008821688267312562,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 416,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 35,
+              "max_utc_week_share": 0.029295512671471752
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 33,
+              "max_utc_week_share": 0.057692307692307696
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "calendar_year",
+        "horizon_minutes": 60
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 127872,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.02304512387375496,
+                0.026162898643064973
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03273629392372493,
+                0.025428912344727158
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.022609728585586353,
+                0.03035475125546328
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03388757341652541,
+                0.02953196310140158
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.002332522942934347,
+          "delta_pp": -0.002906777897973202,
+          "group": "DOWN",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 4,
+            "delta_sign_changes": 4,
+            "max_abs_contrast_change_pp": 0.006591744844460895,
+            "max_abs_delta_change_pp": 0.00927406925299851,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 790,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 78,
+              "max_utc_week_share": 0.015765765765765764
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 72,
+              "max_utc_week_share": 0.03670886075949367
+            }
+          }
+        },
+        {
+          "baseline_n": 119216,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.011091184053186359,
+                0.03289969465390816
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.018506446337490455,
+                0.03061782864145119
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.010554254725695773,
+                0.03220783490299327
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.019349325311340346,
+                0.02821723749011097
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.010364444510150669,
+          "delta_pp": 0.005125143669243119,
+          "group": "SIDEWAYS",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.004589758147696367,
+            "max_abs_delta_change_pp": 0.0059974744545965445,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 815,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 89,
+              "max_utc_week_share": 0.016910481814521542
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 76,
+              "max_utc_week_share": 0.04049079754601227
+            }
+          }
+        },
+        {
+          "baseline_n": 173088,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.024492304597621247,
+                0.007874329529385323
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03409866179525505,
+                0.009194455950521352
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.02375096290410242,
+                0.006125748168431588
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03227625012304645,
+                0.005497643707725757
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.00834649270306863,
+          "delta_pp": -0.013585793543976179,
+          "group": "UP",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.0027125587286970475,
+            "max_abs_delta_change_pp": 0.00505668583123766,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 1260,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 98,
+              "max_utc_week_share": 0.011647254575707155
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 93,
+              "max_utc_week_share": 0.025396825396825397
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "trend",
+        "horizon_minutes": 60
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 63936,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.07027334784551251,
+                0.0007371544428440228
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.07808448321518122,
+                -0.0017478191129997455
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.06683931712982856,
+                -0.0010594889607829314
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.07060593409479589,
+                -0.005411560945447878
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.0342474891028839,
+          "delta_pp": -0.03948678994379145,
+          "group": "HIGH",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.007820153683055116,
+            "max_abs_delta_change_pp": 0.008753168526877866,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 423,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 37,
+              "max_utc_week_share": 0.03153153153153153
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 36,
+              "max_utc_week_share": 0.07092198581560284
+            }
+          }
+        },
+        {
+          "baseline_n": 356240,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.00012777357334368844,
+                0.012129810743187303
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0133447220362086,
+                0.016451812437770042
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                6.665354539045867e-05,
+                0.012368127305806482
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.01499441913571489,
+                0.015780418213148895
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.005940712251647982,
+          "delta_pp": 0.0007014114107404329,
+          "group": "LOW",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 12,
+            "max_abs_contrast_change_pp": 0.0011409401721964637,
+            "max_abs_delta_change_pp": 0.0029877087958968714,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.005239300840907549,
+          "signal_n": 2442,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 184,
+              "max_utc_week_share": 0.005659106220525488
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 174,
+              "max_utc_week_share": 0.013513513513513514
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "volatility",
+        "horizon_minutes": 60
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 35712,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.029645413172229032,
+                0.1332754788067891
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.04181304324643255,
+                0.12790543580424396
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.033570162100612894,
+                0.133783561350047
+              ],
+              "contrast_valid_replicates": 1991,
+              "delta_ci_pp": [
+                -0.044513351529066464,
+                0.12482110144437794
+              ],
+              "delta_valid_replicates": 1991,
+              "undefined_replicates": 9,
+              "valid_replicates": 1991
+            }
+          ],
+          "contrast_pp": 0.050070891312170226,
+          "delta_pp": 0.04235716917768392,
+          "group": "2022",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.0363798767673374,
+            "max_abs_delta_change_pp": 0.039845720145533975,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 226,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 18,
+              "max_utc_week_share": 0.056451612903225805
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 17,
+              "max_utc_week_share": 0.10619469026548672
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.04713464755391924,
+                0.026002097535820452
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.05889924575005834,
+                0.024284214774581474
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.049717463155654784,
+                0.028279646488951486
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.05872931450416436,
+                0.02547032579518452
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.009932360599221503,
+          "delta_pp": -0.017646082733707807,
+          "group": "2023",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.011520606794061288,
+            "max_abs_delta_change_pp": 0.015064003970504256,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 759,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.043478260869565216
+            }
+          }
+        },
+        {
+          "baseline_n": 105408,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.015216708101615815,
+                0.06792937347284003
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.030298308737920256,
+                0.0684247712810935
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.01928972487195488,
+                0.0684614688732019
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03892066040717428,
+                0.06732325485623818
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.026489190340857626,
+          "delta_pp": 0.018775468206371323,
+          "group": "2024",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.010661860032100474,
+            "max_abs_delta_change_pp": 0.015365654788222332,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 769,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.01912568306010929
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.04031209362808843
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.0771429183918226,
+                0.0009163100194958791
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.08936285321036314,
+                -0.0027858399182717863
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.08009396128369452,
+                0.0008610447515451022
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0896752407119193,
+                -0.005007215196755476
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.03660341366999082,
+          "delta_pp": -0.044317135804477124,
+          "group": "2025",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.00761778434202166,
+            "max_abs_delta_change_pp": 0.010621518116191359,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 695,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.0460431654676259
+            }
+          }
+        },
+        {
+          "baseline_n": 68816,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.05694117263327147,
+                0.050444117097205775
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06657457623782985,
+                0.04535056733240466
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.052172129178086626,
+                0.04690995491777345
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0608494315110216,
+                0.03701800250990398
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.0023632735308016725,
+          "delta_pp": -0.010076995665287976,
+          "group": "2026",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 9,
+            "delta_sign_changes": 1,
+            "max_abs_contrast_change_pp": 0.013382795264142445,
+            "max_abs_delta_change_pp": 0.015404726699934505,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 416,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 35,
+              "max_utc_week_share": 0.029295512671471752
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 33,
+              "max_utc_week_share": 0.057692307692307696
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "calendar_year",
+        "horizon_minutes": 120
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 127872,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.05004326932967654,
+                0.03450962684384146
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06538422508428081,
+                0.036236285168689035
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.050802883808218756,
+                0.04336254033315758
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06625012263861828,
+                0.04323915611171207
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.007156396954150459,
+          "delta_pp": -0.014870119088636762,
+          "group": "DOWN",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 2,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.009640894339302587,
+            "max_abs_delta_change_pp": 0.013106737717499161,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 790,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 78,
+              "max_utc_week_share": 0.015765765765765764
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 72,
+              "max_utc_week_share": 0.03670886075949367
+            }
+          }
+        },
+        {
+          "baseline_n": 119216,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.03085002222337132,
+                0.03949215295741273
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03937361201181125,
+                0.033024304823336376
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.033154084209291355,
+                0.04378676451322513
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.046629497574920103,
+                0.037929525463222605
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.0038371320489130724,
+          "delta_pp": -0.003876590085573231,
+          "group": "SIDEWAYS",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 1,
+            "delta_sign_changes": 4,
+            "max_abs_contrast_change_pp": 0.010360863083908434,
+            "max_abs_delta_change_pp": 0.011919417243555316,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 815,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 89,
+              "max_utc_week_share": 0.016910481814521542
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 76,
+              "max_utc_week_share": 0.04049079754601227
+            }
+          }
+        },
+        {
+          "baseline_n": 173088,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.02376330807894592,
+                0.02819459169154357
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.041141439657375024,
+                0.029098829114100264
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.025141487181519075,
+                0.02724289578577567
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.04216095854423666,
+                0.02681225771465127
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.0016746091601016373,
+          "delta_pp": -0.006039112974384666,
+          "group": "UP",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 7,
+            "delta_sign_changes": 1,
+            "max_abs_contrast_change_pp": 0.003971013046090774,
+            "max_abs_delta_change_pp": 0.00802631223193102,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 1260,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 98,
+              "max_utc_week_share": 0.011647254575707155
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 93,
+              "max_utc_week_share": 0.025396825396825397
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "trend",
+        "horizon_minutes": 120
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 63936,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.1381225628493496,
+                0.0017001362885757884
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.14986273764015084,
+                -0.0036204954993276396
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.1402993063497365,
+                0.002085106293806684
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.14778260150094297,
+                -0.0012617609658195261
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.0684928316823141,
+          "delta_pp": -0.0762065538168004,
+          "group": "HIGH",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.02462485234320229,
+            "max_abs_delta_change_pp": 0.02618340650284917,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 423,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 37,
+              "max_utc_week_share": 0.03153153153153153
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 36,
+              "max_utc_week_share": 0.07092198581560284
+            }
+          }
+        },
+        {
+          "baseline_n": 356240,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.0003783257391503567,
+                0.023682873990636552
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.019728199362394862,
+                0.02818406604816071
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.00040007488071301786,
+                0.025459698661268928
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.021714150064899438,
+                0.029774465857267975
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.011872166212073498,
+          "delta_pp": 0.004158444077587194,
+          "group": "LOW",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 3,
+            "max_abs_contrast_change_pp": 0.0029625488603911634,
+            "max_abs_delta_change_pp": 0.005153000445944048,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.007713722134486303,
+          "signal_n": 2442,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 184,
+              "max_utc_week_share": 0.005659106220525488
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 174,
+              "max_utc_week_share": 0.013513513513513514
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "volatility",
+        "horizon_minutes": 120
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 35712,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.036623121553492136,
+                0.11091311413070214
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.046529692936676345,
+                0.10004993936154467
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.028849405517296353,
+                0.10022464586921837
+              ],
+              "contrast_valid_replicates": 1991,
+              "delta_ci_pp": [
+                -0.03473011242374141,
+                0.08542607591825593
+              ],
+              "delta_valid_replicates": 1991,
+              "undefined_replicates": 9,
+              "valid_replicates": 1991
+            }
+          ],
+          "contrast_pp": 0.03576911966021991,
+          "delta_pp": 0.024378311901386753,
+          "group": "2022",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 1,
+            "max_abs_contrast_change_pp": 0.033403783723657224,
+            "max_abs_delta_change_pp": 0.03648739076147071,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 226,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 18,
+              "max_utc_week_share": 0.056451612903225805
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 17,
+              "max_utc_week_share": 0.10619469026548672
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.053762922197146845,
+                0.038621141679610504
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06737957601403617,
+                0.032103879713629005
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.05101747088712197,
+                0.037346983124247606
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06113841945617645,
+                0.02671793859798108
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.00580096689428319,
+          "delta_pp": -0.017191774653116346,
+          "group": "2023",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 4,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.012807553369915719,
+            "max_abs_delta_change_pp": 0.01703090511833167,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 759,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.043478260869565216
+            }
+          }
+        },
+        {
+          "baseline_n": 105408,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.04262596645677893,
+                0.06894169361743732
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06752894217013194,
+                0.07381473133606802
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.0523076046291146,
+                0.07377154924828627
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.07979992880372945,
+                0.07534461898874587
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.014597184436857199,
+          "delta_pp": 0.0032063766780240435,
+          "group": "2024",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 1,
+            "delta_sign_changes": 3,
+            "max_abs_contrast_change_pp": 0.02229265619907982,
+            "max_abs_delta_change_pp": 0.030504069841730833,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 769,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.01912568306010929
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.04031209362808843
+            }
+          }
+        },
+        {
+          "baseline_n": 105120,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.09488990156261093,
+                -0.002142203057545394
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.10836418990784186,
+                -0.0075155167258671865
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.10043550717021597,
+                -0.004272844523251797
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.1131190333035714,
+                -0.012196941055067504
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.04801023904216384,
+          "delta_pp": -0.05940104680099699,
+          "group": "2025",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.010394583876373972,
+            "max_abs_delta_change_pp": 0.014099043754790284,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 695,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 53,
+              "max_utc_week_share": 0.019178082191780823
+            },
+            "partial_calendar_year": false,
+            "signal": {
+              "active_utc_weeks": 51,
+              "max_utc_week_share": 0.0460431654676259
+            }
+          }
+        },
+        {
+          "baseline_n": 68816,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.03658003028064521,
+                0.10971655889026322
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.05499839487658553,
+                0.10667191986253936
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.02823467754335143,
+                0.10278240121699021
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.04281447784511722,
+                0.0920279718066899
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.0361828988701412,
+          "delta_pp": 0.02479209111130804,
+          "group": "2026",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.015480888614296917,
+            "max_abs_delta_change_pp": 0.017303125387305926,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 416,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 35,
+              "max_utc_week_share": 0.029295512671471752
+            },
+            "partial_calendar_year": true,
+            "signal": {
+              "active_utc_weeks": 33,
+              "max_utc_week_share": 0.057692307692307696
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "calendar_year",
+        "horizon_minutes": 180
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 127872,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.0570281844218873,
+                0.044763063966810464
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.07805727872618667,
+                0.04291698136846259
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.05542273066245502,
+                0.050677344728147174
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.0741953698858512,
+                0.04574499438617762
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.005494095361269043,
+          "delta_pp": -0.0168849031201022,
+          "group": "DOWN",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 4,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.010266337591570236,
+            "max_abs_delta_change_pp": 0.013978481030077965,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 790,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 78,
+              "max_utc_week_share": 0.015765765765765764
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 72,
+              "max_utc_week_share": 0.03670886075949367
+            }
+          }
+        },
+        {
+          "baseline_n": 119216,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.03269759170345784,
+                0.05329902506881255
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.047978798017573314,
+                0.042312672760049824
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.03386668903357433,
+                0.054330148877763176
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.05258703641142624,
+                0.04481760771824433
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.00927992086792936,
+          "delta_pp": -0.002110886890903794,
+          "group": "SIDEWAYS",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 11,
+            "max_abs_contrast_change_pp": 0.008969072946102493,
+            "max_abs_delta_change_pp": 0.011913359013889827,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 815,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 89,
+              "max_utc_week_share": 0.016910481814521542
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 76,
+              "max_utc_week_share": 0.04049079754601227
+            }
+          }
+        },
+        {
+          "baseline_n": 173088,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.03590700839835804,
+                0.03059892473771814
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.06314792683094428,
+                0.03151960932892428
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.03664338543211297,
+                0.02939016063206523
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.062325208634220745,
+                0.03184186896781122
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.0030200495329331146,
+          "delta_pp": -0.01441085729176627,
+          "group": "UP",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 6,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.006505426656216482,
+            "max_abs_delta_change_pp": 0.014716840298867495,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 1260,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 98,
+              "max_utc_week_share": 0.011647254575707155
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 93,
+              "max_utc_week_share": 0.025396825396825397
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "trend",
+        "horizon_minutes": 180
+      }
+    },
+    {
+      "cohorts": [
+        {
+          "baseline_n": 63936,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.16020188015235712,
+                0.0009271518480988364
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.17441515780793912,
+                -0.0040225561493982985
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                -0.16000832030780673,
+                -0.002495813920810689
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.17177940959409088,
+                -0.015736794098423913
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": -0.0732866013660999,
+          "delta_pp": -0.08467740912493305,
+          "group": "HIGH",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 0,
+            "max_abs_contrast_change_pp": 0.017817498487236197,
+            "max_abs_delta_change_pp": 0.01825417939408605,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 423,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 37,
+              "max_utc_week_share": 0.03153153153153153
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 36,
+              "max_utc_week_share": 0.07092198581560284
+            }
+          }
+        },
+        {
+          "baseline_n": 356240,
+          "bootstrap": [
+            {
+              "block_days": 7,
+              "contrast_ci_pp": [
+                -0.00048735554847239887,
+                0.026791096939929013
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.03074519713128929,
+                0.03282254210756353
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            },
+            {
+              "block_days": 28,
+              "contrast_ci_pp": [
+                0.00035103980191094925,
+                0.027969903860453244
+              ],
+              "contrast_valid_replicates": 2000,
+              "delta_ci_pp": [
+                -0.034202161041639985,
+                0.033228188976054784
+              ],
+              "delta_valid_replicates": 2000,
+              "undefined_replicates": 0,
+              "valid_replicates": 2000
+            }
+          ],
+          "contrast_pp": 0.012701588867406044,
+          "delta_pp": 0.001310781108572889,
+          "group": "LOW",
+          "influence": {
+            "block_days": 28,
+            "blocks": 53,
+            "contrast_sign_changes": 0,
+            "delta_sign_changes": 14,
+            "max_abs_contrast_change_pp": 0.003007431397677068,
+            "max_abs_delta_change_pp": 0.0092568756501327,
+            "undefined_contrast_cases": 0,
+            "undefined_delta_cases": 0
+          },
+          "pooled_delta_pp": -0.011390807758833155,
+          "signal_n": 2442,
+          "support": {
+            "baseline": {
+              "active_utc_weeks": 184,
+              "max_utc_week_share": 0.005659106220525488
+            },
+            "partial_calendar_year": null,
+            "signal": {
+              "active_utc_weeks": 174,
+              "max_utc_week_share": 0.013513513513513514
+            }
+          }
+        }
+      ],
+      "parameters": {
+        "grouping": "volatility",
+        "horizon_minutes": 180
+      }
+    }
+  ],
+  "schema": "btc-research-benchmark-diagnostics-v1",
+  "settings": {
+    "block_lengths": [
+      7,
+      28
+    ],
+    "ci_quantiles": [
+      0.025,
+      0.975
+    ],
+    "influence_block_days": 28,
+    "interpretation": "post-selection descriptive",
+    "interval_note": "Descriptive percentile intervals; no selection-adjusted significance or pass/fail assessment.",
+    "method": "paired_circular_utc_day_block_bootstrap",
+    "population_rule": "included_all_horizons; report 60/120/180 minutes separately",
+    "replications": 2000,
+    "seed": 20260905,
+    "sign_change_rule": "Strict positive/negative reversals; zero is not a reversal.",
+    "undefined_replicates_rule": "Joint delta/contrast undefined count; intervals use each estimand's finite draws."
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "diagnostic_rationale": {
+      "description": "Explain why this comparison tests the hypothesis, including for a summary with fixed parameters. Never null or blank.",
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "invariants": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "event_index": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode",
+            "event_index"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "grouping": {
+              "enum": [
+                "calendar_year",
+                "trend",
+                "volatility"
+              ],
+              "type": "string"
+            },
+            "horizon_minutes": {
+              "enum": [
+                60,
+                120,
+                180
+              ],
+              "type": "integer"
+            },
+            "mode": {
+              "enum": [
+                "fixture",
+                "real"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode",
+            "horizon_minutes",
+            "grouping"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "schema": {
+      "const": "btc-research-execution-plan-v1",
+      "type": "string"
+    },
+    "task": {
+      "enum": [
+        "verify_m5_horizons",
+        "summarize_m5_horizons",
+        "compare_m5_cohorts"
+      ],
+      "type": "string"
+    },
+    "tool": {
+      "enum": [
+        "verify_m5_horizons",
+        "summarize_m5_horizons",
+        "compare_m5_cohorts"
+      ],
+      "type": "string"
+    },
+    "workspace_manifest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "task",
+    "tool",
+    "parameters",
+    "invariants",
+    "workspace_manifest",
+    "diagnostic_rationale"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,11 @@
+# Research manifests identify these immutable inputs by exact byte hash.
+research/data/**/*.csv -text
+
+# Checked studies fingerprint implementation and evidence bytes, including EOLs.
+# Keep those exact bytes on Windows, Linux and macOS checkouts.
+app/research_pipeline/*.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+btc_ai_pipeline.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+app/backtest/signal_replay_data.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+research/btc_m5_horizon_diagnostic.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+research/btc_m5_regime_review.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+research/results/btc_*_20260905/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

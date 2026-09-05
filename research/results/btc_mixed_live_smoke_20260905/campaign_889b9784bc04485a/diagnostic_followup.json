@@ -1,0 +1,17 @@
+{
+  "schema": "btc-opencode-error-diagnosis-v1",
+  "campaign_id": "campaign_889b9784bc04485a",
+  "session_id": "ses_f8fff50f5ffeBjkWm3tP9t2uIy",
+  "inspection": "Read-only local OpenCode SQLite query selecting only error name, data.message, data.statusCode and data.isRetryable; no credentials, headers or full messages exported.",
+  "provider_error": {
+    "name": "APIError",
+    "statusCode": 400,
+    "isRetryable": false,
+    "message": "Error from provider (Console Go): Upstream request failed: [invalid_request_error] only `\"auto\"` is supported for `tool_choice`. `\"none\"`, `\"required\"`, and named function choices are not currently supported"
+  },
+  "cause": "OpenCode structured-output mode forces tool choice; this Muse Spark endpoint only supports auto.",
+  "separate_message_retrieval_issue": "OpenCode 1.18.29 rejects serialized info.format during GET message response encoding. retryCount=0 is documented valid; the retrieval issue is separate from the upstream HTTP 400.",
+  "external_calls_during_diagnosis": 0,
+  "retry_performed": false,
+  "historical_failure_record_modified": false
+}

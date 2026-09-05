@@ -74,6 +74,30 @@ budgets, and the crash boundary after a review decision commits. The recovery
 regression verifies that STOP, REJECT, and REPAIR effects are restored without
 new provider calls, results, decisions, or budget reservations.
 
+The focused pipeline suite also includes `test_btc_ai_pipeline_readiness.py`
+(portable exact inputs, parent ancestry and revalidation before dispatch),
+`test_btc_ai_pipeline_opencode.py` (durable session callback, permission
+boundary, timeout abort and uncertain recovery), `test_btc_ai_pipeline_studies.py`
+(known return arithmetic, population integrity and causal cohorts),
+`test_btc_ai_pipeline_materialize.py` (reconstruction parity, source/parent
+tampering and historical preservation), and `test_btc_ai_pipeline_adaptive.py`
+(two distinct experiments, evidence-dependent selection, crash recovery, caps,
+matching schema/local rejection of null or blank study rationales, and a
+numerically identical zero-model baseline). Provider tests use mocked
+transports; study tests use compact synthetic packets. Live model runs and
+full four-year data runs are separately labelled integration evidence.
+
+`test_btc_ai_pipeline_output_mode.py` checks explicit mode validation, legacy
+config defaults, mode persistence across resume, and counting the embedded
+response schema before provider dispatch. OpenCode transport tests additionally
+cover denied tools/no forced-format in JSON-text mode, malformed response
+rejection, and bounded redaction/classification of nested assistant API errors.
+
+`test_btc_ai_pipeline_measurements.py` covers provider-specific reasoning and
+cache-write usage aliases, explicit zero versus missing coverage, canonical
+field precedence and unchanged output-token totals. Reasoning buckets are
+reported separately; the tests forbid inventing a missing total.
+
 ---
 
 ## What to Test
@@ -254,3 +278,14 @@ python -m pytest \
 - All tests should pass before merging (except known issues listed in [known-test-issues.md](known-test-issues.md))
 - No `print()` statements in test files — use `structlog` or assertions
 - Test files should be self-contained — no dependency on external state or running services
+
+The selection benchmark adds `test_btc_ai_pipeline_benchmark_source.py` for
+read-only accepted-chain provenance and tampering, `benchmark_data.py` tests for
+all-nine registered-table parity and causal-label coverage, and
+`benchmark_statistics.py` tests for separate denominators, shared paired draws,
+zero-event days, undefined support, reproducibility and independently computed
+28-day deletion effects. `test_btc_ai_pipeline_benchmark.py` exercises protocol
+freeze ordering, CLI provider bypass, output preservation, checked-table parity
+and failure after source drift. These tests use synthetic packets or local
+transport doubles and never dispatch a model. Real historical benchmark output
+is a separate research artifact, not a unit-test assertion of AI superiority.

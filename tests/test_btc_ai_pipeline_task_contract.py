@@ -9,14 +9,20 @@ from pathlib import Path
 import pytest
 
 from app.research_pipeline.contracts import (
-    ContractError, EXECUTION_SCHEMA, M5_VERIFICATION_TASK, PipelineConfig,
-    ProviderRequest, execution_schema, proposal_schema, review_schema,
-    validate_execution_plan, validate_proposal,
+    EXECUTION_SCHEMA,
+    M5_VERIFICATION_TASK,
+    ContractError,
+    PipelineConfig,
+    ProviderRequest,
+    execution_schema,
+    proposal_schema,
+    review_schema,
+    validate_execution_plan,
+    validate_proposal,
 )
 from app.research_pipeline.controller import PipelineController
 from app.research_pipeline.providers import FixtureProvider, _proposal
 from app.research_pipeline.tools import registered_tools
-
 
 ROOT = Path(__file__).resolve().parents[1]
 V2_REPORT = ROOT / "research/results/btc_ai_pipeline_live_smoke_v2/campaign_3a869ced481f44ab/report.json"
@@ -84,10 +90,13 @@ def test_proposal_schema_rejects_empty_locally_required_values(field: str, value
 
 
 def test_replayed_v2_failure_preserves_response_usage_and_attempt_link(tmp_path: Path) -> None:
+    from test_btc_ai_pipeline import real_fixture_layout
+
     rejected = saved_proposal()
     thinker = RecordingFixture("thinker", lambda request, payload: rejected)
     executor = RecordingFixture("executor")
-    controller = PipelineController(config(tmp_path, verification_mode="real"), thinkers={"fixture": thinker}, executors={"fixture": executor})
+    saved_config, _, _ = real_fixture_layout(tmp_path)
+    controller = PipelineController(saved_config, thinkers={"fixture": thinker}, executors={"fixture": executor})
     state = controller.run(controller.create_campaign())
     summary = controller.store.summary(state["campaign_id"])
     attempt = summary["attempts"][0]

@@ -144,11 +144,11 @@ has closed. These descriptive thresholds are not optimized filters. Report
 missing labels, subgroup sample sizes, and partial calendar years. Four years
 does not by itself establish a complete independent market cycle or alpha.
 
-### BTC AI research pipeline MVP
+### Bounded BTC AI research pipeline
 
 The bounded orchestration loop lives in [`app/research_pipeline/`](../../app/research_pipeline/)
 and is invoked from [`btc_ai_pipeline.py`](../../btc_ai_pipeline.py). It is
-offline-first and does not start an alpha campaign. A fixture run performs one
+offline-first. The default verification run performs one
 thinker proposal, one executor plan, deterministic verification of an existing
 M5 1h/2h/3h result, and a second thinker review. The fixed tool registry is the
 only execution surface; model shell prose is never executed. Results and
@@ -191,6 +191,19 @@ after reconciling that external provider state. One atomic job reservation is
 recorded for each actual job, including follow-ups, and a cap leaves the next
 proposal as `DEFERRED_LIMIT`.
 
+`--opencode-output-mode json_schema` is the default and asks OpenCode to enforce
+the response schema through its structured-output tool. The Muse Spark 1.3
+Contributor endpoint rejected its forced tool choice in the 2026-09-05 live
+smoke (HTTP 400; only `tool_choice=auto` supported). For that endpoint, explicitly
+select `--opencode-output-mode json_text`: the controller includes the schema in
+the prompt and counts it against the input budget, OpenCode gets no `format`
+field and all tool permissions are denied, and the returned JSON object must
+pass the same local structural and frozen-proposal checks. Provider schema
+enforcement is reported false in this mode. There is no automatic fallback or
+retry. The selected mode is stored in the campaign and restored on resume.
+Nested OpenCode errors retain bounded, redacted status/code/message details;
+headers, request bodies and raw response bodies are not recorded as diagnostics.
+
 The Codex adapter passes the supported `model_reasoning_effort` configuration
 override and owns process-group cleanup on timeout. The OpenCode adapter passes
 the fully qualified provider/model ID and requested variant through its local
@@ -199,6 +212,10 @@ Its health/catalog preflight is no-call; it does not start or stop the OpenCode
 server. Context and output budgets are controller-enforced estimates, not
 provider token caps. Reports distinguish requested model IDs from
 runtime-reported IDs and leave usage null with an explanation when unavailable.
+Supplemental usage recognizes Codex `reasoning_output_tokens` and
+`cache_write_input_tokens` as well as OpenCode's native fields. Explicit zero
+counts as reported coverage; missing values stay unknown. Supplemental reasoning
+is kept separate from output-token totals, and a missing total is not inferred.
 `live_model_verified` is false for fixtures and real-local-data runs until a
 successful non-fixture provider attempt exists. Alpha remains `NOT_ASSESSED`.
 
@@ -215,7 +232,7 @@ diagnostics. A process invocation still counts against the campaign cap even
 when the service rejects its request and reports no token usage.
 
 `task` and executor `tool` are machine identifiers constrained to the registered
-`verify_m5_horizons` constant in both provider schemas and local validation.
+`verify_m5_horizons` constant by default in both provider schemas and local validation.
 Human descriptions belong in the hypothesis/question/rationale fields. Every
 role prompt includes the registered tool's scope, typed parameters, frozen mode
 and campaign budget. Executors copy the proposal's parameters and ordered
@@ -225,6 +242,81 @@ Context-dependent validation happens before marking an attempt completed.
 An invalid response within the output budget is retained on its FAILED attempt
 with usage and linked failure details; it is never promoted to an accepted job
 or silently rewritten. Historical failed campaigns retain their original records.
+
+#### Adaptive population studies
+
+Every study execution plan requires a nonblank `diagnostic_rationale`, including
+a horizon summary with fixed parameters. Both the provider schema and the local
+validator reject null, empty or whitespace-only explanations. A rejected model
+response remains a failed attempt; the controller never fills in its rationale.
+
+`--adaptive` additionally registers `summarize_m5_horizons` and
+`compare_m5_cohorts`. The first compares signal and eligible-baseline gross
+returns at 60, 120 and 180 minutes; the second compares one horizon across UTC
+calendar years or causal trend/volatility labels. Every study preserves the
+original all-four-complete population (including the 240-minute completeness
+condition), independently checks saved returns against exact raw M5 candles,
+and checks parent IDs, comparator eligibility and H1 label availability.
+Outputs include counts, mean/median return, positive share and signal-minus-
+baseline differences. These are dependent descriptive observations; they do
+not establish net P&L, statistical significance or tradable alpha.
+
+The thinker receives the objective and an explicitly unverified saved-data
+preview, and reviews authoritative checked evidence before proposing a distinct
+follow-up. A cohort proposal may set `grouping: choose`; the executor selects
+one registered grouping and supplies a diagnostic rationale. All other
+parameters and ordered invariants remain frozen. Paths belong to the
+controller. Default adaptive caps are two jobs, three thinker calls and two
+executor calls. Ordinary follow-ups progress automatically; a failure, repair,
+uncertain attempt or budget boundary stops progression. A model may stop early.
+Study evidence is not reused from cache; its identity binds the numerical
+checker, tool, loader, horizon and regime modules.
+
+Some historical packets omit the large `baseline.csv`. The `prepare-study`
+command reconstructs this file only for the supported frozen all-bar comparator
+with zero preparation exclusions. It validates exact raw hashes, rebuilds all
+four horizons, checks the original counts and saved summary statistics, and
+writes a derived packet plus a copied parent into a new directory. Historical
+files remain intact. Parent CRLF-to-LF repair is permitted in that copy only
+when it restores the exact original manifest hash. Raw research CSVs are marked
+`-text` in `.gitattributes` so Git preserves their byte identities on Windows.
+
+```powershell
+python btc_ai_pipeline.py prepare-study --baseline-packet research/results/phase1_four_year_runs/run_20260904T084317586748Z_97d3c169 --horizon-packet research/results/m5_four_year_horizon_runs/run_20260904T084448776441Z_97d3c169 --workspace research/results/my_prepared_study
+$parentPacket = "research/results/my_prepared_study/run_20260904T084317586748Z_97d3c169"
+$horizonPacket = "research/results/my_prepared_study/run_20260904T084448776441Z_97d3c169"
+python btc_ai_pipeline.py preflight --adaptive --baseline-packet $parentPacket --horizon-packet $horizonPacket
+python btc_ai_pipeline.py run --adaptive --offline-fixture --use-saved-data --baseline-packet $parentPacket --horizon-packet $horizonPacket --db research/results/my_adaptive/pipeline.sqlite --output-dir research/results/my_adaptive
+python btc_ai_pipeline.py baseline <campaign-id> --db research/results/my_adaptive/pipeline.sqlite --output-dir research/results/my_adaptive
+```
+
+For live adaptive work, use the same packet arguments and explicit
+`--live --confirm-live` provider/model arguments instead of `--offline-fixture
+--use-saved-data`. Run provider preflight first. Existing Codex and OpenCode
+authentication remain separate; the CLI does not configure credentials.
+For installation, interactive provider connection and local server commands,
+see [OpenCode Windows setup](../03_setup_and_installation/opencode-windows.md).
+
+Preflight and every provider dispatch use the same frozen input identity and
+parent ancestry checks. Configured current dataset paths take priority over
+historical absolute manifest paths, which remain provenance. OpenCode session
+identity is committed to the attempt before message dispatch. Permissions deny
+all tools except the schema response tool `StructuredOutput`. An HTTP timeout
+attempts a bounded session abort; absent a confirmed abort, the campaign pauses
+as uncertain and ordinary resume cannot issue another call.
+
+`report.json` distinguishes any successful real-provider attempt from
+`live_loop_verified` (a checked result with real proposal, execution and review)
+and `adaptive_sequence_verified` (two distinct checked studies). Usage totals
+and cost coverage reflect provider reports; missing costs remain unknown. The
+report also includes elapsed campaign span (including pauses), timed numerical
+checks, invalid execution-plan attempts, repair decisions and token/cache
+breakdowns with reporting coverage. These are observations, not provider price
+estimates. The
+`baseline` command reruns exactly the accepted study specifications with zero
+model calls and compares tables, input identities and checker hashes. It
+measures numerical equivalence and provider overhead; it does not measure
+independent experiment-selection quality or establish monetary savings.
 
 ## Step 5: Manual Handoff
 
@@ -260,3 +352,14 @@ Monitor for at least 2-4 weeks in paper mode before considering live deployment.
 ## Step 8: Live Deployment
 
 Switch to `live` mode with conservative position sizing. See `docs/12_deployment_and_ops/deployment-checklist.md`.
+
+#### Measuring research selection quality
+
+The zero-model `benchmark` command evaluates a saved live cohort choice against
+an independently applied scripted policy. It freezes both choices before
+calculating the nine-candidate reference catalog, verifies source/artifact/input
+identity, and reports paired 7/28-day uncertainty, weekly support and 28-day
+influence. Historical AI usage, fresh scripted runtime and evaluator overhead
+remain separate. It is a retrospective descriptive pilot with no untouched
+holdout; completing it does not establish AI superiority. See the
+[selection benchmark protocol and CMD command](research-selection-benchmark.md).

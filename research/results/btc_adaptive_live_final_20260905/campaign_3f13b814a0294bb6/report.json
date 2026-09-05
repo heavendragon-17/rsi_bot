@@ -1,0 +1,363 @@
+{
+  "attempts": [
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_ms": 41934.451,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T06:12:05.454231Z",
+      "id": "attempt_1cbe280bc9d34ab0",
+      "job_id": "job_1b96748cc6ba4834",
+      "model": "gpt-5.6-sol",
+      "phase": "proposal",
+      "provider": "codex",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2264,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"high\",\"model\":\"gpt-5.6-sol\",\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"phase\":\"proposal\",\"provider\":\"codex\",\"role\":\"thinker\"}",
+      "response_json": "{\"expected_evidence\":[\"A population table for 60, 120, and 180 minutes reporting signal and eligible-baseline counts, complete counts, mean and median gross returns, positive-return shares, and signal-minus-baseline percentage-point differences.\",\"Evidence that every reported horizon uses the inherited all-four-horizon complete population, with expected signal_n=2865 and baseline_n=420176 if the preview is reproduced.\",\"Hash-bound input identity matching the frozen source, horizon-signal, horizon-baseline, and manifest artifacts.\"],\"falsification_conditions\":[\"The hypothesis is falsified if the verified signal-minus-baseline mean-return difference is nonnegative at any of 60, 120, or 180 minutes.\",\"The monotonic component is falsified unless the differences become strictly more negative from 60 to 120 to 180 minutes.\",\"The experiment is invalid rather than supportive if population completeness, counts, hashes, or frozen eligibility differ from the inherited packet.\"],\"hypothesis\":\"Within the inherited all-four-horizon complete population, BTC signals have lower mean gross close-to-close returns than the eligible baseline at 60, 120, and 180 minutes, and the signal-minus-baseline deficit becomes progressively more negative as the horizon increases.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event at every reported horizon.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this population summary now; select no cohort horizon or grouping until its result is verified.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"mode\":\"real\"},\"parent_result_id\":null,\"question\":\"Does the frozen inherited complete population show a negative signal-minus-eligible-baseline mean gross-return difference at each of 60, 120, and 180 minutes, with the deficit strictly increasing in magnitude across those horizons?\",\"rationale\":\"Establish and verify the required population-level horizon pattern before choosing a single horizon and cohort grouping for the campaign's second and final diagnostic.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"Stop and report failure if hashes, eligibility, all-four-horizon completeness, or expected population counts cannot be verified.\",\"Stop this job after producing the three fixed horizon comparisons; do not perform an unregistered analysis.\",\"Do not start or specify the cohort diagnostic unless this summary receives a VERIFIED checker result and supplies its exact result_id.\",\"Preserve the remaining one-job and one-executor-call budget for exactly one subsequent compare_m5_cohorts diagnostic.\"],\"task\":\"summarize_m5_horizons\",\"title\":\"Verify BTC 5-minute population horizon deficits\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T06:11:23.519780Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2264,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":\"controller_prompt_estimate\",\"note\":\"Codex exec has no per-call context-budget flag in the installed CLI\",\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":true,\"mechanism\":\"-c model_reasoning_effort\",\"provider_supported\":true,\"requested\":\"high\"},\"output_budget\":{\"enforced\":\"controller_response_estimate\",\"note\":\"Codex exec has no per-call output-token flag in the installed CLI\",\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"cleanup\":null,\"enforced\":true,\"owned_process_cleanup\":true,\"provider_supported\":true,\"requested_seconds\":120.0}},\"provider\":\"codex\",\"provider_usage\":{\"exit_code\":0,\"runtime\":{\"cache_write_input_tokens\":0,\"cached_input_tokens\":0,\"input_tokens\":22527,\"output_tokens\":1066,\"reasoning_output_tokens\":456},\"usage_available\":true,\"usage_note\":\"Codex turn.completed usage\"},\"reported_model\":null,\"requested_model\":\"gpt-5.6-sol\"}"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_ms": 11037.963,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T06:12:52.674599Z",
+      "id": "attempt_a2c76c014c4547b7",
+      "job_id": "job_1b96748cc6ba4834",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "phase": "execution",
+      "provider": "opencode",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2785,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"high\",\"model\":\"opencode-go/muse-spark-1.3-contributor\",\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"phase\":\"execution\",\"provider\":\"opencode\",\"provider_session\":{\"provider\":\"opencode\",\"server_url\":\"http://127.0.0.1:4096\",\"session_id\":\"ses_f8fcd5d5fffe6Q5W1Be21G3ESs\"},\"role\":\"executor\"}",
+      "response_json": "{\"diagnostic_rationale\":\"This summarize_m5_horizons with mode=real directly tests the hypothesis that within the inherited all-four-horizon complete population BTC signals have lower mean gross close-to-close returns than the eligible baseline at 60, 120, and 180 minutes with deficits becoming strictly more negative with horizon. It reproduces the frozen population table (preview signal_n=2865, baseline_n=420176, all complete) reporting signal and baseline means, medians, positive shares and signal-minus-baseline pp differences at each horizon, hash-bound to the frozen source and packet artifacts. No cohort horizon or grouping is selected now; the verified result will determine the single-horizon follow-up. Observations remain dependent descriptive gross returns, not executable P&L or alpha.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event at every reported horizon.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this population summary now; select no cohort horizon or grouping until its result is verified.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"mode\":\"real\"},\"schema\":\"btc-research-execution-plan-v1\",\"task\":\"summarize_m5_horizons\",\"tool\":\"summarize_m5_horizons\",\"workspace_manifest\":null}",
+      "role": "executor",
+      "started_at": "2026-09-05T06:12:41.636636Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2785,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":\"controller_prompt_estimate\",\"provider_flag\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":true,\"mechanism\":\"session.prompt.variant\",\"provider_supported\":true,\"reported_match\":true,\"reported_variant\":\"high\",\"requested\":\"high\"},\"output_budget\":{\"enforced\":\"controller_response_estimate\",\"provider_flag\":false,\"provider_supported\":false,\"requested\":2000},\"structured_output\":{\"local_validation\":true,\"mode\":\"json_text\",\"provider_enforced\":false},\"timeout\":{\"abort_cleanup_timeout_seconds\":5.0,\"enforced\":\"overall_http_deadline\",\"owned_process_cleanup\":false,\"provider_supported\":true,\"requested_seconds\":120.0}},\"provider\":\"opencode\",\"provider_usage\":{\"runtime\":{\"cache\":{\"read\":0,\"write\":0},\"input\":5996,\"output\":379,\"reasoning\":585,\"total\":6960},\"runtime_cost\":0.0007924,\"session_id\":\"ses_f8fcd5d5fffe6Q5W1Be21G3ESs\",\"usage_available\":true,\"usage_note\":\"OpenCode AssistantMessage.info.tokens\"},\"reported_model\":\"opencode-go/muse-spark-1.3-contributor\",\"requested_model\":\"opencode-go/muse-spark-1.3-contributor\"}"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_ms": 42264.337,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T06:14:48.484848Z",
+      "id": "attempt_57bb6562a08245c2",
+      "job_id": "job_1b96748cc6ba4834",
+      "model": "gpt-5.6-sol",
+      "phase": "review",
+      "provider": "codex",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":3395,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"high\",\"model\":\"gpt-5.6-sol\",\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"phase\":\"review\",\"provider\":\"codex\",\"role\":\"thinker\"}",
+      "response_json": "{\"action\":\"PROPOSE_NEXT\",\"evidence_refs\":[\"result_a9abdd200b0c456e\"],\"next_job\":{\"expected_evidence\":[\"A cohort table at 180 minutes reporting the executor-selected concrete grouping, signal and eligible-baseline counts, complete counts, mean and median gross returns, positive-return shares, and signal-minus-baseline percentage-point differences for every cohort.\",\"A nonblank diagnostic rationale explaining why calendar_year, trend, or volatility was selected and whether the pooled 180-minute deficit is concentrated across its cohorts.\",\"Hash-bound input identity and confirmation that the inherited all-four-horizon complete population, preparation eligibility, and controller-owned frozen inputs were preserved.\"],\"falsification_conditions\":[\"The concentration hypothesis is falsified if no cohort has a signal-minus-baseline mean-return difference more negative than the verified pooled 180-minute difference of -0.011390807758833159 percentage points.\",\"The concentration hypothesis is also falsified if no other cohort has a nonnegative signal-minus-baseline mean-return difference.\",\"The experiment is invalid rather than supportive if hashes, inherited eligibility, all-four-horizon completeness, or frozen population rules differ from the parent evidence.\"],\"hypothesis\":\"Because the verified pooled deficit is largest at 180 minutes, the executor-selected calendar-year, trend, or volatility grouping will show that this underperformance is concentrated: at least one cohort will have a signal-minus-baseline mean-return difference more negative than the pooled -0.011390807758833159 percentage points, while at least one other cohort will have a nonnegative difference.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Use horizon_minutes=180 because the verified parent result shows the largest signal-minus-baseline deficit there.\",\"Let grouping=choose select exactly one registered concrete grouping from calendar_year, trend, or volatility, with a nonblank diagnostic rationale.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this cohort comparison and no unregistered analysis.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"grouping\":\"choose\",\"horizon_minutes\":180,\"mode\":\"real\"},\"parent_result_id\":\"result_a9abdd200b0c456e\",\"question\":\"Is the verified pooled 180-minute signal deficit concentrated in particular cohorts under one diagnostically selected calendar-year, trend, or volatility grouping?\",\"rationale\":\"The verified summary reproduces the frozen population and shows increasingly negative signal-minus-baseline differences from 60 to 180 minutes, with the largest deficit at 180 minutes. The campaign's second and final study should therefore diagnose whether that pooled difference is concentrated in time or regime without implying alpha.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"Stop and report failure if hashes, eligibility, all-four-horizon completeness, or the parent-linked population cannot be verified.\",\"Stop after one concrete cohort grouping at 180 minutes; do not inspect additional groupings or horizons.\",\"This is the second and final job at the campaign cap; save and execute only this proposal, and do not propose a third job.\",\"After checker review, return a final evidence-referenced decision with next_job=null.\"],\"task\":\"compare_m5_cohorts\",\"title\":\"Diagnose concentration of the 180-minute BTC deficit\"},\"reasons\":[\"The current evidence is VERIFIED and all deterministic checks passed with no mismatches.\",\"The parent hypothesis is supported descriptively: signal-minus-baseline mean-return differences are negative at 60, 120, and 180 minutes and become strictly more negative across those horizons.\",\"The registered compare_m5_cohorts task is the required distinct second study, and 180 minutes is selected because it has the largest verified deficit.\",\"One job and one executor call remain; this proposal consumes the final job slot and must not lead to a third proposal.\",\"The verified event establishes only descriptive dependent gross-return evidence, not alpha or executable P&L.\"],\"schema\":\"btc-research-review-v1\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T06:14:06.220511Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":3395,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":\"controller_prompt_estimate\",\"note\":\"Codex exec has no per-call context-budget flag in the installed CLI\",\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":true,\"mechanism\":\"-c model_reasoning_effort\",\"provider_supported\":true,\"requested\":\"high\"},\"output_budget\":{\"enforced\":\"controller_response_estimate\",\"note\":\"Codex exec has no per-call output-token flag in the installed CLI\",\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"cleanup\":null,\"enforced\":true,\"owned_process_cleanup\":true,\"provider_supported\":true,\"requested_seconds\":120.0}},\"provider\":\"codex\",\"provider_usage\":{\"exit_code\":0,\"runtime\":{\"cache_write_input_tokens\":0,\"cached_input_tokens\":0,\"input_tokens\":23636,\"output_tokens\":1294,\"reasoning_output_tokens\":412},\"usage_available\":true,\"usage_note\":\"Codex turn.completed usage\"},\"reported_model\":null,\"requested_model\":\"gpt-5.6-sol\"}"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_ms": 11567.131,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T06:15:14.342038Z",
+      "id": "attempt_ab1722402e1d4198",
+      "job_id": "job_272403a43b6447d1",
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "phase": "execution",
+      "provider": "opencode",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2951,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"high\",\"model\":\"opencode-go/muse-spark-1.3-contributor\",\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"phase\":\"execution\",\"provider\":\"opencode\",\"provider_session\":{\"provider\":\"opencode\",\"server_url\":\"http://127.0.0.1:4096\",\"session_id\":\"ses_f8fcb365bffeyXL4XInvSNaGvh\"},\"role\":\"executor\"}",
+      "response_json": "{\"diagnostic_rationale\":\"Study context on frozen real BTC inputs shows pooled signal-minus-baseline differences increasingly negative: 60m -0.005239pp, 120m -0.007714pp, 180m -0.011390807758833159pp (signal n=2865 complete, mean 0.004100938818008029%, baseline n=420176 complete, mean 0.015491746576841187%, all-four-horizon complete). Hypothesis states the verified 180-minute pooled deficit is concentrated: at least one cohort more negative than the pooled -0.011390807758833159pp while another is nonnegative. Volatility was selected as the single registered grouping because it provides a point-in-time regime diagnostic without partial calendar-year confounding, directly testing whether the 180-minute deficit concentrates in specific volatility conditions while preserving mode=real, horizon 180, inherited eligibility, hash-bound identity, and descriptive dependent gross-return interpretation.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Use horizon_minutes=180 because the verified parent result shows the largest signal-minus-baseline deficit there.\",\"Let grouping=choose select exactly one registered concrete grouping from calendar_year, trend, or volatility, with a nonblank diagnostic rationale.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this cohort comparison and no unregistered analysis.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"grouping\":\"volatility\",\"horizon_minutes\":180,\"mode\":\"real\"},\"schema\":\"btc-research-execution-plan-v1\",\"task\":\"compare_m5_cohorts\",\"tool\":\"compare_m5_cohorts\",\"workspace_manifest\":null}",
+      "role": "executor",
+      "started_at": "2026-09-05T06:15:02.774907Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":2951,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":\"controller_prompt_estimate\",\"provider_flag\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":true,\"mechanism\":\"session.prompt.variant\",\"provider_supported\":true,\"reported_match\":true,\"reported_variant\":\"high\",\"requested\":\"high\"},\"output_budget\":{\"enforced\":\"controller_response_estimate\",\"provider_flag\":false,\"provider_supported\":false,\"requested\":2000},\"structured_output\":{\"local_validation\":true,\"mode\":\"json_text\",\"provider_enforced\":false},\"timeout\":{\"abort_cleanup_timeout_seconds\":5.0,\"enforced\":\"overall_http_deadline\",\"owned_process_cleanup\":false,\"provider_supported\":true,\"requested_seconds\":120.0}},\"provider\":\"opencode\",\"provider_usage\":{\"runtime\":{\"cache\":{\"read\":0,\"write\":0},\"input\":6111,\"output\":527,\"reasoning\":1373,\"total\":8011},\"runtime_cost\":0.0009911,\"session_id\":\"ses_f8fcb365bffeyXL4XInvSNaGvh\",\"usage_available\":true,\"usage_note\":\"OpenCode AssistantMessage.info.tokens\"},\"reported_model\":\"opencode-go/muse-spark-1.3-contributor\",\"requested_model\":\"opencode-go/muse-spark-1.3-contributor\"}"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_ms": 23553.719,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-05T06:15:57.372770Z",
+      "id": "attempt_8e55287d7dbe4d4b",
+      "job_id": "job_272403a43b6447d1",
+      "model": "gpt-5.6-sol",
+      "phase": "review",
+      "provider": "codex",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":3892,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"high\",\"model\":\"gpt-5.6-sol\",\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"phase\":\"review\",\"provider\":\"codex\",\"role\":\"thinker\"}",
+      "response_json": "{\"action\":\"STOP\",\"evidence_refs\":[\"result_f6ff9ef10a57423f\"],\"next_job\":null,\"reasons\":[\"The second and final checker result is VERIFIED, with all deterministic checks passing and no reported mismatches.\",\"The concentration hypothesis is descriptively supported: the HIGH-volatility cohort difference of -0.08467740912493296 percentage points is more negative than the pooled -0.011390807758833159 percentage points, while the LOW-volatility cohort difference is nonnegative at 0.0013107811085728734 percentage points.\",\"The frozen real-data identities, inherited eligibility, parent event population, causal regime alignment, and all-four-horizon completeness were verified.\",\"The campaign has reached both the two-job and two-executor-call caps, so no third job may be proposed.\",\"This evidence concerns dependent gross historical returns and does not establish alpha or executable P&L.\"],\"schema\":\"btc-research-review-v1\"}",
+      "role": "thinker",
+      "started_at": "2026-09-05T06:15:33.819051Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":3892,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":\"controller_prompt_estimate\",\"note\":\"Codex exec has no per-call context-budget flag in the installed CLI\",\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":true,\"mechanism\":\"-c model_reasoning_effort\",\"provider_supported\":true,\"requested\":\"high\"},\"output_budget\":{\"enforced\":\"controller_response_estimate\",\"note\":\"Codex exec has no per-call output-token flag in the installed CLI\",\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"cleanup\":null,\"enforced\":true,\"owned_process_cleanup\":true,\"provider_supported\":true,\"requested_seconds\":120.0}},\"provider\":\"codex\",\"provider_usage\":{\"exit_code\":0,\"runtime\":{\"cache_write_input_tokens\":0,\"cached_input_tokens\":16768,\"input_tokens\":24096,\"output_tokens\":423,\"reasoning_output_tokens\":216},\"usage_available\":true,\"usage_note\":\"Codex turn.completed usage\"},\"reported_model\":null,\"requested_model\":\"gpt-5.6-sol\"}"
+    }
+  ],
+  "budget": {
+    "campaign_id": "campaign_3f13b814a0294bb6",
+    "executor_calls": 2,
+    "jobs_started": 2,
+    "max_executor_calls": 2,
+    "max_jobs": 2,
+    "max_thinker_calls": 3,
+    "thinker_calls": 3,
+    "updated_at": "2026-09-05T06:15:33.812141Z"
+  },
+  "campaign": {
+    "config_json": "{\"adaptive\":true,\"baseline_packet\":\"research/results/btc_adaptive_prepared_20260905/run_20260904T084317586748Z_97d3c169\",\"context_budget\":6000,\"data_dir\":\"research/data/btc_four_year_20220828_20260828\",\"db_path\":\"research/results/btc_adaptive_live_final_20260905/pipeline.sqlite\",\"executor_effort\":\"high\",\"executor_model\":\"opencode-go/muse-spark-1.3-contributor\",\"executor_provider\":\"opencode\",\"horizon_packet\":\"research/results/btc_adaptive_prepared_20260905/run_20260904T084448776441Z_97d3c169\",\"live_opt_in\":true,\"max_executor_calls\":2,\"max_jobs\":2,\"max_thinker_calls\":3,\"opencode_output_mode\":\"json_text\",\"output_budget\":2000,\"output_dir\":\"research/results/btc_adaptive_live_final_20260905\",\"repo_root\":\".\",\"thinker_effort\":\"high\",\"thinker_model\":\"gpt-5.6-sol\",\"thinker_provider\":\"codex\",\"timeout_seconds\":120.0,\"verification_mode\":\"real\"}",
+    "context_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"baseline_packet\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084317586748Z_97d3c169\",\"data_dir\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\",\"evidence_hashes\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"h1_source_original_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"source_original_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"horizon_packet\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_prepared_20260905\\\\run_20260904T084448776441Z_97d3c169\",\"previous_decisions\":[],\"previous_failures\":[],\"question\":\"Complete exactly two bounded descriptive population studies over the frozen BTC research inputs. First use summarize_m5_horizons with mode=real to verify the 60/120/180-minute gross signal-minus-baseline comparisons while preserving the inherited all-four-horizon complete population. After VERIFIED evidence, propose one distinct compare_m5_cohorts follow-up: choose one of those horizons because of the checked first result, formulate a falsifiable concentration hypothesis, and cite the exact current result_id as parent_result_id. The follow-up may leave grouping=choose so the executor selects calendar_year, trend, or volatility and explains that diagnostic; all other parameters and ordered invariants remain frozen. Every executor plan needs a nonblank diagnostic_rationale, including the initial fixed summary. PROPOSE_NEXT requires a complete next_job object. After the second checker result return a final evidence-referenced review with next_job=null and STOP if verification passes; do not propose a third job. Respect the two-job, three-thinker-call and two-executor-call caps. Results are descriptive dependent gross returns and cannot establish alpha or executable P&L.\",\"verification_mode\":\"real\"}",
+    "created_at": "2026-09-05T06:10:42.356819Z",
+    "id": "campaign_3f13b814a0294bb6",
+    "name": "btc-adaptive-live-final",
+    "question": "Complete exactly two bounded descriptive population studies over the frozen BTC research inputs. First use summarize_m5_horizons with mode=real to verify the 60/120/180-minute gross signal-minus-baseline comparisons while preserving the inherited all-four-horizon complete population. After VERIFIED evidence, propose one distinct compare_m5_cohorts follow-up: choose one of those horizons because of the checked first result, formulate a falsifiable concentration hypothesis, and cite the exact current result_id as parent_result_id. The follow-up may leave grouping=choose so the executor selects calendar_year, trend, or volatility and explains that diagnostic; all other parameters and ordered invariants remain frozen. Every executor plan needs a nonblank diagnostic_rationale, including the initial fixed summary. PROPOSE_NEXT requires a complete next_job object. After the second checker result return a final evidence-referenced review with next_job=null and STOP if verification passes; do not propose a third job. Respect the two-job, three-thinker-call and two-executor-call caps. Results are descriptive dependent gross returns and cannot establish alpha or executable P&L.",
+    "status": "STOPPED",
+    "updated_at": "2026-09-05T06:15:57.383601Z"
+  },
+  "decisions": [
+    {
+      "action": "PROPOSE_NEXT",
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "created_at": "2026-09-05T06:14:48.508350Z",
+      "evidence_json": "{\"checker_status\":\"VERIFIED\",\"evidence_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_live_final_20260905\\\\campaign_3f13b814a0294bb6\\\\job_1b96748cc6ba4834\\\\artifacts\\\\evidence.json\",\"result_id\":\"result_a9abdd200b0c456e\",\"reused_evidence\":false,\"review_evidence_refs\":[\"result_a9abdd200b0c456e\"],\"verification_status\":\"VERIFIED\"}",
+      "id": "decision_3269fa3451b748b0",
+      "job_id": "job_1b96748cc6ba4834",
+      "next_job_id": "job_272403a43b6447d1",
+      "phase": "review",
+      "reasons_json": "[\"The current evidence is VERIFIED and all deterministic checks passed with no mismatches.\",\"The parent hypothesis is supported descriptively: signal-minus-baseline mean-return differences are negative at 60, 120, and 180 minutes and become strictly more negative across those horizons.\",\"The registered compare_m5_cohorts task is the required distinct second study, and 180 minutes is selected because it has the largest verified deficit.\",\"One job and one executor call remain; this proposal consumes the final job slot and must not lead to a third proposal.\",\"The verified event establishes only descriptive dependent gross-return evidence, not alpha or executable P&L.\"]"
+    },
+    {
+      "action": "STOP",
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "created_at": "2026-09-05T06:15:57.379200Z",
+      "evidence_json": "{\"checker_status\":\"VERIFIED\",\"evidence_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\results\\\\btc_adaptive_live_final_20260905\\\\campaign_3f13b814a0294bb6\\\\job_272403a43b6447d1\\\\artifacts\\\\evidence.json\",\"result_id\":\"result_f6ff9ef10a57423f\",\"reused_evidence\":false,\"review_evidence_refs\":[\"result_f6ff9ef10a57423f\"],\"verification_status\":\"VERIFIED\"}",
+      "id": "decision_977510d90a20406b",
+      "job_id": "job_272403a43b6447d1",
+      "next_job_id": null,
+      "phase": "review",
+      "reasons_json": "[\"The second and final checker result is VERIFIED, with all deterministic checks passing and no reported mismatches.\",\"The concentration hypothesis is descriptively supported: the HIGH-volatility cohort difference of -0.08467740912493296 percentage points is more negative than the pooled -0.011390807758833159 percentage points, while the LOW-volatility cohort difference is nonnegative at 0.0013107811085728734 percentage points.\",\"The frozen real-data identities, inherited eligibility, parent event population, causal regime alignment, and all-four-horizon completeness were verified.\",\"The campaign has reached both the two-job and two-executor-call caps, so no third job may be proposed.\",\"This evidence concerns dependent gross historical returns and does not establish alpha or executable P&L.\"]"
+    }
+  ],
+  "failures": [],
+  "jobs": [
+    {
+      "budget_reserved": 1,
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "created_at": "2026-09-05T06:10:42.426684Z",
+      "id": "job_1b96748cc6ba4834",
+      "parent_job_id": null,
+      "result_id": "result_a9abdd200b0c456e",
+      "sequence": 1,
+      "specification_hash": "abc9940842c93e231b8d8a3ebd4c55fc95b45d5c23f51fc1423760cfe759103c",
+      "specification_json": "{\"expected_evidence\":[\"A population table for 60, 120, and 180 minutes reporting signal and eligible-baseline counts, complete counts, mean and median gross returns, positive-return shares, and signal-minus-baseline percentage-point differences.\",\"Evidence that every reported horizon uses the inherited all-four-horizon complete population, with expected signal_n=2865 and baseline_n=420176 if the preview is reproduced.\",\"Hash-bound input identity matching the frozen source, horizon-signal, horizon-baseline, and manifest artifacts.\"],\"falsification_conditions\":[\"The hypothesis is falsified if the verified signal-minus-baseline mean-return difference is nonnegative at any of 60, 120, or 180 minutes.\",\"The monotonic component is falsified unless the differences become strictly more negative from 60 to 120 to 180 minutes.\",\"The experiment is invalid rather than supportive if population completeness, counts, hashes, or frozen eligibility differ from the inherited packet.\"],\"hypothesis\":\"Within the inherited all-four-horizon complete population, BTC signals have lower mean gross close-to-close returns than the eligible baseline at 60, 120, and 180 minutes, and the signal-minus-baseline deficit becomes progressively more negative as the horizon increases.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event at every reported horizon.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this population summary now; select no cohort horizon or grouping until its result is verified.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"mode\":\"real\"},\"parent_result_id\":null,\"question\":\"Does the frozen inherited complete population show a negative signal-minus-eligible-baseline mean gross-return difference at each of 60, 120, and 180 minutes, with the deficit strictly increasing in magnitude across those horizons?\",\"rationale\":\"Establish and verify the required population-level horizon pattern before choosing a single horizon and cohort grouping for the campaign's second and final diagnostic.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"Stop and report failure if hashes, eligibility, all-four-horizon completeness, or expected population counts cannot be verified.\",\"Stop this job after producing the three fixed horizon comparisons; do not perform an unregistered analysis.\",\"Do not start or specify the cohort diagnostic unless this summary receives a VERIFIED checker result and supplies its exact result_id.\",\"Preserve the remaining one-job and one-executor-call budget for exactly one subsequent compare_m5_cohorts diagnostic.\"],\"task\":\"summarize_m5_horizons\",\"title\":\"Verify BTC 5-minute population horizon deficits\"}",
+      "status": "CHECKED",
+      "updated_at": "2026-09-05T06:14:04.359073Z"
+    },
+    {
+      "budget_reserved": 1,
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "created_at": "2026-09-05T06:14:48.500202Z",
+      "id": "job_272403a43b6447d1",
+      "parent_job_id": "job_1b96748cc6ba4834",
+      "result_id": "result_f6ff9ef10a57423f",
+      "sequence": 2,
+      "specification_hash": "b0cd79f0f2f51928ea953f4cac351baba38011ddd8eca1f56111f8ca7872ac47",
+      "specification_json": "{\"expected_evidence\":[\"A cohort table at 180 minutes reporting the executor-selected concrete grouping, signal and eligible-baseline counts, complete counts, mean and median gross returns, positive-return shares, and signal-minus-baseline percentage-point differences for every cohort.\",\"A nonblank diagnostic rationale explaining why calendar_year, trend, or volatility was selected and whether the pooled 180-minute deficit is concentrated across its cohorts.\",\"Hash-bound input identity and confirmation that the inherited all-four-horizon complete population, preparation eligibility, and controller-owned frozen inputs were preserved.\"],\"falsification_conditions\":[\"The concentration hypothesis is falsified if no cohort has a signal-minus-baseline mean-return difference more negative than the verified pooled 180-minute difference of -0.011390807758833159 percentage points.\",\"The concentration hypothesis is also falsified if no other cohort has a nonnegative signal-minus-baseline mean-return difference.\",\"The experiment is invalid rather than supportive if hashes, inherited eligibility, all-four-horizon completeness, or frozen population rules differ from the parent evidence.\"],\"hypothesis\":\"Because the verified pooled deficit is largest at 180 minutes, the executor-selected calendar-year, trend, or volatility grouping will show that this underperformance is concentrated: at least one cohort will have a signal-minus-baseline mean-return difference more negative than the pooled -0.011390807758833159 percentage points, while at least one other cohort will have a nonnegative difference.\",\"invariants\":[\"Use mode=real and only the controller-owned frozen BTC inputs.\",\"Use horizon_minutes=180 because the verified parent result shows the largest signal-minus-baseline deficit there.\",\"Let grouping=choose select exactly one registered concrete grouping from calendar_year, trend, or volatility, with a nonblank diagnostic rationale.\",\"Preserve inherited preparation eligibility; do not replay or modify strategy gates.\",\"Require all four saved horizons to be complete for every included event.\",\"Keep source and packet identities hash-bound to the supplied evidence hashes.\",\"Treat observations as dependent descriptive gross returns, not executable P&L or evidence of alpha.\",\"Do not add fees, spread, slippage, funding, fills, or overlapping-position constraints.\",\"Run only this cohort comparison and no unregistered analysis.\",\"Respect the campaign limits of at most two jobs, two executor calls, and three thinker calls.\"],\"parameters\":{\"grouping\":\"choose\",\"horizon_minutes\":180,\"mode\":\"real\"},\"parent_result_id\":\"result_a9abdd200b0c456e\",\"question\":\"Is the verified pooled 180-minute signal deficit concentrated in particular cohorts under one diagnostically selected calendar-year, trend, or volatility grouping?\",\"rationale\":\"The verified summary reproduces the frozen population and shows increasingly negative signal-minus-baseline differences from 60 to 180 minutes, with the largest deficit at 180 minutes. The campaign's second and final study should therefore diagnose whether that pooled difference is concentrated in time or regime without implying alpha.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"Stop and report failure if hashes, eligibility, all-four-horizon completeness, or the parent-linked population cannot be verified.\",\"Stop after one concrete cohort grouping at 180 minutes; do not inspect additional groupings or horizons.\",\"This is the second and final job at the campaign cap; save and execute only this proposal, and do not propose a third job.\",\"After checker review, return a final evidence-referenced decision with next_job=null.\"],\"task\":\"compare_m5_cohorts\",\"title\":\"Diagnose concentration of the 180-minute BTC deficit\"}",
+      "status": "CHECKED",
+      "updated_at": "2026-09-05T06:15:33.304212Z"
+    }
+  ],
+  "live_loop_verified": true,
+  "live_model_verified": true,
+  "measurements": {
+    "adaptive_sequence_verified": true,
+    "all_attempts_have_cost": false,
+    "all_attempts_have_token_usage": true,
+    "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+    "campaign_span_seconds": 315.026782,
+    "checker_timed_results": 2,
+    "completed_provider_attempts": 5,
+    "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+    "distinct_verified_studies": 2,
+    "failed_provider_attempts": 0,
+    "failure_records": 0,
+    "fixture_attempts": 0,
+    "input_usage_attempts": 5,
+    "invalid_execution_plan_attempts": 0,
+    "live_loop_verified": true,
+    "model_provider_attempts": 5,
+    "output_usage_attempts": 5,
+    "provider_elapsed_seconds": 130.357601,
+    "recorded_checker_seconds": 90.59711690060794,
+    "repair_decisions": 0,
+    "reported_cost": 0.0017835,
+    "reported_input_tokens": 82366,
+    "reported_output_tokens": 3689,
+    "supplemental_token_usage": {
+      "cache_read": {
+        "attempts": 5,
+        "reported_tokens": 16768
+      },
+      "cache_write": {
+        "attempts": 5,
+        "reported_tokens": 0
+      },
+      "reasoning": {
+        "attempts": 5,
+        "reported_tokens": 3042
+      },
+      "total": {
+        "attempts": 2,
+        "reported_tokens": 14971
+      }
+    },
+    "verified_results": 2
+  },
+  "next_missing_capability": "Evaluate research selection quality and measured provider overhead on a fixed task set",
+  "provider_controls": {
+    "executor": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": "request_parameter",
+        "mechanism": "session.prompt.variant",
+        "provider_supported": "preflight_or_success_response",
+        "requested": "high"
+      },
+      "model": "opencode-go/muse-spark-1.3-contributor",
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "opencode",
+      "structured_output": {
+        "local_validation": true,
+        "mode": "json_text",
+        "provider_enforced": false
+      },
+      "timeout": {
+        "enforced": "overall_http_deadline",
+        "owned_process_cleanup": false,
+        "provider_supported": true
+      }
+    },
+    "thinker": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": true,
+        "provider_supported": true,
+        "requested": "high"
+      },
+      "model": "gpt-5.6-sol",
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "codex",
+      "timeout": {
+        "enforced": "owned_process_group"
+      }
+    }
+  },
+  "provider_reporting": {
+    "live_model_verified": true,
+    "model_identity_verified": false,
+    "reported_models": {
+      "attempt_1cbe280bc9d34ab0": null,
+      "attempt_57bb6562a08245c2": null,
+      "attempt_8e55287d7dbe4d4b": null,
+      "attempt_a2c76c014c4547b7": "opencode-go/muse-spark-1.3-contributor",
+      "attempt_ab1722402e1d4198": "opencode-go/muse-spark-1.3-contributor"
+    },
+    "requested_models": {
+      "executor": "opencode-go/muse-spark-1.3-contributor",
+      "thinker": "gpt-5.6-sol"
+    },
+    "successful_real_provider_attempts": [
+      {
+        "attempt_id": "attempt_1cbe280bc9d34ab0",
+        "phase": "proposal",
+        "provider": "codex",
+        "reported_model": null,
+        "requested_model": "gpt-5.6-sol",
+        "role": "thinker",
+        "usage_available": true
+      },
+      {
+        "attempt_id": "attempt_a2c76c014c4547b7",
+        "phase": "execution",
+        "provider": "opencode",
+        "reported_model": "opencode-go/muse-spark-1.3-contributor",
+        "requested_model": "opencode-go/muse-spark-1.3-contributor",
+        "role": "executor",
+        "usage_available": true
+      },
+      {
+        "attempt_id": "attempt_57bb6562a08245c2",
+        "phase": "review",
+        "provider": "codex",
+        "reported_model": null,
+        "requested_model": "gpt-5.6-sol",
+        "role": "thinker",
+        "usage_available": true
+      },
+      {
+        "attempt_id": "attempt_ab1722402e1d4198",
+        "phase": "execution",
+        "provider": "opencode",
+        "reported_model": "opencode-go/muse-spark-1.3-contributor",
+        "requested_model": "opencode-go/muse-spark-1.3-contributor",
+        "role": "executor",
+        "usage_available": true
+      },
+      {
+        "attempt_id": "attempt_8e55287d7dbe4d4b",
+        "phase": "review",
+        "provider": "codex",
+        "reported_model": null,
+        "requested_model": "gpt-5.6-sol",
+        "role": "thinker",
+        "usage_available": true
+      }
+    ]
+  },
+  "reproduction": {
+    "live_opencode_executor": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor",
+    "live_opt_in": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>",
+    "offline_fixture": "python btc_ai_pipeline.py run --offline-fixture --fixture-case stop",
+    "offline_saved_data": "python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop",
+    "preflight": "python btc_ai_pipeline.py preflight"
+  },
+  "results": [
+    {
+      "artifact_dir": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_live_final_20260905\\campaign_3f13b814a0294bb6\\job_1b96748cc6ba4834\\artifacts",
+      "cache_key": "d49b1aba1014637695d55c41d153f0bfac658a9682db184441c2ddff845e2b4e",
+      "created_at": "2026-09-05T06:14:04.357402Z",
+      "evidence_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"cache_key\":\"d49b1aba1014637695d55c41d153f0bfac658a9682db184441c2ddff845e2b4e\",\"checker_elapsed_seconds\":71.65346719976515,\"checker_sha256\":{\"btc_m5_horizon_diagnostic.py\":\"08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094\",\"btc_m5_regime_review.py\":\"dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541\",\"signal_replay_data.py\":\"d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9\",\"study_checks.py\":\"79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f\",\"study_tools.py\":\"2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca\"},\"checks\":[{\"mismatches\":[],\"name\":\"frozen_input_identity\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_present\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_at\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.outcome_status\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.return_pct\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.included_all_horizons\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_present\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_at\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.outcome_status\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.return_pct\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.included_all_horizons\",\"passed\":true},{\"name\":\"parent_event_identity\",\"passed\":true},{\"name\":\"parent_signal_count\",\"passed\":true},{\"name\":\"parent_signal_ids_sha256\",\"passed\":true},{\"name\":\"parent_cooldown\",\"passed\":true},{\"name\":\"comparator_window\",\"passed\":true},{\"name\":\"baseline_inside_window\",\"passed\":true},{\"name\":\"signals_in_baseline\",\"passed\":true},{\"name\":\"baseline_eligible_count\",\"passed\":true},{\"name\":\"baseline_candidate_count\",\"passed\":true},{\"name\":\"baseline_exclusion_count\",\"passed\":true},{\"name\":\"nonempty_matched_population\",\"passed\":true},{\"name\":\"inputs_unchanged_during_check\",\"passed\":true}],\"evidence_id\":\"22a343db0a1fb8ee46494c62f2fc111b2e2bedb1e235e7121b66912d2bec9c01\",\"executor_diagnostic\":\"This summarize_m5_horizons with mode=real directly tests the hypothesis that within the inherited all-four-horizon complete population BTC signals have lower mean gross close-to-close returns than the eligible baseline at 60, 120, and 180 minutes with deficits becoming strictly more negative with horizon. It reproduces the frozen population table (preview signal_n=2865, baseline_n=420176, all complete) reporting signal and baseline means, medians, positive shares and signal-minus-baseline pp differences at each horizon, hash-bound to the frozen source and packet artifacts. No cohort horizon or grouping is selected now; the verified result will determine the single-horizon follow-up. Observations remain dependent descriptive gross returns, not executable P&L or alpha.\",\"horizons_minutes\":[60,120,180],\"input_identity\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"baseline_signals_sha256\":\"3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"mismatches\":[],\"mode\":\"real\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"limitations\":[\"Descriptive gross close-to-close historical returns; not fills, profit, or executable P&L.\",\"Fees, spread, slippage, funding and overlapping-position constraints are omitted.\",\"All four saved horizons must be complete to include an event at any reported horizon.\",\"Preparation eligibility is inherited from the hash-bound parent packet; strategy gates are not replayed.\",\"Cohort sizes vary, calendar years may be partial, and no selection-adjusted significance or alpha is assessed.\"],\"parameters\":{\"mode\":\"real\"},\"population_rule\":\"Saved parent IDs and preparation-eligible baseline; all-four-complete at 60/120/180/240 minutes.\",\"result_id\":\"result_a9abdd200b0c456e\",\"reused_evidence\":false,\"schema\":\"btc-m5-study-evidence-v1\",\"status\":\"VERIFIED\",\"tables\":[{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.0051784910970838075,\"baseline_median_return_pct\":0.0032522411135,\"baseline_n\":420176,\"baseline_positive_return_share\":0.5050217051902061,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":60,\"signal_complete_n\":2865,\"signal_mean_return_pct\":-6.080974382373371e-05,\"signal_median_return_pct\":-0.023712242813,\"signal_minus_baseline_pp\":-0.005239300840907541,\"signal_n\":2865,\"signal_positive_return_share\":0.45968586387434557,\"signal_total_n\":2865},{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.010318990397209536,\"baseline_median_return_pct\":0.008460594795,\"baseline_n\":420176,\"baseline_positive_return_share\":0.5090485891626366,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":120,\"signal_complete_n\":2865,\"signal_mean_return_pct\":0.0026052682627232143,\"signal_median_return_pct\":-0.028007118476,\"signal_minus_baseline_pp\":-0.007713722134486322,\"signal_n\":2865,\"signal_positive_return_share\":0.46596858638743455,\"signal_total_n\":2865},{\"baseline_complete_n\":420176,\"baseline_mean_return_pct\":0.015491746576841187,\"baseline_median_return_pct\":0.01082469358,\"baseline_n\":420176,\"baseline_positive_return_share\":0.509788755188302,\"baseline_total_n\":420176,\"group\":\"ALL\",\"grouping\":\"all\",\"horizon_minutes\":180,\"signal_complete_n\":2865,\"signal_mean_return_pct\":0.004100938818008029,\"signal_median_return_pct\":-0.026338081306,\"signal_minus_baseline_pp\":-0.011390807758833159,\"signal_n\":2865,\"signal_positive_return_share\":0.4732984293193717,\"signal_total_n\":2865}],\"task\":\"summarize_m5_horizons\",\"verification_mode\":\"real_local_data\"}",
+      "id": "result_a9abdd200b0c456e",
+      "job_id": "job_1b96748cc6ba4834",
+      "result_hash": "21bd6b0879863f71852758147bf8e21bd28acbc3b904c1de3b9c4df6a9564cf1",
+      "status": "VERIFIED"
+    },
+    {
+      "artifact_dir": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_live_final_20260905\\campaign_3f13b814a0294bb6\\job_272403a43b6447d1\\artifacts",
+      "cache_key": "ac8daf5a8add812cc117d18be2fda9dc955b2fbf76a0e8eee46beb4606485923",
+      "created_at": "2026-09-05T06:15:33.302900Z",
+      "evidence_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"cache_key\":\"ac8daf5a8add812cc117d18be2fda9dc955b2fbf76a0e8eee46beb4606485923\",\"checker_elapsed_seconds\":18.943649700842798,\"checker_sha256\":{\"btc_m5_horizon_diagnostic.py\":\"08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094\",\"btc_m5_regime_review.py\":\"dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541\",\"signal_replay_data.py\":\"d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9\",\"study_checks.py\":\"79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f\",\"study_tools.py\":\"2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca\"},\"checks\":[{\"mismatches\":[],\"name\":\"frozen_input_identity\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_present\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.trigger_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_at\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.outcome_status\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.target_close_price\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.return_pct\",\"passed\":true},{\"checked_rows\":11460,\"examples\":[],\"mismatch_count\":0,\"name\":\"signals.included_all_horizons\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_present\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.trigger_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_at\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.outcome_status\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.target_close_price\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.return_pct\",\"passed\":true},{\"checked_rows\":1680704,\"examples\":[],\"mismatch_count\":0,\"name\":\"baseline.included_all_horizons\",\"passed\":true},{\"name\":\"parent_event_identity\",\"passed\":true},{\"name\":\"parent_signal_count\",\"passed\":true},{\"name\":\"parent_signal_ids_sha256\",\"passed\":true},{\"name\":\"parent_cooldown\",\"passed\":true},{\"name\":\"comparator_window\",\"passed\":true},{\"name\":\"baseline_inside_window\",\"passed\":true},{\"name\":\"signals_in_baseline\",\"passed\":true},{\"name\":\"baseline_eligible_count\",\"passed\":true},{\"name\":\"baseline_candidate_count\",\"passed\":true},{\"name\":\"baseline_exclusion_count\",\"passed\":true},{\"name\":\"nonempty_matched_population\",\"passed\":true},{\"checked_rows\":2865,\"examples\":[],\"mismatch_count\":0,\"name\":\"causal_regime_alignment\",\"passed\":true,\"population\":\"signals\"},{\"checked_rows\":420176,\"examples\":[],\"mismatch_count\":0,\"name\":\"causal_regime_alignment\",\"passed\":true,\"population\":\"baseline\"},{\"name\":\"inputs_unchanged_during_check\",\"passed\":true}],\"evidence_id\":\"d3c1371f9157ee9ad8e8eda9ec7c9521564178bab99aaf1af51d04b9c8502b55\",\"executor_diagnostic\":\"Study context on frozen real BTC inputs shows pooled signal-minus-baseline differences increasingly negative: 60m -0.005239pp, 120m -0.007714pp, 180m -0.011390807758833159pp (signal n=2865 complete, mean 0.004100938818008029%, baseline n=420176 complete, mean 0.015491746576841187%, all-four-horizon complete). Hypothesis states the verified 180-minute pooled deficit is concentrated: at least one cohort more negative than the pooled -0.011390807758833159pp while another is nonnegative. Volatility was selected as the single registered grouping because it provides a point-in-time regime diagnostic without partial calendar-year confounding, directly testing whether the 180-minute deficit concentrates in specific volatility conditions while preserving mode=real, horizon 180, inherited eligibility, hash-bound identity, and descriptive dependent gross-return interpretation.\",\"horizons_minutes\":[60,120,180],\"input_identity\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"baseline_signals_sha256\":\"3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f\",\"h1_source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_1h.csv\",\"h1_source_sha256\":\"8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2\",\"horizon_baseline_sha256\":\"bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9\",\"horizon_manifest_sha256\":\"806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"mismatches\":[],\"mode\":\"real\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\OneDrive\\\\Documents\\\\Github\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"limitations\":[\"Descriptive gross close-to-close historical returns; not fills, profit, or executable P&L.\",\"Fees, spread, slippage, funding and overlapping-position constraints are omitted.\",\"All four saved horizons must be complete to include an event at any reported horizon.\",\"Preparation eligibility is inherited from the hash-bound parent packet; strategy gates are not replayed.\",\"Cohort sizes vary, calendar years may be partial, and no selection-adjusted significance or alpha is assessed.\"],\"parameters\":{\"grouping\":\"volatility\",\"horizon_minutes\":180,\"mode\":\"real\"},\"population_rule\":\"Saved parent IDs and preparation-eligible baseline; all-four-complete at 60/120/180/240 minutes.\",\"result_id\":\"result_f6ff9ef10a57423f\",\"reused_evidence\":false,\"schema\":\"btc-m5-study-evidence-v1\",\"status\":\"VERIFIED\",\"tables\":[{\"baseline_complete_n\":63936,\"baseline_mean_return_pct\":0.016607666406873903,\"baseline_median_return_pct\":0.0156532685115,\"baseline_n\":63936,\"baseline_positive_return_share\":0.511011011011011,\"baseline_total_n\":63936,\"group\":\"HIGH\",\"grouping\":\"volatility\",\"horizon_minutes\":180,\"signal_complete_n\":423,\"signal_mean_return_pct\":-0.06806974271805906,\"signal_median_return_pct\":-0.070627574353,\"signal_minus_baseline_pp\":-0.08467740912493296,\"signal_n\":423,\"signal_positive_return_share\":0.44680851063829785,\"signal_total_n\":423},{\"baseline_complete_n\":356240,\"baseline_mean_return_pct\":0.015291467410400095,\"baseline_median_return_pct\":0.010188677512,\"baseline_n\":356240,\"baseline_positive_return_share\":0.5095693914215136,\"baseline_total_n\":356240,\"group\":\"LOW\",\"grouping\":\"volatility\",\"horizon_minutes\":180,\"signal_complete_n\":2442,\"signal_mean_return_pct\":0.01660224851897297,\"signal_median_return_pct\":-0.022441015586,\"signal_minus_baseline_pp\":0.0013107811085728734,\"signal_n\":2442,\"signal_positive_return_share\":0.47788697788697787,\"signal_total_n\":2442}],\"task\":\"compare_m5_cohorts\",\"unavailable_regime_events\":{\"baseline\":0,\"signals\":0},\"verification_mode\":\"real_local_data\"}",
+      "id": "result_f6ff9ef10a57423f",
+      "job_id": "job_272403a43b6447d1",
+      "result_hash": "60fd3caf86f41e35ab440cb4446f65ce2172427a5ccfcb3549819dd5e49401bc",
+      "status": "VERIFIED"
+    }
+  ],
+  "scope": "offline fixture or explicitly opted-in local provider; no strategy/config changes",
+  "verification": {
+    "live_model_verified": true,
+    "requested_mode": "real",
+    "result_modes": [
+      "real_local_data"
+    ]
+  }
+}

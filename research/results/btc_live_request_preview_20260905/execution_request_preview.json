@@ -1,0 +1,70 @@
+{
+  "preview_only": true,
+  "external_model_calls": 0,
+  "note": "Locally generated using fixture responses. Live model wording and campaign/result identifiers will differ under these same contracts.",
+  "role": "executor",
+  "phase": "execution",
+  "intended_live_destination": "OpenCode Go / muse-spark-1.3-contributor via local OpenCode server",
+  "prompt": "Return only a schema-valid execution plan. Set task and tool exactly to 'verify_m5_horizons'. Copy parameters and the ordered invariants array verbatim from the frozen proposal. Do not paraphrase or add paths. Use workspace_manifest=null unless a manifest actually exists. The controller executes the registered numerical tool after validating your plan. Frozen proposal, task contract and history: {\"campaign_budget\": {\"campaign_id\": \"campaign_96f66d4efe6b48c2\", \"executor_calls\": 0, \"jobs_started\": 1, \"max_executor_calls\": 1, \"max_jobs\": 1, \"max_thinker_calls\": 2, \"thinker_calls\": 1, \"updated_at\": \"2026-09-05T05:15:22.270635Z\"}, \"parameter_rules\": \"mode must equal verification_mode. event_index is a non-negative integer. Packet/source paths are supplied by the controller, not model parameters.\", \"previous_decisions\": [], \"previous_failures\": [], \"proposal\": {\"expected_evidence\": [\"source hash\", \"event identity\", \"exact target timestamps\", \"recomputed returns\", \"checker status\"], \"falsification_conditions\": [\"source identity differs\", \"target timestamp or price differs\", \"required evidence is missing\"], \"hypothesis\": \"The saved M5 event has the same exact 1h, 2h, and 3h close-to-close outcomes when recomputed from frozen candles.\", \"invariants\": [\"use frozen BTC evidence\", \"check 1h, 2h, and 3h\", \"do not change strategy or data\", \"no model shell execution\"], \"parameters\": {\"event_index\": 0, \"mode\": \"real\"}, \"question\": \"Does one frozen M5 event preserve its saved trigger identity and exact 1h/2h/3h targets under independent arithmetic?\", \"rationale\": \"A bounded identity and arithmetic check is the first safe research job; it makes no new alpha claim.\", \"schema\": \"btc-research-proposal-v1\", \"stop_conditions\": [\"stop after one bounded job\", \"stop on verified evidence or unrecoverable restriction\"], \"task\": \"verify_m5_horizons\", \"title\": \"Verify one existing BTC M5 horizon result\"}, \"registered_tasks\": [{\"description\": \"Verify one saved BTC M5 event at 1h/2h/3h with exact raw-candle targets.\", \"evidence_scope\": \"One existing M5 event: source identity, trigger identity and exact 1h/2h/3h close-to-close outcomes. No new signal replay, fills, P&L or alpha conclusion.\", \"example_parameters\": {\"event_index\": 0, \"mode\": \"real\"}, \"parameters_schema\": {\"additionalProperties\": false, \"properties\": {\"event_index\": {\"minimum\": 0, \"type\": \"integer\"}, \"mode\": {\"enum\": [\"fixture\", \"real\"], \"type\": \"string\"}}, \"required\": [\"mode\", \"event_index\"], \"type\": \"object\"}, \"task\": \"verify_m5_horizons\", \"tool\": \"verify_m5_horizons\"}], \"verification_mode\": \"real\"}",
+  "response_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema",
+      "task",
+      "tool",
+      "parameters",
+      "invariants",
+      "workspace_manifest"
+    ],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "btc-research-execution-plan-v1"
+      },
+      "task": {
+        "type": "string",
+        "const": "verify_m5_horizons",
+        "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale."
+      },
+      "tool": {
+        "type": "string",
+        "const": "verify_m5_horizons",
+        "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale."
+      },
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "event_index"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fixture",
+              "real"
+            ]
+          },
+          "event_index": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "invariants": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "workspace_manifest": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  }
+}

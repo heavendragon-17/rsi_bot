@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import sqlite3
 import subprocess
 from dataclasses import replace
@@ -11,8 +11,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import btc_ai_pipeline
 
+import app.research_pipeline.providers as providers_module
+import btc_ai_pipeline
 from app.research_pipeline.contracts import (
     EXECUTION_SCHEMA,
     PROPOSAL_SCHEMA,
@@ -22,16 +23,20 @@ from app.research_pipeline.contracts import (
     ProviderError,
     ProviderRequest,
     ProviderResponse,
+    review_schema,
     validate_execution_plan,
     validate_proposal,
     validate_review,
-    review_schema,
 )
 from app.research_pipeline.controller import PipelineController
 from app.research_pipeline.providers import CodexCLIProvider, FixtureProvider, OpenCodeProvider, _proposal
-from app.research_pipeline.tools import ToolContext, ToolRestrictionError, _expected_from_packet, _write_fixture_source, execute_registered_tool
-import app.research_pipeline.providers as providers_module
-
+from app.research_pipeline.tools import (
+    ToolContext,
+    ToolRestrictionError,
+    _expected_from_packet,
+    _write_fixture_source,
+    execute_registered_tool,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "research/results/phase1_four_year_runs/run_20260904T084317586748Z_97d3c169"
@@ -309,7 +314,8 @@ def test_status_does_not_construct_runtime_providers(tmp_path: Path) -> None:
 def test_resume_restores_persisted_provider_model_and_verification_mode(tmp_path: Path) -> None:
     thinker = CountingFixtureProvider(role="thinker")
     executor = CountingFixtureProvider(role="executor", failure="auth:execution")
-    saved = config(tmp_path, verification_mode="real", thinker_model="saved-thinker", executor_model="saved-executor")
+    saved, _, _ = real_fixture_layout(tmp_path)
+    saved = replace(saved, thinker_model="saved-thinker", executor_model="saved-executor")
     controller = PipelineController(saved, thinkers={"fixture": thinker}, executors={"fixture": executor})
     campaign = controller.create_campaign()
     first = controller.run(campaign)
@@ -613,11 +619,10 @@ def test_real_cache_rejects_changed_source_and_reuses_unchanged_inputs(tmp_path:
     assert first["status"] == "STOPPED"
     source.write_bytes(source.read_bytes() + b"\n")
     changed = controller.run(controller.create_campaign(), branch="stop")
-    assert changed["status"] == "PAUSED"
-    changed_evidence = json.loads(controller.store.result(changed["jobs"][0]["result_id"])["evidence_json"])
-    assert changed_evidence["status"] == "FAILED"
-    assert changed_evidence["reused_evidence"] is False
-    assert changed_evidence["verification_reason"] == "frozen_input_identity_mismatch"
+    assert changed["status"] == "FAILED"
+    assert changed["attempt_count"] == 0
+    assert changed["result_count"] == 0
+    assert "input identity mismatch" in changed["failures"][0]["message"]
 
 
 def test_real_cache_reuse_requires_intact_evidence_artifact(tmp_path: Path) -> None:

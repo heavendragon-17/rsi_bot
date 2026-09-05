@@ -1,0 +1,80 @@
+{
+  "campaign_id": "campaign_9836b4485ba94d72",
+  "campaign_measurements": {
+    "adaptive_sequence_verified": true,
+    "all_attempts_have_cost": false,
+    "all_attempts_have_token_usage": false,
+    "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+    "campaign_span_seconds": 115.029957,
+    "checker_timed_results": 0,
+    "completed_provider_attempts": 0,
+    "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+    "distinct_verified_studies": 2,
+    "failed_provider_attempts": 0,
+    "failure_records": 0,
+    "fixture_attempts": 5,
+    "input_usage_attempts": 0,
+    "invalid_plan_attempts": 0,
+    "live_loop_verified": false,
+    "model_provider_attempts": 0,
+    "output_usage_attempts": 0,
+    "provider_elapsed_seconds": 0.0,
+    "recorded_checker_seconds": null,
+    "repair_decisions": 0,
+    "reported_cost": null,
+    "reported_input_tokens": null,
+    "reported_output_tokens": null,
+    "supplemental_token_usage": {
+      "cache_read": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "cache_write": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "reasoning": {
+        "attempts": 0,
+        "reported_tokens": null
+      },
+      "total": {
+        "attempts": 0,
+        "reported_tokens": null
+      }
+    },
+    "verified_results": 2
+  },
+  "elapsed_seconds": 54.90800400078297,
+  "jobs": [
+    {
+      "elapsed_seconds": 26.01320300064981,
+      "job_id": "job_d247a23429a944e6",
+      "parameters": {
+        "mode": "real"
+      },
+      "same_evidence": true,
+      "status": "VERIFIED",
+      "task": "summarize_m5_horizons"
+    },
+    {
+      "elapsed_seconds": 28.894801000133157,
+      "job_id": "job_549332147d1f4ead",
+      "parameters": {
+        "grouping": "calendar_year",
+        "horizon_minutes": 180,
+        "mode": "real"
+      },
+      "same_evidence": true,
+      "status": "VERIFIED",
+      "task": "compare_m5_cohorts"
+    }
+  ],
+  "limitations": [
+    "Measures numerical equivalence and orchestration overhead, not independent hypothesis-selection quality.",
+    "This local run does not establish monetary savings; provider costs may be unavailable."
+  ],
+  "provider_calls": 0,
+  "schema": "btc-research-baseline-v1",
+  "selection_policy": "Replay the campaign's accepted experimental specifications without a model.",
+  "status": "MATCHED"
+}

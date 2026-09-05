@@ -28,6 +28,11 @@ pre-commit install
 
 Run the same core checks manually:
 
+The allowed application domains include `app/research_pipeline/`. Its direct
+imports cannot reach `app.trading`, `app.api` or `app.notification`; it executes
+only registered offline research tools and shares the standard file/class
+size, syntax and logging checks.
+
 ```bash
 pre-commit run --all-files
 python scripts/arch_lint.py

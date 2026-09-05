@@ -1,0 +1,135 @@
+{
+  "campaign_id": "campaign_3f13b814a0294bb6",
+  "candidate_space": [
+    {
+      "grouping": "calendar_year",
+      "horizon_minutes": 60
+    },
+    {
+      "grouping": "trend",
+      "horizon_minutes": 60
+    },
+    {
+      "grouping": "volatility",
+      "horizon_minutes": 60
+    },
+    {
+      "grouping": "calendar_year",
+      "horizon_minutes": 120
+    },
+    {
+      "grouping": "trend",
+      "horizon_minutes": 120
+    },
+    {
+      "grouping": "volatility",
+      "horizon_minutes": 120
+    },
+    {
+      "grouping": "calendar_year",
+      "horizon_minutes": 180
+    },
+    {
+      "grouping": "trend",
+      "horizon_minutes": 180
+    },
+    {
+      "grouping": "volatility",
+      "horizon_minutes": 180
+    }
+  ],
+  "code_sha256": {
+    "app/backtest/signal_replay_data.py": "d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9",
+    "app/research_pipeline/__init__.py": "5157b02eedb15d8a83900a671d357f535b874089f774dad68ffad2d6d4d5e4b0",
+    "app/research_pipeline/adaptive.py": "ea8111ca52c193ac5eb23a9e37e8b80fc95a821afaa2d6da70dcda6c7badf388",
+    "app/research_pipeline/adaptive_fixture.py": "fd7dfbfb1dac23f86cf5f9b5f2aaf9708e69ba159c5ee03f7169b1481de4a988",
+    "app/research_pipeline/benchmark.py": "fe9226f23d1535fd4328e72a22e5cbdfd7ab9c0d761871c231741960394adae8",
+    "app/research_pipeline/benchmark_data.py": "b3929f49f5c3cbd8622b413af3453eef45654519566a6f8d08adfbe1ec604a31",
+    "app/research_pipeline/benchmark_reporting.py": "efb87aef567ce37ddc76902e822909c13159b52e6a8f533dcbc255d1f22592e8",
+    "app/research_pipeline/benchmark_source.py": "6a41f14b2591500e732f7e9cfb17ce63fcfded1334d83240f8c98e79deb1db7b",
+    "app/research_pipeline/benchmark_statistics.py": "139482ac61736a6ba42972a5541008ae5deeb776986c23cccaf1ad1797e9afa4",
+    "app/research_pipeline/contracts.py": "19dec65f71dd0fdc895b3d3cebb243f52a6026b5c29d351d9a09c13b92c04531",
+    "app/research_pipeline/controller.py": "5c83bab2449980909bbb3eb1ac5078c0ffa5af2535843a97ce486d7f2fdffe89",
+    "app/research_pipeline/controller_context.py": "299faf8b4be9f4ceecba79e1e03741c5344d2b2666fad30d1dbd1127035e0f0c",
+    "app/research_pipeline/controller_reporting.py": "72ce3fcfc35d7eb35f800f0693502bd4af40bb07a805633c6d668020b7983622",
+    "app/research_pipeline/controller_runtime.py": "e0f4819e802bb99473812aacd0d6154119fc0417b459fe716cd413294f6235e4",
+    "app/research_pipeline/controller_utils.py": "1b76dbffaea9cdd9a0cd50acc3d2f9e27a77bac14dab5e911a8445705ffa818a",
+    "app/research_pipeline/inputs.py": "1634668cf87eb924ba9c328d7e759925529bf44b029ee65ebef33735c1861b30",
+    "app/research_pipeline/measurements.py": "de8c3a029f36241d7dfa13fc229ca8c68984f344373811927c6d8bd0cdc519c4",
+    "app/research_pipeline/opencode_provider.py": "ce665bd1d94d9a6fe864011ea3400e9a6cab94ffcd9603293126e8564d665331",
+    "app/research_pipeline/provider_diagnostics.py": "9f02fcc4b9ce01824dc741449dbb17bfca7ee77ae0aa6b2c00f42c77b13e5bb8",
+    "app/research_pipeline/providers.py": "be8bd9f7121c4a807dc312d28b940f7e931cd24f7507cb6139b301adfb086a36",
+    "app/research_pipeline/readiness.py": "c3719cfd2b4be16d3456ed58592830c1dffde8c972858e120afebe6e721826c8",
+    "app/research_pipeline/storage.py": "683d2d4efb55d25fb136c5845f266fe0dce7c5b01d65baa090a6e0320803fbbc",
+    "app/research_pipeline/study_checks.py": "79b4cd267ea78664ccd23c3452fbe7187fea7ecd6258928b498fb8d81654192f",
+    "app/research_pipeline/study_contracts.py": "141d349c9a54e33cfb81fc54aaf6641bd392ff3a5b25a58a833e336af50039bc",
+    "app/research_pipeline/study_materialize.py": "5351f6c752f7ebe2a0fc064cf0c08b47849a23cecd3efa6ae616edeaf6b3bd29",
+    "app/research_pipeline/study_tools.py": "2c2dc26a78522f7ced95900c9d6a20dc6af57d8f5b4bd966ce8bf7b92d36f3ca",
+    "app/research_pipeline/tools.py": "4e2a65b11a43a59560b2bf5e43248413496c8c27463f3122b197a4a47be44621",
+    "btc_ai_pipeline.py": "e2f1ee844acce6548db6013e2e6fd02d956b8d33056be6b60159f0cb29893975",
+    "research/btc_m5_horizon_diagnostic.py": "08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094",
+    "research/btc_m5_regime_review.py": "dcc52228b9d03554689d55ce08f864fe41e3fc214051016da9bda9bd8dd4b541"
+  },
+  "created_at": "2026-09-05T06:54:53.281136+00:00",
+  "decision_rule": "BENEFIT_NOT_ESTABLISHED: one exposed choice cannot establish general selection or cost superiority.",
+  "input_identity": {
+    "baseline_manifest_sha256": "c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575",
+    "baseline_signals_sha256": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+    "h1_source_path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv",
+    "h1_source_sha256": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+    "horizon_baseline_sha256": "bff89b3807f97c0fb34256a4c96e9bac256088ded930de3ad2727a0703b0fab9",
+    "horizon_manifest_sha256": "806f0adda716878e4090fb1a1b54fa37289be4796171d491c5de25ec4851a22a",
+    "horizon_signals_sha256": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+    "mismatches": [],
+    "mode": "real",
+    "source_path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+    "source_sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d"
+  },
+  "interpretation": "Retrospective post-selection descriptive pilot; AI already saw this historical dataset. No untouched holdout.",
+  "new_provider_call_cap": 0,
+  "policies": {
+    "ai": {
+      "grouping": "volatility",
+      "horizon_minutes": 180,
+      "mode": "real"
+    },
+    "scripted": {
+      "grouping": "calendar_year",
+      "horizon_minutes": 180,
+      "mode": "real"
+    }
+  },
+  "population": "Original all-four-horizon complete events with separate signal and baseline denominators.",
+  "runtime_versions": {
+    "numpy": "2.2.6",
+    "pandas": "3.0.1"
+  },
+  "schema": "btc-selection-benchmark-protocol-v1",
+  "scripted_rule": "Maximum absolute checked pooled gap; smaller horizon wins ties; fixed calendar_year grouping.",
+  "source_artifacts": [
+    {
+      "path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_live_final_20260905\\campaign_3f13b814a0294bb6\\job_1b96748cc6ba4834\\artifacts\\evidence.json",
+      "result_id": "result_a9abdd200b0c456e",
+      "sha256": "645cd740b01ea16a4db65d8b49f7c2cdae97136caa3fdefbff7fab7b7ceedc7b"
+    },
+    {
+      "path": "C:\\Users\\hkpug\\OneDrive\\Documents\\Github\\rsi_bot\\research\\results\\btc_adaptive_live_final_20260905\\campaign_3f13b814a0294bb6\\job_272403a43b6447d1\\artifacts\\evidence.json",
+      "result_id": "result_f6ff9ef10a57423f",
+      "sha256": "74dc041fbb5dd0fa5dbdabff56e39d8c26e499c512752680de0f9a55c1651223"
+    }
+  ],
+  "source_hash": "95d094cc5a9c08ed0e0d754e0d9622a8297e36ac96f2c824e5da0aacbd14a396",
+  "statistics": {
+    "block_lengths": [
+      7,
+      28
+    ],
+    "influence_block_days": 28,
+    "interval_quantiles": [
+      0.025,
+      0.975
+    ],
+    "replications": 2000,
+    "seed": 20260905
+  }
+}

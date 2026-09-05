@@ -1,0 +1,106 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expected_evidence": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "falsification_conditions": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "hypothesis": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "invariants": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "event_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "fixture",
+            "real"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "event_index"
+      ],
+      "type": "object"
+    },
+    "parent_result_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "rationale": {
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "schema": {
+      "const": "btc-research-proposal-v1",
+      "type": "string"
+    },
+    "stop_conditions": {
+      "items": {
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "task": {
+      "const": "verify_m5_horizons",
+      "description": "Exact registered task identifier. Put the natural-language description in question, hypothesis, or rationale.",
+      "type": "string"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "hypothesis",
+    "question",
+    "rationale",
+    "expected_evidence",
+    "task",
+    "parameters",
+    "invariants",
+    "stop_conditions",
+    "falsification_conditions",
+    "parent_result_id",
+    "title"
+  ],
+  "type": "object"
+}

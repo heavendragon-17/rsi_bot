@@ -5,10 +5,11 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -16,7 +17,7 @@ from app.backtest import btc_research_phase1 as phase1
 from app.backtest.signal_replay_data import load_ohlcv_csv
 from research import btc_m5_horizon_diagnostic as horizon_diagnostic
 
-from .contracts import ContractError, M5_VERIFICATION_TASK, VerifyM5HorizonsParameters, object_hash
+from .contracts import M5_VERIFICATION_TASK, ContractError, VerifyM5HorizonsParameters, object_hash
 
 
 class ToolRestrictionError(ValueError):
@@ -313,8 +314,17 @@ class RegisteredTool:
     execute: Callable[[dict[str, Any], ToolContext], dict[str, Any]]
 
 
-def registered_tools() -> dict[str, RegisteredTool]:
-    return {M5_VERIFICATION_TASK: RegisteredTool(M5_VERIFICATION_TASK, "Verify one saved BTC M5 event at 1h/2h/3h with exact raw-candle targets.", verify_m5_horizons)}
+def registered_tools(*, adaptive: bool = False) -> dict[str, RegisteredTool]:
+    tools = {M5_VERIFICATION_TASK: RegisteredTool(M5_VERIFICATION_TASK, "Verify one saved BTC M5 event at 1h/2h/3h with exact raw-candle targets.", verify_m5_horizons)}
+    if adaptive:
+        from functools import partial
+
+        from .study_contracts import STUDY_TASKS
+        from .study_tools import execute_study_tool
+
+        for task in STUDY_TASKS:
+            tools[task] = RegisteredTool(task, "Checked M5 population research over frozen data.", partial(execute_study_tool, task))
+    return tools
 
 
 def execute_registered_tool(name: str, params: dict[str, Any], context: ToolContext) -> dict[str, Any]:

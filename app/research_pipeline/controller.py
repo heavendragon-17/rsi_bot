@@ -3,33 +3,37 @@
 from __future__ import annotations
 
 import json
-import math
-import uuid
+from collections.abc import Callable, Mapping
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any
 
+from .adaptive import AdaptiveSupport
+from .adaptive_fixture import AdaptiveFixtureProvider
 from .contracts import (
+    M5_VERIFICATION_TASK,
     BudgetExceededError,
     ContractError,
-    M5_VERIFICATION_TASK,
     PipelineConfig,
     Provider,
     ProviderError,
-    ProviderRequest,
-    ProviderResponse,
-    VerifyM5HorizonsParameters,
     canonical_json,
+    execution_schema,
     object_hash,
     proposal_schema,
     review_schema,
-    execution_schema,
     validate_execution_plan,
     validate_proposal,
     validate_review,
 )
-from .providers import FixtureProvider, provider_from_config, preflight_provider
+from .controller_reporting import CampaignReporting
+from .controller_runtime import ProviderRuntime
+from .controller_utils import _id
+from .inputs import resolve_inputs, validate_inputs
+from .providers import FixtureProvider, provider_from_config
+from .readiness import preflight as preflight
 from .storage import PipelineStore
+from .study_contracts import STUDY_TASKS
 from .tools import (
     ToolContext,
     ToolInputAccessError,
@@ -46,35 +50,7 @@ DEFAULT_HORIZON = "research/results/m5_four_year_horizon_runs/run_20260904T08444
 TERMINAL_STATUSES = {"STOPPED", "REJECTED", "COMPLETED", "LIMIT_REACHED", "FAILED", "BUDGET_EXHAUSTED"}
 
 
-def _id(prefix: str) -> str:
-    return f"{prefix}_{uuid.uuid4().hex[:16]}"
-
-
-def _hash_if_file(path: str | None) -> str | None:
-    if not path:
-        return None
-    candidate = Path(path)
-    try:
-        if not candidate.is_file():
-            return None
-        import hashlib
-
-        digest = hashlib.sha256()
-        with candidate.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
-    except OSError:
-        return None
-
-
-def _estimate_tokens(value: str) -> int:
-    """Use a conservative local estimate for controller-owned size gates."""
-
-    return max(1, math.ceil(len(value.encode("utf-8")) / 4))
-
-
-class PipelineController:
+class PipelineController(AdaptiveSupport, ProviderRuntime, CampaignReporting):
     """Orchestrate one bounded research job with durable state transitions."""
 
     def __init__(
@@ -106,44 +82,32 @@ class PipelineController:
         providers = self.thinkers if role == "thinker" else self.executors
         provider = providers.get(provider_name)
         if provider is None:
-            provider = self.provider_factory(provider_name, role=role, model=self.config.thinker_model if role == "thinker" else self.config.executor_model, repo_root=self.repo_root)
+            if provider_name == "fixture" and self.config.adaptive:
+                provider = AdaptiveFixtureProvider(role=role)
+            else:
+                provider = self.provider_factory(provider_name, role=role, model=self.config.thinker_model if role == "thinker" else self.config.executor_model, repo_root=self.repo_root)
             providers[provider_name] = provider
         return provider
 
     def create_campaign(self, *, name: str = "btc-ai-mvp", question: str = "Independently verify one existing BTC M5 1h/2h/3h result.") -> str:
+        if self.config.adaptive and question == "Independently verify one existing BTC M5 1h/2h/3h result.":
+            question = "Compare BTC M5 gross signal and eligible-baseline outcomes, then use verified evidence to investigate concentration across time or point-in-time regimes."
         campaign_id = _id("campaign")
-        data_dir = self._repo_path(self.config.data_dir) if self.config.data_dir else self.repo_root / "research" / "data" / "btc_four_year_20220828_20260828"
-        baseline_packet = self._repo_path(self.config.baseline_packet) if self.config.baseline_packet else self.repo_root / DEFAULT_BASELINE
-        horizon_packet = self._repo_path(self.config.horizon_packet) if self.config.horizon_packet else self.repo_root / DEFAULT_HORIZON
-        horizon_manifest = self._read_optional_json(horizon_packet / "manifest.json")
-        source_info = horizon_manifest.get("inputs", {}).get("files", {}).get("5m", {}) if isinstance(horizon_manifest, dict) else {}
-        source_path = source_info.get("path") if isinstance(source_info, dict) else None
-        if isinstance(source_path, str) and not Path(source_path).is_absolute():
-            source_path = str(self._repo_path(source_path))
-        evidence_hashes = {
-            "baseline_manifest_sha256": _hash_if_file(str(baseline_packet / "manifest.json")),
-            "horizon_manifest_sha256": _hash_if_file(str(horizon_packet / "manifest.json")),
-            "horizon_signals_sha256": _hash_if_file(str(horizon_packet / "signals.csv")),
-            # The manifest value is the frozen expected source identity. The
-            # checker also hashes the currently readable source before reuse.
-            "source_sha256": source_info.get("sha256") if isinstance(source_info, dict) else None,
-            "source_path": source_path,
-        }
-        context = {
-            "question": question,
-            "data_dir": str(data_dir),
-            "baseline_packet": str(baseline_packet),
-            "horizon_packet": str(horizon_packet),
-            "verification_mode": self.config.verification_mode,
-            "evidence_hashes": evidence_hashes,
-            "previous_decisions": [],
-            "previous_failures": [],
-            "alpha_assessment": "NOT_ASSESSED",
-        }
+        context = {"question": question, **resolve_inputs(self.config),
+                   "previous_decisions": [], "previous_failures": [], "alpha_assessment": "NOT_ASSESSED"}
         self.store.create_campaign(campaign_id, name, question, self.config.as_dict(), context)
         return campaign_id
 
     def run(self, campaign_id: str, *, branch: str | None = None, reconcile_uncertain: bool = False) -> dict[str, Any]:
+        """Advance ordinary adaptive jobs without exceeding persisted reservations."""
+        for _ in range(self.config.max_jobs + 1):
+            state = self._run_one(campaign_id, branch=branch, reconcile_uncertain=reconcile_uncertain)
+            reconcile_uncertain = False
+            if not self.config.adaptive or state["status"] != "RUNNING":
+                return state
+        return state
+
+    def _run_one(self, campaign_id: str, *, branch: str | None = None, reconcile_uncertain: bool = False) -> dict[str, Any]:
         campaign = self.store.campaign(campaign_id)
         status = campaign["status"]
         if status in TERMINAL_STATUSES:
@@ -162,6 +126,8 @@ class PipelineController:
                 return self.status(campaign_id)
 
             jobs = self.store.jobs(campaign_id)
+            if not jobs:
+                validate_inputs(self.store.context(campaign_id), self.repo_root, self.output_dir / campaign_id)
             job = self._propose_initial(campaign_id) if not jobs else self._next_incomplete_job(jobs)
             if job is None:
                 if any(row["status"] == "DEFERRED_LIMIT" for row in jobs):
@@ -247,145 +213,11 @@ class PipelineController:
                 return job
         return None
 
-    def _provider_call(
-        self,
-        campaign_id: str,
-        job_id: str,
-        *,
-        role: str,
-        phase: str,
-        prompt: str,
-        schema: dict[str, Any],
-        metadata: dict[str, Any],
-        validator: Callable[[Any], dict[str, Any]],
-    ) -> dict[str, Any]:
-        provider_name = self.config.thinker_provider if role == "thinker" else self.config.executor_provider
-        model = self.config.thinker_model if role == "thinker" else self.config.executor_model
-        provider = self._provider(role)
-        input_tokens_estimate = _estimate_tokens(prompt)
-        if input_tokens_estimate > self.config.context_budget:
-            raise ProviderError(
-                "provider request exceeds the controller context budget",
-                kind="context_budget_exceeded",
-                details={"requested": self.config.context_budget, "estimated": input_tokens_estimate, "provider_call_performed": False},
-            )
-        try:
-            self.store.reserve_call(campaign_id, role)
-        except RuntimeError as exc:
-            error = BudgetExceededError(role)
-            error.job_id = job_id
-            self.store.set_campaign_status(campaign_id, "BUDGET_EXHAUSTED")
-            raise error from exc
-        attempt_id = _id("attempt")
-        schema_dir = self.output_dir / campaign_id / "schemas"
-        schema_dir.mkdir(parents=True, exist_ok=True)
-        schema_path = schema_dir / f"{phase}.json"
-        schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        controller_limits = {
-            "context_budget": {"requested": self.config.context_budget, "enforced": "prompt_utf8_estimate", "estimated_input_tokens": input_tokens_estimate},
-            "output_budget": {"requested": self.config.output_budget, "enforced": "response_utf8_estimate"},
-        }
-        request = ProviderRequest(
-            role=role,
-            phase=phase,
-            prompt=prompt,
-            schema=schema,
-            model=model,
-            effort=self.config.thinker_effort if role == "thinker" else self.config.executor_effort,
-            timeout_seconds=self.config.timeout_seconds,
-            context_budget=self.config.context_budget,
-            output_budget=self.config.output_budget,
-            metadata={**metadata, "schema_path": str(schema_path), "controller_limits": controller_limits},
-        )
-        self.store.create_attempt(
-            attempt_id,
-            campaign_id,
-            job_id,
-            role,
-            phase,
-            provider_name,
-            model,
-            {
-                "phase": phase,
-                "role": role,
-                "provider": provider_name,
-                "model": model,
-                "effort": request.effort,
-                "context_budget": request.context_budget,
-                "output_budget": request.output_budget,
-                "controller_limits": controller_limits,
-            },
-        )
-        response: ProviderResponse | None = None
-        provider_invoked = False
-        try:
-            provider_invoked = True
-            response = provider.complete(request)
-            if not isinstance(response, ProviderResponse):
-                raise ProviderError("provider returned an invalid response object", kind="provider_contract")
-            output_tokens_estimate = _estimate_tokens(canonical_json(response.payload))
-            if output_tokens_estimate > self.config.output_budget:
-                raise ProviderError(
-                    "provider response exceeds the controller output budget",
-                    kind="output_budget_exceeded",
-                    details={"requested": self.config.output_budget, "estimated": output_tokens_estimate, "provider_call_performed": True},
-                )
-            payload = validator(response.payload)
-        except (ProviderError, ContractError, TypeError, ValueError, OSError) as caught:
-            if isinstance(caught, ProviderError):
-                error = caught
-            elif isinstance(caught, ContractError):
-                error = ProviderError(str(caught), kind="malformed_json", details={"provider_call_performed": provider_invoked})
-            else:
-                error = self._as_provider_error(caught)
-                error.details["provider_call_performed"] = provider_invoked
-            error.attempt_id = attempt_id
-            error.job_id = job_id
-            error.details.setdefault("provider_call_performed", provider_invoked)
-            usage = self._usage_record(request, response) if response is not None else None
-            rejected_payload = None
-            if isinstance(response, ProviderResponse) and isinstance(response.payload, Mapping):
-                try:
-                    if _estimate_tokens(canonical_json(response.payload)) <= self.config.output_budget:
-                        rejected_payload = dict(response.payload)
-                except (TypeError, ValueError):
-                    pass
-            self.store.finish_attempt(attempt_id, status="FAILED", response=rejected_payload, usage=usage, error_kind=error.kind, error_message=str(error))
-            self.store.set_campaign_status(campaign_id, "PAUSED" if error.retryable else "FAILED")
-            raise error from caught
-        usage = self._usage_record(request, response)
-        self.store.finish_attempt(attempt_id, status="COMPLETED", response=payload, usage=usage)
-        return payload
-
-    @staticmethod
-    def _usage_record(request: ProviderRequest, response: ProviderResponse | None) -> dict[str, Any]:
-        if response is None:
-            return {"provider": None, "requested_model": request.model, "reported_model": None, "provider_usage": None, "controls": {}, "controller_limits": request.metadata.get("controller_limits", {})}
-        return {
-            "provider": response.provider,
-            "requested_model": request.model,
-            "reported_model": response.reported_model,
-            "provider_usage": response.usage,
-            "controls": response.controls or {},
-            "controller_limits": request.metadata.get("controller_limits", {}),
-        }
-
-    def _completed_response(self, campaign_id: str, job_id: str, phase: str, validator: Callable[[Any], dict[str, Any]]) -> dict[str, Any] | None:
-        attempt = self.store.completed_attempt(campaign_id, job_id, phase)
-        if attempt is None:
-            return None
-        try:
-            raw = json.loads(attempt["response_json"])
-            return validator(raw)
-        except (json.JSONDecodeError, ContractError, ValueError) as exc:
-            error = ProviderError("durable completed provider response is no longer contract-valid", kind="recovery_contract", details={"attempt_id": attempt["id"], "provider_call_performed": True})
-            error.attempt_id = attempt["id"]
-            error.job_id = job_id
-            raise error from exc
-
     def _registered_task_context(self, campaign_id: str) -> dict[str, Any]:
         """Supply the actual callable contract, not just a schema field name."""
 
+        if self.config.adaptive:
+            return self._research_context(campaign_id)
         tool = registered_tools()[M5_VERIFICATION_TASK]
         mode = self.store.context(campaign_id)["verification_mode"]
         return {
@@ -415,15 +247,19 @@ class PipelineController:
 
     def _validate_proposal_payload(self, campaign_id: str, proposal: dict[str, Any], expected_parent_result_id: str | None) -> dict[str, Any]:
         proposal = validate_proposal(proposal)
-        if proposal["task"] not in registered_tools():
+        if proposal["task"] not in registered_tools(adaptive=self.config.adaptive):
             raise ToolRestrictionError(f"proposal selected an unregistered task: {proposal['task']}")
-        typed = VerifyM5HorizonsParameters.from_mapping(proposal["parameters"])
         context = self.store.context(campaign_id)
-        if typed.mode != context["verification_mode"]:
+        if proposal["parameters"]["mode"] != context["verification_mode"]:
             raise ToolRestrictionError("proposal mode does not match the campaign's frozen verification mode")
         supplied_parent = proposal.get("parent_result_id")
         if supplied_parent != expected_parent_result_id:
             raise ToolRestrictionError("proposal parent_result_id does not match the frozen parent result")
+        if self.config.adaptive and expected_parent_result_id:
+            for result in self.store.summary(campaign_id)["results"]:
+                previous = json.loads(result["evidence_json"])
+                if previous.get("task") == proposal["task"] and previous.get("parameters") == proposal["parameters"]:
+                    raise ToolRestrictionError("adaptive follow-up must be a distinct experiment")
         return proposal
 
     def _validate_proposal_for_job(self, campaign_id: str, job_id: str, proposal: dict[str, Any]) -> dict[str, Any]:
@@ -457,7 +293,12 @@ class PipelineController:
                     "your role is to specify this job from the supplied context. Task contract, context and history: "
                     + json.dumps({**context, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
                 )
-                proposal = self._provider_call(campaign_id, job_id, role="thinker", phase="proposal", prompt=prompt, schema=proposal_schema(), metadata={"context": context, "verification_mode": context["verification_mode"]}, validator=validator)
+                if self.config.adaptive:
+                    prompt = ("Propose one bounded research experiment using the registered tasks. Start with a population horizon summary before selecting a cohort diagnostic. "
+                              "Use parent_result_id=null. Specify a falsifiable question and respect the campaign budget. Return only schema-valid JSON. "
+                              + json.dumps({**context, **history, **self._research_context(campaign_id),
+                                            "study_context": self._study_preview(campaign_id, {"mode": context["verification_mode"]})}, sort_keys=True))
+                proposal = self._provider_call(campaign_id, job_id, role="thinker", phase="proposal", prompt=prompt, schema=proposal_schema(adaptive=self.config.adaptive), metadata={"context": context, "verification_mode": context["verification_mode"]}, validator=validator)
         proposal = self._validate_proposal_for_job(campaign_id, job_id, proposal)
         self.store.update_job_specification(job_id, proposal, object_hash(proposal))
         self.store.update_job(job_id, status="PROPOSED")
@@ -465,9 +306,12 @@ class PipelineController:
 
     def _validate_execution_plan_for_proposal(self, plan: dict[str, Any], proposal: dict[str, Any]) -> dict[str, Any]:
         plan = validate_execution_plan(plan)
-        if plan["task"] != proposal["task"] or plan["tool"] != M5_VERIFICATION_TASK:
+        if plan["task"] != proposal["task"] or plan["tool"] != proposal["task"]:
             raise ToolRestrictionError("executor may only select the proposal task and registered verify_m5_horizons tool")
-        if canonical_json(plan["parameters"]) != canonical_json(proposal["parameters"]):
+        expected_parameters = dict(proposal["parameters"])
+        if proposal["task"] in STUDY_TASKS and expected_parameters.get("grouping") == "choose":
+            expected_parameters["grouping"] = plan["parameters"].get("grouping")
+        if canonical_json(plan["parameters"]) != canonical_json(expected_parameters):
             raise ToolRestrictionError("executor parameters differ from the frozen proposal")
         if plan["invariants"] != proposal["invariants"]:
             raise ToolRestrictionError("executor invariants differ from the frozen proposal")
@@ -481,6 +325,9 @@ class PipelineController:
                 self.store.update_job(job_id, status="CHECKED", result_id=existing["id"])
             return
         proposal = self._validate_proposal_for_job(campaign_id, job_id, json.loads(job["specification_json"]))
+        if proposal["task"] in STUDY_TASKS:
+            self._execute_study_job(campaign_id, job_id, proposal)
+            return
         history = {"previous_decisions": [dict(row) for row in self.store.decisions(campaign_id)][-3:], "previous_failures": [dict(row) for row in self.store.failures(campaign_id)][-3:]}
         prompt = (
             f"Return only a schema-valid execution plan. Set task and tool exactly to {M5_VERIFICATION_TASK!r}. "
@@ -512,7 +359,7 @@ class PipelineController:
         artifact_dir = workspace / "artifacts"
         artifact_dir.mkdir(parents=True, exist_ok=True)
         if cached is not None:
-            valid, cache_rejection = self._validate_cached_result(cached, cache_key, input_identity)
+            valid, cache_rejection = self._validate_cached_result(dict(cached), cache_key, input_identity)
         else:
             valid = False
         if valid and cached is not None:
@@ -573,8 +420,9 @@ class PipelineController:
             raise ToolRestrictionError("cannot review a job without a checker result")
         evidence_row = self.store.result(job["result_id"])
         evidence = json.loads(evidence_row["evidence_json"])
-        self._validate_result_artifact(evidence_row, evidence)
-        metadata = {"evidence": evidence}
+        self._validate_result_artifact(dict(evidence_row), evidence)
+        current_proposal = json.loads(job["specification_json"])
+        metadata = {"evidence": evidence, "proposal": current_proposal, "objective": self.store.context(campaign_id)["question"]}
         if branch and self.config.thinker_provider == "fixture":
             fixture = self._provider("thinker")
             if isinstance(fixture, FixtureProvider):
@@ -583,14 +431,14 @@ class PipelineController:
         prompt = (
             "Review the supplied deterministic checker evidence and return only schema-valid JSON. Include the exact current result_id in evidence_refs. "
             "Choose STOP, REJECT, REPAIR, or PROPOSE_NEXT with non-empty reasons; next_job must be null unless proposing a follow-up. "
-            f"A follow-up requires VERIFIED evidence, task={M5_VERIFICATION_TASK!r}, the same verification mode and parent_result_id equal to the current result_id. "
+            "A follow-up requires VERIFIED evidence, a registered task, the same verification mode and parent_result_id equal to the current result_id. "
             "Respect the supplied budget: a next proposal at the job cap is saved only. A verified event does not establish alpha. Evidence, task contract and history: "
-            + json.dumps({"evidence": evidence, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
+            + json.dumps({**metadata, **history, **self._registered_task_context(campaign_id)}, sort_keys=True)
         )
         validator = partial(self._validate_review_for_evidence, campaign_id, evidence=evidence)
         review = self._completed_response(campaign_id, job_id, "review", validator)
         if review is None:
-            review = self._provider_call(campaign_id, job_id, role="thinker", phase="review", prompt=prompt, schema=review_schema(), metadata=metadata, validator=validator)
+            review = self._provider_call(campaign_id, job_id, role="thinker", phase="review", prompt=prompt, schema=review_schema(adaptive=self.config.adaptive), metadata=metadata, validator=validator)
         next_job_id = None
         if review["action"] == "PROPOSE_NEXT":
             if evidence["status"] != "VERIFIED":
@@ -686,114 +534,3 @@ class PipelineController:
         except (OSError, json.JSONDecodeError, UnicodeDecodeError):
             return {}
         return value if isinstance(value, dict) else {}
-
-    def _write_report(self, campaign_id: str) -> None:
-        directory = self.output_dir / campaign_id
-        directory.mkdir(parents=True, exist_ok=True)
-        report = self.store.summary(campaign_id)
-        report["scope"] = "offline fixture or explicitly opted-in local provider; no strategy/config changes"
-        attempts = report["attempts"]
-        real_attempts: list[dict[str, Any]] = []
-        for attempt in attempts:
-            if attempt["provider"] == "fixture" or attempt["status"] != "COMPLETED":
-                continue
-            usage = self._read_optional_json_text(attempt.get("usage_json"))
-            real_attempts.append({"attempt_id": attempt["id"], "role": attempt["role"], "phase": attempt["phase"], "requested_model": attempt["model"], "reported_model": usage.get("reported_model"), "usage_available": bool((usage.get("provider_usage") or {}).get("usage_available", False)), "provider": attempt["provider"]})
-        report["live_model_verified"] = bool(real_attempts)
-        report["provider_reporting"] = {
-            "live_model_verified": bool(real_attempts),
-            "successful_real_provider_attempts": real_attempts,
-            "requested_models": {"thinker": self.config.thinker_model, "executor": self.config.executor_model},
-            "reported_models": {item["attempt_id"]: item["reported_model"] for item in real_attempts},
-            "model_identity_verified": bool(real_attempts) and all(item["reported_model"] == item["requested_model"] for item in real_attempts),
-        }
-        report["provider_controls"] = {
-            "thinker": self._control_summary(self.config.thinker_provider, self.config.thinker_model, self.config.thinker_effort),
-            "executor": self._control_summary(self.config.executor_provider, self.config.executor_model, self.config.executor_effort),
-        }
-        report["verification"] = {
-            "requested_mode": self.store.context(campaign_id).get("verification_mode"),
-            "result_modes": sorted({mode for row in report["results"] if row.get("evidence_json") for mode in [self._read_optional_json_text(row.get("evidence_json")).get("verification_mode")] if mode}),
-            "live_model_verified": bool(real_attempts),
-        }
-        report["next_missing_capability"] = "GLM adapter integration"
-        report["reproduction"] = {
-            "preflight": "python btc_ai_pipeline.py preflight",
-            "offline_fixture": "python btc_ai_pipeline.py run --offline-fixture --fixture-case stop",
-            "offline_saved_data": "python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop",
-            "live_opt_in": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>",
-            "live_opencode_executor": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor",
-        }
-        (directory / "report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        modes = sorted({mode for row in report["results"] if row.get("evidence_json") for mode in [self._read_optional_json_text(row.get("evidence_json")).get("verification_mode")] if mode})
-        lines = [f"# BTC AI pipeline campaign {campaign_id}", "", f"Status: `{report['campaign']['status']}`", "", f"Jobs: {len(report['jobs'])}; attempts: {len(report['attempts'])}; results: {len(report['results'])}", f"Verification modes: `{', '.join(modes) or 'none'}`", "", "The checker evidence is authoritative; model prose is not proof.", "", f"Live model verified: `{report['live_model_verified']}`", f"Provider model identity verified: `{report['provider_reporting']['model_identity_verified']}`", f"Next missing capability: {report['next_missing_capability']}", "", "Reproduction:", "", "- `python btc_ai_pipeline.py preflight`", "- `python btc_ai_pipeline.py run --offline-fixture --fixture-case stop`", "- `python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop`", "- `python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>`", "- `python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider opencode --thinker-model <model> --executor-model opencode-go/muse-spark-1.3-contributor`"]
-        (directory / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-    @staticmethod
-    def _read_optional_json_text(value: Any) -> dict[str, Any]:
-        if not isinstance(value, str):
-            return {}
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
-            return {}
-        return parsed if isinstance(parsed, dict) else {}
-
-    @staticmethod
-    def _control_summary(provider: str, model: str, effort: str) -> dict[str, Any]:
-        if provider == "opencode":
-            return {
-                "provider": provider,
-                "model": model,
-                "effort": {
-                    "requested": effort,
-                    "enforced": "request_parameter",
-                    "provider_supported": "preflight_or_success_response",
-                    "mechanism": "session.prompt.variant",
-                },
-                "context_budget": {"enforced": "controller_prompt_estimate", "provider_flag": False},
-                "output_budget": {"enforced": "controller_response_estimate", "provider_flag": False},
-                "timeout": {"enforced": "overall_http_deadline", "provider_supported": True, "owned_process_cleanup": False},
-            }
-        return {
-            "provider": provider,
-            "model": model,
-            "effort": {"requested": effort, "enforced": provider == "codex", "provider_supported": provider == "codex"},
-            "context_budget": {"enforced": "controller_prompt_estimate", "provider_flag": False},
-            "output_budget": {"enforced": "controller_response_estimate", "provider_flag": False},
-            "timeout": {"enforced": "owned_process_group" if provider == "codex" else False},
-        }
-
-
-def preflight(config: PipelineConfig) -> dict[str, Any]:
-    repo_root = Path(config.repo_root).resolve()
-
-    def resolve(raw: str | None, fallback: Path) -> Path:
-        if not raw:
-            return fallback.resolve()
-        value = Path(raw).expanduser()
-        return (repo_root / value).resolve() if not value.is_absolute() else value.resolve()
-
-    data_path = resolve(config.data_dir, repo_root / "research" / "data" / "btc_four_year_20220828_20260828")
-    packets = {"baseline": resolve(config.baseline_packet, repo_root / DEFAULT_BASELINE), "horizon": resolve(config.horizon_packet, repo_root / DEFAULT_HORIZON)}
-    required_files = [data_path / filename for filename in ("BTCUSDT_5m.csv", "BTCUSDT_15m.csv", "BTCUSDT_1h.csv", "BTCUSDT_4h.csv")]
-    inaccessible: list[str] = []
-    for path in required_files:
-        try:
-            with path.open("rb") as stream:
-                stream.read(1)
-        except OSError:
-            inaccessible.append(str(path))
-    return {
-        "live_call_performed": False,
-        "providers": {
-            "thinker": preflight_provider(config.thinker_provider, config.thinker_model, effort=config.thinker_effort, context_budget=config.context_budget, output_budget=config.output_budget, timeout_seconds=config.timeout_seconds),
-            "executor": preflight_provider(config.executor_provider, config.executor_model, effort=config.executor_effort, context_budget=config.context_budget, output_budget=config.output_budget, timeout_seconds=config.timeout_seconds),
-        },
-        "data": {"path": str(data_path), "exists": data_path.exists(), "readable": data_path.is_dir() and not inaccessible, "inaccessible_files": inaccessible, "note": "dataset may be ACL-restricted in the managed sandbox; no access controls are changed"},
-        "evidence": {name: {"path": str(path), "exists": path.is_dir(), "manifest": (path / "manifest.json").is_file()} for name, path in packets.items()},
-        "limits": {"max_thinker_calls": config.max_thinker_calls, "max_executor_calls": config.max_executor_calls, "max_jobs": config.max_jobs, "timeout_seconds": config.timeout_seconds, "context_budget": config.context_budget, "output_budget": config.output_budget},
-        "verification_mode": config.verification_mode,
-        "live_opt_in": config.live_opt_in,
-        "opencode": "local server and provider catalog are probed without invoking a model",
-    }

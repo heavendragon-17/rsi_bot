@@ -1,0 +1,265 @@
+{
+  "attempt_statuses": {
+    "COMPLETED": 10,
+    "FAILED": 2
+  },
+  "authorization": {
+    "calls_remaining": 0,
+    "calls_used": 12,
+    "final_owner_reply": "Approve up to 12 total calls",
+    "final_total_call_limit": 12,
+    "initial_total_call_limit": 8
+  },
+  "calls_by_role": {
+    "executor": 5,
+    "thinker": 7
+  },
+  "campaigns": [
+    {
+      "campaign_id": "campaign_889b9784bc04485a",
+      "measurements_recomputed_from_raw_usage": {
+        "adaptive_sequence_verified": false,
+        "all_attempts_have_cost": false,
+        "all_attempts_have_token_usage": false,
+        "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+        "campaign_span_seconds": 32.42114,
+        "checker_timed_results": 0,
+        "completed_provider_attempts": 1,
+        "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+        "distinct_verified_studies": 0,
+        "failed_provider_attempts": 1,
+        "failure_records": 1,
+        "fixture_attempts": 0,
+        "input_usage_attempts": 1,
+        "invalid_execution_plan_attempts": 0,
+        "live_loop_verified": false,
+        "model_provider_attempts": 2,
+        "output_usage_attempts": 1,
+        "provider_elapsed_seconds": 32.243832000000005,
+        "recorded_checker_seconds": null,
+        "repair_decisions": 0,
+        "reported_cost": null,
+        "reported_input_tokens": 19085,
+        "reported_output_tokens": 729,
+        "supplemental_token_usage": {
+          "cache_read": {
+            "attempts": 1,
+            "reported_tokens": 0
+          },
+          "cache_write": {
+            "attempts": 1,
+            "reported_tokens": 0
+          },
+          "reasoning": {
+            "attempts": 1,
+            "reported_tokens": 56
+          },
+          "total": {
+            "attempts": 0,
+            "reported_tokens": null
+          }
+        },
+        "verified_results": 0
+      },
+      "report_path": "research/results/btc_mixed_live_smoke_20260905/campaign_889b9784bc04485a/report.json",
+      "report_sha256": "d8d94d017fbc531c23675cc1fc1a3445e3023bc863495b9a0e9506a807c9a28a",
+      "status": "PAUSED"
+    },
+    {
+      "campaign_id": "campaign_c2a7cbdad7b24288",
+      "measurements_recomputed_from_raw_usage": {
+        "adaptive_sequence_verified": false,
+        "all_attempts_have_cost": false,
+        "all_attempts_have_token_usage": true,
+        "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+        "campaign_span_seconds": 70.819837,
+        "checker_timed_results": 0,
+        "completed_provider_attempts": 1,
+        "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+        "distinct_verified_studies": 0,
+        "failed_provider_attempts": 1,
+        "failure_records": 1,
+        "fixture_attempts": 0,
+        "input_usage_attempts": 2,
+        "invalid_execution_plan_attempts": 1,
+        "live_loop_verified": false,
+        "model_provider_attempts": 2,
+        "output_usage_attempts": 2,
+        "provider_elapsed_seconds": 53.722641,
+        "recorded_checker_seconds": null,
+        "repair_decisions": 0,
+        "reported_cost": 0.001009,
+        "reported_input_tokens": 26202,
+        "reported_output_tokens": 1448,
+        "supplemental_token_usage": {
+          "cache_read": {
+            "attempts": 2,
+            "reported_tokens": 0
+          },
+          "cache_write": {
+            "attempts": 2,
+            "reported_tokens": 0
+          },
+          "reasoning": {
+            "attempts": 2,
+            "reported_tokens": 2549
+          },
+          "total": {
+            "attempts": 1,
+            "reported_tokens": 7933
+          }
+        },
+        "verified_results": 0
+      },
+      "report_path": "research/results/btc_adaptive_live_20260905/campaign_c2a7cbdad7b24288/report.json",
+      "report_sha256": "1fe129294627f6acb8845987a347cf58ba1df702012ad9fc149f9371c808a1e9",
+      "status": "FAILED"
+    },
+    {
+      "campaign_id": "campaign_e7879087ffc941e2",
+      "measurements_recomputed_from_raw_usage": {
+        "adaptive_sequence_verified": false,
+        "all_attempts_have_cost": false,
+        "all_attempts_have_token_usage": true,
+        "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+        "campaign_span_seconds": 148.227925,
+        "checker_timed_results": 1,
+        "completed_provider_attempts": 3,
+        "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+        "distinct_verified_studies": 1,
+        "failed_provider_attempts": 0,
+        "failure_records": 0,
+        "fixture_attempts": 0,
+        "input_usage_attempts": 3,
+        "invalid_execution_plan_attempts": 0,
+        "live_loop_verified": true,
+        "model_provider_attempts": 3,
+        "output_usage_attempts": 3,
+        "provider_elapsed_seconds": 71.401259,
+        "recorded_checker_seconds": 29.721026100218296,
+        "repair_decisions": 0,
+        "reported_cost": 0.0008059,
+        "reported_input_tokens": 51774,
+        "reported_output_tokens": 1496,
+        "supplemental_token_usage": {
+          "cache_read": {
+            "attempts": 3,
+            "reported_tokens": 0
+          },
+          "cache_write": {
+            "attempts": 3,
+            "reported_tokens": 0
+          },
+          "reasoning": {
+            "attempts": 3,
+            "reported_tokens": 907
+          },
+          "total": {
+            "attempts": 1,
+            "reported_tokens": 6982
+          }
+        },
+        "verified_results": 1
+      },
+      "report_path": "research/results/btc_mixed_live_acceptance_20260905/campaign_e7879087ffc941e2/report.json",
+      "report_sha256": "1828c500ab5471b5e2667fd201e0a29f1dcad63bc5910cf19bd04b1e62feac30",
+      "status": "STOPPED"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "measurements_recomputed_from_raw_usage": {
+        "adaptive_sequence_verified": true,
+        "all_attempts_have_cost": false,
+        "all_attempts_have_token_usage": true,
+        "campaign_span_note": "Creation to last status transition; includes local preparation, waiting and any pauses, not CPU time.",
+        "campaign_span_seconds": 315.026782,
+        "checker_timed_results": 2,
+        "completed_provider_attempts": 5,
+        "cost_note": "Provider-reported cost only; missing values are unknown, not zero. No price assumptions.",
+        "distinct_verified_studies": 2,
+        "failed_provider_attempts": 0,
+        "failure_records": 0,
+        "fixture_attempts": 0,
+        "input_usage_attempts": 5,
+        "invalid_execution_plan_attempts": 0,
+        "live_loop_verified": true,
+        "model_provider_attempts": 5,
+        "output_usage_attempts": 5,
+        "provider_elapsed_seconds": 130.357601,
+        "recorded_checker_seconds": 90.59711690060794,
+        "repair_decisions": 0,
+        "reported_cost": 0.0017835,
+        "reported_input_tokens": 82366,
+        "reported_output_tokens": 3689,
+        "supplemental_token_usage": {
+          "cache_read": {
+            "attempts": 5,
+            "reported_tokens": 16768
+          },
+          "cache_write": {
+            "attempts": 5,
+            "reported_tokens": 0
+          },
+          "reasoning": {
+            "attempts": 5,
+            "reported_tokens": 3042
+          },
+          "total": {
+            "attempts": 2,
+            "reported_tokens": 14971
+          }
+        },
+        "verified_results": 2
+      },
+      "report_path": "research/results/btc_adaptive_live_final_20260905/campaign_3f13b814a0294bb6/report.json",
+      "report_sha256": "beec890cfa22ce790a1671370104402af03ba92b5b48cf9516e1a50333a29162",
+      "status": "STOPPED"
+    }
+  ],
+  "limitations": [
+    "Hypotheses were informed by supplied historical previews; this is descriptive computational validation.",
+    "Strategy gates were not rerun; eligibility is inherited and identity/population consistency checked.",
+    "Dependent gross historical returns do not establish alpha or executable P&L.",
+    "Recorded timings are individual observations under variable machine load.",
+    "Codex runtime model IDs and costs are unavailable; requested models are not relabelled as reported."
+  ],
+  "measurement_code_sha256": "de8c3a029f36241d7dfa13fc229ca8c68984f344373811927c6d8bd0cdc519c4",
+  "recorded_at": "2026-09-05T06:20:32.311046+00:00",
+  "reported_usage": {
+    "cost_covered_attempts": 4,
+    "cost_note": "Partial provider-reported values only; missing costs are unknown and no billing total is inferred.",
+    "input_covered_attempts": 11,
+    "input_tokens": 179427,
+    "output_covered_attempts": 11,
+    "output_tokens": 7362,
+    "partial_provider_reported_cost": 0.0035984
+  },
+  "schema": "btc-live-validation-summary-v1",
+  "verification": {
+    "accepted_studies_match_scripted_replay": true,
+    "earlier_related_tests_passed": 42,
+    "focused_pipeline_tests_passed": 221,
+    "live_loop_verified": true,
+    "live_two_study_sequence_verified": true
+  },
+  "zero_model_replays": [
+    {
+      "campaign_id": "campaign_e7879087ffc941e2",
+      "elapsed_seconds": 29.47281609941274,
+      "matched_studies": 1,
+      "path": "research/results/btc_mixed_live_acceptance_20260905/campaign_e7879087ffc941e2/baseline_report.json",
+      "provider_calls": 0,
+      "sha256": "add619780fb935d42029c001059839a7b6d13c7bb6a65541da22f20c213455f1",
+      "status": "MATCHED"
+    },
+    {
+      "campaign_id": "campaign_3f13b814a0294bb6",
+      "elapsed_seconds": 35.77697649970651,
+      "matched_studies": 2,
+      "path": "research/results/btc_adaptive_live_final_20260905/campaign_3f13b814a0294bb6/baseline_report.json",
+      "provider_calls": 0,
+      "sha256": "da3426bead128ace4e96d4af6a402b3b5e5334ce0085b7e3213f234e862e7927",
+      "status": "MATCHED"
+    }
+  ]
+}

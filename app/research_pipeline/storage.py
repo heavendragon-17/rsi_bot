@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .contracts import canonical_json
 
@@ -262,6 +264,20 @@ class PipelineStore:
             if row and row[0]:
                 elapsed_ms = max(0.0, (datetime.fromisoformat(finished.replace("Z", "+00:00")) - datetime.fromisoformat(row[0].replace("Z", "+00:00"))).total_seconds() * 1000)
             db.execute("UPDATE attempts SET status = ?, response_json = ?, usage_json = ?, error_kind = ?, error_message = ?, finished_at = ?, elapsed_ms = ? WHERE id = ? AND status = 'RUNNING'", (status, self._json(response) if response is not None else None, self._json(usage) if usage is not None else None, error_kind, error_message, finished, elapsed_ms, attempt_id))
+
+    def persist_provider_session(self, attempt_id: str, session: dict[str, Any]) -> None:
+        """Commit the external session identity before model work is posted."""
+        allowed = {key: session[key] for key in ("provider", "session_id", "server_url") if key in session}
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT request_json FROM attempts WHERE id = ? AND status = 'RUNNING'", (attempt_id,)).fetchone()
+            if row is None:
+                raise RuntimeError("provider session has no running durable attempt")
+            request = json.loads(row[0])
+            if request.get("provider_session") not in (None, allowed):
+                raise RuntimeError("attempt already has a different provider session")
+            request["provider_session"] = allowed
+            db.execute("UPDATE attempts SET request_json = ? WHERE id = ?", (self._json(request), attempt_id))
 
     def running_attempts(self, campaign_id: str) -> list[sqlite3.Row]:
         with self.connection() as db:
