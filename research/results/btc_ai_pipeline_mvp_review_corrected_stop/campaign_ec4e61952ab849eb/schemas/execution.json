@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "invariants": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "event_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "fixture",
+            "real"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "event_index"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "btc-research-execution-plan-v1"
+    },
+    "task": {
+      "type": "string"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "workspace_manifest": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "task",
+    "tool",
+    "parameters",
+    "invariants"
+  ],
+  "type": "object"
+}

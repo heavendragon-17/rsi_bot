@@ -67,6 +67,21 @@ timestamp,open,high,low,close,volume
 
 **File naming**: `{SYMBOL_NO_SLASH}_{timeframe}.csv` (e.g., `BTCUSDT_5m.csv`)
 
+### Frozen BTC research dataset
+
+The separate four-year dataset under
+`research/data/btc_four_year_20220828_20260828/` uses the same six columns and
+four native BTC filenames, with explicit UTC candle-open strings such as
+`2022-05-01T00:00:00Z`. The shared signal replay loader accepts these aware
+timestamps without applying the timezone-naive UTC+7 offset again. Raw Binance
+archive timestamps are integer milliseconds and normalize to this UTC form.
+
+The dataset begins with May 2022 warmup, freezes signal candidates to
+`[2022-08-28T00:00:00Z, 2026-08-28T00:00:00Z)`, and retains the existing native
+tail for outcome labels. The acquisition manifest provides exact per-timeframe
+coverage and hashes. See [frozen BTC acquisition](historical-data.md#frozen-four-year-btc-research-acquisition)
+for source preservation, archive verification, and strict merge rules.
+
 ---
 
 ## Tick Data CSV Format (aggTrades)

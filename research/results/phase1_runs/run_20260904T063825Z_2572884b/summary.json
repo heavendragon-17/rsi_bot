@@ -1,0 +1,4241 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "completion_status": "SUCCESS",
+  "definition_version": "btc-research-phase1-v1",
+  "historical_artifact_comparison": {
+    "available": true,
+    "comparison_note": "Historical CSV is comparison evidence only; the absent original generator is not claimed reproduced.",
+    "count_deltas_current_minus_historical": {
+      "15m": 0,
+      "5m": 0
+    },
+    "current_signal_counts": {
+      "15m": 589,
+      "5m": 1399
+    },
+    "historical_four_hour_mean_return_pct": {
+      "15m": 0.042164508657,
+      "5m": 0.01327507724
+    },
+    "historical_signal_counts": {
+      "15m": 589,
+      "5m": 1399
+    },
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\btc_signal_ev_summary.csv",
+    "sha256": "63f517248a3c4ab3c411634a2e9c3dcc5a886f247c95885bb18f9cae55f53898"
+  },
+  "horizon_summaries": [
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.002897721322,
+        "median_return_pct": 0.002947417375,
+        "n": 209218,
+        "status_counts": {
+          "COMPLETE": 209218,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 12,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.097102278678,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.100633714308
+      },
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "signal_outcomes": {
+        "mean_return_pct": -0.000633714308,
+        "median_return_pct": -0.017679687116,
+        "n": 1399,
+        "status_counts": {
+          "COMPLETE": 1399,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 0,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "5m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.01157417051,
+        "median_return_pct": 0.012644852478,
+        "n": 209182,
+        "status_counts": {
+          "COMPLETE": 209182,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 48,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.08842582949,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.08672492276
+      },
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "signal_outcomes": {
+        "mean_return_pct": 0.01327507724,
+        "median_return_pct": -0.017737982151,
+        "n": 1399,
+        "status_counts": {
+          "COMPLETE": 1399,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 0,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "5m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.034611309018,
+        "median_return_pct": 0.037757439291,
+        "n": 209086,
+        "status_counts": {
+          "COMPLETE": 209086,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 144,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.065388690982,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.08849039934
+      },
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "signal_outcomes": {
+        "mean_return_pct": 0.01150960066,
+        "median_return_pct": -0.0088734447,
+        "n": 1396,
+        "status_counts": {
+          "COMPLETE": 1396,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 3,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "5m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.06921566316,
+        "median_return_pct": 0.073835751865,
+        "n": 208942,
+        "status_counts": {
+          "COMPLETE": 208942,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 288,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.03078433684,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.045841260061
+      },
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "signal_outcomes": {
+        "mean_return_pct": 0.054158739939,
+        "median_return_pct": -0.033212259386,
+        "n": 1394,
+        "status_counts": {
+          "COMPLETE": 1394,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 5,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "5m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.002896105239,
+        "median_return_pct": 0.003158857657,
+        "n": 69740,
+        "status_counts": {
+          "COMPLETE": 69740,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 4,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.097103894761,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.089584636375
+      },
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "signal_outcomes": {
+        "mean_return_pct": 0.010415363625,
+        "median_return_pct": -0.015983666824,
+        "n": 589,
+        "status_counts": {
+          "COMPLETE": 589,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 0,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "15m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.011567066121,
+        "median_return_pct": 0.012524367897,
+        "n": 69728,
+        "status_counts": {
+          "COMPLETE": 69728,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 16,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.088432933879,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.057835491343
+      },
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "signal_outcomes": {
+        "mean_return_pct": 0.042164508657,
+        "median_return_pct": 0.000454490193,
+        "n": 589,
+        "status_counts": {
+          "COMPLETE": 589,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 0,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "15m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.034581733121,
+        "median_return_pct": 0.037462956305,
+        "n": 69696,
+        "status_counts": {
+          "COMPLETE": 69696,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 48,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.065418266879,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.088422702752
+      },
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "signal_outcomes": {
+        "mean_return_pct": 0.011577297248,
+        "median_return_pct": -0.038772002659,
+        "n": 588,
+        "status_counts": {
+          "COMPLETE": 588,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 1,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "15m"
+    },
+    {
+      "baseline_all_eligible_bars": {
+        "mean_return_pct": 0.069220668463,
+        "median_return_pct": 0.073967307221,
+        "n": 69648,
+        "status_counts": {
+          "COMPLETE": 69648,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 96,
+          "MISSING_TARGET": 0
+        }
+      },
+      "cost_sensitivity_illustrative_only": {
+        "baseline_mean_return_minus_cost_pct": -0.030779331537,
+        "not_simulated_fills_or_strategy_pnl": true,
+        "round_trip_cost_pct": 0.1,
+        "signal_mean_return_minus_cost_pct": -0.062265755803
+      },
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "signal_outcomes": {
+        "mean_return_pct": 0.037734244197,
+        "median_return_pct": -0.017508227186,
+        "n": 586,
+        "status_counts": {
+          "COMPLETE": 586,
+          "GAP": 0,
+          "INCOMPLETE_TAIL": 3,
+          "MISSING_TARGET": 0
+        }
+      },
+      "timeframe": "15m"
+    }
+  ],
+  "monthly_summaries": [
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.015387129957,
+      "median_return_pct": -0.036354632228,
+      "month": "2024-09",
+      "n": 66,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.050924054311,
+      "median_return_pct": 0.022018150745,
+      "month": "2024-10",
+      "n": 79,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.055707216501,
+      "median_return_pct": -0.046728219465,
+      "month": "2024-11",
+      "n": 90,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.063453676642,
+      "median_return_pct": 0.032369923937,
+      "month": "2024-12",
+      "n": 52,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.041770706016,
+      "median_return_pct": -0.027309436065,
+      "month": "2025-01",
+      "n": 89,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.015579170773,
+      "median_return_pct": -0.005230661935,
+      "month": "2025-02",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.07612657864,
+      "median_return_pct": -0.0600633169,
+      "month": "2025-03",
+      "n": 54,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.006519256986,
+      "median_return_pct": -0.02286048991,
+      "month": "2025-04",
+      "n": 73,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.001476025744,
+      "median_return_pct": -0.018695366644,
+      "month": "2025-05",
+      "n": 76,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.001962736363,
+      "median_return_pct": -0.029271335247,
+      "month": "2025-06",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.033460085824,
+      "median_return_pct": 0.011023221334,
+      "month": "2025-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.05198578818,
+      "median_return_pct": -0.050132946414,
+      "month": "2025-08",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.000451898257,
+      "median_return_pct": -0.025156782183,
+      "month": "2025-09",
+      "n": 61,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.048649604148,
+      "median_return_pct": 0.001650485255,
+      "month": "2025-10",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.104982262848,
+      "median_return_pct": -0.050419481467,
+      "month": "2025-11",
+      "n": 32,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.108494881914,
+      "median_return_pct": -0.034302004752,
+      "month": "2025-12",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.035951481733,
+      "median_return_pct": 0.013338745016,
+      "month": "2026-01",
+      "n": 58,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.079221276524,
+      "median_return_pct": -0.130023404213,
+      "month": "2026-02",
+      "n": 31,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.000413783246,
+      "median_return_pct": 0.042271382274,
+      "month": "2026-03",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.05033241157,
+      "median_return_pct": 0.013594344753,
+      "month": "2026-04",
+      "n": 65,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.017163575034,
+      "median_return_pct": 0.015205504891,
+      "month": "2026-05",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.001402022354,
+      "median_return_pct": 0.001259860376,
+      "month": "2026-06",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.034829675446,
+      "median_return_pct": -0.062643493717,
+      "month": "2026-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.064179977207,
+      "median_return_pct": -0.000467258424,
+      "month": "2026-08",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.01652054317,
+      "median_return_pct": 0.000680855205,
+      "month": "2024-08",
+      "n": 84,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010935996916,
+      "median_return_pct": 0.000971906198,
+      "month": "2024-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.015101901649,
+      "median_return_pct": 0.011398416626,
+      "month": "2024-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.045710353853,
+      "median_return_pct": 0.032124086726,
+      "month": "2024-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.002255547885,
+      "median_return_pct": 0.007508425903,
+      "month": "2024-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.013426492619,
+      "median_return_pct": 0.003449149694,
+      "month": "2025-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.027600186701,
+      "median_return_pct": -0.003934577706,
+      "month": "2025-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.000516616397,
+      "median_return_pct": 0.00799255062,
+      "month": "2025-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.019734036193,
+      "median_return_pct": 0.00810313727,
+      "month": "2025-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.014532006856,
+      "median_return_pct": 0.010166348367,
+      "month": "2025-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.004251117032,
+      "median_return_pct": 0.004401251628,
+      "month": "2025-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010593549684,
+      "median_return_pct": 0.004637067201,
+      "month": "2025-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.008515009855,
+      "median_return_pct": -0.00887669794,
+      "month": "2025-08",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.008035761678,
+      "median_return_pct": 0.002560653143,
+      "month": "2025-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.004240504867,
+      "median_return_pct": 0.003595432447,
+      "month": "2025-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.028132135808,
+      "median_return_pct": -0.003602996755,
+      "month": "2025-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 1.2383367e-05,
+      "median_return_pct": 0.009091627862,
+      "month": "2025-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.013251745298,
+      "median_return_pct": -0.002507690568,
+      "month": "2026-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.022311857539,
+      "median_return_pct": -0.005540037951,
+      "month": "2026-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.004033833462,
+      "median_return_pct": -0.010205966537,
+      "month": "2026-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.016909775023,
+      "median_return_pct": 0.010041478193,
+      "month": "2026-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.004167668923,
+      "median_return_pct": -0.000125200862,
+      "month": "2026-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.030800789763,
+      "median_return_pct": -0.028617170404,
+      "month": "2026-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010450895273,
+      "median_return_pct": 0.008639963311,
+      "month": "2026-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.037081598391,
+      "median_return_pct": 0.003356243331,
+      "month": "2026-08",
+      "n": 7822,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.050969405149,
+      "median_return_pct": -0.038677234987,
+      "month": "2024-09",
+      "n": 66,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.101152253898,
+      "median_return_pct": 0.00704031894,
+      "month": "2024-10",
+      "n": 79,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.491499121958,
+      "median_return_pct": 0.155065690728,
+      "month": "2024-11",
+      "n": 90,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.005834847919,
+      "median_return_pct": 0.000940489534,
+      "month": "2024-12",
+      "n": 52,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.155188020716,
+      "median_return_pct": -0.077459481814,
+      "month": "2025-01",
+      "n": 89,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.081127279753,
+      "median_return_pct": 0.039456276243,
+      "month": "2025-02",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.248665406549,
+      "median_return_pct": -0.214094789911,
+      "month": "2025-03",
+      "n": 54,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.1914389748,
+      "median_return_pct": -0.228094902514,
+      "month": "2025-04",
+      "n": 73,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.043855204328,
+      "median_return_pct": -0.050259975172,
+      "month": "2025-05",
+      "n": 76,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.066320846603,
+      "median_return_pct": -0.020039631867,
+      "month": "2025-06",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.012195904743,
+      "median_return_pct": -0.006496092221,
+      "month": "2025-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.046670663007,
+      "median_return_pct": -0.168488175878,
+      "month": "2025-08",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.013284747797,
+      "median_return_pct": 0.031347069049,
+      "month": "2025-09",
+      "n": 61,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.046641196811,
+      "median_return_pct": 0.04950709834,
+      "month": "2025-10",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.436826866401,
+      "median_return_pct": -0.275012150064,
+      "month": "2025-11",
+      "n": 32,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.115552457473,
+      "median_return_pct": -0.022183066723,
+      "month": "2025-12",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.096057784693,
+      "median_return_pct": 0.095482638397,
+      "month": "2026-01",
+      "n": 58,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.420666787581,
+      "median_return_pct": -0.245990371611,
+      "month": "2026-02",
+      "n": 31,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.063911202196,
+      "median_return_pct": 0.122738256406,
+      "month": "2026-03",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.065266311552,
+      "median_return_pct": -0.054166448254,
+      "month": "2026-04",
+      "n": 65,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.014218396602,
+      "median_return_pct": 0.031197498063,
+      "month": "2026-05",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.00636744583,
+      "median_return_pct": -0.011776565577,
+      "month": "2026-06",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.045428854737,
+      "median_return_pct": -0.083256101328,
+      "month": "2026-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.254018170611,
+      "median_return_pct": 0.064722745071,
+      "month": "2026-08",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.167263704561,
+      "median_return_pct": -0.002208605492,
+      "month": "2024-08",
+      "n": 84,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.046944785948,
+      "median_return_pct": 0.020365114365,
+      "month": "2024-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.054466317883,
+      "median_return_pct": 0.04371385057,
+      "month": "2024-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.185731103057,
+      "median_return_pct": 0.0779952655,
+      "month": "2024-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.007535726123,
+      "median_return_pct": 0.02729752365,
+      "month": "2024-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.05355395021,
+      "median_return_pct": 0.035388579501,
+      "month": "2025-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.107914792782,
+      "median_return_pct": -0.024088075648,
+      "month": "2025-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.003372782726,
+      "median_return_pct": 0.004846643769,
+      "month": "2025-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.079891772237,
+      "median_return_pct": 0.058156211333,
+      "month": "2025-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.054888160071,
+      "median_return_pct": 0.014800118455,
+      "month": "2025-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.01815991085,
+      "median_return_pct": 0.023239872616,
+      "month": "2025-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.042016914705,
+      "median_return_pct": 0.023692296406,
+      "month": "2025-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.034556189651,
+      "median_return_pct": -0.020246792385,
+      "month": "2025-08",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.033616239551,
+      "median_return_pct": 0.01491891912,
+      "month": "2025-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.017151920974,
+      "median_return_pct": 0.020991773596,
+      "month": "2025-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.120623737916,
+      "median_return_pct": -0.03302994167,
+      "month": "2025-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.008094700126,
+      "median_return_pct": 0.033577067417,
+      "month": "2025-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.055375612992,
+      "median_return_pct": -0.015462501968,
+      "month": "2026-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.084665123286,
+      "median_return_pct": -0.009715847152,
+      "month": "2026-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.011656108663,
+      "median_return_pct": -0.041206345336,
+      "month": "2026-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.070022204246,
+      "median_return_pct": 0.026287785917,
+      "month": "2026-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.019167237606,
+      "median_return_pct": -0.006598567459,
+      "month": "2026-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.121070411191,
+      "median_return_pct": -0.073326866107,
+      "month": "2026-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.039946679995,
+      "median_return_pct": 0.020627734323,
+      "month": "2026-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.152253391838,
+      "median_return_pct": 0.03910092503,
+      "month": "2026-08",
+      "n": 7786,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.043703448078,
+      "median_return_pct": -0.041516557347,
+      "month": "2024-09",
+      "n": 66,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.227651141269,
+      "median_return_pct": 0.191117457144,
+      "month": "2024-10",
+      "n": 79,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.699832267292,
+      "median_return_pct": 0.194767236074,
+      "month": "2024-11",
+      "n": 90,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.401895333176,
+      "median_return_pct": 0.006480435784,
+      "month": "2024-12",
+      "n": 52,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.328214019761,
+      "median_return_pct": -0.111537831423,
+      "month": "2025-01",
+      "n": 89,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.114003303312,
+      "median_return_pct": 0.230711257171,
+      "month": "2025-02",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.220981851919,
+      "median_return_pct": -0.300735645954,
+      "month": "2025-03",
+      "n": 54,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.255724395125,
+      "median_return_pct": -0.261577213718,
+      "month": "2025-04",
+      "n": 73,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.054047772716,
+      "median_return_pct": -0.126444047697,
+      "month": "2025-05",
+      "n": 76,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.079512582816,
+      "median_return_pct": 0.16242460018,
+      "month": "2025-06",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.104367843385,
+      "median_return_pct": -0.238957856279,
+      "month": "2025-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.250687972789,
+      "median_return_pct": -0.065661198679,
+      "month": "2025-08",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.158224730097,
+      "median_return_pct": 0.135855855856,
+      "month": "2025-09",
+      "n": 61,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.320500796051,
+      "median_return_pct": 0.488097237694,
+      "month": "2025-10",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.651865217876,
+      "median_return_pct": -0.422149992801,
+      "month": "2025-11",
+      "n": 32,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.289996874094,
+      "median_return_pct": -0.154339366932,
+      "month": "2025-12",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.263423827842,
+      "median_return_pct": 0.127299776722,
+      "month": "2026-01",
+      "n": 58,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.596684538212,
+      "median_return_pct": -0.310171919771,
+      "month": "2026-02",
+      "n": 31,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.106523760752,
+      "median_return_pct": -0.437212757483,
+      "month": "2026-03",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.185572291069,
+      "median_return_pct": -0.242492951413,
+      "month": "2026-04",
+      "n": 65,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.031625187266,
+      "median_return_pct": 0.149977911669,
+      "month": "2026-05",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.057262783918,
+      "median_return_pct": 0.260776718703,
+      "month": "2026-06",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.012204410317,
+      "median_return_pct": 0.151810887009,
+      "month": "2026-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.559230769298,
+      "median_return_pct": 0.048152136894,
+      "month": "2026-08",
+      "n": 50,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -1.354260111752,
+      "median_return_pct": -1.37433409065,
+      "month": "2024-08",
+      "n": 84,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.158606895556,
+      "median_return_pct": 0.088586298812,
+      "month": "2024-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.152906151097,
+      "median_return_pct": 0.116656081372,
+      "month": "2024-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.563634555231,
+      "median_return_pct": 0.247250507143,
+      "month": "2024-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.032831101563,
+      "median_return_pct": 0.037610720524,
+      "month": "2024-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.158814502652,
+      "median_return_pct": 0.120365074932,
+      "month": "2025-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.308377736587,
+      "median_return_pct": -0.177279112028,
+      "month": "2025-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.006757686192,
+      "median_return_pct": -0.022675563316,
+      "month": "2025-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.236391219685,
+      "median_return_pct": 0.116187193234,
+      "month": "2025-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.156409333014,
+      "median_return_pct": 0.014724255981,
+      "month": "2025-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.049475506713,
+      "median_return_pct": 0.060835667733,
+      "month": "2025-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.128025371909,
+      "median_return_pct": 0.117486616361,
+      "month": "2025-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.093238713003,
+      "median_return_pct": -0.007409691175,
+      "month": "2025-08",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.102993328557,
+      "median_return_pct": 0.088933943675,
+      "month": "2025-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.056477742765,
+      "median_return_pct": 0.098734842532,
+      "month": "2025-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.377829923862,
+      "median_return_pct": -0.204450135811,
+      "month": "2025-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.032555694652,
+      "median_return_pct": 0.025316672824,
+      "month": "2025-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.166307638846,
+      "median_return_pct": -0.026202362755,
+      "month": "2026-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.255782695465,
+      "median_return_pct": -0.280162685786,
+      "month": "2026-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.049137608043,
+      "median_return_pct": -0.103116919349,
+      "month": "2026-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.208044991566,
+      "median_return_pct": 0.063923615218,
+      "month": "2026-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.075558390865,
+      "median_return_pct": -0.006477747171,
+      "month": "2026-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.352970663378,
+      "median_return_pct": -0.11076917941,
+      "month": "2026-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.118039968107,
+      "median_return_pct": 0.154530641087,
+      "month": "2026-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.462988623049,
+      "median_return_pct": 0.131981228575,
+      "month": "2026-08",
+      "n": 7690,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.205114978199,
+      "median_return_pct": -0.164951544043,
+      "month": "2024-09",
+      "n": 66,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.430874143031,
+      "median_return_pct": 0.115096873202,
+      "month": "2024-10",
+      "n": 79,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.543741008347,
+      "median_return_pct": 0.892606993391,
+      "month": "2024-11",
+      "n": 90,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.747309797195,
+      "median_return_pct": -0.590153315366,
+      "month": "2024-12",
+      "n": 52,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.119151029799,
+      "median_return_pct": 0.217689744955,
+      "month": "2025-01",
+      "n": 89,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.469223492857,
+      "median_return_pct": -0.597920499326,
+      "month": "2025-02",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.993815344948,
+      "median_return_pct": -1.266892620544,
+      "month": "2025-03",
+      "n": 54,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.258347216703,
+      "median_return_pct": -0.042331435902,
+      "month": "2025-04",
+      "n": 73,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.074662243463,
+      "median_return_pct": -0.177691477151,
+      "month": "2025-05",
+      "n": 76,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.073945608887,
+      "median_return_pct": 0.088682771458,
+      "month": "2025-06",
+      "n": 53,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.059108649814,
+      "median_return_pct": -0.27349401992,
+      "month": "2025-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.217124821684,
+      "median_return_pct": -0.134032899137,
+      "month": "2025-08",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.302367121751,
+      "median_return_pct": 0.474750430852,
+      "month": "2025-09",
+      "n": 61,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.717847862835,
+      "median_return_pct": 0.812574805412,
+      "month": "2025-10",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.534040727737,
+      "median_return_pct": -1.257635383936,
+      "month": "2025-11",
+      "n": 32,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.643462193067,
+      "median_return_pct": -0.685415267852,
+      "month": "2025-12",
+      "n": 60,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.27990800467,
+      "median_return_pct": 0.388164149169,
+      "month": "2026-01",
+      "n": 58,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.094300556647,
+      "median_return_pct": -0.743133171844,
+      "month": "2026-02",
+      "n": 31,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.153675138369,
+      "median_return_pct": -0.482601646208,
+      "month": "2026-03",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.360770244615,
+      "median_return_pct": -0.504794130038,
+      "month": "2026-04",
+      "n": 65,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.052551857663,
+      "median_return_pct": 0.062946190661,
+      "month": "2026-05",
+      "n": 55,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.029062228925,
+      "median_return_pct": 0.337939630756,
+      "month": "2026-06",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.244599268943,
+      "median_return_pct": 0.013261999379,
+      "month": "2026-07",
+      "n": 71,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.203707375376,
+      "median_return_pct": 0.274235638266,
+      "month": "2026-08",
+      "n": 48,
+      "population": "signals",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.438635015644,
+      "median_return_pct": -1.335483005234,
+      "month": "2024-08",
+      "n": 84,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.279771624278,
+      "median_return_pct": 0.248419071225,
+      "month": "2024-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.356938703741,
+      "median_return_pct": 0.195295960203,
+      "month": "2024-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.139028603994,
+      "median_return_pct": 0.644890247495,
+      "month": "2024-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.07036581842,
+      "median_return_pct": -0.178210747694,
+      "month": "2024-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.292609284911,
+      "median_return_pct": 0.345733273124,
+      "month": "2025-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.612426369991,
+      "median_return_pct": -0.463795909226,
+      "month": "2025-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.010615397495,
+      "median_return_pct": -0.099989877463,
+      "month": "2025-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.472054343188,
+      "median_return_pct": 0.3874088354,
+      "month": "2025-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.296286140511,
+      "median_return_pct": 0.112537173254,
+      "month": "2025-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.07261128159,
+      "median_return_pct": 0.047410871834,
+      "month": "2025-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.258428079441,
+      "median_return_pct": 0.19041872667,
+      "month": "2025-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.168168435569,
+      "median_return_pct": -0.045343605955,
+      "month": "2025-08",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.233022349577,
+      "median_return_pct": 0.166705425061,
+      "month": "2025-09",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.145827143715,
+      "median_return_pct": 0.211319636014,
+      "month": "2025-10",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.77940583256,
+      "median_return_pct": -0.433361964228,
+      "month": "2025-11",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.08905397422,
+      "median_return_pct": 0.001596939092,
+      "month": "2025-12",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.359339028599,
+      "median_return_pct": -0.082100610074,
+      "month": "2026-01",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.508949613909,
+      "median_return_pct": -0.816501586424,
+      "month": "2026-02",
+      "n": 8064,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.117566521868,
+      "median_return_pct": 0.104039250445,
+      "month": "2026-03",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.442474027333,
+      "median_return_pct": 0.21664671973,
+      "month": "2026-04",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.215357451764,
+      "median_return_pct": -0.006672072331,
+      "month": "2026-05",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.632860290395,
+      "median_return_pct": -0.340498311882,
+      "month": "2026-06",
+      "n": 8640,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.201353718082,
+      "median_return_pct": 0.268725994548,
+      "month": "2026-07",
+      "n": 8928,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.940985116205,
+      "median_return_pct": 0.267696593426,
+      "month": "2026-08",
+      "n": 7546,
+      "population": "baseline",
+      "timeframe": "5m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.285031639568,
+      "median_return_pct": 0.094531362677,
+      "month": "2024-09",
+      "n": 24,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.009761285789,
+      "median_return_pct": -0.091972510601,
+      "month": "2024-10",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.007390049965,
+      "median_return_pct": -0.07972588494,
+      "month": "2024-11",
+      "n": 40,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.088562119755,
+      "median_return_pct": -0.11531184143,
+      "month": "2024-12",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.038142983816,
+      "median_return_pct": -0.052883602762,
+      "month": "2025-01",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.106044215513,
+      "median_return_pct": 0.051266695307,
+      "month": "2025-02",
+      "n": 16,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.041135329514,
+      "median_return_pct": 0.00890124412,
+      "month": "2025-03",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.170289832547,
+      "median_return_pct": -0.060519080966,
+      "month": "2025-04",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.060283984323,
+      "median_return_pct": -0.111418897007,
+      "month": "2025-05",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.002654376551,
+      "median_return_pct": -0.017245825495,
+      "month": "2025-06",
+      "n": 22,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.09884392918,
+      "median_return_pct": 0.023405215588,
+      "month": "2025-07",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.014269305892,
+      "median_return_pct": -0.025489804078,
+      "month": "2025-08",
+      "n": 11,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.015238662672,
+      "median_return_pct": -0.06874856055,
+      "month": "2025-09",
+      "n": 25,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.097010796587,
+      "median_return_pct": 0.026466128341,
+      "month": "2025-10",
+      "n": 23,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.006465080498,
+      "median_return_pct": 0.019130209595,
+      "month": "2025-11",
+      "n": 14,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.140751131494,
+      "median_return_pct": -0.003190119743,
+      "month": "2025-12",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.240306799659,
+      "median_return_pct": 0.121992864653,
+      "month": "2026-01",
+      "n": 15,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.071612642644,
+      "median_return_pct": 0.204338605698,
+      "month": "2026-02",
+      "n": 12,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.129926769847,
+      "median_return_pct": 0.014482662582,
+      "month": "2026-03",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.105116299296,
+      "median_return_pct": -0.026774244207,
+      "month": "2026-04",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.043061107506,
+      "median_return_pct": 0.045427525542,
+      "month": "2026-05",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.010554577232,
+      "median_return_pct": 0.032164537465,
+      "month": "2026-06",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.040221752251,
+      "median_return_pct": 0.005757617605,
+      "month": "2026-07",
+      "n": 30,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.076564938349,
+      "median_return_pct": -0.041330657528,
+      "month": "2026-08",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.011613483558,
+      "median_return_pct": -0.013473359147,
+      "month": "2024-08",
+      "n": 28,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010966487899,
+      "median_return_pct": -0.002934465489,
+      "month": "2024-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.015105727558,
+      "median_return_pct": 0.008398998204,
+      "month": "2024-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.045606908277,
+      "median_return_pct": 0.035574431436,
+      "month": "2024-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.002295419185,
+      "median_return_pct": 0.011653961263,
+      "month": "2024-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.013579014799,
+      "median_return_pct": 0.00812578957,
+      "month": "2025-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.027500152932,
+      "median_return_pct": -0.004103192646,
+      "month": "2025-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.000679170318,
+      "median_return_pct": 0.00661671281,
+      "month": "2025-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.019790775383,
+      "median_return_pct": 0.003914660624,
+      "month": "2025-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.014569710179,
+      "median_return_pct": 0.006969207839,
+      "month": "2025-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.004213728117,
+      "median_return_pct": 0.002689505573,
+      "month": "2025-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010618736985,
+      "median_return_pct": 0.006742850488,
+      "month": "2025-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.008459505707,
+      "median_return_pct": -0.007170854599,
+      "month": "2025-08",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.007891695395,
+      "median_return_pct": 0.003047054755,
+      "month": "2025-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.004218754662,
+      "median_return_pct": 0.003723699598,
+      "month": "2025-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.027663830845,
+      "median_return_pct": -0.001392651124,
+      "month": "2025-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.000522741313,
+      "median_return_pct": 0.00830581458,
+      "month": "2025-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.013249369472,
+      "median_return_pct": -0.000780867765,
+      "month": "2026-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.022286275525,
+      "median_return_pct": -0.001520360143,
+      "month": "2026-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.004046569869,
+      "median_return_pct": -0.009770638028,
+      "month": "2026-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.016901054011,
+      "median_return_pct": 0.009658987157,
+      "month": "2026-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.004161032012,
+      "median_return_pct": -0.001887676208,
+      "month": "2026-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": -0.030780581243,
+      "median_return_pct": -0.02736740138,
+      "month": "2026-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.010429976285,
+      "median_return_pct": 0.008446632516,
+      "month": "2026-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "1h",
+      "horizon_minutes": 60,
+      "mean_return_pct": 0.037143657902,
+      "median_return_pct": 0.004639250828,
+      "month": "2026-08",
+      "n": 2608,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.28646625601,
+      "median_return_pct": 0.12143952161,
+      "month": "2024-09",
+      "n": 24,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.075186239656,
+      "median_return_pct": -0.127984284175,
+      "month": "2024-10",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.377619193185,
+      "median_return_pct": 0.117999398709,
+      "month": "2024-11",
+      "n": 40,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.104059715399,
+      "median_return_pct": 0.009733905755,
+      "month": "2024-12",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.001314595041,
+      "median_return_pct": -0.002178412237,
+      "month": "2025-01",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.010104087638,
+      "median_return_pct": -0.040940478457,
+      "month": "2025-02",
+      "n": 16,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.243587250662,
+      "median_return_pct": -0.034579373976,
+      "month": "2025-03",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.25199385613,
+      "median_return_pct": -0.245314588054,
+      "month": "2025-04",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.235817578944,
+      "median_return_pct": -0.264683663141,
+      "month": "2025-05",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.212641637691,
+      "median_return_pct": 0.153447150412,
+      "month": "2025-06",
+      "n": 22,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.160738678253,
+      "median_return_pct": 0.118530459365,
+      "month": "2025-07",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.198025603661,
+      "median_return_pct": 0.008351921279,
+      "month": "2025-08",
+      "n": 11,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.084131528063,
+      "median_return_pct": 0.040024256079,
+      "month": "2025-09",
+      "n": 25,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.14558282696,
+      "median_return_pct": 0.208195374739,
+      "month": "2025-10",
+      "n": 23,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.32478824706,
+      "median_return_pct": -0.188375571892,
+      "month": "2025-11",
+      "n": 14,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.045741530498,
+      "median_return_pct": 0.056282826902,
+      "month": "2025-12",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.594131591472,
+      "median_return_pct": 0.566689672598,
+      "month": "2026-01",
+      "n": 15,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.090005733213,
+      "median_return_pct": 0.026592376619,
+      "month": "2026-02",
+      "n": 12,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.541429051341,
+      "median_return_pct": 0.29985915493,
+      "month": "2026-03",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.001115758893,
+      "median_return_pct": -0.147866215773,
+      "month": "2026-04",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.06589208526,
+      "median_return_pct": 0.031103829228,
+      "month": "2026-05",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.177190746155,
+      "median_return_pct": -0.149468373529,
+      "month": "2026-06",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.118936444349,
+      "median_return_pct": -0.035914538072,
+      "month": "2026-07",
+      "n": 30,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.083482190182,
+      "median_return_pct": -0.025544349685,
+      "month": "2026-08",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.168846657737,
+      "median_return_pct": -0.029271046631,
+      "month": "2024-08",
+      "n": 28,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.046832899449,
+      "median_return_pct": 0.020690031025,
+      "month": "2024-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.054714744944,
+      "median_return_pct": 0.043298000654,
+      "month": "2024-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.185400837281,
+      "median_return_pct": 0.083197647538,
+      "month": "2024-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.007372369962,
+      "median_return_pct": 0.022841281755,
+      "month": "2024-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.053592254663,
+      "median_return_pct": 0.037777779199,
+      "month": "2025-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.108043594449,
+      "median_return_pct": -0.022349436489,
+      "month": "2025-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.003391752648,
+      "median_return_pct": -0.001546424248,
+      "month": "2025-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.079984977501,
+      "median_return_pct": 0.06403681989,
+      "month": "2025-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.055022085853,
+      "median_return_pct": 0.013818558455,
+      "month": "2025-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.01808462154,
+      "median_return_pct": 0.021648740365,
+      "month": "2025-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.041985086975,
+      "median_return_pct": 0.019635035055,
+      "month": "2025-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.034312882171,
+      "median_return_pct": -0.022490961063,
+      "month": "2025-08",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.033368091754,
+      "median_return_pct": 0.011049427762,
+      "month": "2025-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.017218977892,
+      "median_return_pct": 0.011048279748,
+      "month": "2025-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.120026901384,
+      "median_return_pct": -0.039339442874,
+      "month": "2025-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.007432141726,
+      "median_return_pct": 0.034571587358,
+      "month": "2025-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.055242181358,
+      "median_return_pct": -0.012823212949,
+      "month": "2026-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.085059313073,
+      "median_return_pct": -0.012727074881,
+      "month": "2026-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.011959271264,
+      "median_return_pct": -0.035669697949,
+      "month": "2026-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.069797140974,
+      "median_return_pct": 0.02323591968,
+      "month": "2026-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.018975253365,
+      "median_return_pct": -0.00419420194,
+      "month": "2026-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": -0.121059220167,
+      "median_return_pct": -0.073154190891,
+      "month": "2026-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.040004584079,
+      "median_return_pct": 0.02404114724,
+      "month": "2026-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "4h",
+      "horizon_minutes": 240,
+      "mean_return_pct": 0.152065380147,
+      "median_return_pct": 0.039917794764,
+      "month": "2026-08",
+      "n": 2596,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.181815636864,
+      "median_return_pct": -0.15966260427,
+      "month": "2024-09",
+      "n": 24,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.095231444884,
+      "median_return_pct": -0.203184293951,
+      "month": "2024-10",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.506145130638,
+      "median_return_pct": 0.100322679195,
+      "month": "2024-11",
+      "n": 40,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.618327131483,
+      "median_return_pct": -0.425446135987,
+      "month": "2024-12",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.211214071977,
+      "median_return_pct": 0.202313940472,
+      "month": "2025-01",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.225547617278,
+      "median_return_pct": -0.160447058024,
+      "month": "2025-02",
+      "n": 16,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.484107484531,
+      "median_return_pct": -0.589795878642,
+      "month": "2025-03",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.045392118804,
+      "median_return_pct": -0.257030546146,
+      "month": "2025-04",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.173964484779,
+      "median_return_pct": -0.237768585664,
+      "month": "2025-05",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.338290406442,
+      "median_return_pct": 0.213729469049,
+      "month": "2025-06",
+      "n": 22,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.085803535619,
+      "median_return_pct": -0.092460299571,
+      "month": "2025-07",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.374113955626,
+      "median_return_pct": 0.052708694578,
+      "month": "2025-08",
+      "n": 11,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.249017993849,
+      "median_return_pct": 0.381608572472,
+      "month": "2025-09",
+      "n": 25,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.474155982108,
+      "median_return_pct": 0.666209787955,
+      "month": "2025-10",
+      "n": 23,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.380089245215,
+      "median_return_pct": -0.335150136419,
+      "month": "2025-11",
+      "n": 14,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.121362792112,
+      "median_return_pct": 0.246106439331,
+      "month": "2025-12",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.714231976297,
+      "median_return_pct": 0.930673005203,
+      "month": "2026-01",
+      "n": 15,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.38853067823,
+      "median_return_pct": -0.48620494706,
+      "month": "2026-02",
+      "n": 12,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.287901496828,
+      "median_return_pct": -0.316758218289,
+      "month": "2026-03",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.459823522548,
+      "median_return_pct": -0.59061718536,
+      "month": "2026-04",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.090559937344,
+      "median_return_pct": 0.044639144745,
+      "month": "2026-05",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.139755916151,
+      "median_return_pct": -0.017980915213,
+      "month": "2026-06",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.034232591573,
+      "median_return_pct": 0.252198425773,
+      "month": "2026-07",
+      "n": 30,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.38528630418,
+      "median_return_pct": 0.042197419002,
+      "month": "2026-08",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -1.341995477802,
+      "median_return_pct": -1.284179056696,
+      "month": "2024-08",
+      "n": 28,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.158170621613,
+      "median_return_pct": 0.082563704256,
+      "month": "2024-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.153056594801,
+      "median_return_pct": 0.121727755781,
+      "month": "2024-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.563619833553,
+      "median_return_pct": 0.24914450688,
+      "month": "2024-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.032646898967,
+      "median_return_pct": 0.034888715541,
+      "month": "2024-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.158698615022,
+      "median_return_pct": 0.120937120026,
+      "month": "2025-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.308330401997,
+      "median_return_pct": -0.16966447116,
+      "month": "2025-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.007141902444,
+      "median_return_pct": -0.032544996036,
+      "month": "2025-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.236380114737,
+      "median_return_pct": 0.11162575395,
+      "month": "2025-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.1568578064,
+      "median_return_pct": 0.014018975204,
+      "month": "2025-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.049232449594,
+      "median_return_pct": 0.061362077641,
+      "month": "2025-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.128090759539,
+      "median_return_pct": 0.110233740723,
+      "month": "2025-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.093163936495,
+      "median_return_pct": -0.008889855469,
+      "month": "2025-08",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.102515093528,
+      "median_return_pct": 0.089797554963,
+      "month": "2025-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.056331285422,
+      "median_return_pct": 0.100150344444,
+      "month": "2025-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.3770965015,
+      "median_return_pct": -0.206325261787,
+      "month": "2025-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.031759789283,
+      "median_return_pct": 0.023946239586,
+      "month": "2025-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.165821393734,
+      "median_return_pct": -0.027262698161,
+      "month": "2026-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.256257587133,
+      "median_return_pct": -0.278839754557,
+      "month": "2026-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.049118517785,
+      "median_return_pct": -0.096817060225,
+      "month": "2026-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.20770755535,
+      "median_return_pct": 0.065272166713,
+      "month": "2026-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.075156103395,
+      "median_return_pct": -0.006183569657,
+      "month": "2026-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": -0.352819537916,
+      "median_return_pct": -0.114430696566,
+      "month": "2026-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.117871009779,
+      "median_return_pct": 0.153768518124,
+      "month": "2026-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "12h",
+      "horizon_minutes": 720,
+      "mean_return_pct": 0.462551875831,
+      "median_return_pct": 0.131807026847,
+      "month": "2026-08",
+      "n": 2564,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.285647398012,
+      "median_return_pct": 0.40324280376,
+      "month": "2024-09",
+      "n": 24,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.145795837158,
+      "median_return_pct": -0.112075671118,
+      "month": "2024-10",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.190337791521,
+      "median_return_pct": 0.676199404353,
+      "month": "2024-11",
+      "n": 40,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.24742226905,
+      "median_return_pct": -1.330195506935,
+      "month": "2024-12",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.109998369326,
+      "median_return_pct": 0.511834884871,
+      "month": "2025-01",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.716879359102,
+      "median_return_pct": -0.898605348971,
+      "month": "2025-02",
+      "n": 16,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.380758825418,
+      "median_return_pct": -1.116385773306,
+      "month": "2025-03",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.52631277724,
+      "median_return_pct": -0.170454468834,
+      "month": "2025-04",
+      "n": 34,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.175447196858,
+      "median_return_pct": -0.431078056177,
+      "month": "2025-05",
+      "n": 33,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.453813785992,
+      "median_return_pct": 0.450206866814,
+      "month": "2025-06",
+      "n": 22,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.07118490081,
+      "median_return_pct": -0.264573190936,
+      "month": "2025-07",
+      "n": 29,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.115317243976,
+      "median_return_pct": -0.117919482729,
+      "month": "2025-08",
+      "n": 11,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.159623302946,
+      "median_return_pct": 0.301288490937,
+      "month": "2025-09",
+      "n": 25,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.053749526114,
+      "median_return_pct": 1.004726956314,
+      "month": "2025-10",
+      "n": 23,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.370975082769,
+      "median_return_pct": -0.969676429007,
+      "month": "2025-11",
+      "n": 14,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.618638728355,
+      "median_return_pct": -0.958409415508,
+      "month": "2025-12",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.4698594241,
+      "median_return_pct": 1.060699589618,
+      "month": "2026-01",
+      "n": 15,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.743554891834,
+      "median_return_pct": -1.760005028895,
+      "month": "2026-02",
+      "n": 12,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.014271562664,
+      "median_return_pct": -0.161773557598,
+      "month": "2026-03",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.474872333785,
+      "median_return_pct": -0.445199113557,
+      "month": "2026-04",
+      "n": 27,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.148240578103,
+      "median_return_pct": 0.248955179135,
+      "month": "2026-05",
+      "n": 28,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.02432802167,
+      "median_return_pct": 0.336897103682,
+      "month": "2026-06",
+      "n": 19,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.241995679706,
+      "median_return_pct": -0.002338701309,
+      "month": "2026-07",
+      "n": 30,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.040894060425,
+      "median_return_pct": 0.276786812646,
+      "month": "2026-08",
+      "n": 25,
+      "population": "signals",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -1.431161518408,
+      "median_return_pct": -1.274706738574,
+      "month": "2024-08",
+      "n": 28,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.280444832372,
+      "median_return_pct": 0.246651306886,
+      "month": "2024-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.356100126608,
+      "median_return_pct": 0.184513215788,
+      "month": "2024-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 1.138982461004,
+      "median_return_pct": 0.6345379463,
+      "month": "2024-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.070313189472,
+      "median_return_pct": -0.181545554115,
+      "month": "2024-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.292934232765,
+      "median_return_pct": 0.361019233776,
+      "month": "2025-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.61286240191,
+      "median_return_pct": -0.467889725398,
+      "month": "2025-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.010333754588,
+      "median_return_pct": -0.100821006099,
+      "month": "2025-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.472193864294,
+      "median_return_pct": 0.384626384024,
+      "month": "2025-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.29654116371,
+      "median_return_pct": 0.107207252191,
+      "month": "2025-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.072694297217,
+      "median_return_pct": 0.046986252968,
+      "month": "2025-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.258775245203,
+      "median_return_pct": 0.191901469302,
+      "month": "2025-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.168365034981,
+      "median_return_pct": -0.044052226213,
+      "month": "2025-08",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.232317847199,
+      "median_return_pct": 0.164725359239,
+      "month": "2025-09",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.145582028493,
+      "median_return_pct": 0.199777506724,
+      "month": "2025-10",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.778951229693,
+      "median_return_pct": -0.441357062684,
+      "month": "2025-11",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.088567498425,
+      "median_return_pct": 0.016318827206,
+      "month": "2025-12",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.358129067918,
+      "median_return_pct": -0.074350968898,
+      "month": "2026-01",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.510115763832,
+      "median_return_pct": -0.802673780575,
+      "month": "2026-02",
+      "n": 2688,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.11770789809,
+      "median_return_pct": 0.104628932019,
+      "month": "2026-03",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.441705497707,
+      "median_return_pct": 0.215364319438,
+      "month": "2026-04",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.214518842873,
+      "median_return_pct": -0.005713747605,
+      "month": "2026-05",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": -0.633179360731,
+      "median_return_pct": -0.32505052867,
+      "month": "2026-06",
+      "n": 2880,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.201493781874,
+      "median_return_pct": 0.277928894871,
+      "month": "2026-07",
+      "n": 2976,
+      "population": "baseline",
+      "timeframe": "15m"
+    },
+    {
+      "horizon": "24h",
+      "horizon_minutes": 1440,
+      "mean_return_pct": 0.941007864251,
+      "median_return_pct": 0.260455951842,
+      "month": "2026-08",
+      "n": 2516,
+      "population": "baseline",
+      "timeframe": "15m"
+    }
+  ],
+  "operational_status": "INCOMPLETE",
+  "replay_counts": {
+    "duplicate_suppressed": 0,
+    "m15_candidates": 69744,
+    "m15_cooldown_suppressed": 16,
+    "m15_not_ready": 0,
+    "m15_rejected": 69139,
+    "m15_warmup_skipped": 0,
+    "m5_candidates": 209230,
+    "m5_cooldown_suppressed": 4459,
+    "m5_not_ready": 0,
+    "m5_rejected": 203372,
+    "m5_warmup_skipped": 0
+  },
+  "signal_counts": {
+    "15m": 589,
+    "5m": 1399
+  },
+  "warnings": [
+    "12 signal-horizon outcomes are incomplete or invalid; exact targets were not substituted."
+  ],
+  "window": {
+    "requested_end_utc": "2026-08-28T16:59:59.999999Z",
+    "requested_start_utc": "2024-08-31T17:00:00Z",
+    "trigger_close_semantics": "inclusive"
+  }
+}

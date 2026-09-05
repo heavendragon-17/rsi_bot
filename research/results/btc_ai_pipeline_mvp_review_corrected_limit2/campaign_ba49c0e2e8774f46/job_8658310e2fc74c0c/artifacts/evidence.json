@@ -1,0 +1,112 @@
+{
+  "cache_key": "19e44b60ef9b54b6cb5aa76f113c95e5337d0df1a7bac2c5bebf53ec99acc037",
+  "checks": [
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.140563734556,
+        "target_close_at": "2022-08-30T01:00:00Z",
+        "target_close_price": "20247.0"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.140563734556,
+        "target_close_at": "2022-08-30T01:00:00Z",
+        "target_close_price": 20247.0
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 60,
+      "passed": true
+    },
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.613548371187,
+        "target_close_at": "2022-08-30T02:00:00Z",
+        "target_close_price": "20151.1"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.613548371187,
+        "target_close_at": "2022-08-30T02:00:00Z",
+        "target_close_price": 20151.1
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 120,
+      "passed": true
+    },
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.440433034944,
+        "target_close_at": "2022-08-30T03:00:00Z",
+        "target_close_price": "20186.2"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": -0.440433034944,
+        "target_close_at": "2022-08-30T03:00:00Z",
+        "target_close_price": 20186.2
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 180,
+      "passed": true
+    }
+  ],
+  "evaluator": "research.btc_m5_horizon_diagnostic.profile + app.backtest.btc_research_phase1._exact_forward_outcome_from_index",
+  "event_id": "73bff321b4a902aa73dabab9be122a5d539c1a9a7297a9c01c8e77cd78612d71",
+  "horizons_minutes": [
+    60,
+    120,
+    180
+  ],
+  "input_identity": {
+    "baseline_manifest_sha256": "c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575",
+    "horizon_manifest_sha256": "30db2b2597666c815ebe3a9fc754e2e3c46f7203dec661c399963dca48024ec7",
+    "horizon_signals_sha256": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+    "mismatches": [],
+    "mode": "fixture",
+    "source_expected_sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d",
+    "source_path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+    "source_sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d"
+  },
+  "limitations": [
+    "close-to-close evidence only",
+    "not a fill, P&L, alpha, or strategy approval",
+    "fixture source is synthesized from saved target rows; this is not real-data verification"
+  ],
+  "result_id": "result_b751f9a0b9064e63",
+  "reused_evidence": false,
+  "saved_horizon_packet": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169",
+  "saved_horizon_packet_sha256": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+  "schema": "btc-m5-verification-evidence-v1",
+  "source": {
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\btc_ai_pipeline_mvp_review_corrected_limit2\\campaign_ba49c0e2e8774f46\\job_8658310e2fc74c0c\\fixture_source_5m.csv",
+    "saved_source_sha256": null,
+    "sha256": "d0f4b32c698f3cb8743e6d306b8232bc6d3cb68eaa94fbc38bf6705bc80cdb60"
+  },
+  "status": "VERIFIED",
+  "trigger_close_at": "2022-08-30T00:00:00Z",
+  "verification_mode": "fixture_validation"
+}

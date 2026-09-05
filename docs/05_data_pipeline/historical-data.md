@@ -187,3 +187,68 @@ migration/recovery error. It must not create a new moving indicator seed. The
 canonical validated PUMP CSV is also the cold-start source used to seed an
 empty Core V2.1 runtime SQLite database before the latest public API tail is
 reconciled.
+
+---
+
+## Frozen four-year BTC research acquisition
+
+`research/btc_four_year_data.py` builds a separate dataset for the frozen
+signal interval **[2022-08-28T00:00:00Z, 2026-08-28T00:00:00Z)**. It includes
+native candles from 2022-05-01 for indicator and regime warmup and requires
+outcome candle closes through at least 2026-08-28T04:00:00Z. Existing candles
+after the signal interval are retained for outcome labels only; downstream
+replays must enforce the signal interval explicitly.
+
+```bash
+# Read-only validation and exact monthly acquisition plan; no network calls
+python -m research.btc_four_year_data --plan
+
+# Public historical data only; no exchange account or API keys
+python -m research.btc_four_year_data --workers 4 --timeout 20 --retries 3
+```
+
+The source is the four canonical `app/backtest/data/BTCUSDT_{5m,15m,1h,4h}.csv`
+files. They are never edited. The command preserves their exact bytes in
+`research/data/btc_four_year_archive_cache/native_sources/<sha256>/`, then
+fetches Binance USD-M Futures BTCUSDT monthly klines from May 2022 through each
+native file's first month, inclusive. August 2024 is the latest supported
+prefix month. The first existing month supplies an overlap for identity
+verification; unnecessary later archives are skipped. With the current native
+files, there are 108 archives: 28 each for M5/H1/H4 and 24 for M15, which already
+starts in April 2024.
+
+Every ZIP must match its same-name `.zip.CHECKSUM` SHA-256 entry from
+`https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/<timeframe>/`.
+ZIP and checksum bytes are cached separately by timeframe. The downloader
+uses at most four parallel requests, bounded request time and response sizes,
+and at most five attempts; defaults are 20 seconds and three attempts. ZIP
+members are read into memory without filesystem extraction. Both headered and
+headerless Binance kline CSVs are supported; open timestamps are integer Unix
+milliseconds. Native timezone-naive UTC+7 timestamps normalize to aware UTC.
+
+Validation requires finite OHLCV, positive prices, nonnegative volume, valid
+OHLC relationships, exact UTC exchange timeframe alignment, complete monthly
+archive coverage, and uninterrupted cadence. Duplicates within any source,
+missing intervals, absent overlap, or conflicting archive/native overlap fail
+the acquisition. Overlap comparison allows only floating-point serialization
+noise (`rel_tol=1e-12`, `abs_tol=1e-10`), below the BTC price and volume units in
+these files; matching native values remain authoritative in the output.
+
+The completed dataset is published by renaming a separate staging directory
+to `research/data/btc_four_year_20220828_20260828/`. It contains the same four
+CSV filenames, with explicit UTC candle-open strings, and
+`acquisition_manifest.json`. The manifest records the frozen interval, warmup,
+source snapshots and SHA-256 hashes, archive/checksum URLs and hashes, row
+counts, start/end times, verified overlap counts, and output hashes. An
+existing output directory is never overwritten. Failed downloads leave
+verified cache entries available for resumption; a failure during validation
+may leave a `.partial-*` staging directory but does not publish a completed
+dataset. Corrupt cached bytes fail verification rather than being silently
+replaced. `--source-dir`, `--cache-dir`, and `--output-dir` can choose separate
+locations; source/canonical destinations and nested cache/output paths are
+rejected.
+
+`tests/test_btc_four_year_data.py` exercises checksum and ZIP-member safety,
+CSV timestamps, overlap conflicts, cadence/alignment, invalid OHLCV, original
+byte preservation, shared replay-loader compatibility, read-only planning,
+and failure without dataset publication using only local fixtures.

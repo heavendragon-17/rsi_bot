@@ -1,0 +1,41 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "REPAIR",
+        "PROPOSE_NEXT",
+        "REJECT",
+        "STOP"
+      ]
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "next_job": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "btc-research-review-v1"
+    }
+  },
+  "required": [
+    "schema",
+    "action",
+    "reasons",
+    "evidence_refs"
+  ],
+  "type": "object"
+}

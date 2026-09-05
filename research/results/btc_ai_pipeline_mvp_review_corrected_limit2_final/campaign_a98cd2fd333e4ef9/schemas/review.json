@@ -1,0 +1,128 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "REPAIR",
+        "PROPOSE_NEXT",
+        "REJECT",
+        "STOP"
+      ]
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "next_job": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expected_evidence": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "falsification_conditions": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "hypothesis": {
+              "type": "string"
+            },
+            "invariants": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "event_index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "mode": {
+                  "enum": [
+                    "fixture",
+                    "real"
+                  ]
+                }
+              },
+              "required": [
+                "mode",
+                "event_index"
+              ],
+              "type": "object"
+            },
+            "parent_result_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "question": {
+              "type": "string"
+            },
+            "rationale": {
+              "type": "string"
+            },
+            "schema": {
+              "const": "btc-research-proposal-v1"
+            },
+            "stop_conditions": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "task": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema",
+            "hypothesis",
+            "question",
+            "rationale",
+            "expected_evidence",
+            "task",
+            "parameters",
+            "invariants",
+            "stop_conditions",
+            "falsification_conditions"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "btc-research-review-v1"
+    }
+  },
+  "required": [
+    "schema",
+    "action",
+    "reasons",
+    "evidence_refs"
+  ],
+  "type": "object"
+}

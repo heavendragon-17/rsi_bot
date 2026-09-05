@@ -1,0 +1,58 @@
+{
+  "changed_plan_and_wrong_reference": {
+    "status": "STOPPED",
+    "proposed_event_index": 0,
+    "executed_event_index": 1,
+    "review_refs": [
+      "unrelated-result"
+    ],
+    "recorded_decision_evidence": {
+      "evidence_path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\btc_ai_pipeline_review_81535d43\\binding\\campaign_cb357d87c77943dc\\job_15507568ee134a64\\artifacts\\evidence.json",
+      "result_id": "d41c3d4712be6f2e0ae53145",
+      "verification_status": "VERIFIED"
+    }
+  },
+  "completed_executor_redispatched_on_resume": {
+    "completed_execution_attempts_before": 1,
+    "executor_calls_before": 1,
+    "executor_calls_after": 2,
+    "status_after": "STOPPED"
+  },
+  "job_cap": {
+    "status": "RUNNING",
+    "configured_max_jobs": 2,
+    "jobs_started_counter": 1,
+    "checked_jobs": 3,
+    "result_count": 3
+  },
+  "changed_source_cache_hit": {
+    "synthetic_fixture_only": true,
+    "first_status": "STOPPED",
+    "second_status": "STOPPED",
+    "verification_status": "VERIFIED",
+    "reused": true,
+    "saved_hash": "d0f4b32c698f3cb8743e6d306b8232bc6d3cb68eaa94fbc38bf6705bc80cdb60",
+    "observed_hash": "195b68c184b3ca38eb6f9edc0da9d34708600b3cdcd53e56e5b70fa871c06cc9"
+  },
+  "offline_flag_dispatches_codex_adapter": {
+    "status": "STOPPED",
+    "adapter_calls": [
+      {
+        "invoked_codex_role": "thinker"
+      },
+      {
+        "invoked_codex_role": "thinker"
+      }
+    ],
+    "real_model_calls": 0
+  },
+  "resume_config_drift": {
+    "before_status": "PAUSED",
+    "after_status": "STOPPED",
+    "saved_verification_mode": "real",
+    "resumed_result_mode": "fixture_validation",
+    "saved_thinker_model": "saved-thinker",
+    "last_attempt_model": "fixture-thinker",
+    "real_model_calls": 0
+  }
+}

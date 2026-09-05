@@ -1,0 +1,3677 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "excluded_baseline_count": 0,
+  "excluded_signal_ids": [],
+  "horizon_summaries": [
+    {
+      "baseline": {
+        "mean_mae_pct": -0.32998102110718197,
+        "mean_mfe_pct": 0.32410189095959485,
+        "mean_return_pct": 0.0029705260996525876,
+        "median_mae_pct": -0.21417100707695758,
+        "median_mfe_pct": 0.21295872878850375,
+        "median_return_pct": 0.003016161915,
+        "n_complete": 208427,
+        "n_matched": 208427,
+        "n_total": 208427,
+        "positive_return_share": 0.5044979777092219,
+        "status_counts": {
+          "COMPLETE": 208427
+        }
+      },
+      "bootstrap": {
+        "block_days": 7,
+        "calendar_days": 725,
+        "calendar_timezone": "UTC",
+        "percentile_level": 0.95,
+        "replicates": 2000,
+        "seed": 20260904,
+        "signal_mean_ci_pct": [
+          -0.020964819562890688,
+          0.01841321464155645
+        ],
+        "signal_minus_baseline_ci_pp": [
+          -0.02201115473097448,
+          0.013254728517198432
+        ],
+        "status": "DESCRIPTIVE",
+        "undefined_replicates": 0,
+        "valid_replicates": 2000
+      },
+      "horizon_minutes": 60,
+      "signal": {
+        "mean_mae_pct": -0.27784463220303285,
+        "mean_mfe_pct": 0.30310044460571234,
+        "mean_return_pct": -0.0006337143080764862,
+        "median_mae_pct": -0.18675583593175116,
+        "median_mfe_pct": 0.1976871743303743,
+        "median_return_pct": -0.017679687116,
+        "n_complete": 1399,
+        "n_matched": 1399,
+        "n_total": 1399,
+        "positive_return_share": 0.47248034310221587,
+        "status_counts": {
+          "COMPLETE": 1399
+        }
+      },
+      "signal_minus_baseline_mean_pp": -0.003604240407729074
+    },
+    {
+      "baseline": {
+        "mean_mae_pct": -0.4752580310120169,
+        "mean_mfe_pct": 0.46357045256377266,
+        "mean_return_pct": 0.005868301962498848,
+        "median_mae_pct": -0.30711837938662834,
+        "median_mfe_pct": 0.30631762565647147,
+        "median_return_pct": 0.008864813182,
+        "n_complete": 208427,
+        "n_matched": 208427,
+        "n_total": 208427,
+        "positive_return_share": 0.5089119931678717,
+        "status_counts": {
+          "COMPLETE": 208427
+        }
+      },
+      "bootstrap": {
+        "block_days": 7,
+        "calendar_days": 725,
+        "calendar_timezone": "UTC",
+        "percentile_level": 0.95,
+        "replicates": 2000,
+        "seed": 20260904,
+        "signal_mean_ci_pct": [
+          -0.03533943752053366,
+          0.03457675522126657
+        ],
+        "signal_minus_baseline_ci_pp": [
+          -0.03740233922080566,
+          0.026068603027677724
+        ],
+        "status": "DESCRIPTIVE",
+        "undefined_replicates": 0,
+        "valid_replicates": 2000
+      },
+      "horizon_minutes": 120,
+      "signal": {
+        "mean_mae_pct": -0.41084443632585627,
+        "mean_mfe_pct": 0.43764281892277623,
+        "mean_return_pct": 0.00027835954096426643,
+        "median_mae_pct": -0.2787281478879966,
+        "median_mfe_pct": 0.2871542294255791,
+        "median_return_pct": -0.019463098743,
+        "n_complete": 1399,
+        "n_matched": 1399,
+        "n_total": 1399,
+        "positive_return_share": 0.4810578984989278,
+        "status_counts": {
+          "COMPLETE": 1399
+        }
+      },
+      "signal_minus_baseline_mean_pp": -0.005589942421534582
+    },
+    {
+      "baseline": {
+        "mean_mae_pct": -0.5890134531141343,
+        "mean_mfe_pct": 0.5721323147685294,
+        "mean_return_pct": 0.008737372052410892,
+        "median_mae_pct": -0.38446016924873483,
+        "median_mfe_pct": 0.3806917304935986,
+        "median_return_pct": 0.0104808849,
+        "n_complete": 208427,
+        "n_matched": 208427,
+        "n_total": 208427,
+        "positive_return_share": 0.5086529096518205,
+        "status_counts": {
+          "COMPLETE": 208427
+        }
+      },
+      "bootstrap": {
+        "block_days": 7,
+        "calendar_days": 725,
+        "calendar_timezone": "UTC",
+        "percentile_level": 0.95,
+        "replicates": 2000,
+        "seed": 20260904,
+        "signal_mean_ci_pct": [
+          -0.04027778216620163,
+          0.05334044130354698
+        ],
+        "signal_minus_baseline_ci_pp": [
+          -0.04478584690911822,
+          0.039993566660093724
+        ],
+        "status": "DESCRIPTIVE",
+        "undefined_replicates": 0,
+        "valid_replicates": 2000
+      },
+      "horizon_minutes": 180,
+      "signal": {
+        "mean_mae_pct": -0.5189248949199872,
+        "mean_mfe_pct": 0.5443641453297399,
+        "mean_return_pct": 0.0070665846642251565,
+        "median_mae_pct": -0.3583650978539521,
+        "median_mfe_pct": 0.3532852781166662,
+        "median_return_pct": -0.021525724043,
+        "n_complete": 1399,
+        "n_matched": 1399,
+        "n_total": 1399,
+        "positive_return_share": 0.48177269478198714,
+        "status_counts": {
+          "COMPLETE": 1399
+        }
+      },
+      "signal_minus_baseline_mean_pp": -0.0016707873881857353
+    },
+    {
+      "baseline": {
+        "mean_mae_pct": -0.6857158738361695,
+        "mean_mfe_pct": 0.6648610178829987,
+        "mean_return_pct": 0.011586351359573383,
+        "median_mae_pct": -0.4528748355366763,
+        "median_mfe_pct": 0.4462919485635153,
+        "median_return_pct": 0.012600344197,
+        "n_complete": 208427,
+        "n_matched": 208427,
+        "n_total": 208427,
+        "positive_return_share": 0.5095069256862115,
+        "status_counts": {
+          "COMPLETE": 208427
+        }
+      },
+      "bootstrap": {
+        "block_days": 7,
+        "calendar_days": 725,
+        "calendar_timezone": "UTC",
+        "percentile_level": 0.95,
+        "replicates": 2000,
+        "seed": 20260904,
+        "signal_mean_ci_pct": [
+          -0.05077747171352428,
+          0.07591266309754434
+        ],
+        "signal_minus_baseline_ci_pp": [
+          -0.05725107849437053,
+          0.056412848742974774
+        ],
+        "status": "DESCRIPTIVE",
+        "undefined_replicates": 0,
+        "valid_replicates": 2000
+      },
+      "horizon_minutes": 240,
+      "signal": {
+        "mean_mae_pct": -0.6018695550815123,
+        "mean_mfe_pct": 0.6411501199237741,
+        "mean_return_pct": 0.013275077239558251,
+        "median_mae_pct": -0.42409160961711656,
+        "median_mfe_pct": 0.4191759713172871,
+        "median_return_pct": -0.017737982151,
+        "n_complete": 1399,
+        "n_matched": 1399,
+        "n_total": 1399,
+        "positive_return_share": 0.4853466761972838,
+        "status_counts": {
+          "COMPLETE": 1399
+        }
+      },
+      "signal_minus_baseline_mean_pp": 0.0016887258799848683
+    }
+  ],
+  "monthly_summaries": [
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3278178626636418,
+      "mean_mfe_pct": 0.34952850407079106,
+      "mean_return_pct": 0.01538712995696969,
+      "median_mae_pct": -0.21818634924798963,
+      "median_mfe_pct": 0.21378056616301322,
+      "median_return_pct": -0.036354632228,
+      "month_utc": "2024-09",
+      "n_complete": 66,
+      "n_matched": 66,
+      "n_total": 66,
+      "population": "signal",
+      "positive_return_share": 0.48484848484848486,
+      "status_counts": {
+        "COMPLETE": 66
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2322981359213685,
+      "mean_mfe_pct": 0.30196946479067105,
+      "mean_return_pct": 0.05092405431069621,
+      "median_mae_pct": -0.15993564266354454,
+      "median_mfe_pct": 0.18153326282663862,
+      "median_return_pct": 0.022018150745,
+      "month_utc": "2024-10",
+      "n_complete": 79,
+      "n_matched": 79,
+      "n_total": 79,
+      "population": "signal",
+      "positive_return_share": 0.5189873417721519,
+      "status_counts": {
+        "COMPLETE": 79
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3159880040738675,
+      "mean_mfe_pct": 0.4341041986124686,
+      "mean_return_pct": 0.0557072165006,
+      "median_mae_pct": -0.2331442712012466,
+      "median_mfe_pct": 0.3215075423758873,
+      "median_return_pct": -0.046728219465,
+      "month_utc": "2024-11",
+      "n_complete": 90,
+      "n_matched": 90,
+      "n_total": 90,
+      "population": "signal",
+      "positive_return_share": 0.45555555555555555,
+      "status_counts": {
+        "COMPLETE": 90
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.24968046555625742,
+      "mean_mfe_pct": 0.3466791105249428,
+      "mean_return_pct": 0.06345367664211538,
+      "median_mae_pct": -0.23054705447837498,
+      "median_mfe_pct": 0.2815819087022664,
+      "median_return_pct": 0.032369923937,
+      "month_utc": "2024-12",
+      "n_complete": 52,
+      "n_matched": 52,
+      "n_total": 52,
+      "population": "signal",
+      "positive_return_share": 0.5384615384615384,
+      "status_counts": {
+        "COMPLETE": 52
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3291539062328547,
+      "mean_mfe_pct": 0.3227298693128023,
+      "mean_return_pct": -0.04177070601557304,
+      "median_mae_pct": -0.23615153594208627,
+      "median_mfe_pct": 0.18157283852322514,
+      "median_return_pct": -0.027309436065,
+      "month_utc": "2025-01",
+      "n_complete": 89,
+      "n_matched": 89,
+      "n_total": 89,
+      "population": "signal",
+      "positive_return_share": 0.449438202247191,
+      "status_counts": {
+        "COMPLETE": 89
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.18518626378344002,
+      "mean_mfe_pct": 0.23986649976710853,
+      "mean_return_pct": 0.015579170773393944,
+      "median_mae_pct": -0.15451189995761005,
+      "median_mfe_pct": 0.17199698643066696,
+      "median_return_pct": -0.005230661935,
+      "month_utc": "2025-02",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.48484848484848486,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3438659282390241,
+      "mean_mfe_pct": 0.327981139911217,
+      "mean_return_pct": -0.07612657863975925,
+      "median_mae_pct": -0.21459793217578071,
+      "median_mfe_pct": 0.2455398095354222,
+      "median_return_pct": -0.0600633169005,
+      "month_utc": "2025-03",
+      "n_complete": 54,
+      "n_matched": 54,
+      "n_total": 54,
+      "population": "signal",
+      "positive_return_share": 0.42592592592592593,
+      "status_counts": {
+        "COMPLETE": 54
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3400553610805174,
+      "mean_mfe_pct": 0.34705114599044967,
+      "mean_return_pct": -0.006519256986328763,
+      "median_mae_pct": -0.21829702699731612,
+      "median_mfe_pct": 0.2605043401694429,
+      "median_return_pct": -0.02286048991,
+      "month_utc": "2025-04",
+      "n_complete": 73,
+      "n_matched": 73,
+      "n_total": 73,
+      "population": "signal",
+      "positive_return_share": 0.4657534246575342,
+      "status_counts": {
+        "COMPLETE": 73
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2879127032897712,
+      "mean_mfe_pct": 0.2885663154121962,
+      "mean_return_pct": -0.0014760257440394745,
+      "median_mae_pct": -0.20355232533046386,
+      "median_mfe_pct": 0.19997246847311967,
+      "median_return_pct": -0.018695366644,
+      "month_utc": "2025-05",
+      "n_complete": 76,
+      "n_matched": 76,
+      "n_total": 76,
+      "population": "signal",
+      "positive_return_share": 0.4605263157894737,
+      "status_counts": {
+        "COMPLETE": 76
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.17988061228933447,
+      "mean_mfe_pct": 0.18269495381044934,
+      "mean_return_pct": -0.00196273636322642,
+      "median_mae_pct": -0.1302943173718929,
+      "median_mfe_pct": 0.15206473214286476,
+      "median_return_pct": -0.029271335247,
+      "month_utc": "2025-06",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.49056603773584906,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2665651728214462,
+      "mean_mfe_pct": 0.2175389839244464,
+      "mean_return_pct": -0.033460085823563385,
+      "median_mae_pct": -0.17138071957619738,
+      "median_mfe_pct": 0.18118344089088634,
+      "median_return_pct": 0.011023221334,
+      "month_utc": "2025-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.5352112676056338,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.22095760316625038,
+      "mean_mfe_pct": 0.1783833626930747,
+      "mean_return_pct": -0.05198578818048485,
+      "median_mae_pct": -0.16136606702134015,
+      "median_mfe_pct": 0.15162541458790812,
+      "median_return_pct": -0.050132946414,
+      "month_utc": "2025-08",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.42424242424242425,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.22931713572341877,
+      "mean_mfe_pct": 0.22352721988734825,
+      "mean_return_pct": -0.00045189825665575107,
+      "median_mae_pct": -0.17021334656835974,
+      "median_mfe_pct": 0.16165127452349992,
+      "median_return_pct": -0.025156782183,
+      "month_utc": "2025-09",
+      "n_complete": 61,
+      "n_matched": 61,
+      "n_total": 61,
+      "population": "signal",
+      "positive_return_share": 0.4426229508196721,
+      "status_counts": {
+        "COMPLETE": 61
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.19738738483189078,
+      "mean_mfe_pct": 0.27529319857398665,
+      "mean_return_pct": 0.04864960414778334,
+      "median_mae_pct": -0.17305138386217722,
+      "median_mfe_pct": 0.18878559626905878,
+      "median_return_pct": 0.001650485255,
+      "month_utc": "2025-10",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.5,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.29704295328488933,
+      "mean_mfe_pct": 0.2310716174306872,
+      "mean_return_pct": -0.10498226284840624,
+      "median_mae_pct": -0.21409232696819602,
+      "median_mfe_pct": 0.18516610430611147,
+      "median_return_pct": -0.050419481466999996,
+      "month_utc": "2025-11",
+      "n_complete": 32,
+      "n_matched": 32,
+      "n_total": 32,
+      "population": "signal",
+      "positive_return_share": 0.375,
+      "status_counts": {
+        "COMPLETE": 32
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3407593614397181,
+      "mean_mfe_pct": 0.272930076144114,
+      "mean_return_pct": -0.10849488191406667,
+      "median_mae_pct": -0.13693659260548552,
+      "median_mfe_pct": 0.16876007270617555,
+      "median_return_pct": -0.034302004752,
+      "month_utc": "2025-12",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.43333333333333335,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2641988941022653,
+      "mean_mfe_pct": 0.2919091987605503,
+      "mean_return_pct": 0.035951481732758625,
+      "median_mae_pct": -0.19993193182396007,
+      "median_mfe_pct": 0.17560031150410937,
+      "median_return_pct": 0.013338745016,
+      "month_utc": "2026-01",
+      "n_complete": 58,
+      "n_matched": 58,
+      "n_total": 58,
+      "population": "signal",
+      "positive_return_share": 0.5,
+      "status_counts": {
+        "COMPLETE": 58
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.43423644421473273,
+      "mean_mfe_pct": 0.3440377822085061,
+      "mean_return_pct": -0.07922127652448387,
+      "median_mae_pct": -0.2914546488401504,
+      "median_mfe_pct": 0.19082765360505238,
+      "median_return_pct": -0.130023404213,
+      "month_utc": "2026-02",
+      "n_complete": 31,
+      "n_matched": 31,
+      "n_total": 31,
+      "population": "signal",
+      "positive_return_share": 0.41935483870967744,
+      "status_counts": {
+        "COMPLETE": 31
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.40516341662532707,
+      "mean_mfe_pct": 0.4868515858199262,
+      "mean_return_pct": 0.00041378324632727057,
+      "median_mae_pct": -0.29655808236017656,
+      "median_mfe_pct": 0.4481830417227384,
+      "median_return_pct": 0.042271382274,
+      "month_utc": "2026-03",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5454545454545454,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.25987023588207764,
+      "mean_mfe_pct": 0.3713489735437805,
+      "mean_return_pct": 0.05033241156996923,
+      "median_mae_pct": -0.19787907448601816,
+      "median_mfe_pct": 0.3242721957688044,
+      "median_return_pct": 0.013594344753,
+      "month_utc": "2026-04",
+      "n_complete": 65,
+      "n_matched": 65,
+      "n_total": 65,
+      "population": "signal",
+      "positive_return_share": 0.5076923076923077,
+      "status_counts": {
+        "COMPLETE": 65
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.197815062528205,
+      "mean_mfe_pct": 0.22578779107751495,
+      "mean_return_pct": 0.01716357503398182,
+      "median_mae_pct": -0.11509670611891121,
+      "median_mfe_pct": 0.1519509149528364,
+      "median_return_pct": 0.015205504891,
+      "month_utc": "2026-05",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5272727272727272,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2604269617190931,
+      "mean_mfe_pct": 0.30748681633607855,
+      "mean_return_pct": 0.0014020223544827506,
+      "median_mae_pct": -0.13379130121820015,
+      "median_mfe_pct": 0.2280697108157037,
+      "median_return_pct": 0.001259860376,
+      "month_utc": "2026-06",
+      "n_complete": 29,
+      "n_matched": 29,
+      "n_total": 29,
+      "population": "signal",
+      "positive_return_share": 0.5172413793103449,
+      "status_counts": {
+        "COMPLETE": 29
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2550061297402138,
+      "mean_mfe_pct": 0.23534146976686884,
+      "mean_return_pct": -0.034829675446408456,
+      "median_mae_pct": -0.18675583593175116,
+      "median_mfe_pct": 0.13105975856919638,
+      "median_return_pct": -0.062643493717,
+      "month_utc": "2026-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.323943661971831,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.19967553409498606,
+      "mean_mfe_pct": 0.319025235885206,
+      "mean_return_pct": 0.06417997720722642,
+      "median_mae_pct": -0.1561301700944484,
+      "median_mfe_pct": 0.1676257385623936,
+      "median_return_pct": -0.000467258424,
+      "month_utc": "2026-08",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.49056603773584906,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3303365430733655,
+      "mean_mfe_pct": 0.3330667629575461,
+      "mean_return_pct": 0.011724763865233908,
+      "median_mae_pct": -0.22845752836553324,
+      "median_mfe_pct": 0.22746260705013288,
+      "median_return_pct": 0.002008405176,
+      "month_utc": "2024-09",
+      "n_complete": 7969,
+      "n_matched": 7969,
+      "n_total": 7969,
+      "population": "baseline",
+      "positive_return_share": 0.5025724683147196,
+      "status_counts": {
+        "COMPLETE": 7969
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.29535650582159034,
+      "mean_mfe_pct": 0.3040296060498591,
+      "mean_return_pct": 0.015101901649440301,
+      "median_mae_pct": -0.2016225211219247,
+      "median_mfe_pct": 0.210156591197308,
+      "median_return_pct": 0.0113984166265,
+      "month_utc": "2024-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.515344982078853,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.41202413078868816,
+      "mean_mfe_pct": 0.43579490579416935,
+      "mean_return_pct": 0.045710353853231946,
+      "median_mae_pct": -0.2782875942956453,
+      "median_mfe_pct": 0.2996996372283456,
+      "median_return_pct": 0.0321240867255,
+      "month_utc": "2024-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5326388888888889,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.41381762159655383,
+      "mean_mfe_pct": 0.38547521244418864,
+      "mean_return_pct": -0.0022555478846992636,
+      "median_mae_pct": -0.2745830838012553,
+      "median_mfe_pct": 0.2667803248896594,
+      "median_return_pct": 0.0075084259025,
+      "month_utc": "2024-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5090725806451613,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3912161027862081,
+      "mean_mfe_pct": 0.3896777046380169,
+      "mean_return_pct": 0.013426492618780914,
+      "median_mae_pct": -0.25068545131693987,
+      "median_mfe_pct": 0.26053162519238393,
+      "median_return_pct": 0.003449149694,
+      "month_utc": "2025-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5036962365591398,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.39700476468804646,
+      "mean_mfe_pct": 0.3444588677863103,
+      "mean_return_pct": -0.027600186700509302,
+      "median_mae_pct": -0.23902496626287406,
+      "median_mfe_pct": 0.22432193142672974,
+      "median_return_pct": -0.0039345777065,
+      "month_utc": "2025-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.4945436507936508,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.4244339603657882,
+      "mean_mfe_pct": 0.42585871278492105,
+      "mean_return_pct": -0.0005166163965150074,
+      "median_mae_pct": -0.269891502312819,
+      "median_mfe_pct": 0.285475134670643,
+      "median_return_pct": 0.00799255062,
+      "month_utc": "2025-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5075044802867383,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.35147784159069945,
+      "mean_mfe_pct": 0.37699984742236614,
+      "mean_return_pct": 0.019734036193153236,
+      "median_mae_pct": -0.23632867409956737,
+      "median_mfe_pct": 0.2469017958549924,
+      "median_return_pct": 0.0081031372695,
+      "month_utc": "2025-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5111111111111111,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.27978793873735985,
+      "mean_mfe_pct": 0.2838578561197024,
+      "mean_return_pct": 0.014532006856102486,
+      "median_mae_pct": -0.19893595270197295,
+      "median_mfe_pct": 0.2007330995118295,
+      "median_return_pct": 0.0101663483675,
+      "month_utc": "2025-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5154569892473119,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.24281154651640627,
+      "mean_mfe_pct": 0.2442075164856054,
+      "mean_return_pct": 0.004251117031639931,
+      "median_mae_pct": -0.16680978242524236,
+      "median_mfe_pct": 0.17393947188285575,
+      "median_return_pct": 0.004401251627999999,
+      "month_utc": "2025-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5085648148148149,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2320858375057585,
+      "mean_mfe_pct": 0.2373166951916566,
+      "mean_return_pct": 0.010593549683520498,
+      "median_mae_pct": -0.16368093552168728,
+      "median_mfe_pct": 0.17002955490168503,
+      "median_return_pct": 0.0046370672009999996,
+      "month_utc": "2025-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5082885304659498,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.25160004141827996,
+      "mean_mfe_pct": 0.22717169323846223,
+      "mean_return_pct": -0.008515009854851591,
+      "median_mae_pct": -0.17638415212654635,
+      "median_mfe_pct": 0.16333358020115263,
+      "median_return_pct": -0.00887669794,
+      "month_utc": "2025-08",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4864471326164875,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.19401611894032442,
+      "mean_mfe_pct": 0.19992733815920605,
+      "mean_return_pct": 0.008035761677639466,
+      "median_mae_pct": -0.13565275909586116,
+      "median_mfe_pct": 0.14142807852252082,
+      "median_return_pct": 0.0025606531425,
+      "month_utc": "2025-09",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5053240740740741,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3474899817192188,
+      "mean_mfe_pct": 0.3234948466818705,
+      "mean_return_pct": -0.00424050486743851,
+      "median_mae_pct": -0.22633261296971519,
+      "median_mfe_pct": 0.22245441667899657,
+      "median_return_pct": 0.003595432447,
+      "month_utc": "2025-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5054883512544803,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.420730096069479,
+      "mean_mfe_pct": 0.3741727395892913,
+      "mean_return_pct": -0.02813213580843322,
+      "median_mae_pct": -0.2944703636050816,
+      "median_mfe_pct": 0.26245899265185946,
+      "median_return_pct": -0.003602996755,
+      "month_utc": "2025-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.49502314814814813,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.3141575686616369,
+      "mean_mfe_pct": 0.3124780751393726,
+      "mean_return_pct": 1.2383367356293056e-05,
+      "median_mae_pct": -0.19555014831136863,
+      "median_mfe_pct": 0.19860489923689828,
+      "median_return_pct": 0.0090916278625,
+      "month_utc": "2025-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5160170250896058,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.29446116035105746,
+      "mean_mfe_pct": 0.26456442134735064,
+      "mean_return_pct": -0.013251745298063954,
+      "median_mae_pct": -0.18063621723720114,
+      "median_mfe_pct": 0.17092466844871312,
+      "median_return_pct": -0.0025076905675,
+      "month_utc": "2026-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.49439964157706096,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.5233250665691654,
+      "mean_mfe_pct": 0.4871406690204961,
+      "mean_return_pct": -0.022311857539323413,
+      "median_mae_pct": -0.34499479276917655,
+      "median_mfe_pct": 0.32314787780983734,
+      "median_return_pct": -0.005540037951,
+      "month_utc": "2026-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.49528769841269843,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.40392548428205816,
+      "mean_mfe_pct": 0.4098326797415862,
+      "mean_return_pct": 0.004033833461906024,
+      "median_mae_pct": -0.2964585158879651,
+      "median_mfe_pct": 0.270949132538123,
+      "median_return_pct": -0.0102059665375,
+      "month_utc": "2026-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.490255376344086,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.2819019925287292,
+      "mean_mfe_pct": 0.30448259155911034,
+      "mean_return_pct": 0.016909775022917597,
+      "median_mae_pct": -0.20308048757499142,
+      "median_mfe_pct": 0.21079953569319576,
+      "median_return_pct": 0.010041478193000001,
+      "month_utc": "2026-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5175925925925926,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.24367754568746416,
+      "mean_mfe_pct": 0.22776146968884214,
+      "mean_return_pct": -0.004167668923395272,
+      "median_mae_pct": -0.16792456572131131,
+      "median_mfe_pct": 0.16149454811013042,
+      "median_return_pct": -0.000125200862,
+      "month_utc": "2026-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.49966397849462363,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.4112223002344818,
+      "mean_mfe_pct": 0.36626878564328685,
+      "mean_return_pct": -0.030800789763157754,
+      "median_mae_pct": -0.28675360407837136,
+      "median_mfe_pct": 0.24100753393708763,
+      "median_return_pct": -0.028617170404,
+      "month_utc": "2026-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4673611111111111,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.24921433941548218,
+      "mean_mfe_pct": 0.2647955237776244,
+      "mean_return_pct": 0.010450895273163415,
+      "median_mae_pct": -0.1718032195532404,
+      "median_mfe_pct": 0.18211418288813785,
+      "median_return_pct": 0.008639963311,
+      "month_utc": "2026-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5152329749103942,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 60,
+      "mean_mae_pct": -0.22547700540756435,
+      "mean_mfe_pct": 0.26824622648293306,
+      "mean_return_pct": 0.03922100465212343,
+      "median_mae_pct": -0.14572121760774714,
+      "median_mfe_pct": 0.152039344078303,
+      "median_return_pct": 0.0039701163925000005,
+      "month_utc": "2026-08",
+      "n_complete": 7786,
+      "n_matched": 7786,
+      "n_total": 7786,
+      "population": "baseline",
+      "positive_return_share": 0.5098895453377857,
+      "status_counts": {
+        "COMPLETE": 7786
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.42016458782153265,
+      "mean_mfe_pct": 0.5577006958643989,
+      "mean_return_pct": 0.15857346696233332,
+      "median_mae_pct": -0.28838103903937595,
+      "median_mfe_pct": 0.3337416704773388,
+      "median_return_pct": 0.063855083686,
+      "month_utc": "2024-09",
+      "n_complete": 66,
+      "n_matched": 66,
+      "n_total": 66,
+      "population": "signal",
+      "positive_return_share": 0.5909090909090909,
+      "status_counts": {
+        "COMPLETE": 66
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.32943001859124393,
+      "mean_mfe_pct": 0.4672269324009596,
+      "mean_return_pct": 0.06543433922511394,
+      "median_mae_pct": -0.23096972288195738,
+      "median_mfe_pct": 0.2710539586485261,
+      "median_return_pct": 0.014822112196,
+      "month_utc": "2024-10",
+      "n_complete": 79,
+      "n_matched": 79,
+      "n_total": 79,
+      "population": "signal",
+      "positive_return_share": 0.5063291139240507,
+      "status_counts": {
+        "COMPLETE": 79
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.4519121419700851,
+      "mean_mfe_pct": 0.6697022949971194,
+      "mean_return_pct": 0.2130358098432222,
+      "median_mae_pct": -0.3367146892752415,
+      "median_mfe_pct": 0.49601355599095953,
+      "median_return_pct": 0.093214774966,
+      "month_utc": "2024-11",
+      "n_complete": 90,
+      "n_matched": 90,
+      "n_total": 90,
+      "population": "signal",
+      "positive_return_share": 0.5555555555555556,
+      "status_counts": {
+        "COMPLETE": 90
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3972264191695944,
+      "mean_mfe_pct": 0.510216602632678,
+      "mean_return_pct": 0.018482682188788478,
+      "median_mae_pct": -0.29669347337797913,
+      "median_mfe_pct": 0.4167501223133918,
+      "median_return_pct": -0.052641505302,
+      "month_utc": "2024-12",
+      "n_complete": 52,
+      "n_matched": 52,
+      "n_total": 52,
+      "population": "signal",
+      "positive_return_share": 0.4807692307692308,
+      "status_counts": {
+        "COMPLETE": 52
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.4894472146622124,
+      "mean_mfe_pct": 0.4719725743566132,
+      "mean_return_pct": -0.03490100945950563,
+      "median_mae_pct": -0.34205768859443264,
+      "median_mfe_pct": 0.296240945164139,
+      "median_return_pct": -0.043531686686,
+      "month_utc": "2025-01",
+      "n_complete": 89,
+      "n_matched": 89,
+      "n_total": 89,
+      "population": "signal",
+      "positive_return_share": 0.4606741573033708,
+      "status_counts": {
+        "COMPLETE": 89
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.24900685038533063,
+      "mean_mfe_pct": 0.32782195809751064,
+      "mean_return_pct": 0.06343052278712122,
+      "median_mae_pct": -0.20834017874745703,
+      "median_mfe_pct": 0.2222092275305565,
+      "median_return_pct": 0.097530091414,
+      "month_utc": "2025-02",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.6060606060606061,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5947608825713515,
+      "mean_mfe_pct": 0.458676949257947,
+      "mean_return_pct": -0.15282484062677779,
+      "median_mae_pct": -0.41690524516093674,
+      "median_mfe_pct": 0.2869670873044128,
+      "median_return_pct": -0.051206184535000004,
+      "month_utc": "2025-03",
+      "n_complete": 54,
+      "n_matched": 54,
+      "n_total": 54,
+      "population": "signal",
+      "positive_return_share": 0.48148148148148145,
+      "status_counts": {
+        "COMPLETE": 54
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5203921697061085,
+      "mean_mfe_pct": 0.4877000084919939,
+      "mean_return_pct": -0.03557932400241096,
+      "median_mae_pct": -0.29610465970895117,
+      "median_mfe_pct": 0.32690896760800836,
+      "median_return_pct": -0.050722619563,
+      "month_utc": "2025-04",
+      "n_complete": 73,
+      "n_matched": 73,
+      "n_total": 73,
+      "population": "signal",
+      "positive_return_share": 0.4520547945205479,
+      "status_counts": {
+        "COMPLETE": 73
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3510654118463435,
+      "mean_mfe_pct": 0.4312124963327966,
+      "mean_return_pct": 0.03988473929931579,
+      "median_mae_pct": -0.25437571736592335,
+      "median_mfe_pct": 0.31305307392702764,
+      "median_return_pct": -0.008672939024,
+      "month_utc": "2025-05",
+      "n_complete": 76,
+      "n_matched": 76,
+      "n_total": 76,
+      "population": "signal",
+      "positive_return_share": 0.4868421052631579,
+      "status_counts": {
+        "COMPLETE": 76
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.26119086629166466,
+      "mean_mfe_pct": 0.2891460249908375,
+      "mean_return_pct": 0.033037343955509425,
+      "median_mae_pct": -0.21203612439699704,
+      "median_mfe_pct": 0.22990991401141692,
+      "median_return_pct": 0.023946972128,
+      "month_utc": "2025-06",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.5471698113207547,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.400594243947353,
+      "mean_mfe_pct": 0.3502849149856418,
+      "mean_return_pct": -0.05854491990264789,
+      "median_mae_pct": -0.2582487594257943,
+      "median_mfe_pct": 0.23204809450076969,
+      "median_return_pct": -0.077153412934,
+      "month_utc": "2025-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.43661971830985913,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3413353205254936,
+      "mean_mfe_pct": 0.23929952484854128,
+      "mean_return_pct": -0.05927412243503029,
+      "median_mae_pct": -0.26590789909470836,
+      "median_mfe_pct": 0.21705560857117057,
+      "median_return_pct": 0.026030549453,
+      "month_utc": "2025-08",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.5151515151515151,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.29867812765058094,
+      "mean_mfe_pct": 0.31004839724639455,
+      "mean_return_pct": 0.001089369851868859,
+      "median_mae_pct": -0.2537112996767954,
+      "median_mfe_pct": 0.2277084155861253,
+      "median_return_pct": -0.052679490293,
+      "month_utc": "2025-09",
+      "n_complete": 61,
+      "n_matched": 61,
+      "n_total": 61,
+      "population": "signal",
+      "positive_return_share": 0.39344262295081966,
+      "status_counts": {
+        "COMPLETE": 61
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.31269646684284447,
+      "mean_mfe_pct": 0.37463578887493815,
+      "mean_return_pct": 0.040409802185866685,
+      "median_mae_pct": -0.21371723992174574,
+      "median_mfe_pct": 0.2592245344345434,
+      "median_return_pct": 0.022001327058,
+      "month_utc": "2025-10",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.55,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5304518754947196,
+      "mean_mfe_pct": 0.3314260680583665,
+      "mean_return_pct": -0.24339810704,
+      "median_mae_pct": -0.5105188343113576,
+      "median_mfe_pct": 0.31641118658367606,
+      "median_return_pct": -0.16754943056799998,
+      "month_utc": "2025-11",
+      "n_complete": 32,
+      "n_matched": 32,
+      "n_total": 32,
+      "population": "signal",
+      "positive_return_share": 0.40625,
+      "status_counts": {
+        "COMPLETE": 32
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5013042699852461,
+      "mean_mfe_pct": 0.3576573310651698,
+      "mean_return_pct": -0.1973344331363,
+      "median_mae_pct": -0.2729372266012109,
+      "median_mfe_pct": 0.22368686994503895,
+      "median_return_pct": -0.093663227448,
+      "month_utc": "2025-12",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.36666666666666664,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.42032054358088117,
+      "mean_mfe_pct": 0.4232619515257797,
+      "mean_return_pct": 0.0008796825338965548,
+      "median_mae_pct": -0.2635202280645066,
+      "median_mfe_pct": 0.23868462720452177,
+      "median_return_pct": -0.0451556298045,
+      "month_utc": "2026-01",
+      "n_complete": 58,
+      "n_matched": 58,
+      "n_total": 58,
+      "population": "signal",
+      "positive_return_share": 0.4482758620689655,
+      "status_counts": {
+        "COMPLETE": 58
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6434424076450895,
+      "mean_mfe_pct": 0.417455106825227,
+      "mean_return_pct": -0.25235338907451615,
+      "median_mae_pct": -0.5435086964338698,
+      "median_mfe_pct": 0.3422417254148824,
+      "median_return_pct": -0.107543379414,
+      "month_utc": "2026-02",
+      "n_complete": 31,
+      "n_matched": 31,
+      "n_total": 31,
+      "population": "signal",
+      "positive_return_share": 0.3225806451612903,
+      "status_counts": {
+        "COMPLETE": 31
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6034318950570283,
+      "mean_mfe_pct": 0.694048360492908,
+      "mean_return_pct": 0.017173618759545435,
+      "median_mae_pct": -0.38926970809691763,
+      "median_mfe_pct": 0.6437459052269112,
+      "median_return_pct": 0.023135714643,
+      "month_utc": "2026-03",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.509090909090909,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.39979301917346244,
+      "mean_mfe_pct": 0.5261563817458321,
+      "mean_return_pct": 0.016930252237923077,
+      "median_mae_pct": -0.32134467092271857,
+      "median_mfe_pct": 0.4061156550778877,
+      "median_return_pct": -0.065296372982,
+      "month_utc": "2026-04",
+      "n_complete": 65,
+      "n_matched": 65,
+      "n_total": 65,
+      "population": "signal",
+      "positive_return_share": 0.46153846153846156,
+      "status_counts": {
+        "COMPLETE": 65
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.2773778129600882,
+      "mean_mfe_pct": 0.3194003721771537,
+      "mean_return_pct": 0.0022334041277636226,
+      "median_mae_pct": -0.15506489989757233,
+      "median_mfe_pct": 0.19814126394051002,
+      "median_return_pct": 0.010540793506,
+      "month_utc": "2026-05",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.509090909090909,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.414183222676866,
+      "mean_mfe_pct": 0.3935903695209161,
+      "mean_return_pct": 0.010817885137620682,
+      "median_mae_pct": -0.2291147132169602,
+      "median_mfe_pct": 0.32406920384802085,
+      "median_return_pct": 0.059930254397,
+      "month_utc": "2026-06",
+      "n_complete": 29,
+      "n_matched": 29,
+      "n_total": 29,
+      "population": "signal",
+      "positive_return_share": 0.5862068965517241,
+      "status_counts": {
+        "COMPLETE": 29
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3579909486509119,
+      "mean_mfe_pct": 0.316893653950423,
+      "mean_return_pct": -0.054417722932352114,
+      "median_mae_pct": -0.2556559893007959,
+      "median_mfe_pct": 0.18100155258398143,
+      "median_return_pct": -0.054866210855,
+      "month_utc": "2026-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.4084507042253521,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.32744622789491407,
+      "mean_mfe_pct": 0.43170618663597554,
+      "mean_return_pct": 0.07745392063067924,
+      "median_mae_pct": -0.2965444699832509,
+      "median_mfe_pct": 0.2729835532794933,
+      "median_return_pct": -0.024639120732,
+      "month_utc": "2026-08",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.4716981132075472,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.4738896003080863,
+      "mean_mfe_pct": 0.4808904526752992,
+      "mean_return_pct": 0.024302862369584764,
+      "median_mae_pct": -0.336605242870891,
+      "median_mfe_pct": 0.33456200428327865,
+      "median_return_pct": 0.017489160695,
+      "month_utc": "2024-09",
+      "n_complete": 7969,
+      "n_matched": 7969,
+      "n_total": 7969,
+      "population": "baseline",
+      "positive_return_share": 0.5143681766846531,
+      "status_counts": {
+        "COMPLETE": 7969
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.4182955925479516,
+      "mean_mfe_pct": 0.43829987352967126,
+      "mean_return_pct": 0.02892765849271572,
+      "median_mae_pct": -0.2825004209933313,
+      "median_mfe_pct": 0.312419157889432,
+      "median_return_pct": 0.0262545933135,
+      "month_utc": "2024-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5284498207885304,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5757149875220453,
+      "mean_mfe_pct": 0.6348251591142954,
+      "mean_return_pct": 0.09170605533517663,
+      "median_mae_pct": -0.3873399868232985,
+      "median_mfe_pct": 0.4336944332184456,
+      "median_return_pct": 0.056091104483000004,
+      "month_utc": "2024-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5425925925925926,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6026510681144364,
+      "mean_mfe_pct": 0.551284358927869,
+      "mean_return_pct": -0.0040862745759791645,
+      "median_mae_pct": -0.38697383809442876,
+      "median_mfe_pct": 0.3793232709244698,
+      "median_return_pct": 0.016385277803,
+      "month_utc": "2024-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.513328853046595,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.554701396825349,
+      "mean_mfe_pct": 0.55683821896147,
+      "mean_return_pct": 0.026667073604038874,
+      "median_mae_pct": -0.3566008886051242,
+      "median_mfe_pct": 0.37164175383495035,
+      "median_return_pct": 0.013964614759,
+      "month_utc": "2025-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5127688172043011,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5802115156340341,
+      "mean_mfe_pct": 0.4782026044198565,
+      "mean_return_pct": -0.05563587582823983,
+      "median_mae_pct": -0.3445520519537948,
+      "median_mfe_pct": 0.3198626424201212,
+      "median_return_pct": -0.0034502712304999997,
+      "month_utc": "2025-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.49603174603174605,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6143054941265182,
+      "mean_mfe_pct": 0.6053348695188174,
+      "mean_return_pct": -0.0008460597551518758,
+      "median_mae_pct": -0.3895937053137677,
+      "median_mfe_pct": 0.4162853699091751,
+      "median_return_pct": 0.0257247827565,
+      "month_utc": "2025-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5183691756272402,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5020650819417325,
+      "mean_mfe_pct": 0.5452650116359918,
+      "mean_return_pct": 0.04002167880955533,
+      "median_mae_pct": -0.3409765036167911,
+      "median_mfe_pct": 0.3572364878483225,
+      "median_return_pct": 0.016075396021500002,
+      "month_utc": "2025-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5137731481481481,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3998895655070747,
+      "mean_mfe_pct": 0.4093328299657063,
+      "mean_return_pct": 0.0284021425898927,
+      "median_mae_pct": -0.29217195013770403,
+      "median_mfe_pct": 0.28665230798974317,
+      "median_return_pct": 0.009522155213,
+      "month_utc": "2025-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.509744623655914,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3506592703941781,
+      "mean_mfe_pct": 0.34928227042269466,
+      "mean_return_pct": 0.008913769322253705,
+      "median_mae_pct": -0.2425414145084348,
+      "median_mfe_pct": 0.2552049180655769,
+      "median_return_pct": 0.013640061652000001,
+      "month_utc": "2025-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5164351851851852,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.333905512421527,
+      "mean_mfe_pct": 0.34330295050398685,
+      "mean_return_pct": 0.020435784422086243,
+      "median_mae_pct": -0.2346899209841824,
+      "median_mfe_pct": 0.2417415480888363,
+      "median_return_pct": 0.009811547879,
+      "month_utc": "2025-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5104166666666666,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.36452802416063007,
+      "mean_mfe_pct": 0.320713577264035,
+      "mean_return_pct": -0.016300568642557682,
+      "median_mae_pct": -0.25866628337586905,
+      "median_mfe_pct": 0.2313826183842238,
+      "median_return_pct": -0.009002158440000001,
+      "month_utc": "2025-08",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4885752688172043,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.2789246423218462,
+      "mean_mfe_pct": 0.2890874089346583,
+      "mean_return_pct": 0.01613782808119653,
+      "median_mae_pct": -0.1972048565661022,
+      "median_mfe_pct": 0.20070002006999932,
+      "median_return_pct": 0.0082160180105,
+      "month_utc": "2025-09",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5106481481481482,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5087964548106901,
+      "mean_mfe_pct": 0.46220186318636797,
+      "mean_return_pct": -0.00855846142018795,
+      "median_mae_pct": -0.32344501917152546,
+      "median_mfe_pct": 0.33146070464459276,
+      "median_return_pct": 0.0217383370425,
+      "month_utc": "2025-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5206093189964157,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6175408983587489,
+      "mean_mfe_pct": 0.516033684159212,
+      "mean_return_pct": -0.05844117765287545,
+      "median_mae_pct": -0.43279602406751105,
+      "median_mfe_pct": 0.3686515851583305,
+      "median_return_pct": -0.0065444592175,
+      "month_utc": "2025-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4946759259259259,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.45002407186576365,
+      "mean_mfe_pct": 0.4480712524681488,
+      "mean_return_pct": 0.00198445524531575,
+      "median_mae_pct": -0.2709674366018877,
+      "median_mfe_pct": 0.2799855976208909,
+      "median_return_pct": 0.013782388900000001,
+      "month_utc": "2025-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5190412186379928,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.4315204502730653,
+      "mean_mfe_pct": 0.37486863771453377,
+      "mean_return_pct": -0.02732236318194837,
+      "median_mae_pct": -0.26160432834459457,
+      "median_mfe_pct": 0.24600392245259783,
+      "median_return_pct": 0.002686027546,
+      "month_utc": "2026-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5034722222222222,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.7619279514552142,
+      "mean_mfe_pct": 0.6832685768852899,
+      "mean_return_pct": -0.044738940873324286,
+      "median_mae_pct": -0.5134317371777941,
+      "median_mfe_pct": 0.4556491030435206,
+      "median_return_pct": -0.0057714379015000004,
+      "month_utc": "2026-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.4962797619047619,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.5774144007423714,
+      "mean_mfe_pct": 0.587450606931194,
+      "mean_return_pct": 0.008338725507392578,
+      "median_mae_pct": -0.4362652699393621,
+      "median_mfe_pct": 0.3884549029449458,
+      "median_return_pct": -0.028637960017,
+      "month_utc": "2026-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.479502688172043,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.39807882489951457,
+      "mean_mfe_pct": 0.44678209697547183,
+      "mean_return_pct": 0.03403678003047731,
+      "median_mae_pct": -0.2844405960331198,
+      "median_mfe_pct": 0.3082902381522423,
+      "median_return_pct": 0.013913899470000001,
+      "month_utc": "2026-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5125,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.35217127889987343,
+      "mean_mfe_pct": 0.32489380247565464,
+      "mean_return_pct": -0.008994365178179099,
+      "median_mae_pct": -0.24645075571411712,
+      "median_mfe_pct": 0.23292075104420773,
+      "median_return_pct": -0.0007535952275,
+      "month_utc": "2026-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.49887992831541217,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.6061428977093077,
+      "mean_mfe_pct": 0.5097852349523341,
+      "mean_return_pct": -0.06132554911085035,
+      "median_mae_pct": -0.4243568569934353,
+      "median_mfe_pct": 0.35177711310028226,
+      "median_return_pct": -0.043032892816499996,
+      "month_utc": "2026-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4650462962962963,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.3554773040620404,
+      "mean_mfe_pct": 0.3852219274114661,
+      "mean_return_pct": 0.020952958200613908,
+      "median_mae_pct": -0.24944272079466256,
+      "median_mfe_pct": 0.26805559209300833,
+      "median_return_pct": 0.017701837552,
+      "month_utc": "2026-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5253136200716846,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 120,
+      "mean_mae_pct": -0.31463811534852293,
+      "mean_mfe_pct": 0.4026898218341896,
+      "mean_return_pct": 0.07752424903732685,
+      "median_mae_pct": -0.20357020704346862,
+      "median_mfe_pct": 0.22295031548774658,
+      "median_return_pct": 0.015154744401500001,
+      "month_utc": "2026-08",
+      "n_complete": 7786,
+      "n_matched": 7786,
+      "n_total": 7786,
+      "population": "baseline",
+      "positive_return_share": 0.5227331107115335,
+      "status_counts": {
+        "COMPLETE": 7786
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5448499596278875,
+      "mean_mfe_pct": 0.6772196153693315,
+      "mean_return_pct": 0.1000223181420303,
+      "median_mae_pct": -0.3590084459842602,
+      "median_mfe_pct": 0.4223897270918542,
+      "median_return_pct": -0.0279504291435,
+      "month_utc": "2024-09",
+      "n_complete": 66,
+      "n_matched": 66,
+      "n_total": 66,
+      "population": "signal",
+      "positive_return_share": 0.4696969696969697,
+      "status_counts": {
+        "COMPLETE": 66
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4096142208391442,
+      "mean_mfe_pct": 0.556155007789332,
+      "mean_return_pct": 0.1086682388447215,
+      "median_mae_pct": -0.26526293451542005,
+      "median_mfe_pct": 0.37719139284606573,
+      "median_return_pct": 0.053916941609,
+      "month_utc": "2024-10",
+      "n_complete": 79,
+      "n_matched": 79,
+      "n_total": 79,
+      "population": "signal",
+      "positive_return_share": 0.5316455696202531,
+      "status_counts": {
+        "COMPLETE": 79
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5363690614982858,
+      "mean_mfe_pct": 0.9384910565674935,
+      "mean_return_pct": 0.3165801701886111,
+      "median_mae_pct": -0.42070491373020213,
+      "median_mfe_pct": 0.6287948406322519,
+      "median_return_pct": 0.1388760014275,
+      "month_utc": "2024-11",
+      "n_complete": 90,
+      "n_matched": 90,
+      "n_total": 90,
+      "population": "signal",
+      "positive_return_share": 0.5777777777777777,
+      "status_counts": {
+        "COMPLETE": 90
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.537913374722144,
+      "mean_mfe_pct": 0.5652332425743465,
+      "mean_return_pct": -0.04310293861478847,
+      "median_mae_pct": -0.3931194270952565,
+      "median_mfe_pct": 0.4755222519928992,
+      "median_return_pct": -0.1128649596305,
+      "month_utc": "2024-12",
+      "n_complete": 52,
+      "n_matched": 52,
+      "n_total": 52,
+      "population": "signal",
+      "positive_return_share": 0.40384615384615385,
+      "status_counts": {
+        "COMPLETE": 52
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6891924732343004,
+      "mean_mfe_pct": 0.5608480591330989,
+      "mean_return_pct": -0.07358917242451685,
+      "median_mae_pct": -0.46890051340373606,
+      "median_mfe_pct": 0.349666045526309,
+      "median_return_pct": -0.081950629344,
+      "month_utc": "2025-01",
+      "n_complete": 89,
+      "n_matched": 89,
+      "n_total": 89,
+      "population": "signal",
+      "positive_return_share": 0.4044943820224719,
+      "status_counts": {
+        "COMPLETE": 89
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.289753270894559,
+      "mean_mfe_pct": 0.40264133216305087,
+      "mean_return_pct": 0.0833697515189697,
+      "median_mae_pct": -0.22622303748955908,
+      "median_mfe_pct": 0.34474894213187834,
+      "median_return_pct": 0.09612652179,
+      "month_utc": "2025-02",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.5757575757575758,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7343936895952969,
+      "mean_mfe_pct": 0.5843895571380834,
+      "mean_return_pct": -0.17374307325975924,
+      "median_mae_pct": -0.506229975864203,
+      "median_mfe_pct": 0.4425300750192873,
+      "median_return_pct": -0.21647933397699998,
+      "month_utc": "2025-03",
+      "n_complete": 54,
+      "n_matched": 54,
+      "n_total": 54,
+      "population": "signal",
+      "positive_return_share": 0.42592592592592593,
+      "status_counts": {
+        "COMPLETE": 54
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6713226029094824,
+      "mean_mfe_pct": 0.5636216812659879,
+      "mean_return_pct": -0.12966349739404107,
+      "median_mae_pct": -0.49655813176827657,
+      "median_mfe_pct": 0.3519994282242811,
+      "median_return_pct": -0.11447562777,
+      "month_utc": "2025-04",
+      "n_complete": 73,
+      "n_matched": 73,
+      "n_total": 73,
+      "population": "signal",
+      "positive_return_share": 0.4383561643835616,
+      "status_counts": {
+        "COMPLETE": 73
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4644521405744917,
+      "mean_mfe_pct": 0.5491216882562329,
+      "mean_return_pct": 0.01715543446305263,
+      "median_mae_pct": -0.3265722796388981,
+      "median_mfe_pct": 0.40444018570170437,
+      "median_return_pct": -0.031193134496499998,
+      "month_utc": "2025-05",
+      "n_complete": 76,
+      "n_matched": 76,
+      "n_total": 76,
+      "population": "signal",
+      "positive_return_share": 0.47368421052631576,
+      "status_counts": {
+        "COMPLETE": 76
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.3148346109581659,
+      "mean_mfe_pct": 0.3878805425708332,
+      "mean_return_pct": 0.04034621189132076,
+      "median_mae_pct": -0.26032881750240877,
+      "median_mfe_pct": 0.31121028710454635,
+      "median_return_pct": 0.022590646149,
+      "month_utc": "2025-06",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.5283018867924528,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4817702189584322,
+      "mean_mfe_pct": 0.48093953167065306,
+      "mean_return_pct": 0.001481711015070429,
+      "median_mae_pct": -0.2960239391065378,
+      "median_mfe_pct": 0.2710528707342119,
+      "median_return_pct": -0.02363288782,
+      "month_utc": "2025-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.4788732394366197,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.415442685279643,
+      "mean_mfe_pct": 0.3477767337669284,
+      "mean_return_pct": -0.016755744990878795,
+      "median_mae_pct": -0.3329648932493323,
+      "median_mfe_pct": 0.24117289841243394,
+      "median_return_pct": -0.078785618393,
+      "month_utc": "2025-08",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.45454545454545453,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.37528851754919984,
+      "mean_mfe_pct": 0.35440271480358726,
+      "mean_return_pct": -0.017793078193524586,
+      "median_mae_pct": -0.2586096622151701,
+      "median_mfe_pct": 0.28126006582021024,
+      "median_return_pct": 0.029828551435,
+      "month_utc": "2025-09",
+      "n_complete": 61,
+      "n_matched": 61,
+      "n_total": 61,
+      "population": "signal",
+      "positive_return_share": 0.5409836065573771,
+      "status_counts": {
+        "COMPLETE": 61
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4189614679450513,
+      "mean_mfe_pct": 0.4891248783866616,
+      "mean_return_pct": 0.026676877315833313,
+      "median_mae_pct": -0.24815244503059164,
+      "median_mfe_pct": 0.361376595992724,
+      "median_return_pct": 0.12653774184549998,
+      "month_utc": "2025-10",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.6,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6285882940363853,
+      "mean_mfe_pct": 0.40844730033797044,
+      "mean_return_pct": -0.251316408914375,
+      "median_mae_pct": -0.5778887847930292,
+      "median_mfe_pct": 0.3488217211766065,
+      "median_return_pct": -0.113244780343,
+      "month_utc": "2025-11",
+      "n_complete": 32,
+      "n_matched": 32,
+      "n_total": 32,
+      "population": "signal",
+      "positive_return_share": 0.25,
+      "status_counts": {
+        "COMPLETE": 32
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6491572996090974,
+      "mean_mfe_pct": 0.38798415947784104,
+      "mean_return_pct": -0.2228605293285834,
+      "median_mae_pct": -0.37101553570677015,
+      "median_mfe_pct": 0.2827302443296098,
+      "median_return_pct": -0.06232018867,
+      "month_utc": "2025-12",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.4,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.48375694613490217,
+      "mean_mfe_pct": 0.5307432736428909,
+      "mean_return_pct": 0.06128777692450001,
+      "median_mae_pct": -0.3490918549700017,
+      "median_mfe_pct": 0.34743947911398676,
+      "median_return_pct": 0.0344673744925,
+      "month_utc": "2026-01",
+      "n_complete": 58,
+      "n_matched": 58,
+      "n_total": 58,
+      "population": "signal",
+      "positive_return_share": 0.5344827586206896,
+      "status_counts": {
+        "COMPLETE": 58
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.8128218608242962,
+      "mean_mfe_pct": 0.47666287191255047,
+      "mean_return_pct": -0.315741576631258,
+      "median_mae_pct": -0.5535282065057379,
+      "median_mfe_pct": 0.3474911198301678,
+      "median_return_pct": -0.145843604442,
+      "month_utc": "2026-02",
+      "n_complete": 31,
+      "n_matched": 31,
+      "n_total": 31,
+      "population": "signal",
+      "positive_return_share": 0.3870967741935484,
+      "status_counts": {
+        "COMPLETE": 31
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.722124991273464,
+      "mean_mfe_pct": 0.828920604019318,
+      "mean_return_pct": 0.10951942396990907,
+      "median_mae_pct": -0.541986969816266,
+      "median_mfe_pct": 0.7259282065477546,
+      "median_return_pct": 0.121101864046,
+      "month_utc": "2026-03",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5818181818181818,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5437905979178888,
+      "mean_mfe_pct": 0.640763869554457,
+      "mean_return_pct": 0.028102577508307684,
+      "median_mae_pct": -0.47082104631220867,
+      "median_mfe_pct": 0.4454064733569796,
+      "median_return_pct": -0.062436703612,
+      "month_utc": "2026-04",
+      "n_complete": 65,
+      "n_matched": 65,
+      "n_total": 65,
+      "population": "signal",
+      "positive_return_share": 0.4307692307692308,
+      "status_counts": {
+        "COMPLETE": 65
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.35852013104286323,
+      "mean_mfe_pct": 0.4129480164353423,
+      "mean_return_pct": 0.017659719327036357,
+      "median_mae_pct": -0.2011252106671968,
+      "median_mfe_pct": 0.24736459650205322,
+      "median_return_pct": 0.019659604459,
+      "month_utc": "2026-05",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5454545454545454,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.47088839723093007,
+      "mean_mfe_pct": 0.52227032296792,
+      "mean_return_pct": 0.096988313533,
+      "median_mae_pct": -0.3364588298027993,
+      "median_mfe_pct": 0.4003215155905071,
+      "median_return_pct": 0.092975896115,
+      "month_utc": "2026-06",
+      "n_complete": 29,
+      "n_matched": 29,
+      "n_total": 29,
+      "population": "signal",
+      "positive_return_share": 0.6206896551724138,
+      "status_counts": {
+        "COMPLETE": 29
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4422081865414944,
+      "mean_mfe_pct": 0.37866263975873604,
+      "mean_return_pct": -0.05800347177725352,
+      "median_mae_pct": -0.34224534145029795,
+      "median_mfe_pct": 0.2958385687226839,
+      "median_return_pct": -0.063660625361,
+      "month_utc": "2026-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.39436619718309857,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4106332209019533,
+      "mean_mfe_pct": 0.5735786130492999,
+      "mean_return_pct": 0.14559022658333964,
+      "median_mae_pct": -0.3124592162164652,
+      "median_mfe_pct": 0.2887287420560991,
+      "median_return_pct": -0.015868980765,
+      "month_utc": "2026-08",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.4716981132075472,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5842684107892362,
+      "mean_mfe_pct": 0.5949616385524016,
+      "mean_return_pct": 0.036092212059993224,
+      "median_mae_pct": -0.42848444170744404,
+      "median_mfe_pct": 0.4124681421975973,
+      "median_return_pct": 0.016417977513,
+      "month_utc": "2024-09",
+      "n_complete": 7969,
+      "n_matched": 7969,
+      "n_total": 7969,
+      "population": "baseline",
+      "positive_return_share": 0.5099761576107417,
+      "status_counts": {
+        "COMPLETE": 7969
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5152749739327215,
+      "mean_mfe_pct": 0.5435550235112782,
+      "mean_return_pct": 0.0417092895363639,
+      "median_mae_pct": -0.34160417742182814,
+      "median_mfe_pct": 0.3963255180711833,
+      "median_return_pct": 0.041253248134,
+      "month_utc": "2024-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5361783154121864,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6957141053229591,
+      "mean_mfe_pct": 0.7941087206577871,
+      "mean_return_pct": 0.1389719251193029,
+      "median_mae_pct": -0.47550388369999586,
+      "median_mfe_pct": 0.5444058709409227,
+      "median_return_pct": 0.07354241374,
+      "month_utc": "2024-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5457175925925926,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7521764108380324,
+      "mean_mfe_pct": 0.6842112212357122,
+      "mean_return_pct": -0.005732051751559027,
+      "median_mae_pct": -0.4802859997528719,
+      "median_mfe_pct": 0.4891969143875463,
+      "median_return_pct": 0.0125614114305,
+      "month_utc": "2024-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5091845878136201,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6822126854421349,
+      "mean_mfe_pct": 0.6880615521512925,
+      "mean_return_pct": 0.04040165897727643,
+      "median_mae_pct": -0.43662622564669684,
+      "median_mfe_pct": 0.46557068240430377,
+      "median_return_pct": 0.0280864185385,
+      "month_utc": "2025-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5175851254480287,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7275583207223083,
+      "mean_mfe_pct": 0.5784318082900917,
+      "mean_return_pct": -0.0821310411915728,
+      "median_mae_pct": -0.4296323209881825,
+      "median_mfe_pct": 0.3951131422540666,
+      "median_return_pct": -0.017088956231999998,
+      "month_utc": "2025-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.4869791666666667,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7669790792920822,
+      "mean_mfe_pct": 0.7421033817822217,
+      "mean_return_pct": -0.002125219445438615,
+      "median_mae_pct": -0.48773197071580454,
+      "median_mfe_pct": 0.5088526891034895,
+      "median_return_pct": 0.0297000361565,
+      "month_utc": "2025-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5182571684587813,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6206583508119425,
+      "mean_mfe_pct": 0.6794968573633711,
+      "mean_return_pct": 0.06017895199040763,
+      "median_mae_pct": -0.4163104049203781,
+      "median_mfe_pct": 0.4497452456474704,
+      "median_return_pct": 0.0358692767955,
+      "month_utc": "2025-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.524074074074074,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4919797152324658,
+      "mean_mfe_pct": 0.5066694333457709,
+      "mean_return_pct": 0.04163528584757683,
+      "median_mae_pct": -0.36612619307418437,
+      "median_mfe_pct": 0.34721565820468037,
+      "median_return_pct": 0.0135354197165,
+      "month_utc": "2025-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5109767025089605,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4346052677064916,
+      "mean_mfe_pct": 0.4342307896432935,
+      "mean_return_pct": 0.013639879865395945,
+      "median_mae_pct": -0.3019607355045195,
+      "median_mfe_pct": 0.32073160340385654,
+      "median_return_pct": 0.0218557116365,
+      "month_utc": "2025-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5185185185185185,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.41242204594929105,
+      "mean_mfe_pct": 0.42642716659539975,
+      "mean_return_pct": 0.03102683282301961,
+      "median_mae_pct": -0.30189958495084324,
+      "median_mfe_pct": 0.2919008749289409,
+      "median_return_pct": 0.0112325172855,
+      "month_utc": "2025-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5125448028673835,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.45377052466823015,
+      "mean_mfe_pct": 0.3921525964825594,
+      "mean_return_pct": -0.02517475377715793,
+      "median_mae_pct": -0.32302639662181165,
+      "median_mfe_pct": 0.28570143274107007,
+      "median_return_pct": -0.0177064832805,
+      "month_utc": "2025-08",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.48308691756272404,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.3442220568280811,
+      "mean_mfe_pct": 0.35962881665429497,
+      "mean_return_pct": 0.024791139392907294,
+      "median_mae_pct": -0.24126841126551057,
+      "median_mfe_pct": 0.24675288219923042,
+      "median_return_pct": 0.0173613694685,
+      "month_utc": "2025-09",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.524537037037037,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.6385660855943383,
+      "mean_mfe_pct": 0.5693631897241106,
+      "mean_return_pct": -0.013165283364111111,
+      "median_mae_pct": -0.404484239047298,
+      "median_mfe_pct": 0.4122008825707679,
+      "median_return_pct": 0.023866049830500002,
+      "month_utc": "2025-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5175851254480287,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7705442779019853,
+      "mean_mfe_pct": 0.6229180341583062,
+      "mean_return_pct": -0.08882412379786703,
+      "median_mae_pct": -0.5292939204444902,
+      "median_mfe_pct": 0.4533688262924884,
+      "median_return_pct": -0.016279337858000002,
+      "month_utc": "2025-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4883101851851852,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.5605647932724138,
+      "mean_mfe_pct": 0.5564151836402282,
+      "mean_return_pct": 0.004546269410287524,
+      "median_mae_pct": -0.3403504355172726,
+      "median_mfe_pct": 0.3509849037981905,
+      "median_return_pct": 0.0150545280835,
+      "month_utc": "2025-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5140008960573477,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.542996676557411,
+      "mean_mfe_pct": 0.45882854862980793,
+      "mean_return_pct": -0.0414284067117882,
+      "median_mae_pct": -0.3295758745809563,
+      "median_mfe_pct": 0.30078434028588674,
+      "median_return_pct": -0.0133730543555,
+      "month_utc": "2026-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4829749103942652,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.9504174354772087,
+      "mean_mfe_pct": 0.8350848750408235,
+      "mean_return_pct": -0.06458101281089956,
+      "median_mae_pct": -0.639947317609002,
+      "median_mfe_pct": 0.5862319039445119,
+      "median_return_pct": 0.0021027629725,
+      "month_utc": "2026-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.5011160714285714,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7122926494732837,
+      "mean_mfe_pct": 0.7192290468767123,
+      "mean_return_pct": 0.0095319929897993,
+      "median_mae_pct": -0.5643859288802455,
+      "median_mfe_pct": 0.4887990976856882,
+      "median_return_pct": -0.0364213507355,
+      "month_utc": "2026-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4800627240143369,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.48331476927824496,
+      "mean_mfe_pct": 0.5593403691275981,
+      "mean_return_pct": 0.051901218805242254,
+      "median_mae_pct": -0.35430897952190565,
+      "median_mfe_pct": 0.3785672960058384,
+      "median_return_pct": 0.01527092725,
+      "month_utc": "2026-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5113425925925926,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.43643208323891847,
+      "mean_mfe_pct": 0.3998021919558317,
+      "mean_return_pct": -0.014020819823200715,
+      "median_mae_pct": -0.30802335096634104,
+      "median_mfe_pct": 0.28811544708640113,
+      "median_return_pct": -0.0015992614295,
+      "month_utc": "2026-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.49854390681003585,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.7623434248923843,
+      "mean_mfe_pct": 0.6133876975325891,
+      "mean_return_pct": -0.09090700034901968,
+      "median_mae_pct": -0.5386075369542831,
+      "median_mfe_pct": 0.4300332848487187,
+      "median_return_pct": -0.07224093860549999,
+      "month_utc": "2026-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4570601851851852,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.4373186080643057,
+      "mean_mfe_pct": 0.47873054505866736,
+      "mean_return_pct": 0.030597088985166332,
+      "median_mae_pct": -0.3153188861647005,
+      "median_mfe_pct": 0.3428769278729593,
+      "median_return_pct": 0.020587658502,
+      "month_utc": "2026-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5252016129032258,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 180,
+      "mean_mae_pct": -0.38051606689276013,
+      "mean_mfe_pct": 0.5174249216022209,
+      "mean_return_pct": 0.11496776139608078,
+      "median_mae_pct": -0.24758907862529878,
+      "median_mfe_pct": 0.28989238715041443,
+      "median_return_pct": 0.028426762913000003,
+      "month_utc": "2026-08",
+      "n_complete": 7786,
+      "n_matched": 7786,
+      "n_total": 7786,
+      "population": "baseline",
+      "positive_return_share": 0.5348060621628564,
+      "status_counts": {
+        "COMPLETE": 7786
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6512998733553212,
+      "mean_mfe_pct": 0.7571604111966099,
+      "mean_return_pct": 0.0509694051490909,
+      "median_mae_pct": -0.4732368193660019,
+      "median_mfe_pct": 0.4380960438108761,
+      "median_return_pct": -0.038677234987,
+      "month_utc": "2024-09",
+      "n_complete": 66,
+      "n_matched": 66,
+      "n_total": 66,
+      "population": "signal",
+      "positive_return_share": 0.45454545454545453,
+      "status_counts": {
+        "COMPLETE": 66
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4639300464518102,
+      "mean_mfe_pct": 0.628994315465903,
+      "mean_return_pct": 0.10115225389782281,
+      "median_mae_pct": -0.32636845203061204,
+      "median_mfe_pct": 0.43575597080727224,
+      "median_return_pct": 0.00704031894,
+      "month_utc": "2024-10",
+      "n_complete": 79,
+      "n_matched": 79,
+      "n_total": 79,
+      "population": "signal",
+      "positive_return_share": 0.5063291139240507,
+      "status_counts": {
+        "COMPLETE": 79
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6026358154844718,
+      "mean_mfe_pct": 1.145418352332683,
+      "mean_return_pct": 0.49149912195784445,
+      "median_mae_pct": -0.47601188283940554,
+      "median_mfe_pct": 0.7678730486356811,
+      "median_return_pct": 0.1550656907275,
+      "month_utc": "2024-11",
+      "n_complete": 90,
+      "n_matched": 90,
+      "n_total": 90,
+      "population": "signal",
+      "positive_return_share": 0.5888888888888889,
+      "status_counts": {
+        "COMPLETE": 90
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6323097772846228,
+      "mean_mfe_pct": 0.6871458726165484,
+      "mean_return_pct": -0.005834847918807709,
+      "median_mae_pct": -0.547451097309315,
+      "median_mfe_pct": 0.5233501664039242,
+      "median_return_pct": 0.0009404895339999997,
+      "month_utc": "2024-12",
+      "n_complete": 52,
+      "n_matched": 52,
+      "n_total": 52,
+      "population": "signal",
+      "positive_return_share": 0.5,
+      "status_counts": {
+        "COMPLETE": 52
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8320598813867217,
+      "mean_mfe_pct": 0.6405741015921307,
+      "mean_return_pct": -0.15518802071557306,
+      "median_mae_pct": -0.5090297405244582,
+      "median_mfe_pct": 0.47173929342840815,
+      "median_return_pct": -0.077459481814,
+      "month_utc": "2025-01",
+      "n_complete": 89,
+      "n_matched": 89,
+      "n_total": 89,
+      "population": "signal",
+      "positive_return_share": 0.4157303370786517,
+      "status_counts": {
+        "COMPLETE": 89
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.30824850850968005,
+      "mean_mfe_pct": 0.486727788077954,
+      "mean_return_pct": 0.08112727975318182,
+      "median_mae_pct": -0.2396248779593213,
+      "median_mfe_pct": 0.41839712852209665,
+      "median_return_pct": 0.039456276243,
+      "month_utc": "2025-02",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.6060606060606061,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.9099607794138307,
+      "mean_mfe_pct": 0.6309784720428901,
+      "mean_return_pct": -0.24866540654903707,
+      "median_mae_pct": -0.546581899530707,
+      "median_mfe_pct": 0.4425300750192873,
+      "median_return_pct": -0.2140947899115,
+      "month_utc": "2025-03",
+      "n_complete": 54,
+      "n_matched": 54,
+      "n_total": 54,
+      "population": "signal",
+      "positive_return_share": 0.35185185185185186,
+      "status_counts": {
+        "COMPLETE": 54
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7900050609325132,
+      "mean_mfe_pct": 0.6113612756512902,
+      "mean_return_pct": -0.1914389747999041,
+      "median_mae_pct": -0.5282002122194873,
+      "median_mfe_pct": 0.4121917149465304,
+      "median_return_pct": -0.228094902514,
+      "month_utc": "2025-04",
+      "n_complete": 73,
+      "n_matched": 73,
+      "n_total": 73,
+      "population": "signal",
+      "positive_return_share": 0.4246575342465753,
+      "status_counts": {
+        "COMPLETE": 73
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5713575694185057,
+      "mean_mfe_pct": 0.6539017159292381,
+      "mean_return_pct": 0.04385520432819737,
+      "median_mae_pct": -0.4193480797295257,
+      "median_mfe_pct": 0.46191478521562246,
+      "median_return_pct": -0.0502599751715,
+      "month_utc": "2025-05",
+      "n_complete": 76,
+      "n_matched": 76,
+      "n_total": 76,
+      "population": "signal",
+      "positive_return_share": 0.47368421052631576,
+      "status_counts": {
+        "COMPLETE": 76
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.356234915686278,
+      "mean_mfe_pct": 0.4842304854446454,
+      "mean_return_pct": 0.06632084660250943,
+      "median_mae_pct": -0.3270335740558461,
+      "median_mfe_pct": 0.3305527917800255,
+      "median_return_pct": -0.020039631867,
+      "month_utc": "2025-06",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.4716981132075472,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5598437232849447,
+      "mean_mfe_pct": 0.5761853840113934,
+      "mean_return_pct": 0.012195904742704227,
+      "median_mae_pct": -0.3428312715107906,
+      "median_mfe_pct": 0.29011140345400754,
+      "median_return_pct": -0.006496092221,
+      "month_utc": "2025-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.49295774647887325,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.467720257021084,
+      "mean_mfe_pct": 0.4490463271455047,
+      "mean_return_pct": 0.04667066300715152,
+      "median_mae_pct": -0.36627114470138,
+      "median_mfe_pct": 0.2549352507219549,
+      "median_return_pct": -0.168488175878,
+      "month_utc": "2025-08",
+      "n_complete": 33,
+      "n_matched": 33,
+      "n_total": 33,
+      "population": "signal",
+      "positive_return_share": 0.3939393939393939,
+      "status_counts": {
+        "COMPLETE": 33
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4136157663633488,
+      "mean_mfe_pct": 0.4022717351899195,
+      "mean_return_pct": -0.013284747796836072,
+      "median_mae_pct": -0.32977251475909686,
+      "median_mfe_pct": 0.3177469270237987,
+      "median_return_pct": 0.031347069049,
+      "month_utc": "2025-09",
+      "n_complete": 61,
+      "n_matched": 61,
+      "n_total": 61,
+      "population": "signal",
+      "positive_return_share": 0.5409836065573771,
+      "status_counts": {
+        "COMPLETE": 61
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4903887124107007,
+      "mean_mfe_pct": 0.5850440397179892,
+      "mean_return_pct": 0.04664119681068332,
+      "median_mae_pct": -0.27353875690920293,
+      "median_mfe_pct": 0.44759725673180206,
+      "median_return_pct": 0.049507098339500004,
+      "month_utc": "2025-10",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.5333333333333333,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8519556918654156,
+      "mean_mfe_pct": 0.43825357197534304,
+      "mean_return_pct": -0.43682686640137497,
+      "median_mae_pct": -0.6486073166083683,
+      "median_mfe_pct": 0.3488217211766065,
+      "median_return_pct": -0.275012150064,
+      "month_utc": "2025-11",
+      "n_complete": 32,
+      "n_matched": 32,
+      "n_total": 32,
+      "population": "signal",
+      "positive_return_share": 0.34375,
+      "status_counts": {
+        "COMPLETE": 32
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7008567947357992,
+      "mean_mfe_pct": 0.4523930550116602,
+      "mean_return_pct": -0.11555245747320002,
+      "median_mae_pct": -0.432800713635656,
+      "median_mfe_pct": 0.3089334322536219,
+      "median_return_pct": -0.022183066723,
+      "month_utc": "2025-12",
+      "n_complete": 60,
+      "n_matched": 60,
+      "n_total": 60,
+      "population": "signal",
+      "positive_return_share": 0.4666666666666667,
+      "status_counts": {
+        "COMPLETE": 60
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5301033535344605,
+      "mean_mfe_pct": 0.6294784736629286,
+      "mean_return_pct": 0.09605778469329311,
+      "median_mae_pct": -0.355439813608488,
+      "median_mfe_pct": 0.436648541085638,
+      "median_return_pct": 0.0954826383975,
+      "month_utc": "2026-01",
+      "n_complete": 58,
+      "n_matched": 58,
+      "n_total": 58,
+      "population": "signal",
+      "positive_return_share": 0.5862068965517241,
+      "status_counts": {
+        "COMPLETE": 58
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.9974520709714552,
+      "mean_mfe_pct": 0.586735206676671,
+      "mean_return_pct": -0.42066678758090315,
+      "median_mae_pct": -0.6078236939791926,
+      "median_mfe_pct": 0.398089757834863,
+      "median_return_pct": -0.245990371611,
+      "month_utc": "2026-02",
+      "n_complete": 31,
+      "n_matched": 31,
+      "n_total": 31,
+      "population": "signal",
+      "positive_return_share": 0.3870967741935484,
+      "status_counts": {
+        "COMPLETE": 31
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8006669295946095,
+      "mean_mfe_pct": 0.931934489333147,
+      "mean_return_pct": 0.06391120219629093,
+      "median_mae_pct": -0.6931359353970379,
+      "median_mfe_pct": 0.767960399573453,
+      "median_return_pct": 0.122738256406,
+      "month_utc": "2026-03",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5272727272727272,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6105325511523115,
+      "mean_mfe_pct": 0.7406959353612896,
+      "mean_return_pct": 0.06526631155232307,
+      "median_mae_pct": -0.4758302090647204,
+      "median_mfe_pct": 0.5004436229692599,
+      "median_return_pct": -0.054166448254,
+      "month_utc": "2026-04",
+      "n_complete": 65,
+      "n_matched": 65,
+      "n_total": 65,
+      "population": "signal",
+      "positive_return_share": 0.49230769230769234,
+      "status_counts": {
+        "COMPLETE": 65
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4097238857165327,
+      "mean_mfe_pct": 0.4572221995228184,
+      "mean_return_pct": 0.014218396602363624,
+      "median_mae_pct": -0.21086003422762234,
+      "median_mfe_pct": 0.3182651312906071,
+      "median_return_pct": 0.031197498063,
+      "month_utc": "2026-05",
+      "n_complete": 55,
+      "n_matched": 55,
+      "n_total": 55,
+      "population": "signal",
+      "positive_return_share": 0.5636363636363636,
+      "status_counts": {
+        "COMPLETE": 55
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.55523318655327,
+      "mean_mfe_pct": 0.5787263937937989,
+      "mean_return_pct": 0.006367445830241365,
+      "median_mae_pct": -0.4146515462423839,
+      "median_mfe_pct": 0.4428218483956803,
+      "median_return_pct": -0.011776565577,
+      "month_utc": "2026-06",
+      "n_complete": 29,
+      "n_matched": 29,
+      "n_total": 29,
+      "population": "signal",
+      "positive_return_share": 0.4482758620689655,
+      "status_counts": {
+        "COMPLETE": 29
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4799917831206256,
+      "mean_mfe_pct": 0.46356099176480087,
+      "mean_return_pct": -0.04542885473659156,
+      "median_mae_pct": -0.38692389111130154,
+      "median_mfe_pct": 0.36912277870786436,
+      "median_return_pct": -0.083256101328,
+      "month_utc": "2026-07",
+      "n_complete": 71,
+      "n_matched": 71,
+      "n_total": 71,
+      "population": "signal",
+      "positive_return_share": 0.4225352112676056,
+      "status_counts": {
+        "COMPLETE": 71
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.46544636476114926,
+      "mean_mfe_pct": 0.8654844251275365,
+      "mean_return_pct": 0.2540181706106981,
+      "median_mae_pct": -0.36098047154826673,
+      "median_mfe_pct": 0.45485622879553045,
+      "median_return_pct": 0.064722745071,
+      "month_utc": "2026-08",
+      "n_complete": 53,
+      "n_matched": 53,
+      "n_total": 53,
+      "population": "signal",
+      "positive_return_share": 0.5471698113207547,
+      "status_counts": {
+        "COMPLETE": 53
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6781838252568917,
+      "mean_mfe_pct": 0.6957077481236524,
+      "mean_return_pct": 0.04835652133865051,
+      "median_mae_pct": -0.49827755905511584,
+      "median_mfe_pct": 0.4725284609256475,
+      "median_return_pct": 0.019141176999,
+      "month_utc": "2024-09",
+      "n_complete": 7969,
+      "n_matched": 7969,
+      "n_total": 7969,
+      "population": "baseline",
+      "positive_return_share": 0.51210942401807,
+      "status_counts": {
+        "COMPLETE": 7969
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5982113166354841,
+      "mean_mfe_pct": 0.6336800813885831,
+      "mean_return_pct": 0.05446631788267775,
+      "median_mae_pct": -0.40741045472810766,
+      "median_mfe_pct": 0.4652278707080404,
+      "median_return_pct": 0.0437138505695,
+      "month_utc": "2024-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5350582437275986,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7932923537655694,
+      "mean_mfe_pct": 0.9339272794507983,
+      "mean_return_pct": 0.18573110305667956,
+      "median_mae_pct": -0.5523702181578716,
+      "median_mfe_pct": 0.6365730705181538,
+      "median_return_pct": 0.0779952655005,
+      "month_utc": "2024-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5421296296296296,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8809102298989836,
+      "mean_mfe_pct": 0.796634262563312,
+      "mean_return_pct": -0.00753572612266634,
+      "median_mae_pct": -0.5625259679753358,
+      "median_mfe_pct": 0.5819177907704032,
+      "median_return_pct": 0.027297523650000002,
+      "month_utc": "2024-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5181451612903226,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7922976977495599,
+      "mean_mfe_pct": 0.8037721715572781,
+      "mean_return_pct": 0.05355395020982728,
+      "median_mae_pct": -0.5073686433980595,
+      "median_mfe_pct": 0.5615578490064332,
+      "median_return_pct": 0.035388579501,
+      "month_utc": "2025-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5213933691756273,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8568021199351241,
+      "mean_mfe_pct": 0.6609740530406086,
+      "mean_return_pct": -0.10791479278231993,
+      "median_mae_pct": -0.504896866531479,
+      "median_mfe_pct": 0.4560224702835125,
+      "median_return_pct": -0.024088075648,
+      "month_utc": "2025-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.4817708333333333,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8976769227001402,
+      "mean_mfe_pct": 0.8579304243271733,
+      "mean_return_pct": -0.003372782726140471,
+      "median_mae_pct": -0.581749643160101,
+      "median_mfe_pct": 0.5934232491368929,
+      "median_return_pct": 0.004846643769,
+      "month_utc": "2025-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5025761648745519,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7168270476438064,
+      "mean_mfe_pct": 0.7950407642532661,
+      "mean_return_pct": 0.07989177223659319,
+      "median_mae_pct": -0.4795820689379504,
+      "median_mfe_pct": 0.5349374340432811,
+      "median_return_pct": 0.058156211333,
+      "month_utc": "2025-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5393518518518519,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5682923451805015,
+      "mean_mfe_pct": 0.5916191787655418,
+      "mean_return_pct": 0.05488816007100897,
+      "median_mae_pct": -0.4345106330529258,
+      "median_mfe_pct": 0.4068477785116653,
+      "median_return_pct": 0.014800118455,
+      "month_utc": "2025-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5098566308243727,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5066719967516922,
+      "mean_mfe_pct": 0.5081586052086311,
+      "mean_return_pct": 0.018159910850253227,
+      "median_mae_pct": -0.35419220732927914,
+      "median_mfe_pct": 0.3776090260695475,
+      "median_return_pct": 0.023239872616,
+      "month_utc": "2025-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5219907407407407,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.47757199671138845,
+      "mean_mfe_pct": 0.4978443472444341,
+      "mean_return_pct": 0.04201691470546406,
+      "median_mae_pct": -0.3675433852698917,
+      "median_mfe_pct": 0.34053436279877225,
+      "median_return_pct": 0.023692296405500003,
+      "month_utc": "2025-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5213933691756273,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5316996783020909,
+      "mean_mfe_pct": 0.4538060215088429,
+      "mean_return_pct": -0.03455618965090368,
+      "median_mae_pct": -0.3814667359594792,
+      "median_mfe_pct": 0.33560408324297963,
+      "median_return_pct": -0.0202467923855,
+      "month_utc": "2025-08",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4825268817204301,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.3978678901518058,
+      "mean_mfe_pct": 0.41955839631340214,
+      "mean_return_pct": 0.03361623955068542,
+      "median_mae_pct": -0.2761312369986668,
+      "median_mfe_pct": 0.2893796407577476,
+      "median_return_pct": 0.0149189191205,
+      "month_utc": "2025-09",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.5196759259259259,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.7508287297918277,
+      "mean_mfe_pct": 0.6603256237816314,
+      "mean_return_pct": -0.017151920974440415,
+      "median_mae_pct": -0.4676997584792286,
+      "median_mfe_pct": 0.4773830650704469,
+      "median_return_pct": 0.020991773595500002,
+      "month_utc": "2025-10",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5157930107526881,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.9047891288124477,
+      "mean_mfe_pct": 0.7110307439052052,
+      "mean_return_pct": -0.12062373791557593,
+      "median_mae_pct": -0.604141931295793,
+      "median_mfe_pct": 0.5224137910585069,
+      "median_return_pct": -0.033029941669500004,
+      "month_utc": "2025-11",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.478125,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6560168559731914,
+      "mean_mfe_pct": 0.6497449351695204,
+      "mean_return_pct": 0.008094700125727166,
+      "median_mae_pct": -0.41319037951715876,
+      "median_mfe_pct": 0.4106951879174203,
+      "median_return_pct": 0.0335770674165,
+      "month_utc": "2025-12",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5303539426523297,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.6383303606869312,
+      "mean_mfe_pct": 0.5295822394870564,
+      "mean_return_pct": -0.05537561299226904,
+      "median_mae_pct": -0.3888620185580227,
+      "median_mfe_pct": 0.3430483709974008,
+      "median_return_pct": -0.0154625019675,
+      "month_utc": "2026-01",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.48476702508960573,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -1.113006657963267,
+      "mean_mfe_pct": 0.9634619593157181,
+      "mean_return_pct": -0.08466512328558679,
+      "median_mae_pct": -0.7688544903472427,
+      "median_mfe_pct": 0.6924189244656542,
+      "median_return_pct": -0.009715847151999999,
+      "month_utc": "2026-02",
+      "n_complete": 8064,
+      "n_matched": 8064,
+      "n_total": 8064,
+      "population": "baseline",
+      "positive_return_share": 0.4957837301587302,
+      "status_counts": {
+        "COMPLETE": 8064
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.8241184361614156,
+      "mean_mfe_pct": 0.8295774987017002,
+      "mean_return_pct": 0.011656108662777215,
+      "median_mae_pct": -0.6606862266160252,
+      "median_mfe_pct": 0.5709395230569125,
+      "median_return_pct": -0.0412063453355,
+      "month_utc": "2026-03",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.47748655913978494,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5527768530360508,
+      "mean_mfe_pct": 0.6572229528041892,
+      "mean_return_pct": 0.07002220424632812,
+      "median_mae_pct": -0.4149086308071148,
+      "median_mfe_pct": 0.44898145114731225,
+      "median_return_pct": 0.026287785916500002,
+      "month_utc": "2026-04",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.517824074074074,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5072152838111994,
+      "mean_mfe_pct": 0.46117352270541534,
+      "mean_return_pct": -0.019167237606428203,
+      "median_mae_pct": -0.36269296037597654,
+      "median_mfe_pct": 0.3350243430106259,
+      "median_return_pct": -0.006598567459,
+      "month_utc": "2026-05",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.4949596774193548,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.898877660428318,
+      "mean_mfe_pct": 0.6972723581899263,
+      "mean_return_pct": -0.12107041119105809,
+      "median_mae_pct": -0.6484810613372582,
+      "median_mfe_pct": 0.5071688561402388,
+      "median_return_pct": -0.073326866107,
+      "month_utc": "2026-06",
+      "n_complete": 8640,
+      "n_matched": 8640,
+      "n_total": 8640,
+      "population": "baseline",
+      "positive_return_share": 0.4599537037037037,
+      "status_counts": {
+        "COMPLETE": 8640
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.5057410963140206,
+      "mean_mfe_pct": 0.5579212574927114,
+      "mean_return_pct": 0.0399466799953974,
+      "median_mae_pct": -0.3697102520031803,
+      "median_mfe_pct": 0.41036717499514097,
+      "median_return_pct": 0.020627734323,
+      "month_utc": "2026-07",
+      "n_complete": 8928,
+      "n_matched": 8928,
+      "n_total": 8928,
+      "population": "baseline",
+      "positive_return_share": 0.5197132616487455,
+      "status_counts": {
+        "COMPLETE": 8928
+      }
+    },
+    {
+      "horizon_minutes": 240,
+      "mean_mae_pct": -0.4330171161642704,
+      "mean_mfe_pct": 0.6188456680190665,
+      "mean_return_pct": 0.1522533918384575,
+      "median_mae_pct": -0.29011335870062216,
+      "median_mfe_pct": 0.3519310885088056,
+      "median_return_pct": 0.0391009250295,
+      "month_utc": "2026-08",
+      "n_complete": 7786,
+      "n_matched": 7786,
+      "n_total": 7786,
+      "population": "baseline",
+      "positive_return_share": 0.5468790136141793,
+      "status_counts": {
+        "COMPLETE": 7786
+      }
+    }
+  ]
+}

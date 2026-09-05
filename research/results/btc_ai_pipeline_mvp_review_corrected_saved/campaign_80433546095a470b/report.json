@@ -1,0 +1,154 @@
+{
+  "attempts": [
+    {
+      "campaign_id": "campaign_80433546095a470b",
+      "elapsed_ms": 2.4819999999999998,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-04T10:50:58.585622Z",
+      "id": "attempt_3aa7685aabf34374",
+      "job_id": "job_0e48e82f6a424817",
+      "model": "fixture-thinker",
+      "phase": "proposal",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":305,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"medium\",\"model\":\"fixture-thinker\",\"output_budget\":2000,\"phase\":\"proposal\",\"provider\":\"fixture\",\"role\":\"thinker\"}",
+      "response_json": "{\"expected_evidence\":[\"source hash\",\"event identity\",\"exact target timestamps\",\"recomputed returns\",\"checker status\"],\"falsification_conditions\":[\"source identity differs\",\"target timestamp or price differs\",\"required evidence is missing\"],\"hypothesis\":\"The saved M5 event has the same exact 1h, 2h, and 3h close-to-close outcomes when recomputed from frozen candles.\",\"invariants\":[\"use frozen BTC evidence\",\"check 1h, 2h, and 3h\",\"do not change strategy or data\",\"no model shell execution\"],\"parameters\":{\"event_index\":0,\"mode\":\"real\"},\"question\":\"Does one frozen M5 event preserve its saved trigger identity and exact 1h/2h/3h targets under independent arithmetic?\",\"rationale\":\"A bounded identity and arithmetic check is the first safe research job; it makes no new alpha claim.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop after one bounded job\",\"stop on verified evidence or unrecoverable restriction\"],\"task\":\"verify_m5_horizons\",\"title\":\"Verify one existing BTC M5 horizon result\"}",
+      "role": "thinker",
+      "started_at": "2026-09-04T10:50:58.583140Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":305,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"medium\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-thinker\"}"
+    },
+    {
+      "campaign_id": "campaign_80433546095a470b",
+      "elapsed_ms": 2.949,
+      "error_kind": null,
+      "error_message": null,
+      "finished_at": "2026-09-04T10:50:58.603332Z",
+      "id": "attempt_6c03fab5440b49b0",
+      "job_id": "job_0e48e82f6a424817",
+      "model": "fixture-executor",
+      "phase": "execution",
+      "provider": "fixture",
+      "request_json": "{\"context_budget\":6000,\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":300,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"effort\":\"minimal\",\"model\":\"fixture-executor\",\"output_budget\":2000,\"phase\":\"execution\",\"provider\":\"fixture\",\"role\":\"executor\"}",
+      "response_json": "{\"invariants\":[\"use frozen BTC evidence\",\"check 1h, 2h, and 3h\",\"do not change strategy or data\",\"no model shell execution\"],\"parameters\":{\"event_index\":0,\"mode\":\"real\"},\"schema\":\"btc-research-execution-plan-v1\",\"task\":\"verify_m5_horizons\",\"tool\":\"verify_m5_horizons\",\"workspace_manifest\":\"fixture_manifest.json\"}",
+      "role": "executor",
+      "started_at": "2026-09-04T10:50:58.600383Z",
+      "status": "COMPLETED",
+      "usage_json": "{\"controller_limits\":{\"context_budget\":{\"enforced\":\"prompt_utf8_estimate\",\"estimated_input_tokens\":300,\"requested\":6000},\"output_budget\":{\"enforced\":\"response_utf8_estimate\",\"requested\":2000}},\"controls\":{\"context_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":6000},\"effort\":{\"enforced\":false,\"note\":\"fixture provider does not run a model\",\"provider_supported\":false,\"requested\":\"minimal\"},\"output_budget\":{\"enforced\":false,\"provider_supported\":false,\"requested\":2000},\"timeout\":{\"enforced\":false,\"provider_supported\":false,\"requested_seconds\":120.0}},\"provider\":\"fixture\",\"provider_usage\":{\"fixture\":true,\"input_tokens\":null,\"output_tokens\":null,\"usage_available\":false,\"usage_note\":\"deterministic fixture; no model call\"},\"reported_model\":null,\"requested_model\":\"fixture-executor\"}"
+    }
+  ],
+  "budget": {
+    "campaign_id": "campaign_80433546095a470b",
+    "executor_calls": 1,
+    "jobs_started": 1,
+    "max_executor_calls": 1,
+    "max_jobs": 1,
+    "max_thinker_calls": 2,
+    "thinker_calls": 1,
+    "updated_at": "2026-09-04T10:50:58.597467Z"
+  },
+  "campaign": {
+    "config_json": "{\"baseline_packet\":null,\"context_budget\":6000,\"data_dir\":\"research/data/btc_four_year_20220828_20260828\",\"db_path\":\"research/results/btc_ai_pipeline_mvp_review_corrected_saved/pipeline.sqlite\",\"executor_effort\":\"minimal\",\"executor_model\":\"fixture-executor\",\"executor_provider\":\"fixture\",\"horizon_packet\":null,\"live_opt_in\":false,\"max_executor_calls\":1,\"max_jobs\":1,\"max_thinker_calls\":2,\"output_budget\":2000,\"output_dir\":\"research/results/btc_ai_pipeline_mvp_review_corrected_saved\",\"repo_root\":\".\",\"thinker_effort\":\"medium\",\"thinker_model\":\"fixture-thinker\",\"thinker_provider\":\"fixture\",\"timeout_seconds\":120.0,\"verification_mode\":\"real\"}",
+    "context_json": "{\"alpha_assessment\":\"NOT_ASSESSED\",\"baseline_packet\":\"C:\\\\Users\\\\hkpug\\\\Documents\\\\GitHub\\\\rsi_bot\\\\research\\\\results\\\\phase1_four_year_runs\\\\run_20260904T084317586748Z_97d3c169\",\"data_dir\":\"C:\\\\Users\\\\hkpug\\\\Documents\\\\GitHub\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\",\"evidence_hashes\":{\"baseline_manifest_sha256\":\"c0c35d69248476b4214fbc6f524f7c320741efca0b4c8a8105d722ae5866f575\",\"horizon_manifest_sha256\":\"30db2b2597666c815ebe3a9fc754e2e3c46f7203dec661c399963dca48024ec7\",\"horizon_signals_sha256\":\"48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac\",\"source_path\":\"C:\\\\Users\\\\hkpug\\\\Documents\\\\GitHub\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv\",\"source_sha256\":\"97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d\"},\"horizon_packet\":\"C:\\\\Users\\\\hkpug\\\\Documents\\\\GitHub\\\\rsi_bot\\\\research\\\\results\\\\m5_four_year_horizon_runs\\\\run_20260904T084448776441Z_97d3c169\",\"previous_decisions\":[],\"previous_failures\":[],\"question\":\"Independently verify one existing BTC M5 1h/2h/3h result.\",\"verification_mode\":\"real\"}",
+    "created_at": "2026-09-04T10:50:58.570735Z",
+    "id": "campaign_80433546095a470b",
+    "name": "btc-ai-review-corrected-saved",
+    "question": "Independently verify one existing BTC M5 1h/2h/3h result.",
+    "status": "PAUSED",
+    "updated_at": "2026-09-04T10:50:58.613756Z"
+  },
+  "decisions": [],
+  "failures": [
+    {
+      "attempt_id": null,
+      "campaign_id": "campaign_80433546095a470b",
+      "created_at": "2026-09-04T10:50:58.611201Z",
+      "details_json": "{\"exception_type\":\"ToolInputAccessError\",\"infrastructure\":true,\"provider_call_performed\":false,\"resume_safe\":true}",
+      "id": "failure_bde5f9ae2f7e4d86",
+      "job_id": "job_0e48e82f6a424817",
+      "kind": "data_access",
+      "message": "source_csv is not readable: C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv: [WinError 5] Access is denied: 'C:\\\\Users\\\\hkpug\\\\Documents\\\\GitHub\\\\rsi_bot\\\\research\\\\data\\\\btc_four_year_20220828_20260828\\\\BTCUSDT_5m.csv'",
+      "retryable": 1
+    }
+  ],
+  "jobs": [
+    {
+      "budget_reserved": 1,
+      "campaign_id": "campaign_80433546095a470b",
+      "created_at": "2026-09-04T10:50:58.575015Z",
+      "id": "job_0e48e82f6a424817",
+      "parent_job_id": null,
+      "result_id": null,
+      "sequence": 1,
+      "specification_hash": "6dd12e68531e612e5102b3523bea4f134999cde5fbe84e3bde5f5f17df3151b7",
+      "specification_json": "{\"expected_evidence\":[\"source hash\",\"event identity\",\"exact target timestamps\",\"recomputed returns\",\"checker status\"],\"falsification_conditions\":[\"source identity differs\",\"target timestamp or price differs\",\"required evidence is missing\"],\"hypothesis\":\"The saved M5 event has the same exact 1h, 2h, and 3h close-to-close outcomes when recomputed from frozen candles.\",\"invariants\":[\"use frozen BTC evidence\",\"check 1h, 2h, and 3h\",\"do not change strategy or data\",\"no model shell execution\"],\"parameters\":{\"event_index\":0,\"mode\":\"real\"},\"question\":\"Does one frozen M5 event preserve its saved trigger identity and exact 1h/2h/3h targets under independent arithmetic?\",\"rationale\":\"A bounded identity and arithmetic check is the first safe research job; it makes no new alpha claim.\",\"schema\":\"btc-research-proposal-v1\",\"stop_conditions\":[\"stop after one bounded job\",\"stop on verified evidence or unrecoverable restriction\"],\"task\":\"verify_m5_horizons\",\"title\":\"Verify one existing BTC M5 horizon result\"}",
+      "status": "PROPOSED",
+      "updated_at": "2026-09-04T10:50:58.591041Z"
+    }
+  ],
+  "live_model_verified": false,
+  "next_missing_capability": "OpenCode executor integration",
+  "provider_controls": {
+    "executor": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": false,
+        "provider_supported": false,
+        "requested": "minimal"
+      },
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "fixture",
+      "timeout": {
+        "enforced": false
+      }
+    },
+    "thinker": {
+      "context_budget": {
+        "enforced": "controller_prompt_estimate",
+        "provider_flag": false
+      },
+      "effort": {
+        "enforced": false,
+        "provider_supported": false,
+        "requested": "medium"
+      },
+      "output_budget": {
+        "enforced": "controller_response_estimate",
+        "provider_flag": false
+      },
+      "provider": "fixture",
+      "timeout": {
+        "enforced": false
+      }
+    }
+  },
+  "provider_reporting": {
+    "live_model_verified": false,
+    "model_identity_verified": false,
+    "reported_models": {},
+    "requested_models": {
+      "executor": "fixture-executor",
+      "thinker": "fixture-thinker"
+    },
+    "successful_real_provider_attempts": []
+  },
+  "reproduction": {
+    "live_opt_in": "python btc_ai_pipeline.py run --live --confirm-live --thinker-provider codex --executor-provider codex --thinker-model <model> --executor-model <model>",
+    "offline_fixture": "python btc_ai_pipeline.py run --offline-fixture --fixture-case stop",
+    "offline_saved_data": "python btc_ai_pipeline.py run --offline-fixture --use-saved-data --fixture-case stop",
+    "preflight": "python btc_ai_pipeline.py preflight"
+  },
+  "results": [],
+  "scope": "offline fixture or explicitly opted-in local provider; no strategy/config changes",
+  "verification": {
+    "live_model_verified": false,
+    "requested_mode": "real",
+    "result_modes": []
+  }
+}

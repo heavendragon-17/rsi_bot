@@ -2,6 +2,11 @@
 
 Assessment date: 2026-09-04. Status: proposal, not an implemented pipeline or validated strategy change.
 
+Follow-up scope clarification: the first application is BTC signals, with a strong
+research manager directing cheaper execution models. See the
+[architecture comparison](2026-09-04_hierarchical_research_architecture.md) for
+model delegation, economics, adaptive research, and generalization to on-chain work.
+
 ## Recommendation
 
 Build a small, reproducible research system around the existing evaluators. Let AI propose hypotheses, implement bounded experiments, and explain failures. Give a separate, fixed evaluation process control of the evidence and advancement decisions. Keep the current strategy as a frozen comparison throughout research.

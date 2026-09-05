@@ -1,0 +1,190 @@
+{
+  "command": "btc_research_phase1.py --data-dir app/backtest/data --output-dir research/results/phase1_runs --start 2024-09-01 --end 2026-08-28",
+  "completion_status": "SUCCESS",
+  "configuration": {
+    "available": true,
+    "note": "The Phase 1 evaluator has no parameter overrides; this hash records the repository config context.",
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\config.yaml",
+    "sha256": "4ffedb7ac41c4b4af9db140c89c6facf3df4f91747b3ed86273eb7884eb32d72"
+  },
+  "coverage": {
+    "common_end_close_utc": "2026-08-28T04:45:00Z",
+    "common_start_close_utc": "2024-08-29T04:00:00Z",
+    "requested_end_within_common_coverage": false,
+    "requested_start_within_common_coverage": true,
+    "warnings": [
+      "Requested end exceeds the common native close-time coverage."
+    ]
+  },
+  "definition_version": "btc-research-phase1-v1",
+  "definitions": {
+    "alpha_assessment": "NOT_ASSESSED",
+    "baseline": "all native trigger bars at/after existing replay warmup in each timeframe's emitted-signal coverage window, with exact-horizon coverage; no signal rule required",
+    "cost_sensitivity": "illustrative mean return percentage minus 0.10 percentage points; not simulated execution or P&L",
+    "horizons": [
+      "60 minutes",
+      "240 minutes",
+      "720 minutes",
+      "1440 minutes"
+    ],
+    "outcome_statuses": [
+      "COMPLETE",
+      "INCOMPLETE_TAIL",
+      "MISSING_TARGET",
+      "GAP"
+    ],
+    "return": "gross close-to-close percentage = (exact target close / trigger close - 1) * 100"
+  },
+  "environment": {
+    "PyYAML": "6.0.3",
+    "numpy": "2.2.6",
+    "pandas": "3.0.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12"
+  },
+  "generated_at_utc": "2026-09-04T06:47:41.592949Z",
+  "git": {
+    "dirty": true,
+    "dirty_code_identity_sha256": "572bdb5aba0d6d957755fe6678f632616eee2cdbe3b94c19802754868fa66c81",
+    "revision": "62656448062f975190eea6f65ca0117b111e3da8",
+    "status": [
+      " M docs/06_quant_research/research-workflow.md",
+      " M docs/11_testing_and_backtesting/backtest-engine.md",
+      " M research/2026-09-04_alpha_research_pipeline_proposal.md",
+      " M tasks/lessons.md",
+      " M tasks/todo.md",
+      "?? app/backtest/btc_research_phase1.py",
+      "?? btc_research_phase1.py",
+      "?? research/2026-09-04_hierarchical_research_architecture.md",
+      "?? research/results/",
+      "?? tasks/btc_research_phase1_handoff.md",
+      "?? tests/test_btc_research_phase1.py"
+    ]
+  },
+  "historical_artifact_comparison": {
+    "available": true,
+    "comparison_note": "Historical CSV is comparison evidence only; the absent original generator is not claimed reproduced.",
+    "count_deltas_current_minus_historical": {
+      "15m": 0,
+      "5m": 0
+    },
+    "current_signal_counts": {
+      "15m": 589,
+      "5m": 1399
+    },
+    "historical_four_hour_mean_return_pct": {
+      "15m": 0.042164508657,
+      "5m": 0.01327507724
+    },
+    "historical_signal_counts": {
+      "15m": 589,
+      "5m": 1399
+    },
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\btc_signal_ev_summary.csv",
+    "sha256": "63f517248a3c4ab3c411634a2e9c3dcc5a886f247c95885bb18f9cae55f53898"
+  },
+  "inputs": {
+    "errors": [],
+    "files": {
+      "15m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:30:00Z",
+        "available_start_close_utc": "2024-04-30T10:15:00Z",
+        "available_start_open_utc": "2024-04-30T10:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 15,
+        "expected_filename": "BTCUSDT_15m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_15m.csv",
+        "row_count": 81579,
+        "sha256": "03f5d2de8357a9cb66195ccc501aeb0e8639f042af9e52d68fc9f1e8afa6ef62",
+        "timeframe": "15m"
+      },
+      "1h": {
+        "available_end_close_utc": "2026-08-29T03:00:00Z",
+        "available_end_open_utc": "2026-08-29T02:00:00Z",
+        "available_start_close_utc": "2024-08-29T04:00:00Z",
+        "available_start_open_utc": "2024-08-29T03:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 60,
+        "expected_filename": "BTCUSDT_1h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_1h.csv",
+        "row_count": 17520,
+        "sha256": "9cd8b5cfa8a12ba2d41c9faca8416189a6d8432dac5d06df8a29f310af23ef82",
+        "timeframe": "1h"
+      },
+      "4h": {
+        "available_end_close_utc": "2026-08-28T08:00:00Z",
+        "available_end_open_utc": "2026-08-28T04:00:00Z",
+        "available_start_close_utc": "2024-08-26T12:00:00Z",
+        "available_start_open_utc": "2024-08-26T08:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 240,
+        "expected_filename": "BTCUSDT_4h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_4h.csv",
+        "row_count": 4392,
+        "sha256": "68f555110a6f9f69ceb3bf2c34c643cf63cea64a642e6b2592eedbfb43b1a4df",
+        "timeframe": "4h"
+      },
+      "5m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:40:00Z",
+        "available_start_close_utc": "2024-08-26T04:50:00Z",
+        "available_start_open_utc": "2024-08-26T04:45:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 5,
+        "expected_filename": "BTCUSDT_5m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_5m.csv",
+        "row_count": 210816,
+        "sha256": "2572884b835e006f16e10ba8ca94367cf3ee535e69b381328145e15891fc67a8",
+        "timeframe": "5m"
+      }
+    },
+    "identity": {
+      "filename_contract": {
+        "15m": "BTCUSDT_15m.csv",
+        "1h": "BTCUSDT_1h.csv",
+        "4h": "BTCUSDT_4h.csv",
+        "5m": "BTCUSDT_5m.csv"
+      },
+      "source_kind": "local_csv",
+      "symbol": "BTC/USDT",
+      "venue": "Binance USD-M Futures",
+      "venue_instrument": "BTC/USDT:USDT"
+    },
+    "warnings": []
+  },
+  "repository_root": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot",
+  "run_id": "run_20260904T064741592949Z_2572884b",
+  "strategy": {
+    "logic_source": "app.backtest.signal_replay + existing btc_rsi_cross_alert evaluator",
+    "name": "btc_rsi_cross_alert",
+    "symbol": "BTC/USDT",
+    "venue": "Binance USD-M Futures",
+    "venue_instrument": "BTC/USDT:USDT"
+  },
+  "warmup": {
+    "15m": "2024-08-30T00:00:00Z",
+    "5m": "2024-08-30T00:00:00Z"
+  },
+  "warnings": [
+    "Requested end exceeds the common native close-time coverage.",
+    "12 signal-horizon outcomes are incomplete or invalid; exact targets were not substituted."
+  ],
+  "window": {
+    "requested_end_utc": "2026-08-28T16:59:59.999999Z",
+    "requested_start_utc": "2024-08-31T17:00:00Z",
+    "trigger_close_semantics": "inclusive"
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "code_sha256": {
+    "app\\backtest\\btc_research_phase1.py": "77b46392f18ccf2fbdc618687d5a3dd06353db5c69bb338b6ea95fd7e04e579f",
+    "app\\backtest\\signal_replay_data.py": "872a6396935edd73f310592739d67fd4f2bddb3c897516e3d15a9846a0eb6ef8",
+    "app\\backtest\\signal_replay_preparation.py": "b9c19704d0e20026108227e1af7bc8bb7ef80a31f9c1e43f27745b4ae1099148",
+    "research\\btc_m5_horizon_diagnostic.py": "c1c0f2048588b0ca80b8ea12d4aed59079e2f7fad35a033e6854e5cd1aabd473"
+  },
+  "command": "python -m research.btc_m5_horizon_diagnostic --baseline-run \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_runs\\run_20260904T073543149279Z_2572884b\" --output-dir \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\m5_horizon_runs\"",
+  "comparator": {
+    "candidate_bar_count": 208427,
+    "eligible_bar_count": 208427,
+    "preparation_excluded_count": 0,
+    "preparation_exclusion_reasons": {},
+    "window_end_close_utc": "2026-08-28T00:45:00Z",
+    "window_start_close_utc": "2024-09-03T07:55:00Z"
+  },
+  "completion_status": "SUCCESS",
+  "definition_version": "btc-m5-horizon-diagnostic-v1",
+  "definitions": {
+    "bootstrap": "Optional 2000 paired circular 7-day UTC calendar-block replicates, seed 20260904; percentile 95%; observation-weighted means; no significance claim",
+    "excursions": "Future native M5 bars only, first open=trigger close, last close=target; MFE >= 0, MAE <= 0; hindsight bounds, not captured P&L",
+    "horizons_minutes": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "month_timezone": "UTC",
+    "population": "Fixed parent M5 IDs; same complete IDs across all four horizons. Baseline uses same first/last signal window, shared per-event READY preparation, and all-four-complete rows.",
+    "return": "Gross exact close-to-close percent",
+    "status_values": [
+      "COMPLETE",
+      "INCOMPLETE_TAIL",
+      "MISSING_TARGET",
+      "GAP"
+    ]
+  },
+  "environment": {
+    "PyYAML": "6.0.3",
+    "numpy": "2.2.6",
+    "pandas": "3.0.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12"
+  },
+  "generated_at_utc": "2026-09-04T08:39:23.276439Z",
+  "inputs": {
+    "errors": [],
+    "files": {
+      "15m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:30:00Z",
+        "available_start_close_utc": "2024-04-30T10:15:00Z",
+        "available_start_open_utc": "2024-04-30T10:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 15,
+        "expected_filename": "BTCUSDT_15m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_15m.csv",
+        "row_count": 81579,
+        "sha256": "03f5d2de8357a9cb66195ccc501aeb0e8639f042af9e52d68fc9f1e8afa6ef62",
+        "timeframe": "15m"
+      },
+      "1h": {
+        "available_end_close_utc": "2026-08-29T03:00:00Z",
+        "available_end_open_utc": "2026-08-29T02:00:00Z",
+        "available_start_close_utc": "2024-08-29T04:00:00Z",
+        "available_start_open_utc": "2024-08-29T03:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 60,
+        "expected_filename": "BTCUSDT_1h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_1h.csv",
+        "row_count": 17520,
+        "sha256": "9cd8b5cfa8a12ba2d41c9faca8416189a6d8432dac5d06df8a29f310af23ef82",
+        "timeframe": "1h"
+      },
+      "4h": {
+        "available_end_close_utc": "2026-08-28T08:00:00Z",
+        "available_end_open_utc": "2026-08-28T04:00:00Z",
+        "available_start_close_utc": "2024-08-26T12:00:00Z",
+        "available_start_open_utc": "2024-08-26T08:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 240,
+        "expected_filename": "BTCUSDT_4h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_4h.csv",
+        "row_count": 4392,
+        "sha256": "68f555110a6f9f69ceb3bf2c34c643cf63cea64a642e6b2592eedbfb43b1a4df",
+        "timeframe": "4h"
+      },
+      "5m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:40:00Z",
+        "available_start_close_utc": "2024-08-26T04:50:00Z",
+        "available_start_open_utc": "2024-08-26T04:45:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 5,
+        "expected_filename": "BTCUSDT_5m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\app\\backtest\\data\\BTCUSDT_5m.csv",
+        "row_count": 210816,
+        "sha256": "2572884b835e006f16e10ba8ca94367cf3ee535e69b381328145e15891fc67a8",
+        "timeframe": "5m"
+      }
+    },
+    "identity": {
+      "filename_contract": {
+        "15m": "BTCUSDT_15m.csv",
+        "1h": "BTCUSDT_1h.csv",
+        "4h": "BTCUSDT_4h.csv",
+        "5m": "BTCUSDT_5m.csv"
+      },
+      "source_kind": "local_csv",
+      "symbol": "BTC/USDT",
+      "venue": "Binance USD-M Futures",
+      "venue_instrument": "BTC/USDT:USDT"
+    },
+    "warnings": []
+  },
+  "parent": {
+    "cooldown": "Parent emitted IDs retained; no replay or reset",
+    "files_sha256": {
+      "manifest.json": "0688a00fdc9c9ad138fb4c3244b9e05aec6bbde091eab232f2712283d669c02c",
+      "report.md": "c3b6dd83fedd578314cda4b525deb03993bf5e87f285d2485cab8cab7f457d98",
+      "signals.csv": "fbfc4b3f6e466393777b521c19b12e95e1d5acb8a243315ac81ee4f2aef6f40a",
+      "summary.json": "f260a7644fe1685628a9bbc19d3ed8e3690a7a70afbf5a14ebce1c55a1babdd4"
+    },
+    "one_hour_four_hour_parity": true,
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_runs\\run_20260904T073543149279Z_2572884b",
+    "run_id": "run_20260904T073543149279Z_2572884b",
+    "signal_count": 1399,
+    "signal_ids_sha256": "4ff6f0a72f612cd3250c7eab00a45b359b4fa83309748e4ee07855f5bd583816",
+    "source_hash_parity": true
+  },
+  "run_id": "run_20260904T083923276439Z_2572884b"
+}

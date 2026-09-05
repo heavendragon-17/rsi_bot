@@ -1,0 +1,9 @@
+{
+  "campaign_id": "campaign_ed53d997a4364346",
+  "committed_decision": "STOP",
+  "before_status": "RUNNING",
+  "after_resume_status": "RUNNING",
+  "attempts_before": 3,
+  "attempts_after": 3,
+  "real_model_calls": 0
+}

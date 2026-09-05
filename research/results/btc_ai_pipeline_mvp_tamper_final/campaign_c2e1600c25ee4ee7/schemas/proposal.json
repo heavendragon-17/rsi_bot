@@ -1,0 +1,69 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expected_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "falsification_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "hypothesis": {
+      "type": "string"
+    },
+    "invariants": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "parent_result_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question": {
+      "type": "string"
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "btc-research-proposal-v1"
+    },
+    "stop_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "task": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "hypothesis",
+    "question",
+    "rationale",
+    "expected_evidence",
+    "task",
+    "parameters",
+    "invariants",
+    "stop_conditions",
+    "falsification_conditions"
+  ],
+  "type": "object"
+}

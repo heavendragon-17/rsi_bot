@@ -1,0 +1,33 @@
+{
+  "campaign_id": "campaign_9fedf039c2974b23",
+  "attempt_id": "attempt_d40461575bb0406c",
+  "original_report_sha256": "ea108cb3f5431724fa59cdddb3357b61ec5dd781887a022a83ac89769606ba9d",
+  "recovered_error": {
+    "session_file": "C:\\Users\\hkpug\\.codex\\sessions\\2026\\09\\04\\rollout-2026-09-04T19-01-28-01a06c4b-96a0-7661-83d4-0c59c0cbb806.jsonl",
+    "line": 12,
+    "timestamp": "2026-09-04T12:01:31.513Z",
+    "error": {
+      "type": "error",
+      "error": {
+        "type": "invalid_request_error",
+        "code": "invalid_json_schema",
+        "message": "Invalid schema for response_format 'codex_output_schema': In context=('properties', 'schema'), schema must have a 'type' key.",
+        "param": "text.format.schema"
+      },
+      "status": 400
+    }
+  },
+  "original_budget": {
+    "campaign_id": "campaign_9fedf039c2974b23",
+    "executor_calls": 0,
+    "jobs_started": 1,
+    "max_executor_calls": 1,
+    "max_jobs": 1,
+    "max_thinker_calls": 2,
+    "thinker_calls": 1,
+    "updated_at": "2026-09-04T12:01:28.155084Z"
+  },
+  "new_runtime_model_calls": 0,
+  "original_campaign_modified": false,
+  "live_fixed_schema_validation": "NOT_RUN"
+}

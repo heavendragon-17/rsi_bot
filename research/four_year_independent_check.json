@@ -1,0 +1,38 @@
+[
+  {
+    "horizon_hours": 1,
+    "n": 2865,
+    "mean_return_pct": -6.0809743831623154e-05,
+    "median_return_pct": -0.023712242813356266,
+    "positive_return_share": 0.45968586387434557,
+    "mean_mfe_pct": 0.31909976611027896,
+    "mean_mae_pct": -0.28715783616625373
+  },
+  {
+    "horizon_hours": 2,
+    "n": 2865,
+    "mean_return_pct": 0.0026052682627142865,
+    "median_return_pct": -0.028007118475936732,
+    "positive_return_share": 0.46596858638743455,
+    "mean_mfe_pct": 0.46890514933433786,
+    "mean_mae_pct": -0.42770426978020665
+  },
+  {
+    "horizon_hours": 3,
+    "n": 2865,
+    "mean_return_pct": 0.0041009388180099395,
+    "median_return_pct": -0.02633808130636517,
+    "positive_return_share": 0.4732984293193717,
+    "mean_mfe_pct": 0.5826361746122639,
+    "mean_mae_pct": -0.5426917053570888
+  },
+  {
+    "horizon_hours": 4,
+    "n": 2865,
+    "mean_return_pct": -0.0041386563736580265,
+    "median_return_pct": -0.046801872074875295,
+    "positive_return_share": 0.4638743455497382,
+    "mean_mfe_pct": 0.6734934154375621,
+    "mean_mae_pct": -0.6344192697578181
+  }
+]

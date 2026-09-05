@@ -1,0 +1,101 @@
+{
+  "cache_key": "93ea9f898675a0f556fd34ee352d34ab1991a0e2faea8ab7ba9ab43f103411e4",
+  "checks": [
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.39465801916,
+        "target_close_at": "2022-08-30T04:35:00Z",
+        "target_close_price": "20480.2"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.39465801916,
+        "target_close_at": "2022-08-30T04:35:00Z",
+        "target_close_price": 20480.2
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 60,
+      "passed": true
+    },
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.022353145036,
+        "target_close_at": "2022-08-30T05:35:00Z",
+        "target_close_price": "20405.0"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.022353145036,
+        "target_close_at": "2022-08-30T05:35:00Z",
+        "target_close_price": 20405.0
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 120,
+      "passed": true
+    },
+    {
+      "actual": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.025818748917,
+        "target_close_at": "2022-08-30T06:35:00Z",
+        "target_close_price": "20405.7"
+      },
+      "expected": {
+        "outcome_status": "COMPLETE",
+        "return_pct": 1.025818748917,
+        "target_close_at": "2022-08-30T06:35:00Z",
+        "target_close_price": 20405.7
+      },
+      "fields": {
+        "outcome_status": true,
+        "return_pct": true,
+        "target_close_at": true,
+        "target_close_price": true,
+        "trigger_close_at": true,
+        "trigger_close_price": true
+      },
+      "horizon_minutes": 180,
+      "passed": true
+    }
+  ],
+  "evaluator": "research.btc_m5_horizon_diagnostic.profile + app.backtest.btc_research_phase1._exact_forward_outcome_from_index",
+  "event_id": "7837b7cdce591a5786420f0d6a0b54fdc90ca6c5a66b274bbb303dfead42130f",
+  "horizons_minutes": [
+    60,
+    120,
+    180
+  ],
+  "limitations": [
+    "close-to-close evidence only",
+    "not a fill, P&L, alpha, or strategy approval",
+    "fixture source is synthesized from saved target rows; this is not real-data verification"
+  ],
+  "result_id": "d41c3d4712be6f2e0ae53145",
+  "saved_horizon_packet": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\m5_four_year_horizon_runs\\run_20260904T084448776441Z_97d3c169",
+  "saved_horizon_packet_sha256": "48d176402471fbe65f39de60d778f4d0e2acfe7ae31ba7d82230d264f3fce9ac",
+  "schema": "btc-m5-verification-evidence-v1",
+  "source": {
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\btc_ai_pipeline_review_81535d43\\binding\\campaign_cb357d87c77943dc\\job_15507568ee134a64\\fixture_source_5m.csv",
+    "saved_source_sha256": null,
+    "sha256": "ab83c56b2ab1da7f452fe19f05e42cd9e3fb18110749f549bac256b72da29022"
+  },
+  "status": "VERIFIED",
+  "trigger_close_at": "2022-08-30T03:35:00Z",
+  "verification_mode": "fixture_validation"
+}
