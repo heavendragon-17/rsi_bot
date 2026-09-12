@@ -9,3 +9,7 @@ app/backtest/signal_replay_data.py -text whitespace=blank-at-eol,blank-at-eof,sp
 research/btc_m5_horizon_diagnostic.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 research/btc_m5_regime_review.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 research/results/btc_*_20260905/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# M5 experiment and independent-checker identities include exact source bytes.
+research/experiments/m5/*.py -text
+research/m5_checks/*.py -text
