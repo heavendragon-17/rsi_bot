@@ -1,0 +1,184 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "code_sha256": {
+    "app\\backtest\\btc_research_phase1.py": "77b46392f18ccf2fbdc618687d5a3dd06353db5c69bb338b6ea95fd7e04e579f",
+    "app\\backtest\\signal_replay_data.py": "d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9",
+    "app\\backtest\\signal_replay_preparation.py": "b9c19704d0e20026108227e1af7bc8bb7ef80a31f9c1e43f27745b4ae1099148",
+    "app\\trading\\strategy\\btc_rsi_cross_alert\\evaluator.py": "d1a20d47adac452dd34c74fcc6e0e1028431d1834e64cdee3a0800f0c7978e60",
+    "app\\trading\\strategy\\btc_rsi_cross_alert\\m15_checker.py": "024519a836ff46f219a8018e820f998e254458fa5bfd74d67e3cf262d268a57e",
+    "research\\btc_m15_signal_diagnostic.py": "7b46b9163aa5e32525a628327d2d8a85d8e07f7e2f76e28d6f541c9ad3d59193",
+    "research\\btc_m5_horizon_diagnostic.py": "08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094"
+  },
+  "command": "python -m research.btc_m15_signal_diagnostic --baseline-run \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_reproduction_local\\run_20260918T092140133007Z_97d3c169\" --output-dir \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\m15_signal_diagnostic_runs\"",
+  "completion_status": "SUCCESS",
+  "definition_version": "btc-m15-signal-diagnostic-v1",
+  "definitions": {
+    "month_timezone": "UTC",
+    "return": "Gross exact close-to-close percentage = (exact target close / trigger close - 1) * 100",
+    "status_values": [
+      "COMPLETE",
+      "INCOMPLETE_TAIL",
+      "MISSING_TARGET",
+      "GAP"
+    ],
+    "uncertainty": "Reused paired circular 7-day UTC calendar blocks, 2000 replicates, seed 20260904, observation-weighted means; post-selection descriptive interval only"
+  },
+  "environment": {
+    "PyYAML": "6.0.3",
+    "numpy": "2.4.4",
+    "pandas": "3.0.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.3"
+  },
+  "generated_at_utc": "2026-09-18T09:28:39.840861Z",
+  "inputs": {
+    "errors": [],
+    "files": {
+      "15m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:30:00Z",
+        "available_start_close_utc": "2022-05-01T00:15:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 15,
+        "expected_filename": "BTCUSDT_15m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_15m.csv",
+        "row_count": 151699,
+        "sha256": "991fd4d1a132331bccaba6de3eddfb800505db3cfc7afcd3268720156542b58f",
+        "timeframe": "15m"
+      },
+      "1h": {
+        "available_end_close_utc": "2026-08-29T03:00:00Z",
+        "available_end_open_utc": "2026-08-29T02:00:00Z",
+        "available_start_close_utc": "2022-05-01T01:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 60,
+        "expected_filename": "BTCUSDT_1h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv",
+        "row_count": 37947,
+        "sha256": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+        "timeframe": "1h"
+      },
+      "4h": {
+        "available_end_close_utc": "2026-08-28T08:00:00Z",
+        "available_end_open_utc": "2026-08-28T04:00:00Z",
+        "available_start_close_utc": "2022-05-01T04:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 240,
+        "expected_filename": "BTCUSDT_4h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_4h.csv",
+        "row_count": 9482,
+        "sha256": "729aacc845656014250ca39e22adf2e79753f8ecfeff001e3b9d5fade674f842",
+        "timeframe": "4h"
+      },
+      "5m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:40:00Z",
+        "available_start_close_utc": "2022-05-01T00:05:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 5,
+        "expected_filename": "BTCUSDT_5m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+        "row_count": 455097,
+        "sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d",
+        "timeframe": "5m"
+      }
+    },
+    "identity": {
+      "filename_contract": {
+        "15m": "BTCUSDT_15m.csv",
+        "1h": "BTCUSDT_1h.csv",
+        "4h": "BTCUSDT_4h.csv",
+        "5m": "BTCUSDT_5m.csv"
+      },
+      "source_kind": "local_csv",
+      "symbol": "BTC/USDT",
+      "venue": "Binance USD-M Futures",
+      "venue_instrument": "BTC/USDT:USDT"
+    },
+    "warnings": []
+  },
+  "parent": {
+    "cooldown": "Parent emitted M15 IDs retained unchanged; no replay and no cooldown reset",
+    "files_sha256": {
+      "manifest.json": "450adb537b76e07c7f6dfb47470fab422c251c6bd3a9043223711a4ed0e12eec",
+      "report.md": "67ccab1e6979970ead8c1aa70c670784e52b30ac247f3df8e020dcdbc536ab3b",
+      "signals.csv": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+      "summary.json": "2332987e35e049b89952ab97655f1954f3381107f491eceebbbba8d398e7da04"
+    },
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_reproduction_local\\run_20260918T092140133007Z_97d3c169",
+    "run_id": "run_20260918T092140133007Z_97d3c169",
+    "signal_count": 1175,
+    "signal_ids_sha256": "f00d796377f9ba6b10dd7ce959b1db0bb67b3e63b20332767ea0361a65a445c2",
+    "source_hash_parity": true
+  },
+  "parent_replay_counts": {
+    "duplicate_suppressed": 0,
+    "m15_candidates": 140256,
+    "m15_cooldown_suppressed": 37,
+    "m15_not_ready": 0,
+    "m15_rejected": 139044,
+    "m15_warmup_skipped": 0,
+    "m5_candidates": 420768,
+    "m5_cooldown_suppressed": 9282,
+    "m5_not_ready": 0,
+    "m5_rejected": 408621,
+    "m5_warmup_skipped": 0
+  },
+  "population_counts": {
+    "all_eligible_bars": 140012,
+    "gate_ready_no_cross": 38292,
+    "m15_signal": 1175
+  },
+  "population_rules": {
+    "all_eligible_bars": "Preparation READY only; no gate and no cooldown.",
+    "complete_outcome_rule": "An observation enters every statistic only when its 1h and 4h exact targets are both COMPLETE; exact targets are never substituted and gaps are never bridged.",
+    "cooldown_note": "Only m15_signal carries the replay's one-hour cooldown; the other populations are unthinned event sets.",
+    "gate_ready_no_cross": "Preparation READY and M15, H1 and H4 closes all strictly above their native EMA21; no RSI crossover requirement; no cooldown.",
+    "horizons": [
+      "60 minutes",
+      "240 minutes"
+    ],
+    "m15_signal": "Emitted replay alerts: fresh RSI21 EMA9>WMA45 bullish cross on the current M15 bar with the previous bar EMA9<=WMA45, plus M15, H1 and H4 closes all strictly above their native EMA21; one-hour per-timeframe cooldown applied."
+  },
+  "run_id": "run_20260918T092839840861Z_991fd4d1",
+  "scan": {
+    "candidate_bar_count": 140012,
+    "cooldown_suppressed_bar_count": 37,
+    "cooldown_suppressed_note": "Cross-and-gate bars minus emitted alerts. The parent replay's own m15_cooldown_suppressed counter covers its full requested window, which can contain a few extra boundary bars.",
+    "cross_and_gates_bar_count": 1212,
+    "cross_without_gates_bar_count": 2379,
+    "eligible_bar_count": 140012,
+    "eligible_decision_reason_counts": {
+      "ALERT_FRESH_BULLISH_CROSS_H4_BULLISH": 1212,
+      "H1_CLOSE_NOT_ABOVE_EMA21": 438,
+      "H4_CLOSE_NOT_ABOVE_EMA21": 1936,
+      "M15_CLOSE_NOT_ABOVE_EMA21": 5,
+      "NO_FRESH_BULLISH_CROSS": 136421
+    },
+    "no_cross_bar_count": 136421,
+    "preparation_excluded_count": 0,
+    "preparation_exclusion_reasons": {},
+    "price_gates_pass_bar_count": 38292,
+    "price_gates_pass_share_of_eligible": 0.27349084364197357,
+    "timeframe": "15m",
+    "window_end_close_utc": "2026-08-27T15:00:00Z",
+    "window_semantics": "Inclusive exact M15 trigger closes, identical to the Phase 1 matched 15m comparator window.",
+    "window_start_close_utc": "2022-08-30T04:15:00Z"
+  }
+}

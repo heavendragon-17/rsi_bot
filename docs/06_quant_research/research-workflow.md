@@ -123,6 +123,44 @@ without a selection adjustment or significance claim. Monthly summaries use UTC.
 Alpha remains `NOT_ASSESSED`; this is neither training nor untouched evaluation,
 and it adds no horizon selection rule, parameter sweep, or live filter.
 
+### Focused M15 signal-and-gate diagnostic
+
+To separate "the alert fired" from "the bar was in a bullish context", run the
+bounded offline M15 comparison against an accepted Phase 1 packet:
+
+```powershell
+python -m research.btc_m15_signal_diagnostic `
+    --baseline-run research/results/phase1_reproduction_local/run_20260918T092140133007Z_97d3c169 `
+    --output-dir research/results/m15_signal_diagnostic_runs
+```
+
+It compares three frozen populations over the parent's matched M15 window using
+only the fixed 1-hour and 4-hour horizons, with no horizon or threshold search:
+
+- `m15_signal` — the emitted replay alerts (fresh RSI21 EMA9/WMA45 bullish cross
+  plus the M15, H1 and H4 close-above-EMA21 gates), with the replay's one-hour
+  per-timeframe cooldown already applied.
+- `gate_ready_no_cross` — preparation-ready M15 bars whose M15, H1 and H4 closes
+  are all above their native EMA21, with no RSI crossover requirement and no
+  cooldown.
+- `all_eligible_bars` — every preparation-ready M15 bar in the window, matching
+  the Phase 1 comparator.
+
+The three nest (`m15_signal` ⊂ `gate_ready_no_cross` ⊂ `all_eligible_bars`).
+Only observations whose both fixed horizons are `COMPLETE` enter every statistic,
+so the groups share one complete-outcome basis. The parent's own 1h/4h rows are
+re-derived and must match exactly. Uncertainty reuses the M5 diagnostic's paired
+circular seven-day UTC calendar-block bootstrap (2,000 draws, seed 20260904,
+observation-weighted means); it is a post-selection descriptive interval, not a
+significance test and not corrected for overlapping observations. The packet
+also writes three separate charts under `charts/`.
+
+Adjacent M15 bars are at most 15 minutes apart and their 1h/4h windows overlap,
+so none of these observations are independent trades: never compound them into
+an equity curve and never read a signal-candle close as an execution price.
+Alpha remains `NOT_ASSESSED`, and the diagnostic changes no strategy rule,
+cooldown, live configuration, or dataset.
+
 ### Four-year M5 regime review
 
 For the fixed four-year BTC M5 study, preserve the canonical dataset and acquire
