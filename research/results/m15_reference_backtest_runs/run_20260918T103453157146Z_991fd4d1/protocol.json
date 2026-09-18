@@ -1,0 +1,76 @@
+{
+  "accounting": {
+    "capital_reservation": "At entry, reserved = quantity * entry_fill_price; cash must cover reserved plus the entry fee. Reserved returns to cash at exit.",
+    "fixed_entry_notional_usdt": 1000.0,
+    "initial_equity_usdt": 10000.0,
+    "insufficient_capital": "Entry is skipped with reason INSUFFICIENT_FREE_CASH; the signal is never silently dropped.",
+    "marking": "Equity is marked at every native M5 close while a position is open, and at every exit.",
+    "pnl_components": "gross_pnl uses zero-cost open prices; friction_pnl is the slippage-only difference between fill and open prices; fee_pnl is the negative sum of both sides' fees; net_pnl is their sum. The three components are disjoint and never double counted.",
+    "quantity": "quantity = ENTRY_NOTIONAL_USDT / entry_fill_price, so deployed entry notional is the fixed research constant.",
+    "simulation_constants_note": "Research constants, not live sizing recommendations."
+  },
+  "alpha_assessment": "NOT_ASSESSED",
+  "costs": {
+    "fee_basis": "Binance USD-M defaults from app/core/constants.py; illustrative research assumptions, not verified account fees.",
+    "fee_rates_per_side": [
+      0.0,
+      0.0002,
+      0.0005
+    ],
+    "frozen_note": "The full grid was frozen before any performance number was computed, and every scenario is reported.",
+    "grid_size": 9,
+    "headline_scenario": {
+      "fee_rate_per_side": 0.0005,
+      "slippage_rate_per_side": 0.0001
+    },
+    "slippage_rates_per_side": [
+      0.0,
+      0.0001,
+      0.0005
+    ]
+  },
+  "evaluation_window": {
+    "end_utc": "2026-08-27T23:59:59.999999Z",
+    "entry_bounded_by_window_end": true,
+    "exit_may_complete_past_window_end": true,
+    "note": "Same documented Phase 1 requested window, and wider than the M15 diagnostic's matched descriptive window so both policies face an identical opportunity set.",
+    "signal_semantics": "M15 trigger-close timestamps inside the window, inclusive",
+    "start_utc": "2022-08-28T00:00:00Z"
+  },
+  "evidence_role": "HISTORICAL_DEVELOPMENT_EVIDENCE",
+  "execution": {
+    "entry": "Open of the first existing native M5 candle whose open time is strictly after the signal-close timestamp.",
+    "exit": "Open of the native M5 candle whose open time equals the entry open time plus exactly 60 minutes.",
+    "no_stop_loss_take_profit_trailing_or_alternative_horizon": true,
+    "one_active_position_per_policy": true,
+    "overlapping_exposure": "Never permitted.",
+    "proxies": "Delayed candle-price proxies, not guaranteed fills.",
+    "pyramiding": false,
+    "same_timestamp_ordering": "Scheduled exits are processed before scheduled entries.",
+    "while_open": "A signal arriving while a position is open queues at most one deferred entry at that position's scheduled exit time; further signals are skipped."
+  },
+  "frozen_before_performance": true,
+  "funding": {
+    "consequence": "Every cost-adjusted result is 'After assumed trading fees and slippage, before funding.' and is not fully net profit.",
+    "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+    "decision": "Perpetual funding is deliberately excluded from this offline reference backtest; no funding data was downloaded and no funding accounting was implemented.",
+    "entry_exit_unchanged": "Entry and exit rules were not adjusted to dodge or capture funding settlements.",
+    "not_zero": "Excluded funding must never be read as observed zero funding. Real funding could have been a cost or a credit, and it is not measured here.",
+    "status": "EXCLUDED_BY_DESIGN"
+  },
+  "missing_data": {
+    "evaluation_end": "A position still open at the window end is labelled OPEN_AT_EVALUATION_END, marked but not force-closed, and excluded from realized P&L.",
+    "missing_entry_candle": "Skipped with reason MISSING_ENTRY_CANDLE; no later candle is substituted.",
+    "missing_exit_candle": "Reported as UNRESOLVED_MISSING_EXIT_CANDLE; no price is substituted and the position stays open, blocking new exposure.",
+    "no_future_information": "Accepting a trade never depends on any data after its scheduled execution time.",
+    "unresolved_trades": "Excluded from realized P&L and reported separately with an explicit count."
+  },
+  "policies": {
+    "A_emitted_alerts": "Emitted replay M15 alerts, unchanged; the replay's one-hour per-timeframe cooldown is already applied.",
+    "B_gate_cooldown": "Preparation-ready M15 bars with M15, H1 and H4 closes all strictly above native EMA21, no RSI crossover requirement, with an independent one-hour signal cooldown initialised at the window start.",
+    "cooldown_rule": "A bar is accepted when its close is at least 60 minutes after the previously accepted close; identical to the replay's suppression rule.",
+    "difference_from_diagnostic_population": "The M15 diagnostic's gate_ready_no_cross population (38,292 bars) had NO cooldown and is not policy B. Policy B applies the one-hour cooldown, so it is a much smaller signal set whose accepted bars are at least 60 minutes apart.",
+    "signal_generation_independent_of_positions": true
+  },
+  "protocol_version": "btc-m15-reference-backtest-v1"
+}

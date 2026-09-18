@@ -14,6 +14,52 @@ The research phase happens in Jupyter notebooks. Once a signal is validated, it 
 
 ---
 
+## Branch and publication policy for research work
+
+Research-only work may be published directly to the main working branch
+(`mua-tren-the-nang`) after validation. This policy exists so future agents do
+not have to guess, and so nobody publishes something that could restart the bot.
+
+**Allowed on `mua-tren-the-nang`, after validation:**
+
+- Research-only code under `research/`, focused tests under `tests/`, evidence
+  packets and charts under `research/results/`, findings reports under
+  `research/`, and the matching documentation under `docs/`.
+
+**Never on `mua-tren-the-nang` without a separate branch:**
+
+- Anything that could affect production signals, shared indicators, trading,
+  sizing, risk controls, execution, or live configuration. Those changes need
+  their own branch and must not be merged automatically.
+- Never commit to, push to, or merge the unrelated branch literally named `main`.
+
+**Git safety:** preserve unrelated local work; no force-push, no rebase of shared
+history, no destructive commands, and no switching the active checkout.
+
+**Deployment safety — check before publishing.** A normal push to
+`mua-tren-the-nang` triggers **CI only**. Deployment is tag-gated:
+`.github/workflows/deploy.yml` runs only on a `v*` **tag** push (or a manual
+`workflow_dispatch`), promotes the tag to the `production` branch, and the VPS
+`deploy/check_deploy.sh` timer polls **`origin/production`** for a SemVer tag
+before restarting `rsi-bot`. Therefore:
+
+- Push ordinary commits with an explicit branch push. **Never** push tags, and
+  never use `--tags` / `--follow-tags`, from a research task.
+- Do not add or edit `.github/workflows/*` or `deploy/` from a research task: a
+  commit that adds a workflow changes what runs on that same push.
+- Confirm before pushing that the commit does not touch `deploy/`,
+  `.github/workflows/`, `config.yaml`, `main.py`, `app/trading/`, `app/signal/`,
+  or any live configuration.
+
+**Never, from a research task:** deploy, restart the bot, send Telegram messages,
+place orders, access trading credentials, or invoke external model providers.
+
+**Do not publish:** credentials, unrelated files, duplicate raw datasets, or
+unnecessarily large generated artifacts. For any artifact left out, record its
+SHA-256 and an exact regeneration command in the packet and the findings report.
+
+---
+
 ## Step 1: Hypothesis
 
 Define a clear, testable hypothesis about market behavior:
@@ -160,6 +206,50 @@ so none of these observations are independent trades: never compound them into
 an equity curve and never read a signal-candle close as an execution price.
 Alpha remains `NOT_ASSESSED`, and the diagnostic changes no strategy rule,
 cooldown, live configuration, or dataset.
+
+### Frozen M15 reference backtest (two policies)
+
+Once the descriptive M15 work is accepted, the next bounded step is one **frozen,
+offline reference backtest** that turns the descriptive populations into an
+explicit execution and accounting exercise:
+
+```powershell
+python -m research.btc_m15_reference_reporting `
+    --baseline-run research/results/phase1_reproduction_local/run_20260918T092140133007Z_97d3c169 `
+    --output-dir research/results/m15_reference_backtest_runs
+```
+
+The engine is `research/btc_m15_reference_backtest.py`; charts, packet writing
+and the CLI are `research/btc_m15_reference_reporting.py`. Both are read-only
+research code and reuse the accepted signal research rather than re-deriving it.
+
+Two policies are traded on the same protocol:
+
+- `A_emitted_alerts` — the emitted replay M15 alerts, unchanged, with the replay's own one-hour per-timeframe cooldown.
+- `B_gate_cooldown` — the same three price-above-EMA21 gates **without** the RSI crossover, with **its own independent** one-hour cooldown. This is deliberately **not** the descriptive `gate_ready_no_cross` population, which had no cooldown at all.
+
+Execution is a delayed candle-price proxy: entry at the open of the first existing
+native M5 candle strictly after the signal close, exit exactly 60 minutes later at
+that candle's open. No stop-loss, take-profit, trailing rule, or alternative
+horizon; one active position per policy; exits processed before entries at the
+same timestamp; a signal arriving while a position is open may defer at most one
+entry to that position's scheduled exit. Frozen research constants are 10,000
+USDT initial equity and 1,000 USDT fixed entry notional, with explicit capital
+reservation and `INSUFFICIENT_FREE_CASH` skipping.
+
+**Funding is excluded by design** (`funding_status = EXCLUDED_BY_DESIGN`). Do not
+download funding data or implement funding accounting for this experiment, and
+never present excluded funding as observed zero funding. Every cost-adjusted
+number is labelled *After assumed trading fees and slippage, before funding* and
+is not fully net profit. The fee/slippage grid is frozen before performance is
+computed and every scenario is reported with fees and execution friction
+separately.
+
+Protocol, signal-set hashes, code hashes, machine-readable `actions.csv`,
+`trades.csv` and `equity_curve.csv` ledgers, a summary with exposure and
+turnover, three charts, and `report.md` are written to one packet directory. All
+conclusions are historical development evidence: no untouched holdout, no
+optimization, no shadow collection, and no promotion to live trading.
 
 ### Four-year M5 regime review
 
