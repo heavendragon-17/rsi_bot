@@ -1,0 +1,87 @@
+{
+  "accounting": {
+    "accounting_correction_note": "Version 1 marked open equity as cash + quantity * mark while cash still contained the reserved principal, overstating open equity by one fixed entry notional (1,000 USDT at zero costs). Version 2 marks open equity as cash + unrealized and supersedes the version-1 curve.",
+    "capital_reservation": "At entry, reserved = quantity * entry_fill_price; cash must cover reserved plus the entry fee. Reserved returns to cash at exit.",
+    "convention": "Wallet balance plus unrealized P&L. The ledger's cash field is the wallet balance after already-paid entry fees (it still contains the reserved principal as part of the wallet); reserved is a memo of deployed cost (quantity * entry_fill_price); unrealized is (mark - entry_fill) * quantity using the available native M5 close as the mark; equity is cash + unrealized. Equivalently, available cash + reserved + unrealized. The two wordings are the same number; they are never mixed with cash + full market value. Opening or closing a flat-price, zero-cost position leaves equity unchanged. Already-paid fees enter wallet accounting exactly once.",
+    "drawdown": "Research-local pointwise drawdown over the equity rows in deterministic order: running peak starts at initial equity, peak updates on a new high, and drawdown is (peak - equity) / peak * 100 with a new peak always yielding zero. Rows sharing a timestamp keep their individual identities in order; they are never collapsed through a timestamp-only map. Timestamps are monotonic: exits may complete past the evaluation window end and no window-end row is appended behind them.",
+    "fixed_entry_notional_usdt": 1000.0,
+    "initial_equity_usdt": 10000.0,
+    "insufficient_capital": "Entry is skipped with reason INSUFFICIENT_FREE_CASH when the wallet cannot afford the next fixed-size entry (reserved plus entry fee). This is inability to afford the next entry, not necessarily bankruptcy: the wallet can remain positive but below the fixed entry threshold. The signal is never silently dropped.",
+    "marking": "Equity is marked at every available native M5 close while a position is open (close prices, the available price at that mark), and at every exit at the exit open. Marks never look ahead of their timestamp.",
+    "pnl_components": "gross_pnl uses zero-cost open prices; friction_pnl is the slippage-only difference between fill and open prices; fee_pnl is the negative sum of both sides' fees; net_pnl is their sum. The three components are disjoint and never double counted.",
+    "quantity": "quantity = ENTRY_NOTIONAL_USDT / entry_fill_price, so deployed entry notional is the fixed research constant.",
+    "simulation_constants_note": "Research constants, not live sizing recommendations.",
+    "unresolved": "An unresolved position retains its paid entry fee in cash and its known exposure in reserved, reports unrealized as unknown (no price is substituted), and reports equity as the fee-adjusted cash floor (cash only, unrealized excluded). Its state is UNRESOLVED, never FLAT, and it is excluded from realized P&L. The floor is not comparable to a flat equity point."
+  },
+  "alpha_assessment": "NOT_ASSESSED",
+  "comparison": {
+    "account_view": "Capital-constrained, single-position, non-compounding account with INSUFFICIENT_FREE_CASH admission. This is the executable-proxy view and the only view compounded into an account-equity curve.",
+    "full_opportunity_diagnostic": "Separately labelled hypothetical diagnostic over the same frozen signals, entry/exit rules, and cost scenarios, without cash-based admission and without position-overlap blocking. Each signal is evaluated independently; hypothetical P&L components are summed without compounding into an account-equity curve. This diagnostic is not an executable account, not a tradable history, and not like-for-like with the account.",
+    "per_trade_note": "Dividing account totals by executed trades does not make results capital-independent or automatically like-for-like. The capital stop truncates the account's trade set (only early affordable entries are realized), so per-trade averages are conditional on affordability and timing, not a full-opportunity average."
+  },
+  "costs": {
+    "fee_basis": "Binance USD-M defaults from app/core/constants.py; illustrative research assumptions, not verified account fees.",
+    "fee_rates_per_side": [
+      0.0,
+      0.0002,
+      0.0005
+    ],
+    "frozen_note": "The full grid was frozen before any performance number was computed, and every scenario is reported.",
+    "grid_size": 9,
+    "headline_scenario": {
+      "fee_rate_per_side": 0.0005,
+      "slippage_rate_per_side": 0.0001
+    },
+    "slippage_rates_per_side": [
+      0.0,
+      0.0001,
+      0.0005
+    ]
+  },
+  "evaluation_window": {
+    "end_utc": "2026-08-27T23:59:59.999999Z",
+    "entry_bounded_by_window_end": true,
+    "exit_may_complete_past_window_end": true,
+    "note": "Same documented Phase 1 requested window, and wider than the M15 diagnostic's matched descriptive window so both policies face an identical opportunity set.",
+    "signal_semantics": "M15 trigger-close timestamps inside the window, inclusive",
+    "start_utc": "2022-08-28T00:00:00Z"
+  },
+  "evidence_role": "HISTORICAL_DEVELOPMENT_EVIDENCE",
+  "execution": {
+    "deferred_pricing_correction_note": "Version 1 reused the originally scheduled candle index when a deferred entry filled at the open position's exit time. Version 2 resolves the fill from the actual deferred timestamp's candle and never reuses the original index.",
+    "entry": "Open of the native M5 candle whose open time is the first 5-minute boundary strictly after the signal-close timestamp (floor(signal, 5m) + 5m), derived arithmetically from the signal time alone. If that exact candle is absent, the signal is skipped as MISSING_ENTRY_CANDLE; no later candle is substituted.",
+    "entry_correction_note": "Version 1 said 'first existing native M5 candle strictly after the signal close', which contradicts 'no later candle is substituted' when the exact scheduled candle is missing but a later candle exists. Version 1 implemented the jump-forward reading. Version 2 implements the skip-explicitly reading and supersedes the version-1 wording.",
+    "exit": "Open of the native M5 candle whose open time equals the entry open time plus exactly 60 minutes.",
+    "no_stop_loss_take_profit_trailing_or_alternative_horizon": true,
+    "one_active_position_per_policy": true,
+    "overlapping_exposure": "Never permitted (capital-constrained account view only; the separate full-opportunity diagnostic evaluates each signal independently and permits overlapping hypothetical exposure).",
+    "proxies": "Delayed candle-price proxies, not guaranteed fills.",
+    "pyramiding": false,
+    "same_timestamp_ordering": "Scheduled exits are processed before scheduled entries.",
+    "while_open": "A signal arriving while a position is open queues at most one deferred entry at that position's scheduled exit time; further signals are skipped."
+  },
+  "frozen_before_performance": true,
+  "funding": {
+    "consequence": "Every cost-adjusted result is 'After assumed trading fees and slippage, before funding.' and is not fully net profit.",
+    "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+    "decision": "Perpetual funding is deliberately excluded from this offline reference backtest; no funding data was downloaded and no funding accounting was implemented.",
+    "entry_exit_unchanged": "Entry and exit rules were not adjusted to dodge or capture funding settlements.",
+    "not_zero": "Excluded funding must never be read as observed zero funding. Real funding could have been a cost or a credit, and it is not measured here.",
+    "status": "EXCLUDED_BY_DESIGN"
+  },
+  "missing_data": {
+    "evaluation_end": "A position still open at the window end is labelled OPEN_AT_EVALUATION_END, marked but not force-closed, and excluded from realized P&L.",
+    "missing_entry_candle": "Skipped with reason MISSING_ENTRY_CANDLE; no later candle is substituted.",
+    "missing_exit_candle": "Reported as UNRESOLVED_MISSING_EXIT_CANDLE; no price is substituted and the position stays open, blocking new exposure.",
+    "no_future_information": "Accepting a trade never depends on any data after its scheduled execution time.",
+    "unresolved_trades": "Excluded from realized P&L and reported separately with an explicit count."
+  },
+  "policies": {
+    "A_emitted_alerts": "Emitted replay M15 alerts, unchanged; the replay's one-hour per-timeframe cooldown is already applied.",
+    "B_gate_cooldown": "Preparation-ready M15 bars with M15, H1 and H4 closes all strictly above native EMA21, no RSI crossover requirement, with an independent one-hour signal cooldown initialised at the window start.",
+    "cooldown_rule": "A bar is accepted when its close is at least 60 minutes after the previously accepted close; identical to the replay's suppression rule.",
+    "difference_from_diagnostic_population": "The M15 diagnostic's gate_ready_no_cross population had NO cooldown and is not policy B. It counted 38,292 bars over the diagnostic's earlier matched window (2022-08-30T04:15:00Z to 2026-08-27T15:00:00Z, 140,012 candidate bars), whereas the same cooldown-free gate rule yields 38,335 bars over this experiment's wider evaluation window (2022-08-28T00:00:00Z to 2026-08-27T23:59:59.999999Z, 140,256 candidate bars). Policy B applies the one-hour cooldown, so it is a much smaller signal set whose accepted bars are at least 60 minutes apart.",
+    "signal_generation_independent_of_positions": true
+  },
+  "protocol_version": "btc-m15-reference-backtest-v2"
+}

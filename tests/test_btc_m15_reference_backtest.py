@@ -374,7 +374,10 @@ def test_ledger_reconciles_with_equity_and_respects_the_frozen_notional() -> Non
     assert run.equity[-1]["equity"] == pytest.approx(run.final_cash)
     for row in run.equity:
         if row["state"] == "OPEN":
-            assert row["equity"] == pytest.approx(row["cash"] + row["reserved"] + row["unrealized_pnl"])
+            # Corrected v2 convention: wallet cash already contains the reserved
+            # principal, so equity is cash + unrealized (equivalently available
+            # cash + reserved + unrealized), never cash + full market value.
+            assert row["equity"] == pytest.approx(row["cash"] + row["unrealized_pnl"])
             assert row["reserved"] == pytest.approx(engine.ENTRY_NOTIONAL_USDT)
         if row["state"] == "FLAT":
             assert row["reserved"] == 0.0

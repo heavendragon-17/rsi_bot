@@ -228,14 +228,27 @@ Two policies are traded on the same protocol:
 - `A_emitted_alerts` — the emitted replay M15 alerts, unchanged, with the replay's own one-hour per-timeframe cooldown.
 - `B_gate_cooldown` — the same three price-above-EMA21 gates **without** the RSI crossover, with **its own independent** one-hour cooldown. This is deliberately **not** the descriptive `gate_ready_no_cross` population, which had no cooldown at all.
 
-Execution is a delayed candle-price proxy: entry at the open of the first existing
-native M5 candle strictly after the signal close, exit exactly 60 minutes later at
-that candle's open. No stop-loss, take-profit, trailing rule, or alternative
-horizon; one active position per policy; exits processed before entries at the
-same timestamp; a signal arriving while a position is open may defer at most one
-entry to that position's scheduled exit. Frozen research constants are 10,000
+Execution is a delayed candle-price proxy: entry at the open of the native M5
+candle at the first 5-minute boundary strictly after the signal close
+(`floor(signal, 5m) + 5m`, derived from the signal time alone; a missing exact
+candle is an explicit `MISSING_ENTRY_CANDLE` skip with no substitution), exit
+exactly 60 minutes later at that candle's open. No stop-loss, take-profit,
+trailing rule, or alternative horizon; one active position per policy; exits
+processed before entries at the same timestamp; a signal arriving while a
+position is open may defer at most one entry to that position's scheduled exit,
+priced at the actual deferred timestamp. Frozen research constants are 10,000
 USDT initial equity and 1,000 USDT fixed entry notional, with explicit capital
-reservation and `INSUFFICIENT_FREE_CASH` skipping.
+reservation and `INSUFFICIENT_FREE_CASH` skipping (inability to afford the next
+fixed-size entry, not necessarily bankruptcy). Open equity is wallet cash plus
+unrealized P&L; drawdown is research-local and positional with peak resets to
+zero. The capital-constrained account is reported alongside a separately
+labelled full-opportunity-set diagnostic (same signals, rules, and costs, no
+cash admission, no equity compounding), which is not an executable account.
+
+Corrected protocol: `btc-m15-reference-backtest-v2` supersedes `-v1`; the v1
+packet is preserved unchanged and the correction is recorded in
+`research/2026-09-18_btc_m15_reference_backtest_correction_addendum.md`. Per-trade
+account averages are not capital-independent or automatically like-for-like.
 
 **Funding is excluded by design** (`funding_status = EXCLUDED_BY_DESIGN`). Do not
 download funding data or implement funding accounting for this experiment, and

@@ -37,6 +37,8 @@ CODE_PATHS = (
     "app/backtest/statistics/metrics.py",
     "app/trading/strategy/btc_rsi_cross_alert/m15_checker.py",
     "app/trading/strategy/btc_rsi_cross_alert/evaluator.py",
+    "tests/test_btc_m15_reference_backtest.py",
+    "tests/test_btc_m15_reference_backtest_correction.py",
 )
 
 
@@ -181,6 +183,10 @@ def render_charts(
 # ---------------------------------------------------------------------------
 def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
     headline = summary["headline"]
+    headline_key = engine.scenario_key(
+        summary["headline_scenario"]["fee_rate_per_side"],
+        summary["headline_scenario"]["slippage_rate_per_side"],
+    )
     lines = [
         "# BTC M15 reference backtest — frozen protocol, two policies",
         "",
@@ -200,11 +206,12 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "",
         "## Frozen protocol",
         "",
-        f"- Protocol version: `{engine.VERSION}`, frozen before any performance number was computed (`protocol.json` SHA-256 `{manifest['protocol_sha256'][:32]}…`).",
+        f"- Protocol version: `{engine.VERSION}` (correction of `{engine.PREVIOUS_VERSION}`; the corrected execution, accounting, and drawdown contract supersedes the version-1 wording — see `protocol.json` correction notes), frozen before any performance number was computed (`protocol.json` SHA-256 `{manifest['protocol_sha256'][:32]}…`).",
         f"- Evaluation window (UTC): `{engine.PROTOCOL['evaluation_window']['start_utc']}` → `{engine.PROTOCOL['evaluation_window']['end_utc']}`.",
         f"- Capital: `{engine.INITIAL_EQUITY_USDT:,.0f}` USDT initial equity, `{engine.ENTRY_NOTIONAL_USDT:,.0f}` USDT fixed entry notional (research constants).",
-        "- Entry: open of the first existing native M5 candle strictly after the signal close. Exit: exactly 60 minutes later at that candle's open.",
-        "- No stop-loss, take-profit, trailing rule, or alternative horizon. One active position per policy, no pyramiding, exits processed before entries at the same timestamp.",
+        "- Entry: open of the native M5 candle at the first 5-minute boundary strictly after the signal close (`floor(signal, 5m) + 5m`, derived from the signal time alone). If that exact candle is missing, the signal is skipped as `MISSING_ENTRY_CANDLE`; no later candle is substituted. Exit: exactly 60 minutes later at that candle's open.",
+        "- No stop-loss, take-profit, trailing rule, or alternative horizon. One active position per policy, no pyramiding, exits processed before entries at the same timestamp. A deferred entry is priced at its actual deferred timestamp, never at the original scheduled index.",
+        "- Open equity is wallet cash plus unrealized P&L (`cash + unrealized`; equivalently available cash + reserved + unrealized). Unresolved positions retain paid fees and exposure, report unrealized as unknown, and are never presented as flat. Drawdown is research-local and positional; a new equity peak always resets pointwise drawdown to zero.",
         "",
         "## Populations and policy definitions",
         "",
@@ -214,9 +221,11 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         f"| `B_gate_cooldown` | The same three price-above-EMA21 gates **without** the RSI crossover | **Its own** independent one-hour cooldown | {headline['B_gate_cooldown']['signals']:,} |",
         "",
         "Policy B is **not** the descriptive `gate_ready_no_cross` population from the M15",
-        f"diagnostic. That population had no cooldown and contained {manifest['gate_bars_before_cooldown']:,} bars;",
-        "policy B applies the one-hour cooldown and is therefore far smaller, with accepted",
-        "bars at least 60 minutes apart.",
+        "diagnostic, which had no cooldown. That population counted **38,292** bars over",
+        "the diagnostic's earlier matched window (`2022-08-30T04:15:00Z` → `2026-08-27T15:00:00Z`),",
+        f"whereas the same cooldown-free gate rule yields **{manifest['gate_bars_before_cooldown']:,}** bars over this",
+        "experiment's wider evaluation window. Policy B applies the one-hour cooldown and",
+        "is therefore far smaller, with accepted bars at least 60 minutes apart.",
         "",
         "## Headline results (fee 0.050% per side, slippage 0.010% per side)",
         "",
@@ -273,11 +282,17 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
     lines += [
         "",
         "The frozen constants (10,000 USDT equity, 1,000 USDT fixed non-compounding notional,",
-        "one position at a time) mean that a policy which loses money at this trade count runs",
-        "out of cash and stops entering. Any policy that exhausts its capital has its *realized*",
-        "net P&L truncated by that exhaustion, so the headline net totals are **not** a clean",
-        "like-for-like comparison. Gross and net P&L **per trade** are capital-independent and",
-        "are the fair per-signal comparison.",
+        "one position at a time) mean that a policy which loses money at this trade count stops",
+        "being able to afford the next fixed-size entry and stops entering. `INSUFFICIENT_FREE_CASH`",
+        "means inability to afford the next `1,000` USDT entry plus its fee — not necessarily",
+        "bankruptcy: the wallet can remain positive but below the fixed entry threshold (for example,",
+        "policy B ends near `999` USDT, which cannot fund another `1,000` USDT entry). Any policy",
+        "that hits this capital stop has its *realized* net P&L truncated by that stop, so the",
+        "headline net totals are **not** a clean like-for-like comparison. Dividing account totals",
+        "by executed trades does **not** make results capital-independent or automatically like-for-like:",
+        "the account's trade set is truncated to early affordable entries (a timing- and affordability-",
+        "conditioned subset), so per-trade averages remain conditional and are not a full-opportunity average.",
+        "See the separately labelled full-opportunity-set diagnostic below for the affordability-free view.",
         "",
         "### Why both policies lose: costs dominate the gross edge",
         "",
@@ -301,9 +316,72 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "either signal's predictive quality.",
         "",
     ]
+    diagnostic = summary.get("full_opportunity_diagnostic", {}).get(headline_key, {})
+    if diagnostic:
+        lines += [
+            "",
+            "## Full-opportunity-set diagnostic (not an account, not compounded)",
+            "",
+            "The same frozen signals, entry/exit rules, and headline cost assumptions, evaluated",
+            "hypothetically per signal **without** cash-based admission and **without**",
+            "position-overlap blocking. Each signal is priced independently; hypothetical P&L is",
+            "summed without compounding into an account-equity curve. Do not read this as an",
+            "executable account history.",
+            "",
+            "| Metric | A `emitted_alerts` | B `gate_cooldown` |",
+            "|---|---:|---:|",
+        ]
+        diagnostic_rows = [
+            ("Signals", "signals", "{:,}"),
+            ("Hypothetical trades (exact entry and exit present)", "hypothetical_trades", "{:,}"),
+            ("Skipped or unresolved signals", "skipped_or_unresolved", "{:,}"),
+            ("Unresolved (missing exact exit)", "unresolved_trades", "{:,}"),
+            ("Hypothetical gross P&L (USDT)", "gross_pnl_usdt", "{:,.2f}"),
+            ("Hypothetical friction P&L (USDT)", "friction_pnl_usdt", "{:,.2f}"),
+            ("Hypothetical fee P&L (USDT)", "fee_pnl_usdt", "{:,.2f}"),
+            ("Hypothetical net P&L (USDT)", "net_pnl_usdt", "{:,.2f}"),
+            ("Hypothetical net per signal (USDT)", "net_pnl_per_signal_usdt", "{:,.4f}"),
+            ("Hypothetical net per hypothetical trade (USDT)", "net_pnl_per_hypothetical_trade_usdt", "{:,.4f}"),
+        ]
+        for label, key, pattern in diagnostic_rows:
+            left = diagnostic.get("A_emitted_alerts", {}).get(key)
+            right = diagnostic.get("B_gate_cooldown", {}).get(key)
+            lines.append(
+                f"| {label} | {pattern.format(left) if left is not None else 'n/a'} "
+                f"| {pattern.format(right) if right is not None else 'n/a'} |"
+            )
+        lines += [
+            "",
+            "Date coverage (both views share the same frozen signals and evaluation window):",
+            "",
+        ]
+        for policy in engine.POLICIES:
+            account_coverage = headline[policy].get("coverage", {})
+            diagnostic_coverage = diagnostic.get(policy, {}).get("coverage", {})
+            lines.append(
+                f"- `{policy}` account entries: `{diagnostic_coverage.get('signals', {}).get('count', 'n/a')}` signals "
+                f"({diagnostic_coverage.get('signals', {}).get('first_utc', 'n/a')} → "
+                f"{diagnostic_coverage.get('signals', {}).get('last_utc', 'n/a')}); "
+                f"account entered {headline[policy].get('entered_trades', 'n/a')} "
+                f"({account_coverage.get('account_entries', {}).get('first_utc', 'n/a')} → "
+                f"{account_coverage.get('account_entries', {}).get('last_utc', 'n/a')}); "
+                f"diagnostic hypothetical {diagnostic.get(policy, {}).get('hypothetical_trades', 'n/a')} "
+                f"({diagnostic_coverage.get('hypothetical_entries', {}).get('first_utc', 'n/a')} → "
+                f"{diagnostic_coverage.get('hypothetical_entries', {}).get('last_utc', 'n/a')})."
+            )
+        lines += [
+            "",
+            "Every row in this section is **After assumed trading fees and slippage, before funding**,",
+            "exactly like the account view, but without affordability filtering and without equity compounding.",
+            "",
+        ]
     lines += [
         "",
         "## Cost sensitivity (every frozen scenario)",
+        "",
+        "Cost sensitivity below shows the capital-constrained **account** view. The full-opportunity",
+        "diagnostic is computed for every frozen scenario as well and is stored in `summary.json`",
+        "under `full_opportunity_diagnostic`; only the headline diagnostic is tabulated in this report.",
         "",
         "| Fee / side | Slippage / side | A net P&L | A gross P&L | A fees | A friction | B net P&L | B gross P&L | B fees | B friction |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -343,8 +421,9 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "",
         f"- Unresolved trades excluded from realized P&L: **{headline['A_emitted_alerts']['unresolved_trades']}** (A) and **{headline['B_gate_cooldown']['unresolved_trades']}** (B).",
         f"- Skipped entries and their reasons: A `{json.dumps(headline['A_emitted_alerts']['skip_reasons'], sort_keys=True)}`, B `{json.dumps(headline['B_gate_cooldown']['skip_reasons'], sort_keys=True)}`.",
-        "- A missing entry candle skips the entry; a missing exact exit candle leaves the trade explicitly unresolved and blocks new exposure. No later candle is ever substituted.",
-        "- Entries are bounded by the window end; a trade already entered runs to its exact scheduled exit, which may fall after the window end.",
+        "- A missing exact entry candle skips the entry as `MISSING_ENTRY_CANDLE`; a missing exact exit candle leaves the trade explicitly unresolved (`UNRESOLVED_MISSING_EXIT_CANDLE`) and blocks new exposure. A position still open because its scheduled exit falls past the window end is labelled `OPEN_AT_EVALUATION_END`. No price is ever substituted and no later candle is ever used silently.",
+        "- Entries are bounded by the window end; a trade already entered runs to its exact scheduled exit, which may fall after the window end (equity timestamps remain monotonic past the window end).",
+        "- Open equity uses the available native M5 close as its mark; unresolved rows retain paid fees and known exposure with unrealized reported as unknown and equity reported as the fee-adjusted cash floor (never as flat).",
         "",
         "## Verification",
         "",
@@ -352,7 +431,7 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         f"- Source hashes re-checked against the parent packet: `{manifest['source_hash_parity']}`.",
         "- Every signal produces exactly one entry outcome (filled, deferred then filled, or skipped with a reason), enforced at run time.",
         "- Every executed trade holds exactly 60 minutes, deploys exactly the frozen 1,000 USDT entry notional, and ends `CLOSED_AT_SCHEDULED_EXIT`; there are no unresolved trades in this dataset.",
-        "- The trade ledger reconciles with the equity curve: final equity equals initial equity plus the sum of net trade P&L.",
+        "- The trade ledger reconciles with the equity curve: final equity equals initial equity plus the sum of net trade P&L; open equity equals wallet cash plus unrealized (a flat-price, zero-cost open leaves equity unchanged); a new equity peak always yields zero drawdown.",
         "",
         "## Limitations",
         "",
@@ -402,9 +481,9 @@ def run(baseline_run: Path, output_dir: Path, *, charts: bool = True) -> Path:
     (packet / "protocol.json").write_text(protocol_text, encoding="utf-8")
     protocol_sha = _sha256_text(protocol_text)
 
-    scenarios = engine.run_cost_grid(
-        {engine.POLICIES[0]: a_signals, engine.POLICIES[1]: b_signals}, grid
-    )
+    signals_by_policy = {engine.POLICIES[0]: a_signals, engine.POLICIES[1]: b_signals}
+    scenarios = engine.run_cost_grid(signals_by_policy, grid)
+    full_opportunity = engine.run_full_opportunity_grid(signals_by_policy, grid)
     headline_key = engine.scenario_key(engine.HEADLINE_FEE_RATE, engine.HEADLINE_SLIPPAGE_RATE)
     headline_runs = {policy: scenarios[headline_key][policy]["run"] for policy in engine.POLICIES}
     headline_summary = {
@@ -442,6 +521,19 @@ def run(baseline_run: Path, output_dir: Path, *, charts: bool = True) -> Path:
     root = Path(__file__).resolve().parents[1]
     manifest = {
         "definition_version": engine.VERSION,
+        "previous_definition_version": engine.PREVIOUS_VERSION,
+        "supersedes": {
+            "packet": "research/results/m15_reference_backtest_runs/run_20260918T103453157146Z_991fd4d1",
+            "definition_version": engine.PREVIOUS_VERSION,
+            "preserved_unchanged": True,
+            "affected_outputs": [
+                "equity_curve.csv open-position equity (version 1 overstated open equity by one fixed entry notional)",
+                "equity_curve.csv and summary.json drawdown (version 1 left stale drawdown at a new peak and collapsed same-timestamp rows)",
+                "report.md comparison claims (version 1 called per-trade averages capital-independent and like-for-like)",
+                "report.md gate-count wording (version 1 cited only one of the 38,292 versus 38,335 windows)",
+                "execution contract wording and two edge cases (version 1 jumped to a later entry candle and reused the original index for deferred fills)",
+            ],
+        },
         "completion_status": "SUCCESS",
         "alpha_assessment": engine.PROTOCOL["alpha_assessment"],
         "evidence_role": engine.PROTOCOL["evidence_role"],
@@ -498,6 +590,7 @@ def run(baseline_run: Path, output_dir: Path, *, charts: bool = True) -> Path:
     }
     summary = {
         "definition_version": engine.VERSION,
+        "previous_definition_version": engine.PREVIOUS_VERSION,
         "alpha_assessment": engine.PROTOCOL["alpha_assessment"],
         "evidence_role": engine.PROTOCOL["evidence_role"],
         "funding_status": engine.FUNDING_STATUS,
@@ -508,6 +601,7 @@ def run(baseline_run: Path, output_dir: Path, *, charts: bool = True) -> Path:
             "slippage_rate_per_side": engine.HEADLINE_SLIPPAGE_RATE,
         },
         "headline": headline_summary,
+        "full_opportunity_diagnostic": full_opportunity,
         "cost_sensitivity": cost_sensitivity,
         "unresolved_trades": {
             policy: headline_runs[policy].unresolved for policy in engine.POLICIES

@@ -1,0 +1,207 @@
+{
+  "alpha_assessment": "NOT_ASSESSED",
+  "artifacts": {
+    "actions_rows": 21409,
+    "charts": [
+      "equity_gross_vs_cost.png",
+      "drawdown.png",
+      "cost_sensitivity.png"
+    ],
+    "equity_curve_resolution": "daily_downsample",
+    "equity_curve_rows_committed": 10440,
+    "equity_curve_rows_full": 117498,
+    "equity_curve_sha256_full": "63533f63a0d887c76a57ad9db317b3f891e95c9c3a408b4c3bf5b378c61cd514",
+    "omitted_artifact_note": "The full-resolution curve exceeded the committed size cap; the committed file is a daily downsample while all metrics use the full-resolution marks. Regenerate the full file with the command below and verify the SHA-256 above.",
+    "trades_rows": 9038
+  },
+  "code_sha256": {
+    "app/backtest/btc_research_phase1.py": "77b46392f18ccf2fbdc618687d5a3dd06353db5c69bb338b6ea95fd7e04e579f",
+    "app/backtest/engine/curves.py": "44d37351c458c5b57cf053a4842620bd73c5b824385d5daba53e02be63f8d6ba",
+    "app/backtest/signal_replay_data.py": "d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9",
+    "app/backtest/signal_replay_preparation.py": "b9c19704d0e20026108227e1af7bc8bb7ef80a31f9c1e43f27745b4ae1099148",
+    "app/backtest/statistics/metrics.py": "d6c8118fb9df03161d851ae012df5386a34bc09ebb4c14f88414ce36073b8d5f",
+    "app/trading/strategy/btc_rsi_cross_alert/evaluator.py": "d1a20d47adac452dd34c74fcc6e0e1028431d1834e64cdee3a0800f0c7978e60",
+    "app/trading/strategy/btc_rsi_cross_alert/m15_checker.py": "024519a836ff46f219a8018e820f998e254458fa5bfd74d67e3cf262d268a57e",
+    "research/btc_m15_reference_backtest.py": "a567a5e5518c00fb3e7c5b06839055e93de92162fea41f6007ce4921095e9569",
+    "research/btc_m15_reference_reporting.py": "3c60193f8f5f86e1c26fa9ea7fb2583efcc85c4b93a2063b21069be7bb28b95f",
+    "research/btc_m15_signal_diagnostic.py": "bfbaa64fb7e2daeb5ce5db63d7fbc70824115778c27d071e452236c3f5f07d48",
+    "tests/test_btc_m15_reference_backtest.py": "9611eb90a8ffb0d2e031b5a4dd752a66dd04d25d7c50708e774c5534abd4d8d1",
+    "tests/test_btc_m15_reference_backtest_correction.py": "101cffb4760e37fd1596a32741f9c692610e5d90cf03bbf3119251bcb6c64dcb"
+  },
+  "command": "python -m research.btc_m15_reference_reporting --baseline-run \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_reproduction_local\\run_20260918T092140133007Z_97d3c169\" --output-dir \"C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\m15_reference_backtest_runs\"",
+  "completion_status": "SUCCESS",
+  "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+  "definition_version": "btc-m15-reference-backtest-v2",
+  "environment": {
+    "PyYAML": "6.0.3",
+    "numpy": "2.4.4",
+    "pandas": "3.0.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.3"
+  },
+  "evidence_role": "HISTORICAL_DEVELOPMENT_EVIDENCE",
+  "funding_status": "EXCLUDED_BY_DESIGN",
+  "gate_bars_before_cooldown": 38335,
+  "generated_at_utc": "2026-09-18T12:57:47.028014Z",
+  "git": {
+    "dirty": true,
+    "dirty_code_identity_sha256": "f8238e2c1d332c839701596b1ec3c3a4528e8f41a92e14317c24faab5b49d714",
+    "revision": "dcf8487dd7119af1c50196504f4f1a9574dd70b2",
+    "status_count": 4,
+    "status_head": [
+      " M research/btc_m15_reference_backtest.py",
+      " M research/btc_m15_reference_reporting.py",
+      " M tests/test_btc_m15_reference_backtest.py",
+      "?? tests/test_btc_m15_reference_backtest_correction.py"
+    ],
+    "status_note": "Full status list truncated to the first 200 entries; the content hash covers all of them."
+  },
+  "inputs": {
+    "errors": [],
+    "files": {
+      "15m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:30:00Z",
+        "available_start_close_utc": "2022-05-01T00:15:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 15,
+        "expected_filename": "BTCUSDT_15m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_15m.csv",
+        "row_count": 151699,
+        "sha256": "991fd4d1a132331bccaba6de3eddfb800505db3cfc7afcd3268720156542b58f",
+        "timeframe": "15m"
+      },
+      "1h": {
+        "available_end_close_utc": "2026-08-29T03:00:00Z",
+        "available_end_open_utc": "2026-08-29T02:00:00Z",
+        "available_start_close_utc": "2022-05-01T01:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 60,
+        "expected_filename": "BTCUSDT_1h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv",
+        "row_count": 37947,
+        "sha256": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+        "timeframe": "1h"
+      },
+      "4h": {
+        "available_end_close_utc": "2026-08-28T08:00:00Z",
+        "available_end_open_utc": "2026-08-28T04:00:00Z",
+        "available_start_close_utc": "2022-05-01T04:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 240,
+        "expected_filename": "BTCUSDT_4h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_4h.csv",
+        "row_count": 9482,
+        "sha256": "729aacc845656014250ca39e22adf2e79753f8ecfeff001e3b9d5fade674f842",
+        "timeframe": "4h"
+      },
+      "5m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:40:00Z",
+        "available_start_close_utc": "2022-05-01T00:05:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 5,
+        "expected_filename": "BTCUSDT_5m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+        "row_count": 455097,
+        "sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d",
+        "timeframe": "5m"
+      }
+    },
+    "identity": {
+      "filename_contract": {
+        "15m": "BTCUSDT_15m.csv",
+        "1h": "BTCUSDT_1h.csv",
+        "4h": "BTCUSDT_4h.csv",
+        "5m": "BTCUSDT_5m.csv"
+      },
+      "source_kind": "local_csv",
+      "symbol": "BTC/USDT",
+      "venue": "Binance USD-M Futures",
+      "venue_instrument": "BTC/USDT:USDT"
+    },
+    "warnings": []
+  },
+  "parent": {
+    "files_sha256": {
+      "manifest.json": "450adb537b76e07c7f6dfb47470fab422c251c6bd3a9043223711a4ed0e12eec",
+      "report.md": "67ccab1e6979970ead8c1aa70c670784e52b30ac247f3df8e020dcdbc536ab3b",
+      "signals.csv": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+      "summary.json": "2332987e35e049b89952ab97655f1954f3381107f491eceebbbba8d398e7da04"
+    },
+    "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\results\\phase1_reproduction_local\\run_20260918T092140133007Z_97d3c169",
+    "run_id": "run_20260918T092140133007Z_97d3c169"
+  },
+  "policy_a_reconstruction": {
+    "cross_and_gate_bars_before_cooldown": 1212,
+    "emitted_count": 1175,
+    "matches": true,
+    "only_emitted": [],
+    "only_reconstructed": [],
+    "reconstructed_count": 1175
+  },
+  "previous_definition_version": "btc-m15-reference-backtest-v1",
+  "protocol_sha256": "e4b8f00b9e3bc1abd598f08063b5ff8fcba047affa56f4fea774ec74162196bd",
+  "run_id": "run_20260918T125747028014Z_991fd4d1",
+  "scan": {
+    "candidate_bar_count": 140256,
+    "cross_and_gates_bar_count": 1212,
+    "cross_without_gates_bar_count": 2383,
+    "eligible_bar_count": 140256,
+    "eligible_decision_reason_counts": {
+      "ALERT_FRESH_BULLISH_CROSS_H4_BULLISH": 1212,
+      "H1_CLOSE_NOT_ABOVE_EMA21": 438,
+      "H4_CLOSE_NOT_ABOVE_EMA21": 1940,
+      "M15_CLOSE_NOT_ABOVE_EMA21": 5,
+      "NO_FRESH_BULLISH_CROSS": 136661
+    },
+    "no_cross_bar_count": 136661,
+    "preparation_excluded_count": 0,
+    "preparation_exclusion_reasons": {},
+    "price_gates_pass_bar_count": 38335,
+    "price_gates_pass_share_of_eligible": 0.27332164042893,
+    "timeframe": "15m",
+    "window_end_close_utc": "2026-08-27T23:45:00Z",
+    "window_semantics": "Inclusive exact M15 trigger closes, identical to the Phase 1 matched 15m comparator window.",
+    "window_start_close_utc": "2022-08-28T00:00:00Z"
+  },
+  "signals": {
+    "A_emitted_alerts": {
+      "count": 1175,
+      "times_sha256": "f00d796377f9ba6b10dd7ce959b1db0bb67b3e63b20332767ea0361a65a445c2"
+    },
+    "B_gate_cooldown": {
+      "count": 11196,
+      "times_sha256": "86b03001698915b2f3e8fca8f70fb1db001ca60b5ecb5691c4d7a47a0d6d8a16"
+    }
+  },
+  "source_hash_parity": true,
+  "supersedes": {
+    "affected_outputs": [
+      "equity_curve.csv open-position equity (version 1 overstated open equity by one fixed entry notional)",
+      "equity_curve.csv and summary.json drawdown (version 1 left stale drawdown at a new peak and collapsed same-timestamp rows)",
+      "report.md comparison claims (version 1 called per-trade averages capital-independent and like-for-like)",
+      "report.md gate-count wording (version 1 cited only one of the 38,292 versus 38,335 windows)",
+      "execution contract wording and two edge cases (version 1 jumped to a later entry candle and reused the original index for deferred fills)"
+    ],
+    "definition_version": "btc-m15-reference-backtest-v1",
+    "packet": "research/results/m15_reference_backtest_runs/run_20260918T103453157146Z_991fd4d1",
+    "preserved_unchanged": true
+  }
+}

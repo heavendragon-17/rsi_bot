@@ -4,8 +4,10 @@ Research-only, deterministic, and offline. This module does not touch live
 strategy rules, configuration, execution, Telegram, or the network. It reuses
 the verified signal research in :mod:`research.btc_m15_signal_diagnostic` and
 :mod:`app.backtest.btc_research_phase1` for signal generation and exact native
-candle arithmetic, and the repository's existing drawdown and trade-statistics
-helpers for reporting. Charts, packet writing, and the CLI live in
+candle arithmetic, and the repository's trade-statistics helper for reporting.
+Drawdown is computed by a research-local helper in this module (the shared
+``app`` helper is not used here) so a new equity peak always resets pointwise
+drawdown to zero. Charts, packet writing, and the CLI live in
 :mod:`research.btc_m15_reference_reporting`.
 
 Two policies are traded on one frozen protocol:
@@ -23,10 +25,39 @@ Two policies are traded on one frozen protocol:
     overlapping bars.
 
 Execution is a delayed candle-price proxy, not a fill model: entry is the open
-of the first existing native M5 candle strictly after the signal-close
-timestamp, and exit is exactly 60 minutes later at that candle's open. There is
-no stop-loss, take-profit, trailing rule, or alternative horizon. Every number
-produced here is historical development evidence on an already-examined window.
+of the native M5 candle whose open time is the first 5-minute boundary strictly
+after the signal-close timestamp, and exit is exactly 60 minutes later at that
+candle's open. The scheduled entry boundary is derived arithmetically from the
+signal time alone; if that exact native M5 candle is absent from the input, the
+signal is recorded as ``MISSING_ENTRY_CANDLE`` and no later candle is
+substituted. There is no stop-loss, take-profit, trailing rule, or alternative
+horizon. Every number produced here is historical development evidence on an
+already-examined window.
+
+Version history
+---------------
+``btc-m15-reference-backtest-v1``
+    Initial frozen protocol. Its wording said "first existing native M5 candle
+    strictly after the signal close" while the missing-data section said "no
+    later candle is substituted". Those two sentences contradict each other when
+    the exact scheduled candle is missing but a later candle exists: the first
+    sentence can be read as "jump forward", the second as "skip explicitly".
+    Version 1 implemented the jump-forward reading, reused the shared drawdown
+    helper positionally through a timestamp-only map, and marked open equity as
+    ``cash + full market value`` while ``cash`` still contained the reserved
+    principal.
+``btc-m15-reference-backtest-v2`` (this module)
+    Research-only accounting and reporting correction. No strategy, indicator,
+    horizon, cost, sizing-constant, cooldown, or production change. The
+    corrected contract is: the scheduled entry is the arithmetic
+    ``floor(signal, 5m) + 5m`` boundary; a missing exact entry candle is an
+    explicit skip; a deferred entry is priced at its actual deferred timestamp;
+    open equity is ``wallet cash + unrealized P&L``; drawdown is research-local
+    and positional; unresolved positions retain paid fees and exposure and are
+    never presented as flat. A separately labelled full-opportunity-set
+    diagnostic (same signals, rules, and costs, no cash admission, no equity
+    compounding) is reported alongside the unchanged capital-constrained
+    account.
 """
 
 from __future__ import annotations
@@ -43,13 +74,13 @@ import numpy as np
 import pandas as pd
 
 from app.backtest import btc_research_phase1 as phase1
-from app.backtest.engine.curves import calculate_portfolio_drawdown
 from app.backtest.statistics.metrics import compute_core_metrics
 from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.trading.strategy.btc_rsi_cross_alert.models import PREPARATION_READY
 from research import btc_m15_signal_diagnostic as diagnostic
 
-VERSION = "btc-m15-reference-backtest-v1"
+VERSION = "btc-m15-reference-backtest-v2"
+PREVIOUS_VERSION = "btc-m15-reference-backtest-v1"
 TIMEFRAME = diagnostic.TIMEFRAME
 EXECUTION_TIMEFRAME = "5m"
 M5_MINUTES = 5
@@ -151,36 +182,106 @@ PROTOCOL: dict[str, Any] = {
         ),
         "cooldown_rule": "A bar is accepted when its close is at least 60 minutes after the previously accepted close; identical to the replay's suppression rule.",
         "difference_from_diagnostic_population": (
-            "The M15 diagnostic's gate_ready_no_cross population (38,292 bars) had NO cooldown and is not "
-            "policy B. Policy B applies the one-hour cooldown, so it is a much smaller signal set whose "
-            "accepted bars are at least 60 minutes apart."
+            "The M15 diagnostic's gate_ready_no_cross population had NO cooldown and is not "
+            "policy B. It counted 38,292 bars over the diagnostic's earlier matched window "
+            "(2022-08-30T04:15:00Z to 2026-08-27T15:00:00Z, 140,012 candidate bars), whereas "
+            "the same cooldown-free gate rule yields 38,335 bars over this experiment's wider "
+            "evaluation window (2022-08-28T00:00:00Z to 2026-08-27T23:59:59.999999Z, 140,256 "
+            "candidate bars). Policy B applies the one-hour cooldown, so it is a much smaller "
+            "signal set whose accepted bars are at least 60 minutes apart."
         ),
         "signal_generation_independent_of_positions": True,
     },
     "execution": {
-        "entry": "Open of the first existing native M5 candle whose open time is strictly after the signal-close timestamp.",
+        "entry": (
+            "Open of the native M5 candle whose open time is the first 5-minute boundary strictly after the "
+            "signal-close timestamp (floor(signal, 5m) + 5m), derived arithmetically from the signal time alone. "
+            "If that exact candle is absent, the signal is skipped as MISSING_ENTRY_CANDLE; no later candle is substituted."
+        ),
+        "entry_correction_note": (
+            "Version 1 said 'first existing native M5 candle strictly after the signal close', which contradicts "
+            "'no later candle is substituted' when the exact scheduled candle is missing but a later candle exists. "
+            "Version 1 implemented the jump-forward reading. Version 2 implements the skip-explicitly reading and "
+            "supersedes the version-1 wording."
+        ),
         "exit": "Open of the native M5 candle whose open time equals the entry open time plus exactly 60 minutes.",
+        "deferred_pricing_correction_note": (
+            "Version 1 reused the originally scheduled candle index when a deferred entry filled at the open "
+            "position's exit time. Version 2 resolves the fill from the actual deferred timestamp's candle and "
+            "never reuses the original index."
+        ),
         "proxies": "Delayed candle-price proxies, not guaranteed fills.",
         "no_stop_loss_take_profit_trailing_or_alternative_horizon": True,
         "one_active_position_per_policy": True,
         "pyramiding": False,
         "same_timestamp_ordering": "Scheduled exits are processed before scheduled entries.",
         "while_open": "A signal arriving while a position is open queues at most one deferred entry at that position's scheduled exit time; further signals are skipped.",
-        "overlapping_exposure": "Never permitted.",
+        "overlapping_exposure": "Never permitted (capital-constrained account view only; the separate full-opportunity diagnostic evaluates each signal independently and permits overlapping hypothetical exposure).",
     },
     "accounting": {
         "initial_equity_usdt": INITIAL_EQUITY_USDT,
         "fixed_entry_notional_usdt": ENTRY_NOTIONAL_USDT,
         "simulation_constants_note": "Research constants, not live sizing recommendations.",
+        "convention": (
+            "Wallet balance plus unrealized P&L. The ledger's cash field is the wallet balance after already-paid "
+            "entry fees (it still contains the reserved principal as part of the wallet); reserved is a memo of "
+            "deployed cost (quantity * entry_fill_price); unrealized is (mark - entry_fill) * quantity using the "
+            "available native M5 close as the mark; equity is cash + unrealized. Equivalently, available cash + "
+            "reserved + unrealized. The two wordings are the same number; they are never mixed with "
+            "cash + full market value. Opening or closing a flat-price, zero-cost position leaves equity unchanged. "
+            "Already-paid fees enter wallet accounting exactly once."
+        ),
+        "accounting_correction_note": (
+            "Version 1 marked open equity as cash + quantity * mark while cash still contained the reserved "
+            "principal, overstating open equity by one fixed entry notional (1,000 USDT at zero costs). "
+            "Version 2 marks open equity as cash + unrealized and supersedes the version-1 curve."
+        ),
+        "unresolved": (
+            "An unresolved position retains its paid entry fee in cash and its known exposure in reserved, "
+            "reports unrealized as unknown (no price is substituted), and reports equity as the fee-adjusted cash "
+            "floor (cash only, unrealized excluded). Its state is UNRESOLVED, never FLAT, and it is excluded from "
+            "realized P&L. The floor is not comparable to a flat equity point."
+        ),
         "capital_reservation": "At entry, reserved = quantity * entry_fill_price; cash must cover reserved plus the entry fee. Reserved returns to cash at exit.",
-        "insufficient_capital": "Entry is skipped with reason INSUFFICIENT_FREE_CASH; the signal is never silently dropped.",
+        "insufficient_capital": (
+            "Entry is skipped with reason INSUFFICIENT_FREE_CASH when the wallet cannot afford the next fixed-size "
+            "entry (reserved plus entry fee). This is inability to afford the next entry, not necessarily bankruptcy: "
+            "the wallet can remain positive but below the fixed entry threshold. The signal is never silently dropped."
+        ),
         "pnl_components": (
             "gross_pnl uses zero-cost open prices; friction_pnl is the slippage-only difference between fill "
             "and open prices; fee_pnl is the negative sum of both sides' fees; net_pnl is their sum. The three "
             "components are disjoint and never double counted."
         ),
         "quantity": "quantity = ENTRY_NOTIONAL_USDT / entry_fill_price, so deployed entry notional is the fixed research constant.",
-        "marking": "Equity is marked at every native M5 close while a position is open, and at every exit.",
+        "marking": (
+            "Equity is marked at every available native M5 close while a position is open (close prices, the "
+            "available price at that mark), and at every exit at the exit open. Marks never look ahead of their timestamp."
+        ),
+        "drawdown": (
+            "Research-local pointwise drawdown over the equity rows in deterministic order: running peak starts at "
+            "initial equity, peak updates on a new high, and drawdown is (peak - equity) / peak * 100 with a new peak "
+            "always yielding zero. Rows sharing a timestamp keep their individual identities in order; they are never "
+            "collapsed through a timestamp-only map. Timestamps are monotonic: exits may complete past the evaluation "
+            "window end and no window-end row is appended behind them."
+        ),
+    },
+    "comparison": {
+        "account_view": (
+            "Capital-constrained, single-position, non-compounding account with INSUFFICIENT_FREE_CASH admission. "
+            "This is the executable-proxy view and the only view compounded into an account-equity curve."
+        ),
+        "full_opportunity_diagnostic": (
+            "Separately labelled hypothetical diagnostic over the same frozen signals, entry/exit rules, and cost "
+            "scenarios, without cash-based admission and without position-overlap blocking. Each signal is evaluated "
+            "independently; hypothetical P&L components are summed without compounding into an account-equity curve. "
+            "This diagnostic is not an executable account, not a tradable history, and not like-for-like with the account."
+        ),
+        "per_trade_note": (
+            "Dividing account totals by executed trades does not make results capital-independent or automatically "
+            "like-for-like. The capital stop truncates the account's trade set (only early affordable entries are "
+            "realized), so per-trade averages are conditional on affordability and timing, not a full-opportunity average."
+        ),
     },
     "costs": {
         "fee_rates_per_side": list(FEE_RATES),
@@ -285,6 +386,104 @@ def reconstruct_policy_a(scan: pd.DataFrame, emitted: Sequence[datetime]) -> dic
 
 
 # ---------------------------------------------------------------------------
+# Scheduling and research-local drawdown
+# ---------------------------------------------------------------------------
+def scheduled_m5_open_after(signal_close_at: datetime) -> datetime:
+    """Return the first native M5 boundary strictly after ``signal_close_at``.
+
+    The boundary is derived arithmetically from the signal time alone
+    (``floor(signal, 5m) + 5m``) and never depends on which candles happen to be
+    present. Native M5 opens sit on exact 5-minute UTC boundaries, so flooring
+    the minute field and adding five minutes yields the scheduled entry even
+    across hour and day rollovers. Callers must then require that exact candle
+    via :meth:`M5Grid.open_index` and record ``MISSING_ENTRY_CANDLE`` when it
+    is absent.
+    """
+
+    floored = signal_close_at.replace(second=0, microsecond=0)
+    floored = floored.replace(minute=(floored.minute // M5_MINUTES) * M5_MINUTES)
+    return floored + timedelta(minutes=M5_MINUTES)
+
+
+def research_drawdown_curve(balances: Sequence[float], initial_balance: float) -> list[float]:
+    """Pointwise drawdown percentages in order, with new peaks resetting to zero.
+
+    Research-local correction: unlike the shared ``app`` helper, the running
+    peak is applied before the point's own drawdown is computed, so balances
+    such as ``[100, 90, 110]`` yield ``[0, 10, 0]``. Rounds to 4 decimals to
+    match the packet's committed precision.
+    """
+
+    peak = float(initial_balance)
+    drawdowns: list[float] = []
+    for balance in balances:
+        value = float(balance)
+        if value > peak:
+            peak = value
+        if peak <= 0:
+            drawdowns.append(0.0)
+        elif value >= peak:
+            drawdowns.append(0.0)
+        else:
+            drawdowns.append(round((peak - value) / peak * 100.0, 4))
+    return drawdowns
+
+
+def calculate_research_portfolio_drawdown(
+    equity_curve: Sequence[dict[str, Any]], initial_balance: float
+) -> dict[str, Any]:
+    """Research-local portfolio drawdown over ordered ``{date, balance}`` points.
+
+    Positional (never keyed by timestamp alone) so observations sharing a
+    timestamp keep their individual identities in deterministic order.
+    """
+
+    points = list(equity_curve)
+    if not points:
+        return {
+            "max_drawdown_pct": 0.0,
+            "max_drawdown_value": 0.0,
+            "drawdown_curve": [],
+            "max_dd_duration": 0,
+            "avg_drawdown_pct": 0.0,
+        }
+    balances = [float(point["balance"]) for point in points]
+    curve = research_drawdown_curve(balances, initial_balance)
+    peak = float(initial_balance)
+    max_dd = 0.0
+    max_dd_value = 0.0
+    current_duration = 0
+    max_duration = 0
+    positives: list[float] = []
+    dd_curve: list[dict[str, Any]] = []
+    for point, dd_pct in zip(points, curve, strict=True):
+        value = float(point["balance"])
+        if value > peak:
+            peak = value
+        if dd_pct > 0:
+            positives.append(dd_pct)
+            current_duration += 1
+        else:
+            if current_duration > 0:
+                max_duration = max(max_duration, current_duration)
+            current_duration = 0
+        fraction = dd_pct / 100.0
+        if fraction > max_dd:
+            max_dd = fraction
+            max_dd_value = peak - value
+        dd_curve.append({"date": point["date"], "drawdown": dd_pct})
+    if current_duration > 0:
+        max_duration = max(max_duration, current_duration)
+    return {
+        "max_drawdown_pct": max_dd * 100.0,
+        "max_drawdown_value": max_dd_value,
+        "drawdown_curve": dd_curve,
+        "max_dd_duration": max_duration,
+        "avg_drawdown_pct": (sum(positives) / len(positives)) if positives else 0.0,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Execution grid
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -308,6 +507,14 @@ class M5Grid:
         )
 
     def first_open_after(self, moment: datetime) -> int | None:
+        """Legacy jump-forward lookup kept for compatibility; not used for scheduling.
+
+        Version 1 scheduling used this helper, which silently jumps to a later
+        candle when the exact scheduled boundary is missing. Version 2
+        scheduling uses :func:`scheduled_m5_open_after` plus :meth:`open_index`
+        and records ``MISSING_ENTRY_CANDLE`` instead.
+        """
+
         index = bisect.bisect_right(self.open_times, moment)
         return index if index < len(self.open_times) else None
 
@@ -380,13 +587,25 @@ class _Simulator:
         heapq.heappush(self.pending, (moment, priority, self._counter, payload))
 
     def schedule(self, sequence: int, close_time: datetime) -> tuple[datetime, int] | None:
-        """Resolve the scheduled entry for one signal, or record an explicit skip."""
+        """Resolve the scheduled entry for one signal, or record an explicit skip.
 
-        index = self.grid.first_open_after(close_time)
+        The scheduled entry is the arithmetic native M5 boundary strictly after
+        the signal close (independent of which candles are present). Only the
+        exact candle at that boundary may be used; a missing exact candle is an
+        explicit ``MISSING_ENTRY_CANDLE`` skip, never a silent jump forward.
+        """
+
+        entry_at = scheduled_m5_open_after(close_time)
+        index = self.grid.open_index(entry_at)
         if index is None:
-            self._action("ENTRY_SKIPPED", sequence, signal_close_at=phase1._utc_iso(close_time), reason=SKIP_REASONS[0])
+            self._action(
+                "ENTRY_SKIPPED",
+                sequence,
+                signal_close_at=phase1._utc_iso(close_time),
+                scheduled_at=phase1._utc_iso(entry_at),
+                reason=SKIP_REASONS[0],
+            )
             return None
-        entry_at = self.grid.open_times[index]
         if entry_at > WINDOW_END:
             self._action(
                 "ENTRY_SKIPPED",
@@ -526,6 +745,8 @@ class _Simulator:
             "status": status,
             "quantity": position.quantity,
             "entry_fill_price": position.entry_fill_price,
+            "entry_notional": position.quantity * position.entry_fill_price,
+            "entry_fee_usdt": position.entry_fee,
         }
 
 
@@ -553,7 +774,17 @@ def simulate_policy(
         if priority == 0:
             simulator.close(payload, moment)
             if deferred is not None and deferred["target"] == moment and simulator.position is None:
-                simulator.try_enter(deferred["sequence"], deferred["close_time"], moment, deferred["index"])
+                deferred_index = simulator.grid.open_index(moment)
+                if deferred_index is None:
+                    simulator._action(
+                        "ENTRY_SKIPPED",
+                        deferred["sequence"],
+                        signal_close_at=phase1._utc_iso(deferred["close_time"]),
+                        scheduled_at=phase1._utc_iso(moment),
+                        reason=SKIP_REASONS[0],
+                    )
+                else:
+                    simulator.try_enter(deferred["sequence"], deferred["close_time"], moment, deferred_index)
                 deferred = None
             continue
         sequence, close_time, index = payload
@@ -564,7 +795,6 @@ def simulate_policy(
                 "target": simulator.position.scheduled_exit_at,
                 "sequence": sequence,
                 "close_time": close_time,
-                "index": index,
             }
             simulator._action(
                 "ENTRY_DEFERRED",
@@ -585,7 +815,12 @@ def simulate_policy(
 
     if simulator.position is not None:
         position = simulator.position
-        simulator.mark_unresolved(position, position.scheduled_exit_at, TRADE_UNRESOLVED_EXIT)
+        end_status = (
+            TRADE_OPEN_AT_END
+            if position.scheduled_exit_at > WINDOW_END
+            else TRADE_UNRESOLVED_EXIT
+        )
+        simulator.mark_unresolved(position, position.scheduled_exit_at, end_status)
     if deferred is not None:
         simulator._action(
             "ENTRY_SKIPPED",
@@ -608,7 +843,21 @@ def simulate_policy(
 # Equity, exposure, turnover
 # ---------------------------------------------------------------------------
 def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
-    """Mark equity at every native M5 close while open, plus every exit."""
+    """Mark equity at every available native M5 close while open, plus every exit.
+
+    Accounting convention (documented in ``PROTOCOL["accounting"]``):
+    ``cash`` is the wallet balance after already-paid entry fees (it still
+    contains the reserved principal as part of the wallet); ``reserved`` is a
+    memo of deployed cost; ``unrealized_pnl`` uses the available native M5
+    close as the mark; ``equity`` is ``cash + unrealized_pnl``. Opening or
+    closing a flat-price, zero-cost position therefore leaves equity unchanged,
+    and paid fees enter exactly once. Unresolved rows retain the paid entry fee
+    in ``cash`` and the known exposure in ``reserved``, report ``unrealized``
+    as unknown, and report ``equity`` as the fee-adjusted cash floor (never as
+    ``FLAT``). Drawdown is research-local and positional so same-timestamp
+    observations keep their identities in deterministic order, and timestamps
+    stay monotonic when exits complete past the evaluation window end.
+    """
 
     rows: list[dict[str, Any]] = [
         {
@@ -630,13 +879,17 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
         quantity = float(trade["quantity"])
         entry_fee = float(trade["entry_fee_usdt"])
         entry_fill = float(trade["entry_fill_price"])
+        wallet_after_fee = cash - entry_fee
         start = grid.close_index_at_or_after(entry_at)
         if start is not None:
             for index in range(start, len(grid.close_times)):
                 moment = grid.close_times[index]
                 if moment >= exit_at:
                     break
+                # Available price at the mark: the native M5 close, never the
+                # entry open and never a future price.
                 mark = float(grid.close_prices[index])
+                unrealized = (mark - entry_fill) * quantity
                 rows.append(
                     {
                         "policy": run.policy,
@@ -644,10 +897,10 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
                         "state": "OPEN",
                         "mark_price": mark,
                         "quantity": quantity,
-                        "cash": cash - entry_fee,
+                        "cash": wallet_after_fee,
                         "reserved": float(trade["entry_notional"]),
-                        "unrealized_pnl": (mark - entry_fill) * quantity,
-                        "equity": cash - entry_fee + mark * quantity,
+                        "unrealized_pnl": unrealized,
+                        "equity": wallet_after_fee + unrealized,
                     }
                 )
         cash += float(trade["net_pnl"])
@@ -664,25 +917,43 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
                 "equity": cash,
             }
         )
+    window_end_iso = phase1._utc_iso(WINDOW_END)
     for unresolved in run.unresolved:
+        quantity = float(unresolved["quantity"])
+        entry_fill = float(unresolved["entry_fill_price"])
+        if "entry_fee_usdt" in unresolved and unresolved["entry_fee_usdt"] is not None:
+            entry_fee = float(unresolved["entry_fee_usdt"])
+        else:  # Backwards compatibility with version-1 unresolved rows.
+            entry_fee = quantity * entry_fill * float(run.fee_rate)
+        reserved = float(unresolved.get("entry_notional", quantity * entry_fill))
+        cash -= entry_fee
+        scheduled_exit = datetime.fromisoformat(unresolved["exit_at"].replace("Z", "+00:00"))
+        # Mark an open-at-end position at the window end; mark a missing-exit
+        # position at its scheduled exit. Either way the timestamp never moves
+        # backwards past the rows already appended.
+        stamp = window_end_iso if scheduled_exit > WINDOW_END else phase1._utc_iso(scheduled_exit)
         rows.append(
             {
                 "policy": run.policy,
-                "timestamp": phase1._utc_iso(WINDOW_END),
+                "timestamp": stamp,
                 "state": "UNRESOLVED",
                 "mark_price": None,
-                "quantity": float(unresolved["quantity"]),
+                "quantity": quantity,
                 "cash": cash,
-                "reserved": float(unresolved["quantity"]) * float(unresolved["entry_fill_price"]),
+                "reserved": reserved,
                 "unrealized_pnl": None,
                 "equity": cash,
             }
         )
-    if rows[-1]["timestamp"] != phase1._utc_iso(WINDOW_END):
+    if run.unresolved:
+        # Never present an unresolved position as flat and never append a
+        # window-end FLAT behind an exit that completed past the window end.
+        pass
+    elif rows[-1]["timestamp"] < window_end_iso:
         rows.append(
             {
                 "policy": run.policy,
-                "timestamp": phase1._utc_iso(WINDOW_END),
+                "timestamp": window_end_iso,
                 "state": "FLAT",
                 "mark_price": None,
                 "quantity": 0.0,
@@ -692,13 +963,27 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
                 "equity": run.final_cash,
             }
         )
+    # Positional drawdown: same-timestamp observations keep their identities in
+    # deterministic row order; no timestamp-only dictionary is used.
     curve = [{"date": row["timestamp"], "balance": row["equity"]} for row in rows]
-    drawdown = calculate_portfolio_drawdown(curve, INITIAL_EQUITY_USDT)
-    by_date = {point["date"]: point["drawdown"] for point in drawdown["drawdown_curve"]}
-    for row in rows:
-        row["drawdown_pct"] = by_date.get(row["timestamp"], 0.0)
+    drawdown = calculate_research_portfolio_drawdown(curve, INITIAL_EQUITY_USDT)
+    for row, point in zip(rows, drawdown["drawdown_curve"], strict=True):
+        row["drawdown_pct"] = float(point["drawdown"])
     run.equity = rows
     return rows
+
+
+def _coverage_iso(times: Sequence[datetime]) -> dict[str, Any]:
+    """First/last/count coverage for one timestamp set in packet ISO format."""
+
+    ordered = sorted(times)
+    if not ordered:
+        return {"count": 0, "first_utc": None, "last_utc": None}
+    return {
+        "count": len(ordered),
+        "first_utc": phase1._utc_iso(ordered[0]),
+        "last_utc": phase1._utc_iso(ordered[-1]),
+    }
 
 
 def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]:
@@ -709,7 +994,7 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
     if len(frame):
         frame["pnl_pct"] = frame["pnl"] / ENTRY_NOTIONAL_USDT * 100.0
     core = compute_core_metrics(frame) if len(frame) else {}
-    drawdown = calculate_portfolio_drawdown(
+    drawdown = calculate_research_portfolio_drawdown(
         [{"date": row["timestamp"], "balance": row["equity"]} for row in run.equity], INITIAL_EQUITY_USDT
     )
     time_in_market = sum(float(trade["hold_minutes"]) * 60.0 for trade in executed)
@@ -720,6 +1005,12 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
     gross_pnl = _total(executed, "gross_pnl")
     net_pnl = _total(executed, "net_pnl")
     count = len(executed)
+    entry_times = [
+        datetime.fromisoformat(trade["entry_at"].replace("Z", "+00:00")) for trade in executed
+    ]
+    exit_times = [
+        datetime.fromisoformat(trade["exit_at"].replace("Z", "+00:00")) for trade in executed
+    ]
     return {
         "policy": run.policy,
         "fee_rate_per_side": run.fee_rate,
@@ -730,6 +1021,15 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
         "deferred_entries": sum(action["kind"] == "ENTRY_DEFERRED" for action in run.actions),
         "unresolved_trades": len(run.unresolved),
         "skip_reasons": _count_reasons(run.actions),
+        "coverage": {
+            "signals": _coverage_iso(list(signals)),
+            "account_entries": _coverage_iso(entry_times),
+            "account_exits": _coverage_iso(exit_times),
+            "evaluation_window": {
+                "start_utc": phase1._utc_iso(WINDOW_START),
+                "end_utc": phase1._utc_iso(WINDOW_END),
+            },
+        },
         "gross_pnl_usdt": gross_pnl,
         "friction_pnl_usdt": _total(executed, "friction_pnl"),
         "fee_pnl_usdt": _total(executed, "fee_pnl"),
@@ -737,6 +1037,12 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
         "gross_pnl_per_trade_usdt": (gross_pnl / count) if count else None,
         "net_pnl_per_trade_usdt": (net_pnl / count) if count else None,
         "capital_exhausted": bool(_count_reasons(run.actions).get("INSUFFICIENT_FREE_CASH")),
+        "capital_stop_note": (
+            "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry "
+            "(reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive."
+            if _count_reasons(run.actions).get("INSUFFICIENT_FREE_CASH")
+            else "No capital stop: every scheduled entry was affordable under the frozen constants."
+        ),
         "final_equity_usdt": run.final_cash,
         "total_return_pct": (run.final_cash / INITIAL_EQUITY_USDT - 1.0) * 100.0,
         "max_drawdown_pct": drawdown["max_drawdown_pct"],
@@ -753,6 +1059,136 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
         "funding_status": FUNDING_STATUS,
         "cost_adjusted_label": COST_ADJUSTED_LABEL,
     }
+
+
+def evaluate_full_opportunity(
+    policy: str,
+    signals: Sequence[datetime],
+    grid: M5Grid,
+    *,
+    fee_rate: float,
+    slippage_rate: float,
+) -> dict[str, Any]:
+    """Hypothetical full-opportunity-set diagnostic for one policy and scenario.
+
+    Same frozen signals, entry/exit rules, and cost arithmetic as the account,
+    but **without** cash-based admission and **without** position-overlap
+    blocking: every signal is evaluated independently. Each hypothetical trade
+    uses the arithmetic scheduled entry boundary, requires the exact entry and
+    exit candles, holds exactly 60 minutes, and deploys the frozen fixed
+    notional. Results are summed without compounding into an account-equity
+    curve. This diagnostic is not an executable account and must never be read
+    as one.
+    """
+
+    hypothetical: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    unresolved_count = 0
+    entry_times: list[datetime] = []
+    exit_times: list[datetime] = []
+    for sequence, close_time in enumerate(sorted(signals), start=1):
+        entry_at = scheduled_m5_open_after(close_time)
+        entry_index = grid.open_index(entry_at)
+        if entry_index is None:
+            skipped.append({"sequence": sequence, "reason": SKIP_REASONS[0]})
+            continue
+        if entry_at > WINDOW_END:
+            skipped.append({"sequence": sequence, "reason": SKIP_REASONS[1]})
+            continue
+        scheduled_exit = entry_at + SCHEDULED_HOLD
+        exit_index = grid.open_index(scheduled_exit)
+        if exit_index is None:
+            unresolved_count += 1
+            skipped.append({"sequence": sequence, "reason": TRADE_UNRESOLVED_EXIT})
+            continue
+        entry_open = float(grid.open_prices[entry_index])
+        exit_open = float(grid.open_prices[exit_index])
+        entry_fill = entry_open * (1.0 + slippage_rate)
+        exit_fill = exit_open * (1.0 - slippage_rate)
+        quantity = ENTRY_NOTIONAL_USDT / entry_fill
+        entry_fee = quantity * entry_fill * fee_rate
+        exit_fee = quantity * exit_fill * fee_rate
+        gross_pnl = (exit_open - entry_open) * (ENTRY_NOTIONAL_USDT / entry_open)
+        realized = (exit_fill - entry_fill) * quantity
+        friction_pnl = realized - gross_pnl
+        fee_pnl = -(entry_fee + exit_fee)
+        net_pnl = gross_pnl + friction_pnl + fee_pnl
+        hypothetical.append(
+            {
+                "sequence": sequence,
+                "signal_close_at": phase1._utc_iso(close_time),
+                "entry_at": phase1._utc_iso(entry_at),
+                "exit_at": phase1._utc_iso(scheduled_exit),
+                "gross_pnl": gross_pnl,
+                "friction_pnl": friction_pnl,
+                "fee_pnl": fee_pnl,
+                "net_pnl": net_pnl,
+            }
+        )
+        entry_times.append(entry_at)
+        exit_times.append(scheduled_exit)
+    gross = float(sum(item["gross_pnl"] for item in hypothetical))
+    friction = float(sum(item["friction_pnl"] for item in hypothetical))
+    fees = float(sum(item["fee_pnl"] for item in hypothetical))
+    net = float(sum(item["net_pnl"] for item in hypothetical))
+    count = len(hypothetical)
+    reasons: dict[str, int] = {}
+    for item in skipped:
+        reasons[item["reason"]] = reasons.get(item["reason"], 0) + 1
+    return {
+        "policy": policy,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "fee_rate_per_side": fee_rate,
+        "slippage_rate_per_side": slippage_rate,
+        "signals": len(signals),
+        "hypothetical_trades": count,
+        "skipped_or_unresolved": len(skipped),
+        "unresolved_trades": unresolved_count,
+        "skip_reasons": dict(sorted(reasons.items())),
+        "coverage": {
+            "signals": _coverage_iso(list(signals)),
+            "hypothetical_entries": _coverage_iso(entry_times),
+            "hypothetical_exits": _coverage_iso(exit_times),
+            "evaluation_window": {
+                "start_utc": phase1._utc_iso(WINDOW_START),
+                "end_utc": phase1._utc_iso(WINDOW_END),
+            },
+        },
+        "gross_pnl_usdt": gross,
+        "friction_pnl_usdt": friction,
+        "fee_pnl_usdt": fees,
+        "net_pnl_usdt": net,
+        "gross_pnl_per_signal_usdt": (gross / len(signals)) if signals else None,
+        "net_pnl_per_signal_usdt": (net / len(signals)) if signals else None,
+        "gross_pnl_per_hypothetical_trade_usdt": (gross / count) if count else None,
+        "net_pnl_per_hypothetical_trade_usdt": (net / count) if count else None,
+        "not_compounded_into_equity": True,
+        "funding_status": FUNDING_STATUS,
+        "cost_adjusted_label": COST_ADJUSTED_LABEL,
+    }
+
+
+def run_full_opportunity_grid(
+    signals_by_policy: dict[str, Sequence[datetime]],
+    grid: M5Grid,
+) -> dict[str, dict[str, Any]]:
+    """Evaluate the full-opportunity diagnostic over every frozen cost scenario."""
+
+    diagnostics: dict[str, dict[str, Any]] = {}
+    for fee_rate in FEE_RATES:
+        for slippage_rate in SLIPPAGE_RATES:
+            key = scenario_key(fee_rate, slippage_rate)
+            diagnostics[key] = {
+                policy: evaluate_full_opportunity(
+                    policy,
+                    signals_by_policy[policy],
+                    grid,
+                    fee_rate=fee_rate,
+                    slippage_rate=slippage_rate,
+                )
+                for policy in POLICIES
+            }
+    return diagnostics
 
 
 def run_cost_grid(
