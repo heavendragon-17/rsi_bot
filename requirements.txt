@@ -13,7 +13,7 @@ binance-futures-connector
 structlog>=24.0.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
-sse-starlette>=2.1.0
+sse-starlette>=3.4.8
 numpy
 python-dateutil
 matplotlib
