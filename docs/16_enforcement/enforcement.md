@@ -70,11 +70,10 @@ general tests, configuration, or delivery code still runs the production CI
 workflow. Within that workflow, Ruff, architecture lint, mypy, Bandit,
 coverage, and pytest omit the same offline research modules and test families;
 the product gates therefore cannot be broken by an unrelated experiment.
-Secret detection scans every tracked production file, while the local
-pre-commit hook still checks staged research files before they are committed.
-Generated outputs and offline research paths stay outside CI. Markdown link
-validation is production-scoped and omits offline research reports. Manual
-dispatch and reusable workflow calls remain available.
+Repository-wide secret detection remains active because it protects all
+committed content without executing research. Markdown link validation is
+production-scoped and omits offline research reports. Manual dispatch and
+reusable workflow calls remain available.
 
 Deployment is not branch-push driven: only an explicit SemVer tag or manual
 Deploy invocation can enter the release workflow. Release tags always call the
@@ -92,7 +91,7 @@ context.
 | `Type Check` | mypy | 10 min |
 | `Security Scan` | Bandit | 5 min |
 | `Dependency Audit` | pip-audit of runtime requirements | 10 min |
-| `Secret Detection` | tracked production-file detect-secrets baseline scan | 5 min |
+| `Secret Detection` | tracked-file detect-secrets scan against the baseline | 10 min |
 | `Circular Import Check` | core/data import smoke test | 10 min |
 | `Documentation` | local Markdown links and blocking PR documentation-impact gate | 5 min |
 | `Frontend Build` | `npm ci`, high/critical advisory gate, TypeScript check, and Vite build | 10 min |
