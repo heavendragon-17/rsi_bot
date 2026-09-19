@@ -1,0 +1,387 @@
+{
+  "artifacts": {
+    "charts/cost_sensitivity.png": {
+      "bytes": 102166,
+      "published": true,
+      "sha256": "eae4e85720a1117b45927e58cf4488fd41860e84211d509289e04f4af3c0c45b"
+    },
+    "charts/drawdown.png": {
+      "bytes": 141670,
+      "published": true,
+      "sha256": "2048706cf7a5b61a11ae1fd1fef60600ed94e59fccd1031975b6bd05a493f149"
+    },
+    "charts/equity_gross_vs_cost.png": {
+      "bytes": 178769,
+      "published": true,
+      "sha256": "ecb58978f394c9fd23108051aef2e612362a79b186809142b5cf75d52954c0aa"
+    },
+    "equity_daily.csv": {
+      "bytes": 137760,
+      "published": true,
+      "sha256": "8b2111fb6c93c66fdc07561a68ad87ddd8f2199aea73e8c871e65c2c36d177dc"
+    },
+    "full/actions.csv": {
+      "bytes": 40725219,
+      "published": false,
+      "sha256": "d924a3c07c68ee6aa808100ca01a8a80c66c7205e87862481ffc039ede1fdc37"
+    },
+    "full/equity_curve.csv": {
+      "bytes": 244892929,
+      "published": false,
+      "sha256": "071e975deb26bae5cf378098cf1d2ba807fbc56d74bb98766321cbed0facefd9"
+    },
+    "full/signals.csv": {
+      "bytes": 590980,
+      "published": false,
+      "sha256": "dd4b0c5aa7aca1f7eb23b7a926fa1915a277736e2bbd286cbda1d623d4cf1a9b"
+    },
+    "full/trades.csv": {
+      "bytes": 33102512,
+      "published": false,
+      "sha256": "eb9b032644975d60fe93b6b5285d6c878f225f9bd2d90ce080453245782027cc"
+    },
+    "protocol.json": {
+      "bytes": 10314,
+      "published": true,
+      "sha256": "9307e0404baa0a47557fd8ac820c96cb9bb0b6ef9441a321318a55a2ccaac40c"
+    },
+    "report.md": {
+      "bytes": 7805,
+      "published": true,
+      "sha256": "87d1d36f79702718678d545efa8936f8b9321c1252603f11a3fdda1985c75a24"
+    },
+    "summary.json": {
+      "bytes": 133161,
+      "published": true,
+      "sha256": "e1e0b35ce4f710af02c6a450f2858389ab923c3a8a014115294740690b200b84"
+    }
+  },
+  "charts": [
+    "equity_gross_vs_cost.png",
+    "drawdown.png",
+    "cost_sensitivity.png"
+  ],
+  "code_identity_note": "SHA-256 describes working-tree implementation bytes, including any uncommitted research changes; git revision alone is not code identity.",
+  "code_sha256": {
+    "app/backtest/btc_research_phase1.py": "77b46392f18ccf2fbdc618687d5a3dd06353db5c69bb338b6ea95fd7e04e579f",
+    "app/backtest/signal_replay.py": "8f94ffdc18dafb4bc0c78ff8fc491ef46af5fd5bd68921ab4e4c0547d86dc0f2",
+    "app/backtest/signal_replay_data.py": "d9646a9af7eef5a32fec37f2031a3ce42168ed05b0bb68c1411d571ba0ceece9",
+    "app/backtest/signal_replay_indicators.py": "eb0a9cc9e556284602018d4c55b1ced02c0f3808dc94c4358b0aa57fd8b023a2",
+    "app/backtest/signal_replay_preparation.py": "b9c19704d0e20026108227e1af7bc8bb7ef80a31f9c1e43f27745b4ae1099148",
+    "app/backtest/statistics/metrics.py": "d6c8118fb9df03161d851ae012df5386a34bc09ebb4c14f88414ce36073b8d5f",
+    "app/core/constants.py": "0ba91bdc57e82da710224c3c165d6b0bcf35cb20ac869e9c31b2690226d91f5e",
+    "app/trading/strategy/btc_rsi_cross_alert/evaluator.py": "d1a20d47adac452dd34c74fcc6e0e1028431d1834e64cdee3a0800f0c7978e60",
+    "app/trading/strategy/btc_rsi_cross_alert/m5_checker.py": "0abbc456cca0776b3648bf38621557c1b1fc789aedbe9af71d6302fca43c1fa1",
+    "app/trading/strategy/btc_rsi_cross_alert/models.py": "a3e31e3e89530ffb837537f86e69eb0a33a1d741b67d5cd16a89001e7172d086",
+    "app/trading/strategy/core_v2_1/indicators.py": "4fb11430de235414af977d0fa87d23ac4be0019ccc8ed22f492caa5400e8c2da",
+    "research/btc_m15_reference_backtest.py": "96cdfd827fe0b3fd22e697121c1267b6f7e151575b49483c18903f803d57e305",
+    "research/btc_m15_reference_reporting.py": "0a7f608adefaf9203b857e9a2523d13eca1a12683c7766a7f5a34e71831d6141",
+    "research/btc_m15_signal_diagnostic.py": "bfbaa64fb7e2daeb5ce5db63d7fbc70824115778c27d071e452236c3f5f07d48",
+    "research/btc_m5_horizon_diagnostic.py": "08fd6acc3a8524e5827e305dda5947556fe88d41d799633510083f10ff00f094",
+    "research/btc_m5_reference_backtest.py": "5bef6ab7514cb62018938b973e054f1380929db21c923e2f00dc399871d9ecd4",
+    "research/btc_m5_reference_reporting.py": "239e231322d0ca03ec6cc46e796f57a2d869514e39fb0384285a94a490a780f8",
+    "research/btc_m5_reference_verification.py": "8f1b66e94712c78496bd52a83b5b9171b78e55d17ff6e95d1a6915aa613069d8",
+    "tests/test_btc_m5_reference_reporting.py": "0d085c1d07ffaddd7bc5b0f193db47a6c8d57d497735d41189a02b3dd72a0a33"
+  },
+  "command": "python -m research.btc_m5_reference_reporting --baseline-run \"research\\results\\phase1_reproduction_local\\run_20260918T092140133007Z_97d3c169\" --data-dir \"research\\data\\btc_four_year_20220828_20260828\" --m15-run \"research\\results\\m15_reference_backtest_runs\\run_20260918T125747028014Z_991fd4d1\" --output-dir \"research\\results\\m5_reference_backtest_runs\"",
+  "completion_status": "SUCCESS",
+  "definition_version": "btc-m5-reference-backtest-v1",
+  "environment": {
+    "PyYAML": "6.0.3",
+    "numpy": "2.2.6",
+    "pandas": "3.0.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12"
+  },
+  "full_ledger_row_counts": {
+    "actions": 235199,
+    "equity_curve": 1416460,
+    "signals": 14027,
+    "trades": 108956
+  },
+  "generated_at_utc": "2026-09-19T09:51:23.681099Z",
+  "git_revision": "717f86cfe3e9607be06b5e9d513affb2b5aecdf2",
+  "inputs": {
+    "errors": [],
+    "files": {
+      "15m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:30:00Z",
+        "available_start_close_utc": "2022-05-01T00:15:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 15,
+        "expected_filename": "BTCUSDT_15m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_15m.csv",
+        "row_count": 151699,
+        "sha256": "991fd4d1a132331bccaba6de3eddfb800505db3cfc7afcd3268720156542b58f",
+        "timeframe": "15m"
+      },
+      "1h": {
+        "available_end_close_utc": "2026-08-29T03:00:00Z",
+        "available_end_open_utc": "2026-08-29T02:00:00Z",
+        "available_start_close_utc": "2022-05-01T01:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 60,
+        "expected_filename": "BTCUSDT_1h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_1h.csv",
+        "row_count": 37947,
+        "sha256": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+        "timeframe": "1h"
+      },
+      "4h": {
+        "available_end_close_utc": "2026-08-28T08:00:00Z",
+        "available_end_open_utc": "2026-08-28T04:00:00Z",
+        "available_start_close_utc": "2022-05-01T04:00:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 240,
+        "expected_filename": "BTCUSDT_4h.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_4h.csv",
+        "row_count": 9482,
+        "sha256": "729aacc845656014250ca39e22adf2e79753f8ecfeff001e3b9d5fade674f842",
+        "timeframe": "4h"
+      },
+      "5m": {
+        "available_end_close_utc": "2026-08-28T04:45:00Z",
+        "available_end_open_utc": "2026-08-28T04:40:00Z",
+        "available_start_close_utc": "2022-05-01T00:05:00Z",
+        "available_start_open_utc": "2022-05-01T00:00:00Z",
+        "duplicate_count": 0,
+        "expected_cadence_minutes": 5,
+        "expected_filename": "BTCUSDT_5m.csv",
+        "gap_count": 0,
+        "gap_examples": [],
+        "non_cadence_count": 0,
+        "path": "C:\\Users\\hkpug\\Documents\\GitHub\\rsi_bot\\research\\data\\btc_four_year_20220828_20260828\\BTCUSDT_5m.csv",
+        "row_count": 455097,
+        "sha256": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d",
+        "timeframe": "5m"
+      }
+    },
+    "identity": {
+      "filename_contract": {
+        "15m": "BTCUSDT_15m.csv",
+        "1h": "BTCUSDT_1h.csv",
+        "4h": "BTCUSDT_4h.csv",
+        "5m": "BTCUSDT_5m.csv"
+      },
+      "source_kind": "local_csv",
+      "symbol": "BTC/USDT",
+      "venue": "Binance USD-M Futures",
+      "venue_instrument": "BTC/USDT:USDT"
+    },
+    "warnings": []
+  },
+  "ledger_invariants": [
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00000_slip_0.00000",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00000_slip_0.00000",
+      "signals": 11162,
+      "trades": 11162
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00000_slip_0.00010",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00000_slip_0.00010",
+      "signals": 11162,
+      "trades": 11162
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00000_slip_0.00050",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00000_slip_0.00050",
+      "signals": 11162,
+      "trades": 9538
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00020_slip_0.00000",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00020_slip_0.00000",
+      "signals": 11162,
+      "trades": 11162
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00020_slip_0.00010",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00020_slip_0.00010",
+      "signals": 11162,
+      "trades": 11162
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00020_slip_0.00050",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00020_slip_0.00050",
+      "signals": 11162,
+      "trades": 6833
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00050_slip_0.00000",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00050_slip_0.00000",
+      "signals": 11162,
+      "trades": 9537
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00050_slip_0.00010",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00050_slip_0.00010",
+      "signals": 11162,
+      "trades": 7882
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "A_emitted_alerts",
+      "scenario": "fee_0.00050_slip_0.00050",
+      "signals": 2865,
+      "trades": 2865
+    },
+    {
+      "deferred_entries": 0,
+      "passed": true,
+      "policy": "B_gate_cooldown",
+      "scenario": "fee_0.00050_slip_0.00050",
+      "signals": 11162,
+      "trades": 4733
+    }
+  ],
+  "m15_comparison": {
+    "definition_version": "btc-m15-reference-backtest-v2",
+    "files_sha256": {
+      "manifest.json": "5cb62b4a0dc2c799294200e063bf2a2264052e848f3995888676ab498fa801f6",
+      "protocol.json": "663b31320afafb9ed643f7ec2e0971c3d184ac3bd54adc7d83ea0eaed0baab88",
+      "summary.json": "a3082a922192c7241e56e0a6ea52b7f1f4fd0bead9a8ad821a07fbd5ff5c777f"
+    },
+    "source_hashes": {
+      "15m": "991fd4d1a132331bccaba6de3eddfb800505db3cfc7afcd3268720156542b58f",
+      "1h": "8d299ae0006b41eabf5ecc01445eb2b93c438ab39d0ec6a69a831cbb8590f1e2",
+      "4h": "729aacc845656014250ca39e22adf2e79753f8ecfeff001e3b9d5fade674f842",
+      "5m": "97d3c169eaa68cbfeadfea5251180ab581dc09506b066306a544e27b5c0fb18d"
+    }
+  },
+  "parent": {
+    "files_sha256": {
+      "manifest.json": "450adb537b76e07c7f6dfb47470fab422c251c6bd3a9043223711a4ed0e12eec",
+      "report.md": "67ccab1e6979970ead8c1aa70c670784e52b30ac247f3df8e020dcdbc536ab3b",
+      "signals.csv": "3bd31f378d3c45987fcfefb991fe5140103cb4695a111b9a0d27ed2e3a666e1f",
+      "summary.json": "2332987e35e049b89952ab97655f1954f3381107f491eceebbbba8d398e7da04"
+    },
+    "run_id": "run_20260918T092140133007Z_97d3c169"
+  },
+  "price_gate_scan": {
+    "candidate_bars": 420768,
+    "excluded_bars": 0,
+    "exclusion_reasons": {},
+    "price_gated_bars": 92720,
+    "price_ready_bars": 420768,
+    "readiness": "21 contiguous native price candles per timeframe; no RSI readiness or conditions"
+  },
+  "protocol_sha256": "9307e0404baa0a47557fd8ac820c96cb9bb0b6ef9441a321318a55a2ccaac40c",
+  "run_id": "run_20260919T095123681099Z_97d3c169",
+  "signal_parity": {
+    "emitted_count": 2865,
+    "matches": true,
+    "method": "Every M5 bar prepared and evaluated with existing state evaluator, then independent 60-minute cooldown; exact ordered timestamp equality",
+    "reconstructed_count": 2865
+  },
+  "source_hash_parity": true,
+  "state_scan": {
+    "candidate_bars": 420768,
+    "decisions": {
+      "ALERT_M5_BULLISH_ALIGNMENT_H4_BULLISH": 12147,
+      "H1_CLOSE_NOT_ABOVE_EMA21": 18755,
+      "H4_CLOSE_NOT_ABOVE_EMA21": 71953,
+      "M5_CLOSE_NOT_ABOVE_EMA21": 15,
+      "M5_EMA9_WMA45_SPREAD_NOT_ABOVE_2": 11976,
+      "M5_RSI21_EMA9_WMA45_ALIGNMENT_NOT_BULLISH": 285918,
+      "M5_RSI21_NOT_BELOW_60": 18811,
+      "M5_WMA45_NOT_ABOVE_45": 1193
+    },
+    "preparation_exclusions": {},
+    "state_alert_bars_before_cooldown": 12147
+  }
+}

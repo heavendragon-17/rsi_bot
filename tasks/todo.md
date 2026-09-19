@@ -2,6 +2,29 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## ACTIVE — Frozen BTC M5 reference and unresolved valuation correction
+
+- [x] Correct unresolved valuation with timestamped valid marks or null equity; retain paid fees and known exposure; add regression tests.
+- [x] Freeze M5 state-evaluator A and price-only M5/H1/H4 B with independent one-hour cooldown, verified four-year sources and matching M15 execution/costs.
+- [x] Run account and separate full-opportunity diagnostics; write compact evidence, charts and M5/M15 comparison; preserve prior packets.
+- [x] Verify signal parity, accounting, missing data, deterministic reproduction, tests and independent review.
+- [ ] Commit and push research-only changes to `mua-tren-the-nang`; verify remote SHA. No provider calls, production changes, tags, deployment or secret-baseline changes.
+
+### Review
+
+Packet `research/results/m5_reference_backtest_runs/run_20260919T095123681099Z_97d3c169`:
+A 2,865 emitted alerts, B 11,162 price-gate signals (7,882 entered, 3,280
+INSUFFICIENT_FREE_CASH, none unresolved). Headline costs: A net -3,396.84 USDT
+(-33.97%), B net -9,002.51 USDT (-90.03%); full-opportunity A -3,396.84, B
+-12,886.45 USDT. Verification `C:/Users/hkpug/AppData/Local/Temp/rsi-m5-verified.json`:
+2,865-signal ordered replay parity, 1,301-field M15 v2 reproduction, 7-file
+byte-identical deterministic repeat, historical packets untouched.
+Independent read-only review initially blocked on comparison-contract gaps
+(rounded scenario keys, unchecked ordering/headline rates, ignored declared
+protocol hash); fixed with exact-rate matching, headline==grid-row equality,
+LF-normalized hash check and 7 new rejection tests, plus datetime chart axes
+and tick-density regression test. Existing untracked `IDEA.md` is outside scope.
+
 ## ✅ COMPLETED — Portable BTC Signal Review handoff (2026-09-19)
 
 - [x] Add a versioned, hash-verified Signal Review ZIP format containing one

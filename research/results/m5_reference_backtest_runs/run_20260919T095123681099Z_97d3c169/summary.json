@@ -1,0 +1,3290 @@
+{
+  "accounting_engine_version": "btc-m15-reference-backtest-v3",
+  "alpha_assessment": "NOT_ASSESSED",
+  "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+  "cost_sensitivity": [
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.5237432047845796,
+        "avg_win_usdt": 3.0354077246915283,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": 1.4256591290376398e-05,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": 0.014256591290376264,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 10040.845134046962,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 10040.845134046962,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 10040.845134046962,
+        "max_drawdown_pct": 1.9418000000000002,
+        "max_drawdown_usdt": 197.32531559057134,
+        "net_pnl_per_trade_usdt": 0.014256591290376397,
+        "net_pnl_usdt": 40.84513404692838,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 1.010394570532554,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": 0.40845134046962883,
+        "total_turnover_usdt": 5730040.845134047,
+        "turnover_over_initial_equity": 573.0040845134047,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 45.654450261780106
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 318.33219256217455,
+        "avg_loss_usdt": -2.917278081933788,
+        "avg_win_usdt": 3.3637522359152543,
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 11162,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": 4.541898162786822e-05,
+        "coverage": {
+          "account_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "account_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 11162,
+        "expectancy_usdt": 0.045418981627868726,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 10506.966672930157,
+        "final_equity_at": "2026-08-28T00:05:00Z",
+        "final_equity_usdt": 10506.966672930157,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "last_valuation_at": "2026-08-28T00:05:00Z",
+        "last_valued_equity_usdt": 10506.966672930157,
+        "max_drawdown_pct": 3.0545,
+        "max_drawdown_usdt": 325.9800277736613,
+        "net_pnl_per_trade_usdt": 0.04541898162786822,
+        "net_pnl_usdt": 506.9666729302651,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 1.0294693430023536,
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.31833219256217454,
+        "total_return_pct": 5.069666729301581,
+        "total_turnover_usdt": 22324506.96667293,
+        "turnover_over_initial_equity": 2232.450696667293,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 47.168966135101236
+      },
+      "fee_rate_per_side": 0.0,
+      "slippage_rate_per_side": 0.0
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.561117466917066,
+        "avg_win_usdt": 3.081913878708942,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00018572626174255785,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -0.18572626174255813,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 9467.894260107587,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 9467.894260107587,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 9467.894260107587,
+        "max_drawdown_pct": 5.9389,
+        "max_drawdown_usdt": 595.9968188423682,
+        "net_pnl_per_trade_usdt": -0.18572626174255785,
+        "net_pnl_usdt": -532.1057398924282,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.8747660555384217,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -5.321057398924134,
+        "total_turnover_usdt": 5729467.894260108,
+        "turnover_over_initial_equity": 572.9467894260108,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 42.09424083769633
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 318.33219256217455,
+        "avg_loss_usdt": -2.9550039824517715,
+        "avg_win_usdt": 3.3841651433927096,
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 11162,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00015457010325994804,
+        "coverage": {
+          "account_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "account_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 11162,
+        "expectancy_usdt": -0.15457010325994758,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 8274.688507412313,
+        "final_equity_at": "2026-08-28T00:05:00Z",
+        "final_equity_usdt": 8274.688507412313,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -2232.278165517805,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "last_valuation_at": "2026-08-28T00:05:00Z",
+        "last_valued_equity_usdt": 8274.688507412313,
+        "max_drawdown_pct": 18.5447,
+        "max_drawdown_usdt": 1854.4732127101697,
+        "net_pnl_per_trade_usdt": -0.15457010325994805,
+        "net_pnl_usdt": -1725.31149258754,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.9062973888056914,
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.31833219256217454,
+        "total_return_pct": -17.253114925876865,
+        "total_turnover_usdt": 22322274.68850741,
+        "turnover_over_initial_equity": 2232.2274688507414,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 44.176670847518366
+      },
+      "fee_rate_per_side": 0.0,
+      "slippage_rate_per_side": 0.0001
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.8924051499177907,
+        "avg_win_usdt": 3.2331294329835347,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00098525790805113,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -0.9852579080511301,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 7177.23609343352,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 7177.23609343352,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 7177.23609343352,
+        "max_drawdown_pct": 28.559800000000003,
+        "max_drawdown_usdt": 2860.0374689819064,
+        "net_pnl_per_trade_usdt": -0.98525790805113,
+        "net_pnl_usdt": -2822.7639065664875,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.5053610127530855,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -28.2276390656648,
+        "total_turnover_usdt": 5727177.236093434,
+        "turnover_over_initial_equity": 572.7177236093434,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 31.13438045375218
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 272.0168834131895,
+        "avg_loss_usdt": -3.219804282429595,
+        "avg_win_usdt": 3.640032626235812,
+        "break_even_round_trip_bps_approx": 0.553356725090819,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "closed_trades": 9538,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000944219885384371,
+        "coverage": {
+          "account_entries": {
+            "count": 9538,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-01-07T00:05:00Z"
+          },
+          "account_exits": {
+            "count": 9538,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-01-07T01:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 9538,
+        "expectancy_usdt": -0.9442198853843706,
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "final_cash_usdt": 994.0307332038104,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 994.0307332038104,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -9533.760911187754,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.055335672509081904,
+        "gross_pnl_usdt": 527.7916443916232,
+        "gross_return_per_trade": 5.53356725090819e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 994.0307332038104,
+        "max_drawdown_pct": 90.0695,
+        "max_drawdown_usdt": 9006.95415958262,
+        "net_pnl_per_trade_usdt": -0.944219885384371,
+        "net_pnl_usdt": -9005.96926679613,
+        "paid_fees_usdt": 0.0,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.5611774591079112,
+        "signals": 11162,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 1624
+        },
+        "skipped_entries": 1624,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.27201688341318947,
+        "total_return_pct": -90.0596926679619,
+        "total_turnover_usdt": 19066994.030733205,
+        "turnover_over_initial_equity": 1906.6994030733206,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 33.17257286642902
+      },
+      "fee_rate_per_side": 0.0,
+      "slippage_rate_per_side": 0.0005
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.631525906350721,
+        "avg_win_usdt": 3.108133939068489,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00038574626002788173,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -0.38574626002788204,
+        "fee_pnl_usdt": -1146.0081690268094,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 8894.83696501801,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 8894.83696501801,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 8894.83696501801,
+        "max_drawdown_pct": 11.5047,
+        "max_drawdown_usdt": 1152.8528968830178,
+        "net_pnl_per_trade_usdt": -0.3857462600278817,
+        "net_pnl_usdt": -1105.163034979881,
+        "paid_fees_usdt": 1146.0081690268094,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.7591912740581777,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -11.051630349819897,
+        "total_turnover_usdt": 5730040.845134047,
+        "turnover_over_initial_equity": 573.0040845134047,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 39.12739965095986
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 318.33219256217455,
+        "avg_loss_usdt": -3.0011417488319547,
+        "avg_win_usdt": 3.420773355528471,
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 11162,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0003545901021684574,
+        "coverage": {
+          "account_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "account_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 11162,
+        "expectancy_usdt": -0.35459010216845743,
+        "fee_pnl_usdt": -4464.901393334586,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 6042.065279592698,
+        "final_equity_at": "2026-08-28T00:05:00Z",
+        "final_equity_usdt": 6042.065279595708,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 3.0095179681666195e-09,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "last_valuation_at": "2026-08-28T00:05:00Z",
+        "last_valued_equity_usdt": 6042.065279595708,
+        "max_drawdown_pct": 40.5639,
+        "max_drawdown_usdt": 4056.393367636256,
+        "net_pnl_per_trade_usdt": -0.3545901021684574,
+        "net_pnl_usdt": -3957.934720404321,
+        "paid_fees_usdt": 4464.901393334586,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.7990232159393039,
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.31833219256217454,
+        "total_return_pct": -39.579347204042925,
+        "total_turnover_usdt": 22324506.96667293,
+        "turnover_over_initial_equity": 2232.450696667293,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 41.21125246371618
+      },
+      "fee_rate_per_side": 0.0002,
+      "slippage_rate_per_side": 0.0
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.7113166932629795,
+        "avg_win_usdt": 3.138753438777353,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0005856891164902094,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -0.5856891164902094,
+        "fee_pnl_usdt": -1145.8935788520216,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 8322.000681253483,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 8322.000681253483,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 8322.000681253483,
+        "max_drawdown_pct": 17.1628,
+        "max_drawdown_usdt": 1718.8957843735425,
+        "net_pnl_per_trade_usdt": -0.5856891164902094,
+        "net_pnl_usdt": -1677.9993187444497,
+        "paid_fees_usdt": 1145.8935788520216,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.660697782320525,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -16.77999318746517,
+        "total_turnover_usdt": 5729467.894260108,
+        "turnover_over_initial_equity": 572.9467894260108,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 36.33507853403141
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 318.33219256217455,
+        "avg_loss_usdt": -3.0611734642153086,
+        "avg_win_usdt": 3.459230119397428,
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 11162,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000554539189239296,
+        "coverage": {
+          "account_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "account_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 11162,
+        "expectancy_usdt": -0.5545391892392959,
+        "fee_pnl_usdt": -4464.454937701483,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 3810.2335697097187,
+        "final_equity_at": "2026-08-28T00:05:00Z",
+        "final_equity_usdt": 3810.2335697109766,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 1.2578311725519598e-09,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -2232.278165517805,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "last_valuation_at": "2026-08-28T00:05:00Z",
+        "last_valued_equity_usdt": 3810.2335697109766,
+        "max_drawdown_pct": 62.5971,
+        "max_drawdown_usdt": 6259.707085210858,
+        "net_pnl_per_trade_usdt": -0.554539189239296,
+        "net_pnl_usdt": -6189.7664302890225,
+        "paid_fees_usdt": 4464.454937701483,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.7057161881755966,
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.31833219256217454,
+        "total_return_pct": -61.897664302890234,
+        "total_turnover_usdt": 22322274.68850741,
+        "turnover_over_initial_equity": 2232.2274688507414,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 38.44293137430568
+      },
+      "fee_rate_per_side": 0.0002,
+      "slippage_rate_per_side": 0.0001
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -3.124567565309734,
+        "avg_win_usdt": 3.272976363865122,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00138506085646952,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -1.3850608564695202,
+        "fee_pnl_usdt": -1145.4354472186867,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 6031.800646214174,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 6031.800646214174,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 6031.800646214174,
+        "max_drawdown_pct": 39.9658,
+        "max_drawdown_usdt": 4001.866368408643,
+        "net_pnl_per_trade_usdt": -1.38506085646952,
+        "net_pnl_usdt": -3968.1993537851745,
+        "paid_fees_usdt": 1145.4354472186867,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.3911795136121864,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -39.68199353785826,
+        "total_turnover_usdt": 5727177.236093434,
+        "turnover_over_initial_equity": 572.7177236093434,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 27.19022687609075
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 194.87223362993538,
+        "avg_loss_usdt": -3.5229913866612463,
+        "avg_win_usdt": 4.069838058148683,
+        "break_even_round_trip_bps_approx": 0.8213942792535475,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "closed_trades": 6833,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0013172594317442687,
+        "coverage": {
+          "account_entries": {
+            "count": 6833,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2025-01-15T04:15:00Z"
+          },
+          "account_exits": {
+            "count": 6833,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2025-01-15T05:15:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 6833,
+        "expectancy_usdt": -1.3172594317442687,
+        "fee_pnl_usdt": -2731.9462225050793,
+        "fee_rate_per_side": 0.0002,
+        "final_cash_usdt": 999.1663028912167,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 999.1663028912167,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -6830.146185617458,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.08213942792535475,
+        "gross_pnl_usdt": 561.258711013949,
+        "gross_return_per_trade": 8.213942792535475e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 999.1663028912167,
+        "max_drawdown_pct": 90.0083,
+        "max_drawdown_usdt": 9000.833697108603,
+        "net_pnl_per_trade_usdt": -1.3172594317442687,
+        "net_pnl_usdt": -9000.833697108588,
+        "paid_fees_usdt": 2731.9462225050793,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.4730025120642603,
+        "signals": 11162,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 4329
+        },
+        "skipped_entries": 4329,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.1948722336299354,
+        "total_return_pct": -90.00833697108783,
+        "total_turnover_usdt": 13659731.112525396,
+        "turnover_over_initial_equity": 1365.9731112525396,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 29.0501975706132
+      },
+      "fee_rate_per_side": 0.0002,
+      "slippage_rate_per_side": 0.0005
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -2.8938513524928613,
+        "avg_win_usdt": 3.234745997699912,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000985750537005269,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -0.9857505370052682,
+        "fee_pnl_usdt": -2865.0204225670236,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 7175.824711479895,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 7175.824711479895,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 7175.824711479895,
+        "max_drawdown_pct": 28.573999999999998,
+        "max_drawdown_usdt": 2861.467487716741,
+        "net_pnl_per_trade_usdt": -0.9857505370052689,
+        "net_pnl_usdt": -2824.1752885200954,
+        "paid_fees_usdt": 2865.0204225670236,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.505361012753048,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -28.241752885201056,
+        "total_turnover_usdt": 5730040.845134047,
+        "turnover_over_initial_equity": 573.0040845134047,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 31.13438045375218
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 271.9883641341568,
+        "avg_loss_usdt": -3.220499036609605,
+        "avg_win_usdt": 3.6418526425488214,
+        "break_even_round_trip_bps_approx": 0.5618636105422558,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "closed_trades": 9537,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0009438417321263015,
+        "coverage": {
+          "account_entries": {
+            "count": 9537,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-01-06T15:25:00Z"
+          },
+          "account_exits": {
+            "count": 9537,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-01-06T16:25:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 9537,
+        "expectancy_usdt": -0.9438417321263022,
+        "fee_pnl_usdt": -9537.267924662687,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 998.5814007114107,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 998.5814007114107,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.05618636105422557,
+        "gross_pnl_usdt": 535.8493253741493,
+        "gross_return_per_trade": 5.618636105422557e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 998.5814007114107,
+        "max_drawdown_pct": 90.0142,
+        "max_drawdown_usdt": 9001.418599288589,
+        "net_pnl_per_trade_usdt": -0.9438417321263015,
+        "net_pnl_usdt": -9001.418599288538,
+        "paid_fees_usdt": 9537.267924662687,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.5614250056877008,
+        "signals": 11162,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 1625
+        },
+        "skipped_entries": 1625,
+        "slippage_rate_per_side": 0.0,
+        "time_in_market_fraction": 0.27198836413415683,
+        "total_return_pct": -90.0141859928859,
+        "total_turnover_usdt": 19074535.849325374,
+        "turnover_over_initial_equity": 1907.4535849325373,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 33.17605116913075
+      },
+      "fee_rate_per_side": 0.0005,
+      "slippage_rate_per_side": 0.0
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -3.0078785015564637,
+        "avg_win_usdt": 3.251992265753832,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0011856333986116866,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -1.185633398611687,
+        "fee_pnl_usdt": -2864.733947130054,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 6603.160312977513,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 6603.160312977513,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 6603.160312977513,
+        "max_drawdown_pct": 34.2762,
+        "max_drawdown_usdt": 3432.3241622386586,
+        "net_pnl_per_trade_usdt": -1.1856333986116865,
+        "net_pnl_usdt": -3396.839687022482,
+        "paid_fees_usdt": 2864.733947130054,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.4439615322652978,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -33.96839687022487,
+        "total_turnover_usdt": 5729467.894260108,
+        "turnover_over_initial_equity": 572.9467894260108,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 29.109947643979055
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 224.78895733516035,
+        "avg_loss_usdt": -3.436458364793222,
+        "avg_win_usdt": 3.9386030734203756,
+        "break_even_round_trip_bps_approx": 0.5775928650542194,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "closed_trades": 7882,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0011421611500634912,
+        "coverage": {
+          "account_entries": {
+            "count": 7882,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2025-05-20T18:05:00Z"
+          },
+          "account_exits": {
+            "count": 7882,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2025-05-20T19:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 7882,
+        "expectancy_usdt": -1.142161150063491,
+        "fee_pnl_usdt": -7881.439462638919,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 997.4858151995481,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 997.4858151995481,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -1576.3334183972534,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.05775928650542194,
+        "gross_pnl_usdt": 455.2586962357357,
+        "gross_return_per_trade": 5.775928650542194e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 997.4858151995481,
+        "max_drawdown_pct": 90.0256,
+        "max_drawdown_usdt": 9002.560497370565,
+        "net_pnl_per_trade_usdt": -1.1421611500634912,
+        "net_pnl_usdt": -9002.514184800437,
+        "paid_fees_usdt": 7881.439462638919,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.5175493473222058,
+        "signals": 11162,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 3280
+        },
+        "skipped_entries": 3280,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.22478895733516036,
+        "total_return_pct": -90.02514184800452,
+        "total_turnover_usdt": 15762878.925277838,
+        "turnover_over_initial_equity": 1576.287892527784,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 31.108855620400917
+      },
+      "fee_rate_per_side": 0.0005,
+      "slippage_rate_per_side": 0.0001
+    },
+    {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 81.7077344284743,
+        "avg_loss_usdt": -3.492650457332663,
+        "avg_win_usdt": 3.397446888193453,
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "closed_trades": 2865,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0019847652790971047,
+        "coverage": {
+          "account_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "account_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 2865,
+        "expectancy_usdt": -1.9847652790971047,
+        "fee_pnl_usdt": -2863.588618046717,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 4313.647475386814,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 4313.647475386814,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 4313.647475386814,
+        "max_drawdown_pct": 57.0792,
+        "max_drawdown_usdt": 5714.609717548645,
+        "net_pnl_per_trade_usdt": -1.9847652790971047,
+        "net_pnl_usdt": -5686.352524613205,
+        "paid_fees_usdt": 2863.588618046717,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.27252416081251224,
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.08170773442847429,
+        "total_return_pct": -56.86352524613185,
+        "total_turnover_usdt": 5727177.236093434,
+        "turnover_over_initial_equity": 572.7177236093434,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 21.8848167539267
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 134.9817476614202,
+        "avg_loss_usdt": -3.791670099082041,
+        "avg_win_usdt": 4.413403543224699,
+        "break_even_round_trip_bps_approx": 0.970872317755403,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "closed_trades": 4733,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.001902058801783426,
+        "coverage": {
+          "account_entries": {
+            "count": 4733,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2024-04-24T01:05:00Z"
+          },
+          "account_exits": {
+            "count": 4733,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2024-04-24T02:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 4733,
+        "expectancy_usdt": -1.9020588017834255,
+        "fee_pnl_usdt": -4730.864209950555,
+        "fee_rate_per_side": 0.0005,
+        "final_cash_usdt": 997.5556911590324,
+        "final_equity_at": "2026-08-27T23:59:59.999999Z",
+        "final_equity_usdt": 997.5556911590324,
+        "final_quantity": 0,
+        "final_reserved_usdt": 0,
+        "final_state": "FLAT",
+        "final_unrealized_pnl_usdt": 0.0,
+        "final_valuation_complete": true,
+        "friction_pnl_usdt": -4731.093966884034,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.0970872317755403,
+        "gross_pnl_usdt": 459.51386799363223,
+        "gross_return_per_trade": 9.708723177554029e-05,
+        "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+        "last_valued_equity_usdt": 997.5556911590324,
+        "max_drawdown_pct": 90.0244,
+        "max_drawdown_usdt": 9002.444308840968,
+        "net_pnl_per_trade_usdt": -1.902058801783426,
+        "net_pnl_usdt": -9002.444308840955,
+        "paid_fees_usdt": 4730.864209950555,
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.34826547428084276,
+        "signals": 11162,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 6429
+        },
+        "skipped_entries": 6429,
+        "slippage_rate_per_side": 0.0005,
+        "time_in_market_fraction": 0.13498174766142018,
+        "total_return_pct": -90.02444308840968,
+        "total_turnover_usdt": 9461728.41990111,
+        "turnover_over_initial_equity": 946.172841990111,
+        "unresolved_entry_fees_usdt": 0,
+        "unresolved_trades": 0,
+        "valuation_complete": true,
+        "valuation_status": "COMPLETE",
+        "win_rate_pct": 23.029790830340165
+      },
+      "fee_rate_per_side": 0.0005,
+      "slippage_rate_per_side": 0.0005
+    }
+  ],
+  "definition_version": "btc-m5-reference-backtest-v1",
+  "evidence_role": "HISTORICAL_DEVELOPMENT_EVIDENCE",
+  "full_opportunity_diagnostic": {
+    "fee_0.00000_slip_0.00000": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": 1.4256591290376398e-05,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "net_pnl_per_signal_usdt": 0.014256591290376397,
+        "net_pnl_usdt": 40.84513404692838,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": 4.541898162786822e-05,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "net_pnl_per_signal_usdt": 0.04541898162786822,
+        "net_pnl_usdt": 506.9666729302651,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00000_slip_0.00010": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00018572626174255785,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.18572626174255785,
+        "net_pnl_per_signal_usdt": -0.18572626174255785,
+        "net_pnl_usdt": -532.1057398924282,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00015457010325994804,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": -2232.278165517805,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.15457010325994805,
+        "net_pnl_per_signal_usdt": -0.15457010325994805,
+        "net_pnl_usdt": -1725.31149258754,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00000_slip_0.00050": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00098525790805113,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.98525790805113,
+        "net_pnl_per_signal_usdt": -0.98525790805113,
+        "net_pnl_usdt": -2822.7639065664875,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000954126664530571,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": 0.0,
+        "fee_rate_per_side": 0.0,
+        "friction_pnl_usdt": -11156.928502420498,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.954126664530571,
+        "net_pnl_per_signal_usdt": -0.954126664530571,
+        "net_pnl_usdt": -10649.961829490234,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00020_slip_0.00000": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00038574626002788173,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -1146.0081690268094,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.3857462600278817,
+        "net_pnl_per_signal_usdt": -0.3857462600278817,
+        "net_pnl_usdt": -1105.163034979881,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0003545901021684574,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -4464.901393334586,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.3545901021684574,
+        "net_pnl_per_signal_usdt": -0.3545901021684574,
+        "net_pnl_usdt": -3957.934720404321,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00020_slip_0.00010": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0005856891164902094,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -1145.8935788520216,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.5856891164902094,
+        "net_pnl_per_signal_usdt": -0.5856891164902094,
+        "net_pnl_usdt": -1677.9993187444497,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000554539189239296,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -4464.454937701483,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": -2232.278165517805,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.554539189239296,
+        "net_pnl_per_signal_usdt": -0.554539189239296,
+        "net_pnl_usdt": -6189.7664302890225,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00020_slip_0.00050": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.00138506085646952,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -1145.4354472186867,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.38506085646952,
+        "net_pnl_per_signal_usdt": -1.38506085646952,
+        "net_pnl_usdt": -3968.1993537851745,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.001353935839197665,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -4462.670007634102,
+        "fee_rate_per_side": 0.0002,
+        "friction_pnl_usdt": -11156.928502420498,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.353935839197665,
+        "net_pnl_per_signal_usdt": -1.353935839197665,
+        "net_pnl_usdt": -15112.631837124336,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00050_slip_0.00000": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.000985750537005269,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -2865.0204225670236,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.9857505370052689,
+        "net_pnl_per_signal_usdt": -0.9857505370052689,
+        "net_pnl_usdt": -2824.1752885200954,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0009546037278629456,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -11162.253483336466,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": 0.0,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -0.9546037278629457,
+        "net_pnl_per_signal_usdt": -0.9546037278629457,
+        "net_pnl_usdt": -10655.2868104062,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00050_slip_0.00010": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0011856333986116866,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -2864.733947130054,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": -572.9508739393566,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.1856333986116865,
+        "net_pnl_per_signal_usdt": -1.1856333986116865,
+        "net_pnl_usdt": -3396.839687022482,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.001154492818208318,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -11161.137344253706,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": -2232.278165517805,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.154492818208318,
+        "net_pnl_per_signal_usdt": -1.154492818208318,
+        "net_pnl_usdt": -12886.448836841246,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0001,
+        "unresolved_trades": 0
+      }
+    },
+    "fee_0.00050_slip_0.00050": {
+      "A_emitted_alerts": {
+        "break_even_round_trip_bps_approx": 0.14256591290376397,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0019847652790971047,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:05:00Z",
+            "last_utc": "2026-08-27T22:40:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 2865,
+            "first_utc": "2022-08-30T01:05:00Z",
+            "last_utc": "2026-08-27T23:40:00Z"
+          },
+          "signals": {
+            "count": 2865,
+            "first_utc": "2022-08-30T00:00:00Z",
+            "last_utc": "2026-08-27T22:35:00Z"
+          }
+        },
+        "fee_pnl_usdt": -2863.588618046717,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": -2863.6090406134163,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.014256591290376397,
+        "gross_pnl_per_signal_usdt": 0.014256591290376397,
+        "gross_pnl_usdt": 40.84513404692838,
+        "gross_return_per_trade": 1.4256591290376398e-05,
+        "hypothetical_trades": 2865,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.9847652790971047,
+        "net_pnl_per_signal_usdt": -1.9847652790971047,
+        "net_pnl_usdt": -5686.352524613205,
+        "not_compounded_into_equity": true,
+        "policy": "A_emitted_alerts",
+        "signals": 2865,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      },
+      "B_gate_cooldown": {
+        "break_even_round_trip_bps_approx": 0.4541898162786822,
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "cost_adjusted_return_per_trade": -0.0019536496011983056,
+        "coverage": {
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "hypothetical_entries": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2026-08-27T23:05:00Z"
+          },
+          "hypothetical_exits": {
+            "count": 11162,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2026-08-28T00:05:00Z"
+          },
+          "signals": {
+            "count": 11162,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "fee_pnl_usdt": -11156.675019085254,
+        "fee_rate_per_side": 0.0005,
+        "friction_pnl_usdt": -11156.928502420498,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_hypothetical_trade_usdt": 0.04541898162786822,
+        "gross_pnl_per_signal_usdt": 0.04541898162786822,
+        "gross_pnl_usdt": 506.9666729302651,
+        "gross_return_per_trade": 4.541898162786822e-05,
+        "hypothetical_trades": 11162,
+        "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+        "net_pnl_per_hypothetical_trade_usdt": -1.9536496011983058,
+        "net_pnl_per_signal_usdt": -1.9536496011983058,
+        "net_pnl_usdt": -21806.63684857549,
+        "not_compounded_into_equity": true,
+        "policy": "B_gate_cooldown",
+        "signals": 11162,
+        "skip_reasons": {},
+        "skipped_or_unresolved": 0,
+        "slippage_rate_per_side": 0.0005,
+        "unresolved_trades": 0
+      }
+    }
+  },
+  "funding_status": "EXCLUDED_BY_DESIGN",
+  "headline": {
+    "A_emitted_alerts": {
+      "average_deployed_notional_usdt": 81.7077344284743,
+      "avg_loss_usdt": -3.0078785015564637,
+      "avg_win_usdt": 3.251992265753832,
+      "break_even_round_trip_bps_approx": 0.14256591290376397,
+      "capital_exhausted": false,
+      "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+      "closed_trades": 2865,
+      "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+      "cost_adjusted_return_per_trade": -0.0011856333986116866,
+      "coverage": {
+        "account_entries": {
+          "count": 2865,
+          "first_utc": "2022-08-30T00:05:00Z",
+          "last_utc": "2026-08-27T22:40:00Z"
+        },
+        "account_exits": {
+          "count": 2865,
+          "first_utc": "2022-08-30T01:05:00Z",
+          "last_utc": "2026-08-27T23:40:00Z"
+        },
+        "evaluation_window": {
+          "end_utc": "2026-08-27T23:59:59.999999Z",
+          "start_utc": "2022-08-28T00:00:00Z"
+        },
+        "signals": {
+          "count": 2865,
+          "first_utc": "2022-08-30T00:00:00Z",
+          "last_utc": "2026-08-27T22:35:00Z"
+        }
+      },
+      "deferred_entries": 0,
+      "entered_trades": 2865,
+      "expectancy_usdt": -1.185633398611687,
+      "fee_pnl_usdt": -2864.733947130054,
+      "fee_rate_per_side": 0.0005,
+      "final_cash_usdt": 6603.160312977513,
+      "final_equity_at": "2026-08-27T23:59:59.999999Z",
+      "final_equity_usdt": 6603.160312977513,
+      "final_quantity": 0,
+      "final_reserved_usdt": 0,
+      "final_state": "FLAT",
+      "final_unrealized_pnl_usdt": 0.0,
+      "final_valuation_complete": true,
+      "friction_pnl_usdt": -572.9508739393566,
+      "funding_status": "EXCLUDED_BY_DESIGN",
+      "gross_pnl_per_trade_usdt": 0.014256591290376397,
+      "gross_pnl_usdt": 40.84513404692838,
+      "gross_return_per_trade": 1.4256591290376398e-05,
+      "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+      "last_valued_equity_usdt": 6603.160312977513,
+      "max_drawdown_pct": 34.2762,
+      "max_drawdown_usdt": 3432.3241622386586,
+      "net_pnl_per_trade_usdt": -1.1856333986116865,
+      "net_pnl_usdt": -3396.839687022482,
+      "paid_fees_usdt": 2864.733947130054,
+      "pnl_scope": "CLOSED_TRADES_ONLY",
+      "policy": "A_emitted_alerts",
+      "profit_factor": 0.4439615322652978,
+      "signals": 2865,
+      "skip_reasons": {},
+      "skipped_entries": 0,
+      "slippage_rate_per_side": 0.0001,
+      "time_in_market_fraction": 0.08170773442847429,
+      "total_return_pct": -33.96839687022487,
+      "total_turnover_usdt": 5729467.894260108,
+      "turnover_over_initial_equity": 572.9467894260108,
+      "unresolved_entry_fees_usdt": 0,
+      "unresolved_trades": 0,
+      "valuation_complete": true,
+      "valuation_status": "COMPLETE",
+      "win_rate_pct": 29.109947643979055
+    },
+    "B_gate_cooldown": {
+      "average_deployed_notional_usdt": 224.78895733516035,
+      "avg_loss_usdt": -3.436458364793222,
+      "avg_win_usdt": 3.9386030734203756,
+      "break_even_round_trip_bps_approx": 0.5775928650542194,
+      "capital_exhausted": true,
+      "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+      "closed_trades": 7882,
+      "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+      "cost_adjusted_return_per_trade": -0.0011421611500634912,
+      "coverage": {
+        "account_entries": {
+          "count": 7882,
+          "first_utc": "2022-08-29T16:05:00Z",
+          "last_utc": "2025-05-20T18:05:00Z"
+        },
+        "account_exits": {
+          "count": 7882,
+          "first_utc": "2022-08-29T17:05:00Z",
+          "last_utc": "2025-05-20T19:05:00Z"
+        },
+        "evaluation_window": {
+          "end_utc": "2026-08-27T23:59:59.999999Z",
+          "start_utc": "2022-08-28T00:00:00Z"
+        },
+        "signals": {
+          "count": 11162,
+          "first_utc": "2022-08-29T16:00:00Z",
+          "last_utc": "2026-08-27T23:00:00Z"
+        }
+      },
+      "deferred_entries": 0,
+      "entered_trades": 7882,
+      "expectancy_usdt": -1.142161150063491,
+      "fee_pnl_usdt": -7881.439462638919,
+      "fee_rate_per_side": 0.0005,
+      "final_cash_usdt": 997.4858151995481,
+      "final_equity_at": "2026-08-27T23:59:59.999999Z",
+      "final_equity_usdt": 997.4858151995481,
+      "final_quantity": 0,
+      "final_reserved_usdt": 0,
+      "final_state": "FLAT",
+      "final_unrealized_pnl_usdt": 0.0,
+      "final_valuation_complete": true,
+      "friction_pnl_usdt": -1576.3334183972534,
+      "funding_status": "EXCLUDED_BY_DESIGN",
+      "gross_pnl_per_trade_usdt": 0.05775928650542194,
+      "gross_pnl_usdt": 455.2586962357357,
+      "gross_return_per_trade": 5.775928650542194e-05,
+      "last_valuation_at": "2026-08-27T23:59:59.999999Z",
+      "last_valued_equity_usdt": 997.4858151995481,
+      "max_drawdown_pct": 90.0256,
+      "max_drawdown_usdt": 9002.560497370565,
+      "net_pnl_per_trade_usdt": -1.1421611500634912,
+      "net_pnl_usdt": -9002.514184800437,
+      "paid_fees_usdt": 7881.439462638919,
+      "pnl_scope": "CLOSED_TRADES_ONLY",
+      "policy": "B_gate_cooldown",
+      "profit_factor": 0.5175493473222058,
+      "signals": 11162,
+      "skip_reasons": {
+        "INSUFFICIENT_FREE_CASH": 3280
+      },
+      "skipped_entries": 3280,
+      "slippage_rate_per_side": 0.0001,
+      "time_in_market_fraction": 0.22478895733516036,
+      "total_return_pct": -90.02514184800452,
+      "total_turnover_usdt": 15762878.925277838,
+      "turnover_over_initial_equity": 1576.287892527784,
+      "unresolved_entry_fees_usdt": 0,
+      "unresolved_trades": 0,
+      "valuation_complete": true,
+      "valuation_status": "COMPLETE",
+      "win_rate_pct": 31.108855620400917
+    }
+  },
+  "headline_scenario": {
+    "fee_rate_per_side": 0.0005,
+    "slippage_rate_per_side": 0.0001
+  },
+  "m15_comparison": {
+    "full_opportunity_diagnostic": {
+      "fee_0.00000_slip_0.00000": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "net_pnl_per_signal_usdt": 0.007665725343919859,
+          "net_pnl_usdt": 9.007227279105834,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "net_pnl_per_signal_usdt": 0.04467408745078226,
+          "net_pnl_usdt": 500.17108309895815,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00000_slip_0.00010": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": -234.97830361507187,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.19231580964763068,
+          "net_pnl_per_signal_usdt": -0.19231580964763068,
+          "net_pnl_usdt": -225.97107633596605,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": -2239.0761266037325,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.15531484847309524,
+          "net_pnl_per_signal_usdt": -0.15531484847309524,
+          "net_pnl_usdt": -1738.9050435047743,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00000_slip_0.00050": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": -1174.4217963289866,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.9918421864254303,
+          "net_pnl_per_signal_usdt": -0.9918421864254303,
+          "net_pnl_usdt": -1165.4145690498806,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": 0.0,
+          "fee_rate_per_side": 0.0,
+          "friction_pnl_usdt": -11190.904718722499,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.9548708141857395,
+          "net_pnl_per_signal_usdt": -0.9548708141857395,
+          "net_pnl_usdt": -10690.73363562354,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00020_slip_0.00000": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -470.00180144545584,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.3923358078011489,
+          "net_pnl_per_signal_usdt": -0.3923358078011489,
+          "net_pnl_usdt": -460.99457416635,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -4478.50003421662,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.3553348473667079,
+          "net_pnl_per_signal_usdt": -0.3553348473667079,
+          "net_pnl_usdt": -3978.3289511176617,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00020_slip_0.00010": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -469.95480578473286,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": -234.97830361507187,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.5922773464857011,
+          "net_pnl_per_signal_usdt": -0.5922773464857011,
+          "net_pnl_usdt": -695.9258821206988,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -4478.052218991299,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": -2239.0761266037325,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.5552837855034006,
+          "net_pnl_per_signal_usdt": -0.5552837855034006,
+          "net_pnl_usdt": -6216.957262496074,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00020_slip_0.00050": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -469.76691708619006,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": -1174.4217963289866,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.3916438179881454,
+          "net_pnl_per_signal_usdt": -1.3916438179881454,
+          "net_pnl_usdt": -1635.1814861360708,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -4476.261853272876,
+          "fee_rate_per_side": 0.0002,
+          "friction_pnl_usdt": -11190.904718722499,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.3546798400229023,
+          "net_pnl_per_signal_usdt": -1.3546798400229023,
+          "net_pnl_usdt": -15166.995488896415,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00050_slip_0.00000": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -1175.0045036136396,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.9923381075187522,
+          "net_pnl_per_signal_usdt": -0.9923381075187522,
+          "net_pnl_usdt": -1165.9972763345338,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -11196.25008554155,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": 0.0,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -0.9553482495929432,
+          "net_pnl_per_signal_usdt": -0.9553482495929432,
+          "net_pnl_usdt": -10696.079002442591,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00050_slip_0.00010": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -1174.887014461832,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": -234.97830361507187,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.1922196517428068,
+          "net_pnl_per_signal_usdt": -1.1922196517428068,
+          "net_pnl_usdt": -1400.858090797798,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -11195.130547478248,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": -2239.0761266037325,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.1552371910488586,
+          "net_pnl_per_signal_usdt": -1.1552371910488586,
+          "net_pnl_usdt": -12934.035590983021,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0001,
+          "unresolved_trades": 0
+        }
+      },
+      "fee_0.00050_slip_0.00050": {
+        "A_emitted_alerts": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:20:00Z",
+              "last_utc": "2026-08-27T15:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 1175,
+              "first_utc": "2022-08-30T05:20:00Z",
+              "last_utc": "2026-08-27T16:05:00Z"
+            },
+            "signals": {
+              "count": 1175,
+              "first_utc": "2022-08-30T04:15:00Z",
+              "last_utc": "2026-08-27T15:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -1174.417292715475,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": -1174.4217963289866,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.007665725343919859,
+          "gross_pnl_per_signal_usdt": 0.007665725343919859,
+          "gross_pnl_usdt": 9.007227279105834,
+          "hypothetical_trades": 1175,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.9913462653322178,
+          "net_pnl_per_signal_usdt": -1.9913462653322178,
+          "net_pnl_usdt": -2339.831861765356,
+          "not_compounded_into_equity": true,
+          "policy": "A_emitted_alerts",
+          "signals": 1175,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        },
+        "B_gate_cooldown": {
+          "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+          "coverage": {
+            "evaluation_window": {
+              "end_utc": "2026-08-27T23:59:59.999999Z",
+              "start_utc": "2022-08-28T00:00:00Z"
+            },
+            "hypothetical_entries": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:05:00Z",
+              "last_utc": "2026-08-27T23:05:00Z"
+            },
+            "hypothetical_exits": {
+              "count": 11196,
+              "first_utc": "2022-08-29T17:05:00Z",
+              "last_utc": "2026-08-28T00:05:00Z"
+            },
+            "signals": {
+              "count": 11196,
+              "first_utc": "2022-08-29T16:00:00Z",
+              "last_utc": "2026-08-27T23:00:00Z"
+            }
+          },
+          "fee_pnl_usdt": -11190.654633182188,
+          "fee_rate_per_side": 0.0005,
+          "friction_pnl_usdt": -11190.904718722499,
+          "funding_status": "EXCLUDED_BY_DESIGN",
+          "gross_pnl_per_hypothetical_trade_usdt": 0.04467408745078226,
+          "gross_pnl_per_signal_usdt": 0.04467408745078226,
+          "gross_pnl_usdt": 500.17108309895815,
+          "hypothetical_trades": 11196,
+          "label": "FULL_OPPORTUNITY_SET_DIAGNOSTIC_NOT_AN_ACCOUNT",
+          "net_pnl_per_hypothetical_trade_usdt": -1.9543933787786467,
+          "net_pnl_per_signal_usdt": -1.9543933787786467,
+          "net_pnl_usdt": -21881.388268805727,
+          "not_compounded_into_equity": true,
+          "policy": "B_gate_cooldown",
+          "signals": 11196,
+          "skip_reasons": {},
+          "skipped_or_unresolved": 0,
+          "slippage_rate_per_side": 0.0005,
+          "unresolved_trades": 0
+        }
+      }
+    },
+    "headline": {
+      "A_emitted_alerts": {
+        "average_deployed_notional_usdt": 33.51015286333588,
+        "avg_loss_usdt": -3.4246971619349367,
+        "avg_win_usdt": 4.178668271328114,
+        "capital_exhausted": false,
+        "capital_stop_note": "No capital stop: every scheduled entry was affordable under the frozen constants.",
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "coverage": {
+          "account_entries": {
+            "count": 1175,
+            "first_utc": "2022-08-30T04:20:00Z",
+            "last_utc": "2026-08-27T15:05:00Z"
+          },
+          "account_exits": {
+            "count": 1175,
+            "first_utc": "2022-08-30T05:20:00Z",
+            "last_utc": "2026-08-27T16:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 1175,
+            "first_utc": "2022-08-30T04:15:00Z",
+            "last_utc": "2026-08-27T15:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 1175,
+        "expectancy_usdt": -1.1922196517428072,
+        "fee_pnl_usdt": -1174.887014461832,
+        "fee_rate_per_side": 0.0005,
+        "final_equity_usdt": 8599.141909202206,
+        "friction_pnl_usdt": -234.97830361507187,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.007665725343919859,
+        "gross_pnl_usdt": 9.007227279105834,
+        "max_drawdown_pct": 14.141600000000002,
+        "max_drawdown_usdt": 1415.1806347523725,
+        "net_pnl_per_trade_usdt": -1.1922196517428068,
+        "net_pnl_usdt": -1400.858090797798,
+        "policy": "A_emitted_alerts",
+        "profit_factor": 0.5071736996059191,
+        "signals": 1175,
+        "skip_reasons": {},
+        "skipped_entries": 0,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.03351015286333588,
+        "total_return_pct": -14.00858090797794,
+        "total_turnover_usdt": 2349774.0289236642,
+        "turnover_over_initial_equity": 234.97740289236643,
+        "unresolved_trades": 0,
+        "win_rate_pct": 29.361702127659573
+      },
+      "B_gate_cooldown": {
+        "average_deployed_notional_usdt": 224.24709103354044,
+        "avg_loss_usdt": -3.405961121698986,
+        "avg_win_usdt": 3.9201189232853726,
+        "capital_exhausted": true,
+        "capital_stop_note": "INSUFFICIENT_FREE_CASH means the wallet could not afford the next fixed-size entry (reserved plus entry fee); it is not necessarily bankruptcy and the wallet may remain positive.",
+        "cost_adjusted_label": "After assumed trading fees and slippage, before funding.",
+        "coverage": {
+          "account_entries": {
+            "count": 7863,
+            "first_utc": "2022-08-29T16:05:00Z",
+            "last_utc": "2025-05-16T20:05:00Z"
+          },
+          "account_exits": {
+            "count": 7863,
+            "first_utc": "2022-08-29T17:05:00Z",
+            "last_utc": "2025-05-16T21:05:00Z"
+          },
+          "evaluation_window": {
+            "end_utc": "2026-08-27T23:59:59.999999Z",
+            "start_utc": "2022-08-28T00:00:00Z"
+          },
+          "signals": {
+            "count": 11196,
+            "first_utc": "2022-08-29T16:00:00Z",
+            "last_utc": "2026-08-27T23:00:00Z"
+          }
+        },
+        "deferred_entries": 0,
+        "entered_trades": 7863,
+        "expectancy_usdt": -1.1446872733997315,
+        "fee_pnl_usdt": -7862.4308774233405,
+        "fee_rate_per_side": 0.0005,
+        "final_equity_usdt": 999.3239692579015,
+        "friction_pnl_usdt": -1572.5296039295679,
+        "funding_status": "EXCLUDED_BY_DESIGN",
+        "gross_pnl_per_trade_usdt": 0.05523139394770719,
+        "gross_pnl_usdt": 434.28445061082164,
+        "max_drawdown_pct": 90.0176,
+        "max_drawdown_usdt": 9001.75682507988,
+        "net_pnl_per_trade_usdt": -1.144687273399731,
+        "net_pnl_usdt": -9000.676030742086,
+        "policy": "B_gate_cooldown",
+        "profit_factor": 0.5138660008995012,
+        "signals": 11196,
+        "skip_reasons": {
+          "INSUFFICIENT_FREE_CASH": 3333
+        },
+        "skipped_entries": 3333,
+        "slippage_rate_per_side": 0.0001,
+        "time_in_market_fraction": 0.22424709103354046,
+        "total_return_pct": -90.00676030742099,
+        "total_turnover_usdt": 15724861.75484668,
+        "turnover_over_initial_equity": 1572.4861754846681,
+        "unresolved_trades": 0,
+        "win_rate_pct": 30.86608164822587
+      }
+    }
+  },
+  "window": {
+    "end_utc": "2026-08-27T23:59:59.999999Z",
+    "entry_bounded_by_window_end": true,
+    "exit_may_complete_past_window_end": true,
+    "note": "Same four-year requested window as the frozen M15 account.",
+    "signal_semantics": "M5 trigger-close timestamps inside the window, inclusive",
+    "start_utc": "2022-08-28T00:00:00Z"
+  }
+}

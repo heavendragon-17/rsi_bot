@@ -39,6 +39,7 @@ CODE_PATHS = (
     "app/trading/strategy/btc_rsi_cross_alert/evaluator.py",
     "tests/test_btc_m15_reference_backtest.py",
     "tests/test_btc_m15_reference_backtest_correction.py",
+    "tests/test_btc_m15_unresolved_valuation.py",
 )
 
 
@@ -81,10 +82,11 @@ def _sha256_text(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Charts
 # ---------------------------------------------------------------------------
-def _daily_series(rows: list[dict[str, Any]]) -> tuple[list[str], list[float]]:
-    latest: dict[str, float] = {}
+def _daily_series(rows: list[dict[str, Any]]) -> tuple[list[str], list[float | None]]:
+    """Preserve unavailable daily terminal values rather than forward-filling."""
+    latest: dict[str, float | None] = {}
     for row in rows:
-        latest[row["timestamp"][:10]] = float(row["equity"])
+        latest[row["timestamp"][:10]] = engine._finite(row["equity"])
     days = sorted(latest)
     return days, [latest[day] for day in days]
 
@@ -98,13 +100,26 @@ def render_charts(
     import matplotlib
 
     matplotlib.use("Agg")
+    import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+
+    def _day_axis(days: list[str]) -> list[datetime]:
+        # Genuine datetime axis: multi-year spans get proportional spacing and
+        # sparse ticks instead of one categorical slot per day (which also
+        # compressed long flat tail intervals into a single step).
+        return [datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC) for day in days]
+
+    def _sparse_dates(axis: Any) -> None:
+        axis.xaxis.set_major_locator(MaxNLocator(nbins=6))
+        axis.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
 
     chart_dir.mkdir(parents=True, exist_ok=True)
     footer = (
         "Historical development evidence on delayed candle-price proxies. "
         "After assumed trading fees and slippage, before funding. "
         "Funding is excluded by design and was not observed to be zero."
+        " Gaps / n/a denote unavailable valuations; wallet cash is not equity."
     )
     headline_key = engine.scenario_key(engine.HEADLINE_FEE_RATE, engine.HEADLINE_SLIPPAGE_RATE)
     gross_key = engine.scenario_key(0.0, 0.0)
@@ -118,12 +133,15 @@ def render_charts(
         ):
             run = scenarios[key][policy]["run"]
             days, values = _daily_series(run.equity)
-            axis.plot(days, values, linewidth=1.1, color=colour, linestyle=style, label=label)
+            axis.plot(_day_axis(days),
+                      [value if value is not None else math.nan for value in values],
+                      linewidth=1.1, color=colour, linestyle=style, label=label)
         axis.axhline(engine.INITIAL_EQUITY_USDT, color="black", linewidth=0.8, linestyle=":")
         axis.set_title(f"{policy}: gross versus cost-adjusted equity (daily close of marked equity)")
         axis.set_ylabel("Equity (USDT)")
         axis.legend(fontsize=8)
         axis.grid(alpha=0.3)
+        _sparse_dates(axis)
         axis.tick_params(axis="x", labelrotation=30, labelsize=7)
     figure.text(0.01, 0.01, footer, fontsize=7, color="#444444")
     figure.tight_layout(rect=(0, 0.03, 1, 1))
@@ -135,18 +153,24 @@ def render_charts(
     for axis, policy in zip(axes, engine.POLICIES, strict=True):
         rows = scenarios[headline_key][policy]["run"].equity
         days, _ = _daily_series(rows)
-        worst: dict[str, float] = {}
+        worst: dict[str, float | None] = {}
         for row in rows:
             day = row["timestamp"][:10]
-            worst[day] = max(worst.get(day, 0.0), float(row["drawdown_pct"]))
-        axis.fill_between(days, [worst[day] for day in days], color="#b03030", alpha=0.35)
-        axis.plot(days, [worst[day] for day in days], color="#702020", linewidth=0.9)
+            value = engine._finite(row["drawdown_pct"])
+            previous = worst.get(day, 0.0)
+            worst[day] = max(previous, value) if previous is not None and value is not None else None
+        values = [worst[day] if worst[day] is not None else math.nan for day in days]
+        axis.fill_between(_day_axis(days), values, color="#b03030", alpha=0.35)
+        axis.plot(_day_axis(days), values, color="#702020", linewidth=0.9)
+        maximum = scenarios[headline_key][policy]["summary"]["max_drawdown_pct"]
+        maximum_label = f"{maximum:.4f}% of peak equity" if maximum is not None else "n/a — incomplete valuation"
         axis.set_title(
             f"{policy}: drawdown under the headline cost scenario "
-            f"(max {scenarios[headline_key][policy]['summary']['max_drawdown_pct']:.4f}% of peak equity)"
+            f"(max {maximum_label})"
         )
         axis.set_ylabel("Drawdown (% of peak equity)")
         axis.grid(alpha=0.3)
+        _sparse_dates(axis)
         axis.tick_params(axis="x", labelrotation=30, labelsize=7)
     figure.text(0.01, 0.01, footer, fontsize=7, color="#444444")
     figure.tight_layout(rect=(0, 0.03, 1, 1))
@@ -157,7 +181,10 @@ def render_charts(
     figure, axes = plt.subplots(1, 2, figsize=(13, 5))
     for axis, policy in zip(axes, engine.POLICIES, strict=True):
         grid_values = [
-            [scenarios[engine.scenario_key(fee, slip)][policy]["summary"]["net_pnl_usdt"] for slip in engine.SLIPPAGE_RATES]
+            [
+                value if (value := scenarios[engine.scenario_key(fee, slip)][policy]["summary"]["net_pnl_usdt"]) is not None else math.nan
+                for slip in engine.SLIPPAGE_RATES
+            ]
             for fee in engine.FEE_RATES
         ]
         image = axis.imshow(grid_values, cmap="RdYlGn", aspect="auto")
@@ -165,10 +192,11 @@ def render_charts(
         axis.set_yticks(range(len(engine.FEE_RATES)), [f"{value * 100:.3f}%" for value in engine.FEE_RATES])
         axis.set_xlabel("Slippage per side")
         axis.set_ylabel("Fee per side")
-        axis.set_title(f"{policy}: net P&L (USDT) across the frozen cost grid")
+        axis.set_title(f"{policy}: closed-trade net P&L (USDT) across the frozen cost grid")
         for row_index, row in enumerate(grid_values):
             for column_index, value in enumerate(row):
-                axis.text(column_index, row_index, f"{value:,.2f}", ha="center", va="center", fontsize=9)
+                label = f"{value:,.2f}" if math.isfinite(value) else "n/a"
+                axis.text(column_index, row_index, label, ha="center", va="center", fontsize=9)
         figure.colorbar(image, ax=axis, shrink=0.85)
     figure.text(0.01, 0.01, footer, fontsize=7, color="#444444")
     figure.tight_layout(rect=(0, 0.04, 1, 1))
@@ -206,12 +234,12 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "",
         "## Frozen protocol",
         "",
-        f"- Protocol version: `{engine.VERSION}` (correction of `{engine.PREVIOUS_VERSION}`; the corrected execution, accounting, and drawdown contract supersedes the version-1 wording — see `protocol.json` correction notes), frozen before any performance number was computed (`protocol.json` SHA-256 `{manifest['protocol_sha256'][:32]}…`).",
+        f"- Protocol version: `{engine.VERSION}` (correction of `{engine.PREVIOUS_VERSION}`; v3 supersedes v2 unresolved cash-floor and final-cash-as-equity reporting while retaining v2 execution corrections. Historical packets are preserved unchanged — see `protocol.json` supersession notes). Strategy and cost assumptions remain frozen (`protocol.json` SHA-256 `{manifest['protocol_sha256'][:32]}…`).",
         f"- Evaluation window (UTC): `{engine.PROTOCOL['evaluation_window']['start_utc']}` → `{engine.PROTOCOL['evaluation_window']['end_utc']}`.",
         f"- Capital: `{engine.INITIAL_EQUITY_USDT:,.0f}` USDT initial equity, `{engine.ENTRY_NOTIONAL_USDT:,.0f}` USDT fixed entry notional (research constants).",
         "- Entry: open of the native M5 candle at the first 5-minute boundary strictly after the signal close (`floor(signal, 5m) + 5m`, derived from the signal time alone). If that exact candle is missing, the signal is skipped as `MISSING_ENTRY_CANDLE`; no later candle is substituted. Exit: exactly 60 minutes later at that candle's open.",
         "- No stop-loss, take-profit, trailing rule, or alternative horizon. One active position per policy, no pyramiding, exits processed before entries at the same timestamp. A deferred entry is priced at its actual deferred timestamp, never at the original scheduled index.",
-        "- Open equity is wallet cash plus unrealized P&L (`cash + unrealized`; equivalently available cash + reserved + unrealized). Unresolved positions retain paid fees and exposure, report unrealized as unknown, and are never presented as flat. Drawdown is research-local and positional; a new equity peak always resets pointwise drawdown to zero.",
+        "- Open equity is wallet cash plus unrealized P&L (`cash + unrealized`; equivalently available cash + reserved + unrealized). Unresolved positions retain paid fees and exposure and are never presented as flat. A valid exact-timestamp valuation is required; otherwise equity and unrealized P&L are null. Wallet cash is not an equity floor. Missing valuations make dependent drawdown metrics incomplete.",
         "",
         "## Populations and policy definitions",
         "",
@@ -235,16 +263,27 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
     rows = [
         ("Signals", "signals", "{:,}"),
         ("Trades entered", "entered_trades", "{:,}"),
+        ("Trades closed", "closed_trades", "{:,}"),
         ("Entries skipped", "skipped_entries", "{:,}"),
         ("Entries deferred to a position exit", "deferred_entries", "{:,}"),
         ("Unresolved trades", "unresolved_trades", "{:,}"),
-        ("Gross P&L (USDT)", "gross_pnl_usdt", "{:,.2f}"),
-        ("Execution friction P&L (USDT)", "friction_pnl_usdt", "{:,.2f}"),
-        ("Fee P&L (USDT)", "fee_pnl_usdt", "{:,.2f}"),
-        ("Net P&L (USDT)", "net_pnl_usdt", "{:,.2f}"),
+        ("Closed-trade gross P&L (USDT)", "gross_pnl_usdt", "{:,.2f}"),
+        ("Closed-trade execution friction P&L (USDT)", "friction_pnl_usdt", "{:,.2f}"),
+        ("Closed-trade fee P&L (USDT)", "fee_pnl_usdt", "{:,.2f}"),
+        ("Closed-trade net P&L (USDT)", "net_pnl_usdt", "{:,.2f}"),
+        ("Paid fees including unresolved entries (USDT)", "paid_fees_usdt", "{:,.2f}"),
+        ("Unresolved entry fees (USDT)", "unresolved_entry_fees_usdt", "{:,.2f}"),
         ("Gross P&L per trade (USDT)", "gross_pnl_per_trade_usdt", "{:,.4f}"),
         ("Net P&L per trade (USDT)", "net_pnl_per_trade_usdt", "{:,.4f}"),
         ("Final equity (USDT)", "final_equity_usdt", "{:,.2f}"),
+        ("Final equity timestamp", "final_equity_at", "{}"),
+        ("Wallet cash, not equity (USDT)", "final_cash_usdt", "{:,.2f}"),
+        ("Final position state", "final_state", "{}"),
+        ("Final quantity", "final_quantity", "{:,.8f}"),
+        ("Final reserved exposure (USDT)", "final_reserved_usdt", "{:,.2f}"),
+        ("Last valued equity (USDT; not necessarily final)", "last_valued_equity_usdt", "{:,.2f}"),
+        ("Last valuation timestamp", "last_valuation_at", "{}"),
+        ("Valuation status", "valuation_status", "{}"),
         ("Total return (%)", "total_return_pct", "{:.4f}"),
         ("Max drawdown (% of peak equity)", "max_drawdown_pct", "{:.4f}"),
         ("Time in market (%)", "time_in_market_fraction", "{:.2%}"),
@@ -264,9 +303,13 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
     lines += [
         "",
         "Gross, friction, and fee components are disjoint and sum to net P&L; nothing is",
-        "double counted. `time_in_market_fraction` is position-seconds divided by window",
+        "double counted. P&L components and per-trade statistics cover closed trades only; paid",
+        "unresolved entry fees are reported separately and remain deducted from wallet cash.",
+        "Last valued equity is timestamped historical information, not a substitute for unknown",
+        "final equity. `n/a` denotes unavailable metrics, not zero. Charts leave valuation gaps.",
+        "`time_in_market_fraction` is position-seconds divided by window",
         "seconds, and `average_deployed_notional_usdt` is notional-seconds divided by window",
-        "seconds, so neither is inflated by overlapping exposure — there is none.",
+        "seconds, including unresolved exposure through evaluation end; no overlapping exposure is added.",
         "",
         "Every row above is **After assumed trading fees and slippage, before funding.**",
         "",
@@ -285,8 +328,7 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "one position at a time) mean that a policy which loses money at this trade count stops",
         "being able to afford the next fixed-size entry and stops entering. `INSUFFICIENT_FREE_CASH`",
         "means inability to afford the next `1,000` USDT entry plus its fee — not necessarily",
-        "bankruptcy: the wallet can remain positive but below the fixed entry threshold (for example,",
-        "policy B ends near `999` USDT, which cannot fund another `1,000` USDT entry). Any policy",
+        "bankruptcy: the wallet can remain positive but below the fixed entry threshold. Any policy",
         "that hits this capital stop has its *realized* net P&L truncated by that stop, so the",
         "headline net totals are **not** a clean like-for-like comparison. Dividing account totals",
         "by executed trades does **not** make results capital-independent or automatically like-for-like:",
@@ -294,13 +336,16 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "conditioned subset), so per-trade averages remain conditional and are not a full-opportunity average.",
         "See the separately labelled full-opportunity-set diagnostic below for the affordability-free view.",
         "",
-        "### Why both policies lose: costs dominate the gross edge",
+        "### Closed-trade cost drag (not total account performance)",
         "",
     ]
     for policy in engine.POLICIES:
         item = headline[policy]
         gross_per_trade = item["gross_pnl_per_trade_usdt"]
         net_per_trade = item["net_pnl_per_trade_usdt"]
+        if gross_per_trade is None or net_per_trade is None:
+            lines.append(f"- `{policy}`: per-closed-trade cost comparison is n/a (no evaluable closed trades).")
+            continue
         lines.append(
             f"- `{policy}`: gross {gross_per_trade:+.4f} USDT per trade, net {net_per_trade:+.4f} USDT per "
             f"trade, so assumed costs remove about {abs(net_per_trade - gross_per_trade):.4f} USDT "
@@ -310,10 +355,8 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
     lines += [
         "",
         "At the headline assumptions the round-trip fee plus slippage is roughly 0.12% of notional,",
-        "while the measured gross edge per trade is a small fraction of that. Policy B trades far",
-        "more often (turnover 1,572× initial equity versus 235× for A), so it pays that toll far",
-        "more times. This is a cost-drag observation about trade frequency, not a claim about",
-        "either signal's predictive quality.",
+        "but the measured cost drag and turnover depend on the executed closed-trade sample above.",
+        "These statistics do not resolve an unvalued open position or establish predictive quality.",
         "",
     ]
     diagnostic = summary.get("full_opportunity_diagnostic", {}).get(headline_key, {})
@@ -379,7 +422,7 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         "",
         "## Cost sensitivity (every frozen scenario)",
         "",
-        "Cost sensitivity below shows the capital-constrained **account** view. The full-opportunity",
+        "Cost sensitivity below shows closed-trade P&L in the capital-constrained **account** view. The full-opportunity",
         "diagnostic is computed for every frozen scenario as well and is stored in `summary.json`",
         "under `full_opportunity_diagnostic`; only the headline diagnostic is tabulated in this report.",
         "",
@@ -390,10 +433,10 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         cells = []
         for policy in engine.POLICIES:
             item = scenario[policy]
-            cells.append(
-                f"{item['net_pnl_usdt']:,.2f} | {item['gross_pnl_usdt']:,.2f} | "
-                f"{item['fee_pnl_usdt']:,.2f} | {item['friction_pnl_usdt']:,.2f}"
-            )
+            cells.append(" | ".join(
+                f"{item[key]:,.2f}" if item.get(key) is not None else "n/a"
+                for key in ("net_pnl_usdt", "gross_pnl_usdt", "fee_pnl_usdt", "friction_pnl_usdt")
+            ))
         lines.append(
             f"| {scenario['fee_rate_per_side'] * 100:.3f}% | {scenario['slippage_rate_per_side'] * 100:.3f}% "
             f"| {cells[0]} | {cells[1]} |"
@@ -423,15 +466,15 @@ def render_report(summary: dict[str, Any], manifest: dict[str, Any]) -> str:
         f"- Skipped entries and their reasons: A `{json.dumps(headline['A_emitted_alerts']['skip_reasons'], sort_keys=True)}`, B `{json.dumps(headline['B_gate_cooldown']['skip_reasons'], sort_keys=True)}`.",
         "- A missing exact entry candle skips the entry as `MISSING_ENTRY_CANDLE`; a missing exact exit candle leaves the trade explicitly unresolved (`UNRESOLVED_MISSING_EXIT_CANDLE`) and blocks new exposure. A position still open because its scheduled exit falls past the window end is labelled `OPEN_AT_EVALUATION_END`. No price is ever substituted and no later candle is ever used silently.",
         "- Entries are bounded by the window end; a trade already entered runs to its exact scheduled exit, which may fall after the window end (equity timestamps remain monotonic past the window end).",
-        "- Open equity uses the available native M5 close as its mark; unresolved rows retain paid fees and known exposure with unrealized reported as unknown and equity reported as the fee-adjusted cash floor (never as flat).",
+        "- Open and unresolved equity use valid native M5 closes at their explicit valuation timestamps. Without a current mark, unrealized P&L and equity are null; cash, quantity, reserved exposure, and paid fees remain known. No stale or future mark is substituted as current and no unresolved position is presented as flat.",
         "",
         "## Verification",
         "",
         f"- An independent one-hour cooldown over the {manifest['policy_a_reconstruction']['cross_and_gate_bars_before_cooldown']:,} cross-and-gate M15 bars reproduces the replay's emitted alerts exactly: `{manifest['policy_a_reconstruction']['matches']}` ({manifest['policy_a_reconstruction']['emitted_count']:,} vs {manifest['policy_a_reconstruction']['reconstructed_count']:,}).",
         f"- Source hashes re-checked against the parent packet: `{manifest['source_hash_parity']}`.",
         "- Every signal produces exactly one entry outcome (filled, deferred then filled, or skipped with a reason), enforced at run time.",
-        "- Every executed trade holds exactly 60 minutes, deploys exactly the frozen 1,000 USDT entry notional, and ends `CLOSED_AT_SCHEDULED_EXIT`; there are no unresolved trades in this dataset.",
-        "- The trade ledger reconciles with the equity curve: final equity equals initial equity plus the sum of net trade P&L; open equity equals wallet cash plus unrealized (a flat-price, zero-cost open leaves equity unchanged); a new equity peak always yields zero drawdown.",
+        "- Every closed trade holds exactly 60 minutes, deploys the frozen 1,000 USDT entry notional, and ends `CLOSED_AT_SCHEDULED_EXIT`. Unresolved trades are counted separately above.",
+        "- Wallet cash equals initial equity plus closed-trade net P&L minus paid unresolved entry fees. Known equity equals wallet cash plus unrealized P&L; only a flat account has equity equal to wallet cash. Drawdown retains positional row identity and becomes incomplete after an unknown valuation.",
         "",
         "## Limitations",
         "",
@@ -522,18 +565,7 @@ def run(baseline_run: Path, output_dir: Path, *, charts: bool = True) -> Path:
     manifest = {
         "definition_version": engine.VERSION,
         "previous_definition_version": engine.PREVIOUS_VERSION,
-        "supersedes": {
-            "packet": "research/results/m15_reference_backtest_runs/run_20260918T103453157146Z_991fd4d1",
-            "definition_version": engine.PREVIOUS_VERSION,
-            "preserved_unchanged": True,
-            "affected_outputs": [
-                "equity_curve.csv open-position equity (version 1 overstated open equity by one fixed entry notional)",
-                "equity_curve.csv and summary.json drawdown (version 1 left stale drawdown at a new peak and collapsed same-timestamp rows)",
-                "report.md comparison claims (version 1 called per-trade averages capital-independent and like-for-like)",
-                "report.md gate-count wording (version 1 cited only one of the 38,292 versus 38,335 windows)",
-                "execution contract wording and two edge cases (version 1 jumped to a later entry candle and reused the original index for deferred fills)",
-            ],
-        },
+        "supersedes": engine.PROTOCOL["supersedes"],
         "completion_status": "SUCCESS",
         "alpha_assessment": engine.PROTOCOL["alpha_assessment"],
         "evidence_role": engine.PROTOCOL["evidence_role"],

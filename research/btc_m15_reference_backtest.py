@@ -46,7 +46,7 @@ Version history
     helper positionally through a timestamp-only map, and marked open equity as
     ``cash + full market value`` while ``cash`` still contained the reserved
     principal.
-``btc-m15-reference-backtest-v2`` (this module)
+``btc-m15-reference-backtest-v2``
     Research-only accounting and reporting correction. No strategy, indicator,
     horizon, cost, sizing-constant, cooldown, or production change. The
     corrected contract is: the scheduled entry is the arithmetic
@@ -58,6 +58,14 @@ Version history
     diagnostic (same signals, rules, and costs, no cash admission, no equity
     compounding) is reported alongside the unchanged capital-constrained
     account.
+``btc-m15-reference-backtest-v3`` (this module)
+    Supersedes version 2's unresolved cash-floor and final-cash-as-equity
+    reporting. Wallet cash is not an equity floor. Unresolved exposure is
+    valued only at an explicit valid native close timestamp; absent a current
+    mark, equity and unrealized P&L are null and dependent metrics incomplete.
+    Last valuation is distinct from final equity. Paid fees and known exposure
+    remain in the ledger. All historical packets are preserved unchanged;
+    execution, strategy, schedules, sizing and cost constants are unchanged.
 """
 
 from __future__ import annotations
@@ -79,8 +87,8 @@ from app.core.constants import DEFAULT_MAKER_FEE, DEFAULT_TAKER_FEE
 from app.trading.strategy.btc_rsi_cross_alert.models import PREPARATION_READY
 from research import btc_m15_signal_diagnostic as diagnostic
 
-VERSION = "btc-m15-reference-backtest-v2"
-PREVIOUS_VERSION = "btc-m15-reference-backtest-v1"
+VERSION = "btc-m15-reference-backtest-v3"
+PREVIOUS_VERSION = "btc-m15-reference-backtest-v2"
 TIMEFRAME = diagnostic.TIMEFRAME
 EXECUTION_TIMEFRAME = "5m"
 M5_MINUTES = 5
@@ -150,6 +158,8 @@ EQUITY_FIELDS = (
     "timestamp",
     "state",
     "mark_price",
+    "valuation_at",
+    "valuation_source",
     "quantity",
     "cash",
     "reserved",
@@ -160,6 +170,19 @@ EQUITY_FIELDS = (
 
 PROTOCOL: dict[str, Any] = {
     "protocol_version": VERSION,
+    "supersedes": {
+        "packet": "research/results/m15_reference_backtest_runs/run_20260918T125747028014Z_991fd4d1",
+        "definition_version": PREVIOUS_VERSION,
+        "preserved_unchanged": True,
+        "earlier_packets_preserved_unchanged": True,
+        "affected_outputs": [
+            "Unresolved equity: replace the version-2 cash floor with timestamped valuation or null.",
+            "Summary final equity and return: use terminal valuation, not final wallet cash.",
+            "Drawdown: missing valuation makes dependent metrics incomplete, not a cash-only drawdown.",
+            "Reports and charts: null-safe metrics, explicit last valuation, closed-trade P&L scope, retained paid fees and exposure.",
+        ],
+        "unchanged": "Signals, strategy, execution schedules, costs, sizing constants, and all historical evidence files.",
+    },
     "frozen_before_performance": True,
     "alpha_assessment": "NOT_ASSESSED",
     "evidence_role": "HISTORICAL_DEVELOPMENT_EVIDENCE",
@@ -238,9 +261,18 @@ PROTOCOL: dict[str, Any] = {
         ),
         "unresolved": (
             "An unresolved position retains its paid entry fee in cash and its known exposure in reserved, "
-            "reports unrealized as unknown (no price is substituted), and reports equity as the fee-adjusted cash "
-            "floor (cash only, unrealized excluded). Its state is UNRESOLVED, never FLAT, and it is excluded from "
-            "realized P&L. The floor is not comparable to a flat equity point."
+            "and retains its quantity. Wallet cash is not an equity floor. Use only a finite positive native M5 "
+            "close at the row's explicit valuation_at timestamp; otherwise unrealized P&L and equity are null. "
+            "Mark available closes through evaluation end without substituting an exit, stale mark or future price. "
+            "At missing-exit/evaluation-end rows the state is UNRESOLVED, never FLAT; final equity requires an "
+            "exact end-time valuation. Last valued equity is separately timestamped and is not final equity. "
+            "Closed-trade P&L excludes unresolved trades; paid unresolved entry fees remain deducted in cash "
+            "and separately reported, while turnover and exposure include the known unresolved entry."
+        ),
+        "unresolved_correction_note": (
+            "Version 3 supersedes version 2's cash-floor treatment and final_equity=final_cash summary. "
+            "Unknown equity is null, not zero or cash. Drawdown is incomplete after an unknown point because "
+            "the running peak is unknown. Historical version-1 and version-2 evidence packets are not rewritten."
         ),
         "capital_reservation": "At entry, reserved = quantity * entry_fill_price; cash must cover reserved plus the entry fee. Reserved returns to cash at exit.",
         "insufficient_capital": (
@@ -263,7 +295,9 @@ PROTOCOL: dict[str, Any] = {
             "initial equity, peak updates on a new high, and drawdown is (peak - equity) / peak * 100 with a new peak "
             "always yielding zero. Rows sharing a timestamp keep their individual identities in order; they are never "
             "collapsed through a timestamp-only map. Timestamps are monotonic: exits may complete past the evaluation "
-            "window end and no window-end row is appended behind them."
+            "window end and no window-end row is appended behind them. Missing/non-finite equity yields null "
+            "drawdown from that point onward and null aggregate drawdown with valuation_complete=false. "
+            "Completeness refers to the reported mark/event rows, not continuous price observation."
         ),
     },
     "comparison": {
@@ -405,19 +439,25 @@ def scheduled_m5_open_after(signal_close_at: datetime) -> datetime:
     return floored + timedelta(minutes=M5_MINUTES)
 
 
-def research_drawdown_curve(balances: Sequence[float], initial_balance: float) -> list[float]:
+def research_drawdown_curve(balances: Sequence[float | None], initial_balance: float) -> list[float | None]:
     """Pointwise drawdown percentages in order, with new peaks resetting to zero.
 
     Research-local correction: unlike the shared ``app`` helper, the running
     peak is applied before the point's own drawdown is computed, so balances
     such as ``[100, 90, 110]`` yield ``[0, 10, 0]``. Rounds to 4 decimals to
-    match the packet's committed precision.
+    match the packet's committed precision. An unknown balance makes the running
+    peak unknown thereafter; no later value silently repairs that missing history.
     """
 
     peak = float(initial_balance)
-    drawdowns: list[float] = []
+    drawdowns: list[float | None] = []
+    complete = True
     for balance in balances:
-        value = float(balance)
+        value = _finite(balance)
+        if value is None or not complete:
+            complete = False
+            drawdowns.append(None)
+            continue
         if value > peak:
             peak = value
         if peak <= 0:
@@ -446,9 +486,22 @@ def calculate_research_portfolio_drawdown(
             "drawdown_curve": [],
             "max_dd_duration": 0,
             "avg_drawdown_pct": 0.0,
+            "valuation_complete": True,
         }
-    balances = [float(point["balance"]) for point in points]
+    balances = [_finite(point["balance"]) for point in points]
     curve = research_drawdown_curve(balances, initial_balance)
+    if any(value is None for value in balances):
+        return {
+            "max_drawdown_pct": None,
+            "max_drawdown_value": None,
+            "drawdown_curve": [
+                {"date": point["date"], "drawdown": dd}
+                for point, dd in zip(points, curve, strict=True)
+            ],
+            "max_dd_duration": None,
+            "avg_drawdown_pct": None,
+            "valuation_complete": False,
+        }
     peak = float(initial_balance)
     max_dd = 0.0
     max_dd_value = 0.0
@@ -470,6 +523,10 @@ def calculate_research_portfolio_drawdown(
         fraction = dd_pct / 100.0
         if fraction > max_dd:
             max_dd = fraction
+            # Amount at the selected percentage-drawdown observation, not a
+            # separately maximized absolute drawdown: ties resolve to the
+            # first maximum percentage, so this can differ by dust from the
+            # largest absolute peak-to-trough distance.
             max_dd_value = peak - value
         dd_curve.append({"date": point["date"], "drawdown": dd_pct})
     if current_duration > 0:
@@ -480,6 +537,7 @@ def calculate_research_portfolio_drawdown(
         "drawdown_curve": dd_curve,
         "max_dd_duration": max_duration,
         "avg_drawdown_pct": (sum(positives) / len(positives)) if positives else 0.0,
+        "valuation_complete": True,
     }
 
 
@@ -852,9 +910,9 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
     close as the mark; ``equity`` is ``cash + unrealized_pnl``. Opening or
     closing a flat-price, zero-cost position therefore leaves equity unchanged,
     and paid fees enter exactly once. Unresolved rows retain the paid entry fee
-    in ``cash`` and the known exposure in ``reserved``, report ``unrealized``
-    as unknown, and report ``equity`` as the fee-adjusted cash floor (never as
-    ``FLAT``). Drawdown is research-local and positional so same-timestamp
+    in ``cash`` and the known exposure in ``reserved``. Only an exact-timestamp
+    valid mark supports equity; otherwise both unrealized and equity are null,
+    never a cash floor or a flat position. Drawdown is research-local and positional so same-timestamp
     observations keep their identities in deterministic order, and timestamps
     stay monotonic when exits complete past the evaluation window end.
     """
@@ -888,8 +946,10 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
                     break
                 # Available price at the mark: the native M5 close, never the
                 # entry open and never a future price.
-                mark = float(grid.close_prices[index])
-                unrealized = (mark - entry_fill) * quantity
+                mark = _finite(grid.close_prices[index])
+                if mark is not None and mark <= 0:
+                    mark = None
+                unrealized = (mark - entry_fill) * quantity if mark is not None else None
                 rows.append(
                     {
                         "policy": run.policy,
@@ -900,7 +960,7 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
                         "cash": wallet_after_fee,
                         "reserved": float(trade["entry_notional"]),
                         "unrealized_pnl": unrealized,
-                        "equity": wallet_after_fee + unrealized,
+                        "equity": wallet_after_fee + unrealized if unrealized is not None else None,
                     }
                 )
         cash += float(trade["net_pnl"])
@@ -927,24 +987,38 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
             entry_fee = quantity * entry_fill * float(run.fee_rate)
         reserved = float(unresolved.get("entry_notional", quantity * entry_fill))
         cash -= entry_fee
+        entry_at = datetime.fromisoformat(unresolved["entry_at"].replace("Z", "+00:00"))
         scheduled_exit = datetime.fromisoformat(unresolved["exit_at"].replace("Z", "+00:00"))
-        # Mark an open-at-end position at the window end; mark a missing-exit
-        # position at its scheduled exit. Either way the timestamp never moves
-        # backwards past the rows already appended.
-        stamp = window_end_iso if scheduled_exit > WINDOW_END else phase1._utc_iso(scheduled_exit)
-        rows.append(
-            {
-                "policy": run.policy,
-                "timestamp": stamp,
-                "state": "UNRESOLVED",
-                "mark_price": None,
-                "quantity": quantity,
-                "cash": cash,
-                "reserved": reserved,
-                "unrealized_pnl": None,
-                "equity": cash,
-            }
-        )
+        start = bisect.bisect_left(grid.close_times, entry_at)
+        stop = bisect.bisect_right(grid.close_times, WINDOW_END)
+        marks = {
+            grid.close_times[index]: _finite(grid.close_prices[index])
+            for index in range(start, stop)
+        }
+        # A missing exit does not close the exposure. Keep marking through the
+        # evaluation end, without moving a prior/future quote to that timestamp.
+        marks.setdefault(min(scheduled_exit, WINDOW_END), None)
+        marks.setdefault(WINDOW_END, None)
+        for moment, mark in sorted(marks.items()):
+            if mark is not None and mark <= 0:
+                mark = None
+            stamp = phase1._utc_iso(moment)
+            unrealized = (mark - entry_fill) * quantity if mark is not None else None
+            rows.append(
+                {
+                    "policy": run.policy,
+                    "timestamp": stamp,
+                    "state": "UNRESOLVED" if moment >= min(scheduled_exit, WINDOW_END) else "OPEN",
+                    "mark_price": mark,
+                    "valuation_at": stamp if mark is not None else None,
+                    "valuation_source": "NATIVE_M5_CLOSE" if mark is not None else None,
+                    "quantity": quantity,
+                    "cash": cash,
+                    "reserved": reserved,
+                    "unrealized_pnl": unrealized,
+                    "equity": cash + unrealized if unrealized is not None else None,
+                }
+            )
     if run.unresolved:
         # Never present an unresolved position as flat and never append a
         # window-end FLAT behind an exit that completed past the window end.
@@ -968,7 +1042,12 @@ def build_equity_curve(run: PolicyRun, grid: M5Grid) -> list[dict[str, Any]]:
     curve = [{"date": row["timestamp"], "balance": row["equity"]} for row in rows]
     drawdown = calculate_research_portfolio_drawdown(curve, INITIAL_EQUITY_USDT)
     for row, point in zip(rows, drawdown["drawdown_curve"], strict=True):
-        row["drawdown_pct"] = float(point["drawdown"])
+        row["drawdown_pct"] = point["drawdown"]
+        row.setdefault("valuation_at", row["timestamp"] if row["equity"] is not None else None)
+        row.setdefault("valuation_source", (
+            ("NATIVE_M5_CLOSE" if row["state"] == "OPEN" else "WALLET_FLAT")
+            if row["equity"] is not None else None
+        ))
     run.equity = rows
     return rows
 
@@ -997,16 +1076,42 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
     drawdown = calculate_research_portfolio_drawdown(
         [{"date": row["timestamp"], "balance": row["equity"]} for row in run.equity], INITIAL_EQUITY_USDT
     )
+    final_row = run.equity[-1] if run.equity else None
+    final_equity = _finite(final_row["equity"]) if final_row else None
+    if not run.unresolved and final_row is None:
+        final_equity = run.final_cash
+    final_at = final_row["timestamp"] if final_row else phase1._utc_iso(WINDOW_END)
+    if run.unresolved and final_at != phase1._utc_iso(WINDOW_END):
+        final_equity = None
+        final_at = phase1._utc_iso(WINDOW_END)
+    last_valuation = next((row for row in reversed(run.equity) if _finite(row["equity"]) is not None), None)
+    valuation_complete = bool(run.equity) and drawdown["valuation_complete"] and final_equity is not None
+    unresolved_fees = sum(
+        float(trade["entry_fee_usdt"]) if trade.get("entry_fee_usdt") is not None
+        else float(trade["quantity"]) * float(trade["entry_fill_price"]) * run.fee_rate
+        for trade in run.unresolved
+    )
+    unresolved_notional = sum(
+        float(trade.get("entry_notional", float(trade["quantity"]) * float(trade["entry_fill_price"])))
+        for trade in run.unresolved
+    )
     time_in_market = sum(float(trade["hold_minutes"]) * 60.0 for trade in executed)
     total_turnover = sum(float(trade["entry_notional"]) + float(trade["exit_notional"]) for trade in executed)
     notional_seconds = sum(
         float(trade["entry_notional"]) * float(trade["hold_minutes"]) * 60.0 for trade in executed
     )
+    for trade in run.unresolved:
+        entry_at = datetime.fromisoformat(trade["entry_at"].replace("Z", "+00:00"))
+        seconds = max(0.0, (WINDOW_END - entry_at).total_seconds())
+        notional = float(trade.get("entry_notional", float(trade["quantity"]) * float(trade["entry_fill_price"])))
+        time_in_market += seconds
+        notional_seconds += notional * seconds
+        total_turnover += notional
     gross_pnl = _total(executed, "gross_pnl")
     net_pnl = _total(executed, "net_pnl")
     count = len(executed)
     entry_times = [
-        datetime.fromisoformat(trade["entry_at"].replace("Z", "+00:00")) for trade in executed
+        datetime.fromisoformat(trade["entry_at"].replace("Z", "+00:00")) for trade in [*executed, *run.unresolved]
     ]
     exit_times = [
         datetime.fromisoformat(trade["exit_at"].replace("Z", "+00:00")) for trade in executed
@@ -1016,7 +1121,8 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
         "fee_rate_per_side": run.fee_rate,
         "slippage_rate_per_side": run.slippage_rate,
         "signals": len(signals),
-        "entered_trades": count,
+        "entered_trades": count + len(run.unresolved),
+        "closed_trades": count,
         "skipped_entries": sum(action["kind"] == "ENTRY_SKIPPED" for action in run.actions),
         "deferred_entries": sum(action["kind"] == "ENTRY_DEFERRED" for action in run.actions),
         "unresolved_trades": len(run.unresolved),
@@ -1043,10 +1149,26 @@ def summarize_run(run: PolicyRun, signals: Sequence[datetime]) -> dict[str, Any]
             if _count_reasons(run.actions).get("INSUFFICIENT_FREE_CASH")
             else "No capital stop: every scheduled entry was affordable under the frozen constants."
         ),
-        "final_equity_usdt": run.final_cash,
-        "total_return_pct": (run.final_cash / INITIAL_EQUITY_USDT - 1.0) * 100.0,
-        "max_drawdown_pct": drawdown["max_drawdown_pct"],
-        "max_drawdown_usdt": drawdown["max_drawdown_value"],
+        "pnl_scope": "CLOSED_TRADES_ONLY",
+        "final_cash_usdt": run.final_cash,
+        "paid_fees_usdt": -_total(executed, "fee_pnl") + unresolved_fees,
+        "unresolved_entry_fees_usdt": unresolved_fees,
+        "final_state": "UNRESOLVED" if run.unresolved else "FLAT",
+        "final_quantity": sum(float(trade["quantity"]) for trade in run.unresolved),
+        "final_reserved_usdt": unresolved_notional,
+        "final_unrealized_pnl_usdt": (
+            final_equity - run.final_cash if final_equity is not None else None
+        ),
+        "final_equity_usdt": final_equity,
+        "final_equity_at": final_at,
+        "final_valuation_complete": final_equity is not None,
+        "last_valuation_at": last_valuation["timestamp"] if last_valuation else None,
+        "last_valued_equity_usdt": last_valuation["equity"] if last_valuation else None,
+        "valuation_complete": valuation_complete,
+        "valuation_status": "COMPLETE" if valuation_complete else "INCOMPLETE",
+        "total_return_pct": (final_equity / INITIAL_EQUITY_USDT - 1.0) * 100.0 if final_equity is not None else None,
+        "max_drawdown_pct": drawdown["max_drawdown_pct"] if valuation_complete else None,
+        "max_drawdown_usdt": drawdown["max_drawdown_value"] if valuation_complete else None,
         "time_in_market_fraction": time_in_market / WINDOW_SECONDS,
         "average_deployed_notional_usdt": notional_seconds / WINDOW_SECONDS,
         "total_turnover_usdt": total_turnover,

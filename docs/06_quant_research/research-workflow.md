@@ -245,10 +245,19 @@ zero. The capital-constrained account is reported alongside a separately
 labelled full-opportunity-set diagnostic (same signals, rules, and costs, no
 cash admission, no equity compounding), which is not an executable account.
 
-Corrected protocol: `btc-m15-reference-backtest-v2` supersedes `-v1`; the v1
-packet is preserved unchanged and the correction is recorded in
+Corrected accounting: `btc-m15-reference-backtest-v3` supersedes `-v2`'s
+unresolved-equity reporting; both existing v1/v2 packets remain unchanged.
+Wallet cash is **not an equity floor**. An open or unresolved position is
+valued only with a finite positive mark at its explicit timestamp; missing,
+future or stale-as-current valuations produce null equity and unrealized P&L.
+Final cash, paid fees, quantity, reserved notional, entry turnover and known
+holding time remain recorded. Last-known valuation and its timestamp are
+separate from final equity. Missing equity makes dependent drawdown metrics
+incomplete; a known later final equity does not repair unknown intervening
+drawdown. Closed-trade P&L excludes unresolved trades and is not total account
+return. The earlier v1-to-v2 correction is historical in
 `research/2026-09-18_btc_m15_reference_backtest_correction_addendum.md`. Per-trade
-account averages are not capital-independent or automatically like-for-like.
+account averages remain conditional on affordability, not capital-independent.
 
 **Funding is excluded by design** (`funding_status = EXCLUDED_BY_DESIGN`). Do not
 download funding data or implement funding accounting for this experiment, and
@@ -263,6 +272,56 @@ Protocol, signal-set hashes, code hashes, machine-readable `actions.csv`,
 turnover, three charts, and `report.md` are written to one packet directory. All
 conclusions are historical development evidence: no untouched holdout, no
 optimization, no shadow collection, and no promotion to live trading.
+
+### Frozen M5 reference backtest (state rule, no optimization)
+
+`research.btc_m5_reference_reporting` reuses the corrected reference execution
+engine, not the M15 signal rule. Policy A retains every emitted M5 alert from
+the verified Phase 1 parent, including signals with incomplete *longer-horizon*
+Phase 1 outcomes. It independently reconstructs the entire M5 population with
+`evaluate_m5_cross` and its one-hour cooldown, failing closed on any mismatch.
+M5 is the RSI **alignment/state** rule, not a fresh crossover.
+
+Policy B uses only the strict native M5/H1/H4 price-above-EMA21 gates, 21
+contiguous price candles per timeframe, exact already-closed H1/H4 boundaries,
+and its own one-hour cooldown. It does not calculate RSI or inherit RSI
+readiness, alignment, spread, or threshold conditions. Each policy's cooldown
+is independent of the other policy, cost scenario and capital admission.
+
+```text
+python -m research.btc_m5_reference_reporting --baseline-run research/results/phase1_reproduction_local/run_20260918T092140133007Z_97d3c169 --data-dir research/data/btc_four_year_20220828_20260828 --m15-run research/results/m15_reference_backtest_runs/run_20260918T125747028014Z_991fd4d1 --output-dir research/results/m5_reference_backtest_runs
+```
+
+The four-year window, 10,000 USDT capital, 1,000 USDT fixed notional, next
+strict M5 boundary entry, exact 60-minute exit, exit-before-entry ordering and
+all nine fee/slippage scenarios match M15. Cooldown-separated entries cannot
+overlap; a missing exact exit leaves exposure unresolved and blocks new entries.
+No deferral, stops, targets, added filters or parameter search is used in M5.
+Funding is `EXCLUDED_BY_DESIGN`, not measured zero.
+
+The compact packet contains protocol, summary, manifest, daily equity, equity/
+drawdown/cost charts and a report with the M15 comparison. Full ledgers are
+retained locally under `full/`, excluded from publication, and bound by byte
+hashes and the regeneration command. Account returns/turnover/exposure and
+full-resolution drawdown are separate from uncapitalized full-opportunity
+diagnostics; no diagnostic equity curve or account drawdown is invented.
+Approximate break-even round-trip basis points are mean gross return on fixed
+entry notional, not a verified fee quote or an optimized parameter.
+
+`research.btc_m5_reference_verification` replays original M5 event identities,
+timestamps, sequence numbers and reasons, reproduces M15 v2's nine account and
+diagnostic scenarios with v3 accounting, checks prior evidence remains intact,
+and compares two M5 runs byte-for-byte (including full ledgers). All conclusions
+remain **historical development evidence**, not out-of-sample alpha or a live
+trading recommendation.
+
+The M15 comparison loader is fail-closed: it verifies the comparison packet's
+declared `protocol_sha256` against LF-normalized `protocol.json` bytes (legacy
+packets were written with CRLF line endings, so physical-byte hashes differ),
+checks exact numeric fee/slippage rates rather than rounded scenario keys,
+requires per-policy rates and headline figures to match their cost-grid row,
+and validates exit-before-entry ordering plus the full execution contract.
+Charts use genuine datetime axes with sparse ticks; null valuations stay gaps.
 
 ### Four-year M5 regime review
 

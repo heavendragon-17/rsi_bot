@@ -203,6 +203,33 @@ for M5 and M15. Separate replay windows therefore do not inherit alerts from
 one another; comparisons across separately replayed windows must account for
 that boundary behavior.
 
+### Frozen M5/M15 research reference accounting
+
+The research-only reference engine is
+`research/btc_m15_reference_backtest.py`; the M5 signal populations and packet
+CLI are `research/btc_m5_reference_backtest.py` and
+`research/btc_m5_reference_reporting.py`. They do not modify or invoke live
+order execution. See the [frozen reference protocol](../06_quant_research/research-workflow.md#frozen-m5-reference-backtest-state-rule-no-optimization).
+
+V3 unresolved reporting preserves wallet cash, paid fees and known exposure,
+but never calls cash an equity floor. Native finite positive marks carry
+`valuation_at`/`valuation_source`; unavailable current equity is null. Summary
+fields distinguish final equity from last timestamped valuation, entered from
+closed trades, and closed-trade P&L from account return. Unknown valuations
+make dependent drawdown incomplete and do not become zero or forward-filled
+chart points. Both earlier M15 evidence packets remain immutable.
+
+Regression suites `test_btc_m15_unresolved_valuation.py` and
+`test_btc_m15_reference_backtest_correction.py` cover known loss marks below
+wallet cash, missing/non-finite/future/stale marks, fee/exposure retention,
+null-safe summaries/JSON/CSV/charts, exact boundaries and missing execution
+candles. `test_btc_m5_reference_backtest.py` pins the M5 state evaluator,
+price-only B with no RSI calculation or readiness, independent cooldown,
+exact H1/H4 context, gap recovery and future-data invariance. Reporting and
+verification tests exercise fail-closed parity, packet output and deterministic
+byte checks. Real four-year reproduction is separately recorded in the new
+packet, never substituted for these synthetic edge tests.
+
 ### BTC AI research pipeline MVP
 
 The repository-root [`btc_ai_pipeline.py`](../../btc_ai_pipeline.py) provides an

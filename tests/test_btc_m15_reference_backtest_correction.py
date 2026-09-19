@@ -298,8 +298,8 @@ def test_unresolved_position_retains_fee_and_exposure_and_is_not_flat() -> None:
     assert tail["cash"] == pytest.approx(9999.5)
     assert tail["reserved"] == pytest.approx(1000.0)
     assert tail["unrealized_pnl"] is None
-    # Fee-adjusted cash floor, explicitly not a flat equity point.
-    assert tail["equity"] == pytest.approx(9999.5)
+    # V3 supersedes the V2 cash-floor assertion: no exact end valuation exists.
+    assert tail["equity"] is None
     assert run.final_cash == pytest.approx(9999.5)
 
 
