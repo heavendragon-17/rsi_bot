@@ -8,7 +8,8 @@
 - [x] Freeze M5 state-evaluator A and price-only M5/H1/H4 B with independent one-hour cooldown, verified four-year sources and matching M15 execution/costs.
 - [x] Run account and separate full-opportunity diagnostics; write compact evidence, charts and M5/M15 comparison; preserve prior packets.
 - [x] Verify signal parity, accounting, missing data, deterministic reproduction, tests and independent review.
-- [ ] Commit and push research-only changes to `mua-tren-the-nang`; verify remote SHA. No provider calls, production changes, tags, deployment or secret-baseline changes.
+- [x] Commit and push research-only changes to `mua-tren-the-nang`; verify remote SHA. No provider calls, production changes, tags, deployment or secret-baseline changes.
+  Commit `61f702e`, pushed `717f86c..61f702e`; full suite 1,764 passed/12 skipped.
 
 ### Review
 
