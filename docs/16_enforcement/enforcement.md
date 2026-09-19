@@ -91,7 +91,7 @@ context.
 | `Type Check` | mypy | 10 min |
 | `Security Scan` | Bandit | 5 min |
 | `Dependency Audit` | pip-audit of runtime requirements | 10 min |
-| `Secret Detection` | tracked-file detect-secrets scan against the baseline | 5 min |
+| `Secret Detection` | tracked-file detect-secrets scan against the baseline | 10 min |
 | `Circular Import Check` | core/data import smoke test | 10 min |
 | `Documentation` | local Markdown links and blocking PR documentation-impact gate | 5 min |
 | `Frontend Build` | `npm ci`, high/critical advisory gate, TypeScript check, and Vite build | 10 min |
