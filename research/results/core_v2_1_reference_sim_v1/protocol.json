@@ -1,0 +1,121 @@
+{
+  "protocol": {
+    "accounting": {
+      "basis": "DOCUMENTED accounting fields + ASSUMPTION_NOT_A_DECISION valuation",
+      "no_pooled_returns": "per-venue aggregates only; no cross-venue pooled equity curve (no capital-allocation/conversion policy exists)",
+      "open_at_end": "positions still open at the last candle retain exposure; valued at the last closed M15 close (valid mark); contribution reported separately, never blended into realized P&L",
+      "quantities": "Decimal; partial exits preserved per fill",
+      "r_both": "gross_realized_r and net_realized_r stored separately"
+    },
+    "cost_sensitivity": {
+      "basis": "ASSUMPTION_NOT_A_DECISION",
+      "fee_scale_grid": [
+        "1.0",
+        "0.5",
+        "1.5"
+      ],
+      "note": "frozen before performance numbers; not a parameter search",
+      "slippage_grid": [
+        "0.0",
+        "0.0005",
+        "0.001",
+        "0.002"
+      ]
+    },
+    "disaster_stop": {
+      "basis": "DOCUMENTED boundary (decisions doc: unresolved; task: none added)",
+      "rule": "none added; advisory reference stop is an R/sizing reference only"
+    },
+    "entry": {
+      "basis": "DOCUMENTED (execution decision 3)",
+      "fill": "next_M15_open * (1 + slippage_rate)",
+      "label": "candle-price proxy, not a guaranteed obtainable fill"
+    },
+    "excluded": [
+      "funding (EXCLUDED_BY_DESIGN)",
+      "one-hour time-exit policy from BTC M15/M5 research (not carried over)",
+      "parameter search / optimization",
+      "live promotion"
+    ],
+    "fees": {
+      "BINANCE_FUTURES": {
+        "checked_on": "2026-09-19",
+        "maker": "0.0002",
+        "source": "binance.info FAQ 360033544231 (regular user USD-M)",
+        "source_updated": "2026-05-01",
+        "taker": "0.0005"
+      },
+      "HYPERLIQUID": {
+        "checked_on": "2026-09-19",
+        "maker": "0.00015",
+        "source": "hyperliquid.gitbook.io/hyperliquid-docs/trading/fees (perps base tier)",
+        "source_updated": "page states last updated about 1 month ago at fetch time",
+        "taker": "0.00045"
+      },
+      "basis_formula": "ASSUMPTION_NOT_A_DECISION",
+      "basis_rates": "RESOLVED_EXTERNAL",
+      "fee_formula": "fee = qty * price * rate; maker rate on TP fills, taker elsewhere",
+      "funding": "EXCLUDED_BY_DESIGN"
+    },
+    "gap_fills": {
+      "basis": "ASSUMPTION_NOT_A_DECISION",
+      "rule": "entry and stop exits fill at the candle open regardless of gap; TP fills at the TP level price only when the candle high reaches it"
+    },
+    "max_holding": {
+      "basis": "GENUINELY_UNRESOLVED: the signal-mode resolver never forwards strategy_params (app/signal/strategy_config.py as_legacy_dict returns {}), so the older-strategy max_holding default cannot be established for Core V2.1 from config",
+      "rule": "no force-close applied"
+    },
+    "name": "core-v2.1-reference-backtest-v1",
+    "overlap": {
+      "basis": "DOCUMENTED (execution decision 6)",
+      "rule": "one open position per strategy+symbol; entry events arriving while a position is open are recorded as OVERLAP_SKIPPED; the signal state machine is unaffected (replay ledger unchanged)"
+    },
+    "same_bar_ordering": {
+      "basis": "ASSUMPTION_NOT_A_DECISION",
+      "rule": "on the entry candle TP checks start on the NEXT candle; if a candle both closes below EMA21 (stop) and reaches a TP level (high), the close-based stop wins and TP fills in that candle are ignored"
+    },
+    "signals": {
+      "anchor_version": "core-v2.1-anchor-2026-06-29T11:15Z-v1",
+      "basis": "DOCUMENTED",
+      "config_version": "core-v2.1-locked-2026-08-20",
+      "engine": "core_v2_1_point_in_time",
+      "entry_event_types": [
+        "A_PLUS_LONG",
+        "PULLBACK_LONG"
+      ],
+      "reproduction": "replay is regenerated from the locked anchor and must be row-identical to the audited historical ledger before any trade is simulated",
+      "strategy_version": "2.1"
+    },
+    "sizing": {
+      "basis": "RESOLVED_CODE",
+      "config_source": "config.yaml risk + backtest blocks",
+      "implementation": "app.trading.portfolio.position_sizer.PositionSizer.calculate",
+      "initial_capital_quote": "100000 (backtest.initial_balance)",
+      "leverage": 10,
+      "max_position_size_pct": "10 (used as margin fraction 10x; non-binding here)",
+      "min_sl_distance_pct": "0.003 (fraction)",
+      "risk_per_trade_pct": "0.002 (fraction; YAML comment 2% is misleading)",
+      "use_initial_capital_for_risk": true,
+      "use_risk_based_sizing": true
+    },
+    "slippage_rate": {
+      "basis": "ASSUMPTION_NOT_A_DECISION",
+      "value": "0.001"
+    },
+    "strategy_stop": {
+      "basis_exit_fill": "ASSUMPTION_NOT_A_DECISION",
+      "basis_trigger": "DOCUMENTED (execution decision 2)",
+      "exit_fill": "remaining quantity at following M15 open * (1 - slippage_rate)",
+      "trigger": "fully closed M15 Close < current M15 EMA21 (strict; wicks ignored)"
+    },
+    "take_profits": {
+      "activation": "limit-fill proxy at TP price when candle high >= level",
+      "allocation": "one third of the original quantity at each TP; the final third fills the exact remainder so the three partial quantities sum to the original",
+      "basis_activation": "ASSUMPTION_NOT_A_DECISION",
+      "basis_allocation": "ASSUMPTION_NOT_A_DECISION",
+      "basis_levels": "DOCUMENTED",
+      "levels": "original signal reference TP1/TP2/TP3 (1R/2R/3R of reference entry)"
+    }
+  },
+  "protocol_sha256": "c1d30bc5caf808b4d3fca1904061796e23c51e67ab20d9e3016270e8598340c1"
+}

@@ -42,6 +42,8 @@ artifacts/core_v2_1/**/*.jsonl
 # Research Core V2.1 audit ledgers are also large reproducible artifacts.
 research/results/core_v2_1_audit_replay/**/*.jsonl
 research/results/core_v2_1_audit_replay/**/*.csv
+# Reference-simulation parity-check ledger is likewise reproducible.
+research/results/core_v2_1_reference_sim_v1/replay_check/
 
 # Versioned canonical inputs for the BTC Signal Review Lab
 !app/backtest/data/BTCUSDT_5m.csv

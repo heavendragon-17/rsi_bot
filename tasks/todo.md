@@ -2,7 +2,32 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
-## ACTIVE — Core V2.1 rule/data audit and historical signal replay
+## ACTIVE — Core V2.1 reference simulation (research-only)
+
+- [x] Resolve inherited sizing/max-holding from actual code+config (PositionSizer, strategy resolver); verify venue fees against official sources.
+- [x] Freeze `core-v2.1-reference-backtest-v1` protocol to JSON + SHA-256 BEFORE any performance number; separate documented rules from ASSUMPTION_NOT_A_DECISION.
+- [x] Implement research-only simulation reusing the audited replay ledger + validated frames (`research/core_v2_1_reference_sim.py`); assert event parity with the historical ledger before simulating.
+- [x] Produce trade ledger, per-symbol + entry-family results, holding-time distribution, cost sensitivity, representative trade charts, limitations, one clear finding.
+- [x] Unit tests: hand-calculated partial exits, close-only stop, event ordering, overlap, costs, valuation, deterministic reproduction.
+- [ ] Test, then commit/push research-only work to `mua-tren-the-nang`. No production edits/tags/deploy/orders/provider calls/secret-baseline changes.
+
+### Review (so far)
+
+Frozen protocol `c1d30bc5caf808b4d3fca1904061796e23c51e67ab20d9e3016270e8598340c1`
+(hash re-frozen before any published number after a dust-quantity wording
+clarification; earlier freeze `f0f8d4a2…`). Parity with the audited 125,000-row
+ledger asserted before simulation. 80 positions (62 immediate / 18 pullback),
+2 overlap-skipped; fill census 44 ENTRY|STOP, 12 TP1|STOP, 4 TP1|TP2|STOP,
+20 full ladders. Headline (slip 0.1%, verified fees): net -20,786.46 USDT
+(immediate -19,252.73 / pullback -1,533.74; Binance -20,803.64, HL +17.18);
+zero-slip/half-fee still -6,930.57. One finding: the close-below-EMA21 stop
+dominates (56/80, median hold 3 bars) because A+ entries are by construction
+within 1 ATR of EMA21. Deterministic re-run byte-identical. Fees verified:
+Binance 0.02/0.05% (binance.info FAQ, updated 2026-05-01), Hyperliquid
+0.015/0.045% (official docs, checked 2026-09-19). Max holding genuinely
+unresolved (resolver never forwards strategy_params) and not simulated.
+
+## COMPLETED — Core V2.1 rule/data audit and historical signal replay
 
 - [x] Inspect Core V2.1 strategy (`app/trading/strategy/core_v2_1/`), runtime (`app/signal/core_v2_1/`), replay (`app/backtest/core_v2_1/`), tests, docs (`docs/07_trading_strategies/core-v2-1*.md`), and previous results (`artifacts/core_v2_1/`).
 - [x] Recover exact rules, locked universe, required timeframes, warmup/anchor contract, and historical coverage; separate immediate-long (A+) vs pullback-long event families.

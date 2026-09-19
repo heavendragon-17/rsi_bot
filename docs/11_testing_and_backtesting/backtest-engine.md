@@ -500,6 +500,15 @@ reference-backtest protocol live in
 with hashed outputs under `research/results/core_v2_1_audit_replay/`
 (ledger CSV/JSONL git-ignored and reproducible).
 
+A 2026-09-19 research-only reference simulation
+(`core-v2.1-reference-backtest-v1`, frozen protocol, candle-price proxy
+fills, no funding, no pooled returns) then ran on top of this replay with a
+regenerated-ledger parity assertion; protocol, trade ledger, per-family and
+per-symbol results, cost sensitivity, and limitations are in
+[`research/2026-09-19_core_v2_1_reference_simulation.md`](../../research/2026-09-19_core_v2_1_reference_simulation.md)
+with hashed outputs under `research/results/core_v2_1_reference_sim_v1/`.
+It is not an execution-realistic P&L and makes no live-suitability claim.
+
 ---
 
 ## System Architecture

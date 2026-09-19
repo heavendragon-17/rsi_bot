@@ -1,0 +1,11 @@
+{
+  "outputs": {
+    "charts/holding_time.png": "75d2801d5ceb526e203fe6ff27e261c2584200ba5bb6566ff208528b490cefc7",
+    "charts/trade_best_net.png": "e61b4325f0221ba010f81cbfb527d1b2c56298f63fa6f940c1fe886dd3eb6ec6",
+    "charts/trade_first_pullback.png": "a0cdb45f6b4b58f6651d28ec09ad0cfc2757005818ad2f56231f663c8d743278",
+    "charts/trade_worst_net.png": "1aabc95355ac245bcfa963502d8c4cb551f01cc38e594afcfd323ea6ce21db88",
+    "results.json": "588064b4c6115b7d138681b5e9be49f63ba9c72a6613f253e8df133404d8009c",
+    "trades.json": "1d07f109d4279e2f7d17359c043473d02173c730ee33e23aea25473d7f61eedd"
+  },
+  "protocol_sha256": "c1d30bc5caf808b4d3fca1904061796e23c51e67ab20d9e3016270e8598340c1"
+}
