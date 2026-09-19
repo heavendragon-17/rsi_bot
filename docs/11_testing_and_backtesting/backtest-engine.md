@@ -490,6 +490,16 @@ about orders, fills, fees, slippage, PnL, win rate, or strategy performance.
 A future execution simulator must implement those separately under the
 reviewed execution contract.
 
+A 2026-09-19 research audit re-ran this replay unchanged (same input set; the
+BTC benchmark CSV had since been extended through 2026-08-28 without changing
+the alt-limited common window) and reproduced every count and event exactly.
+Its event-family counts, coverage exclusions, point-in-time decision charts,
+specified-vs-unresolved execution-rule inventory, and proposed
+reference-backtest protocol live in
+[`research/2026-09-19_core_v2_1_rule_data_audit.md`](../../research/2026-09-19_core_v2_1_rule_data_audit.md)
+with hashed outputs under `research/results/core_v2_1_audit_replay/`
+(ledger CSV/JSONL git-ignored and reproducible).
+
 ---
 
 ## System Architecture

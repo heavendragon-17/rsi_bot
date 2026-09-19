@@ -1,0 +1,20 @@
+{
+  "code": {
+    "research/core_v2_1_audit_analysis.py": "2c4435ed5aad4a5d5e4957fd11973a59fb52feb5623bb841651c8070e50bcbaf"
+  },
+  "inputs": {
+    "core_v2_1_replay.csv": "9c477eb68506947eff8446c1efcdeb46ace7bed4d2a8537457d759961e9e7d52",
+    "core_v2_1_replay.metadata.json": "63362dc60c26b8e40408de8e342b4d7a0eb2215d777840264a5f7ece0c11a558"
+  },
+  "outputs": {
+    "analysis_summary.json": "9954ca7880600ca37df51b87ea147eb6c37841f96aa3c803366ed9b2a351f39c",
+    "charts": {
+      "a_plus_long.png": "3348078498832fce19ed644a3bd5bb3c7a813500a8d0cb282abbeb1a4f06a291",
+      "event_timeline.png": "914a0e9f59ac93d2a644651854101aa767a5f526418d87f9379a7c489cdf276a",
+      "pullback_long_first.png": "6c289290de5fd2f16f8e7b19ab06854bc00a1a5b19062b31a3f6d05b5af757cc",
+      "pullback_long_last.png": "62f80f264a0c473813fc1e548c76e763a496d17f22f4f53df30d22130670f26b"
+    },
+    "coverage_exclusions.json": "6987e6dc4db2d2496b8d19c1943d2495cca5a2d6f1357e4dbf8582bc405de122",
+    "events.csv": "b3528790b906bba2121dd747c42e2c99345967841604a7752180e3c48dc9bfb4"
+  }
+}

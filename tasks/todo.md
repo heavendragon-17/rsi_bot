@@ -2,7 +2,29 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
-## ACTIVE — Frozen BTC M5 reference and unresolved valuation correction
+## ACTIVE — Core V2.1 rule/data audit and historical signal replay
+
+- [x] Inspect Core V2.1 strategy (`app/trading/strategy/core_v2_1/`), runtime (`app/signal/core_v2_1/`), replay (`app/backtest/core_v2_1/`), tests, docs (`docs/07_trading_strategies/core-v2-1*.md`), and previous results (`artifacts/core_v2_1/`).
+- [x] Recover exact rules, locked universe, required timeframes, warmup/anchor contract, and historical coverage; separate immediate-long (A+) vs pullback-long event families.
+- [x] Reuse the existing point-in-time evaluator to replay verified local data into a NEW run directory (historical artifacts untouched).
+- [x] Produce signal counts, coverage exclusions, and representative point-in-time decision charts.
+- [x] Classify execution/exit/partial-TP/sizing rules: specified vs reference-only vs unresolved (no invented rules, no one-hour policy reuse).
+- [x] Deliver findings report + one proposed reference-backtest protocol (no optimization/profitability claims).
+- [ ] Test (core suite + docs link check), then commit and push research-only outputs to `mua-tren-the-nang`. No tags/deploy/orders/provider calls/secret-baseline edits.
+
+### Review (so far)
+
+Replay rerun (`full:common_window`, new dir `research/results/core_v2_1_audit_replay/`)
+reproduced the recorded run exactly: 125,000 ledger rows, 98,550 evaluated,
+26,450 NOT_READY, 477 events (63 A_PLUS_LONG / 207 WAIT_FOR_PULLBACK /
+19 PULLBACK_LONG / 72 WAIT_CANCELLED / 116 WAIT_EXPIRED); all 125,000 row keys
+and all 477 events row-identical to the historical ledger. BTC benchmark CSV
+hash differs only because of the committed 2026-08-28 extension; window is
+alt-limited so results are unaffected. New research-only script
+`research/core_v2_1_audit_analysis.py` + 4 regression tests pass; docs link
+check passed. Findings: `research/2026-09-19_core_v2_1_rule_data_audit.md`.
+
+## COMPLETED — Frozen BTC M5 reference and unresolved valuation correction
 
 - [x] Correct unresolved valuation with timestamped valid marks or null equity; retain paid fees and known exposure; add regression tests.
 - [x] Freeze M5 state-evaluator A and price-only M5/H1/H4 B with independent one-hour cooldown, verified four-year sources and matching M15 execution/costs.

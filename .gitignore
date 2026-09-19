@@ -39,6 +39,9 @@ app/backtest/data/*.json
 # Core V2.1 full decision ledgers are reproducible local artifacts (about
 # 100 MB per run). Keep their compact metadata/manifests reviewable.
 artifacts/core_v2_1/**/*.jsonl
+# Research Core V2.1 audit ledgers are also large reproducible artifacts.
+research/results/core_v2_1_audit_replay/**/*.jsonl
+research/results/core_v2_1_audit_replay/**/*.csv
 
 # Versioned canonical inputs for the BTC Signal Review Lab
 !app/backtest/data/BTCUSDT_5m.csv

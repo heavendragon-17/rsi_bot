@@ -4,6 +4,13 @@ This directory records the reproducible data-acquisition and point-in-time
 replay evidence for the reviewer-approved Core V2.1 signal contract. It is an
 event/decision audit, not an execution or profitability backtest.
 
+> Historical evidence: the recorded hashes and counts below reflect the
+> 2026-08-20 run. The Binance BTC benchmark CSV was later extended through
+> 2026-08-28 (BTC signal review lab), which changes that input's SHA-256 but
+> not the alt-limited common window or any result; a 2026-09-19 research
+> re-run reproduced every count and event exactly
+> (`research/2026-09-19_core_v2_1_rule_data_audit.md`).
+
 ## Inventory
 
 | Path | Purpose | Repository policy |

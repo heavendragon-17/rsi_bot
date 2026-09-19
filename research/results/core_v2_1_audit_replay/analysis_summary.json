@@ -1,0 +1,561 @@
+{
+  "charts": [
+    "research\\results\\core_v2_1_audit_replay\\charts\\event_timeline.png",
+    "research\\results\\core_v2_1_audit_replay\\charts\\a_plus_long.png",
+    "research\\results\\core_v2_1_audit_replay\\charts\\pullback_long_first.png",
+    "research\\results\\core_v2_1_audit_replay\\charts\\pullback_long_last.png"
+  ],
+  "coverage": {
+    "available_count": 25,
+    "available_symbols": [
+      "ETHUSDT",
+      "SOLUSDT",
+      "BNBUSDT",
+      "XRPUSDT",
+      "DOGEUSDT",
+      "ADAUSDT",
+      "LINKUSDT",
+      "AVAXUSDT",
+      "SUIUSDT",
+      "HYPEUSDT",
+      "ZECUSDT",
+      "LITUSDT",
+      "PUMP",
+      "AAVEUSDT",
+      "NEARUSDT",
+      "XMRUSDT",
+      "TAOUSDT",
+      "ENAUSDT",
+      "WLDUSDT",
+      "FARTCOINUSDT",
+      "JTOUSDT",
+      "INJUSDT",
+      "UNIUSDT",
+      "ONDOUSDT",
+      "GRASSUSDT"
+    ],
+    "benchmark_available": true,
+    "benchmark_valid": true,
+    "common_first_open_at": "2026-06-29T11:15:00+00:00",
+    "common_last_closed_at": "2026-08-20T13:15:00+00:00",
+    "excluded_csv_files": [
+      "API3USDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "API3USDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "ARBUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "ARBUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "AXSUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "AXSUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "BERAUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "BERAUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "BTC_USDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "ETCUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "ETCUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "ETHFIUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "ETHFIUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "FETUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "FETUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "HBARUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "HBARUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "HYPERLIQUID__PUMP_USDC_PERP_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "MINAUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "MINAUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "OGUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "OGUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "OPUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "OPUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "PYTHUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "PYTHUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "STXUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "STXUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "TONUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "TONUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "TRXUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "TRXUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "WIFUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "WIFUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)",
+      "XLMUSDT_15m.csv: symbol not in the locked Core V2.1 trade-candidate universe",
+      "XLMUSDT_1h.csv: non-M15 timeframe file (replay derives H1/H4 from M15)"
+    ],
+    "files": [
+      {
+        "error": null,
+        "first_open_at": "2024-04-29T10:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 80940,
+        "symbol": "ETHUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2024-04-30T10:00:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 80845,
+        "symbol": "SOLUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2024-08-05T00:00:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 71573,
+        "symbol": "BNBUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2024-04-30T10:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 80844,
+        "symbol": "XRPUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "DOGEUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "ADAUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-01-07T10:30:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 21611,
+        "symbol": "LINKUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "AVAXUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "SUIUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2025-05-30T10:30:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 42923,
+        "symbol": "HYPEUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "ZECUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "LITUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "PUMP",
+        "valid": true,
+        "venue": "HYPERLIQUID_PERP"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "AAVEUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "NEARUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "XMRUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "TAOUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "ENAUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "WLDUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "FARTCOINUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "JTOUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "INJUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "UNIUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "ONDOUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      },
+      {
+        "error": null,
+        "first_open_at": "2026-06-29T11:15:00+00:00",
+        "last_closed_at": "2026-08-20T13:15:00+00:00",
+        "present": true,
+        "rows": 5000,
+        "symbol": "GRASSUSDT",
+        "valid": true,
+        "venue": "BINANCE_FUTURES"
+      }
+    ],
+    "invalid_symbols": [],
+    "missing_symbols": [],
+    "required_candidates": 25
+  },
+  "decision_kind_counts": {
+    "A_PLUS_LONG": 63,
+    "PULLBACK_LONG": 19,
+    "QUIET": 92800,
+    "REARMED": 2534,
+    "REJECTED": 2274,
+    "WAIT_CANCELLED": 72,
+    "WAIT_CONTINUES": 465,
+    "WAIT_EXPIRED": 116,
+    "WAIT_FOR_PULLBACK": 207
+  },
+  "evaluated_rows": 98550,
+  "event_counts": {
+    "A_PLUS_LONG": 63,
+    "PULLBACK_LONG": 19,
+    "WAIT_CANCELLED": 72,
+    "WAIT_EXPIRED": 116,
+    "WAIT_FOR_PULLBACK": 207
+  },
+  "events_per_symbol": {
+    "AAVEUSDT": {
+      "A_PLUS_LONG": 2,
+      "WAIT_CANCELLED": 3,
+      "WAIT_EXPIRED": 7,
+      "WAIT_FOR_PULLBACK": 10
+    },
+    "ADAUSDT": {
+      "A_PLUS_LONG": 1,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 2,
+      "WAIT_FOR_PULLBACK": 4
+    },
+    "AVAXUSDT": {
+      "A_PLUS_LONG": 5,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 3,
+      "WAIT_FOR_PULLBACK": 7
+    },
+    "BNBUSDT": {
+      "A_PLUS_LONG": 2,
+      "WAIT_CANCELLED": 5,
+      "WAIT_EXPIRED": 4,
+      "WAIT_FOR_PULLBACK": 9
+    },
+    "DOGEUSDT": {
+      "A_PLUS_LONG": 6,
+      "PULLBACK_LONG": 3,
+      "WAIT_CANCELLED": 3,
+      "WAIT_EXPIRED": 4,
+      "WAIT_FOR_PULLBACK": 10
+    },
+    "ENAUSDT": {
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 6,
+      "WAIT_FOR_PULLBACK": 11
+    },
+    "ETHUSDT": {
+      "A_PLUS_LONG": 5,
+      "PULLBACK_LONG": 2,
+      "WAIT_CANCELLED": 5,
+      "WAIT_EXPIRED": 5,
+      "WAIT_FOR_PULLBACK": 12
+    },
+    "FARTCOINUSDT": {
+      "A_PLUS_LONG": 1,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 5,
+      "WAIT_FOR_PULLBACK": 10
+    },
+    "GRASSUSDT": {
+      "A_PLUS_LONG": 4,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 1,
+      "WAIT_FOR_PULLBACK": 2
+    },
+    "HYPEUSDT": {
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 5,
+      "WAIT_FOR_PULLBACK": 7
+    },
+    "INJUSDT": {
+      "A_PLUS_LONG": 1,
+      "WAIT_EXPIRED": 2,
+      "WAIT_FOR_PULLBACK": 2
+    },
+    "JTOUSDT": {
+      "A_PLUS_LONG": 2,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 3,
+      "WAIT_FOR_PULLBACK": 4
+    },
+    "LINKUSDT": {
+      "A_PLUS_LONG": 3,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 5,
+      "WAIT_FOR_PULLBACK": 10
+    },
+    "LITUSDT": {
+      "A_PLUS_LONG": 2,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 7,
+      "WAIT_FOR_PULLBACK": 12
+    },
+    "NEARUSDT": {
+      "A_PLUS_LONG": 3,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 3,
+      "WAIT_FOR_PULLBACK": 5
+    },
+    "ONDOUSDT": {
+      "WAIT_CANCELLED": 2,
+      "WAIT_EXPIRED": 7,
+      "WAIT_FOR_PULLBACK": 9
+    },
+    "PUMP": {
+      "A_PLUS_LONG": 3,
+      "WAIT_CANCELLED": 6,
+      "WAIT_EXPIRED": 3,
+      "WAIT_FOR_PULLBACK": 9
+    },
+    "SOLUSDT": {
+      "A_PLUS_LONG": 2,
+      "PULLBACK_LONG": 2,
+      "WAIT_CANCELLED": 7,
+      "WAIT_EXPIRED": 9,
+      "WAIT_FOR_PULLBACK": 18
+    },
+    "SUIUSDT": {
+      "A_PLUS_LONG": 2,
+      "PULLBACK_LONG": 2,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 3,
+      "WAIT_FOR_PULLBACK": 6
+    },
+    "TAOUSDT": {
+      "A_PLUS_LONG": 2,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 2,
+      "WAIT_EXPIRED": 5,
+      "WAIT_FOR_PULLBACK": 8
+    },
+    "UNIUSDT": {
+      "A_PLUS_LONG": 5,
+      "WAIT_CANCELLED": 4,
+      "WAIT_EXPIRED": 4,
+      "WAIT_FOR_PULLBACK": 8
+    },
+    "WLDUSDT": {
+      "A_PLUS_LONG": 1,
+      "WAIT_CANCELLED": 2,
+      "WAIT_EXPIRED": 6,
+      "WAIT_FOR_PULLBACK": 8
+    },
+    "XMRUSDT": {
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 3,
+      "WAIT_EXPIRED": 7,
+      "WAIT_FOR_PULLBACK": 11
+    },
+    "XRPUSDT": {
+      "A_PLUS_LONG": 7,
+      "PULLBACK_LONG": 1,
+      "WAIT_CANCELLED": 1,
+      "WAIT_EXPIRED": 6,
+      "WAIT_FOR_PULLBACK": 8
+    },
+    "ZECUSDT": {
+      "A_PLUS_LONG": 4,
+      "WAIT_CANCELLED": 3,
+      "WAIT_EXPIRED": 4,
+      "WAIT_FOR_PULLBACK": 7
+    }
+  },
+  "family_summary": {
+    "immediate_long": 63,
+    "pullback_cancelled": 72,
+    "pullback_confirmed": 19,
+    "pullback_cycles_opened": 207,
+    "pullback_expired": 116,
+    "pullback_long_family_events": 414
+  },
+  "feature_anchor_m15_open": "2026-06-29T11:15:00+00:00",
+  "first_complete_closes": {
+    "15m": "2026-06-29T11:30:00+00:00",
+    "1h": "2026-06-29T13:00:00+00:00",
+    "4h": "2026-06-29T16:00:00+00:00"
+  },
+  "input_csv_sha256": "9c477eb68506947eff8446c1efcdeb46ace7bed4d2a8537457d759961e9e7d52",
+  "ledger_rows": 125000,
+  "metadata_check": {
+    "event_count_mismatches": {},
+    "event_counts_match_recount": true,
+    "ledger_records": 125000,
+    "metadata_path": "research\\results\\core_v2_1_audit_replay\\core_v2_1_replay.metadata.json",
+    "metadata_sha256": "63362dc60c26b8e40408de8e342b4d7a0eb2215d777840264a5f7ece0c11a558",
+    "run_end": "2026-08-20T13:15:00+00:00",
+    "run_start": "2026-06-29T11:30:00+00:00",
+    "window_mode": "full:common_window"
+  },
+  "not_ready_reasons": {
+    "alt_h1.rsi21": 1800,
+    "alt_h1.rsi_ema9": 1800,
+    "alt_h1.rsi_wma45": 6200,
+    "btc_h1.rsi21": 1800,
+    "btc_h1.rsi_ema9": 1800,
+    "btc_h1.rsi_wma45": 6200,
+    "btc_h4.rsi21": 8400,
+    "btc_h4.rsi_ema9": 8400,
+    "btc_h4.rsi_wma45": 26000,
+    "m15.rsi21": 75,
+    "m15.rsi_ema9": 75,
+    "m15.rsi_wma45": 1175,
+    "missing_expected_closed_context_or_m15_history": 450,
+    "previous_m15.rsi_ema9": 100,
+    "previous_m15.rsi_wma45": 1200
+  },
+  "not_ready_rows": 26450,
+  "public_event_rows": 477,
+  "run_dir": "research\\results\\core_v2_1_audit_replay"
+}
