@@ -9,7 +9,8 @@
 - [x] Implement research-only simulation reusing the audited replay ledger + validated frames (`research/core_v2_1_reference_sim.py`); assert event parity with the historical ledger before simulating.
 - [x] Produce trade ledger, per-symbol + entry-family results, holding-time distribution, cost sensitivity, representative trade charts, limitations, one clear finding.
 - [x] Unit tests: hand-calculated partial exits, close-only stop, event ordering, overlap, costs, valuation, deterministic reproduction.
-- [ ] Test, then commit/push research-only work to `mua-tren-the-nang`. No production edits/tags/deploy/orders/provider calls/secret-baseline changes.
+- [x] Test, then commit/push research-only work to `mua-tren-the-nang`. No production edits/tags/deploy/orders/provider calls/secret-baseline changes.
+  Commit `c9695f3`, pushed `a801b31..c9695f3`; full suite 1,777 passed/12 skipped; docs link check passed.
 
 ### Review (so far)
 
