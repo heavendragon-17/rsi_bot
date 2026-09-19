@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarRange,
@@ -8,6 +8,7 @@ import {
   CircleAlert,
   Clock3,
   Database,
+  Download,
   FileText,
   HelpCircle,
   MinusCircle,
@@ -17,6 +18,7 @@ import {
   Target,
   TrendingDown,
   Trophy,
+  Upload,
   XCircle,
 } from "lucide-react";
 import { SignalChart } from "./SignalChart";
@@ -97,12 +99,20 @@ function ReplayLauncher() {
   const loadAvailability = useSignalReviewStore((state) => state.loadAvailability);
   const isLoadingAvailability = useSignalReviewStore((state) => state.isLoadingAvailability);
   const runs = useSignalReviewStore((state) => state.runs);
+  const selectedRunId = useSignalReviewStore((state) => state.selectedRunId);
   const isRunning = useSignalReviewStore((state) => state.isRunning);
+  const isExportingBundle = useSignalReviewStore((state) => state.isExportingBundle);
+  const isImportingBundle = useSignalReviewStore((state) => state.isImportingBundle);
+  const bundleStatus = useSignalReviewStore((state) => state.bundleStatus);
+  const exportSelectedRun = useSignalReviewStore((state) => state.exportSelectedRun);
+  const importBundle = useSignalReviewStore((state) => state.importBundle);
   const runProgress = useSignalReviewStore((state) => state.runProgress);
   const runPhase = useSignalReviewStore((state) => state.runPhase);
   const error = useSignalReviewStore((state) => state.error);
   const [scope, setScope] = useState<"all" | "30d" | "90d" | "365d">("all");
+  const bundleInputRef = useRef<HTMLInputElement>(null);
   const latestCompleted = runs.find((run) => run.status === "completed");
+  const selectedRun = runs.find((run) => run.id === selectedRunId && run.status === "completed");
   const ready = availability?.ready === true;
   const phaseLabel = RUN_PHASE_LABELS[runPhase] ?? "Building review dataset";
 
@@ -194,6 +204,53 @@ function ReplayLauncher() {
           </div>
         </div>
       )}
+      <div className="mt-4 rounded-lg border border-border-main bg-bg-elevated/30 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-text-primary">Share a completed review</p>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Export creates one validated ZIP with the selected run, its reviews, and exact chart data. Send the ZIP without unpacking it.
+            </p>
+            {selectedRun && (
+              <p className="mt-1 text-[11px] text-text-secondary">
+                Selected: {displayDate(selectedRun.created_at)} · {selectedRun.signal_count.toLocaleString()} signals
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!selectedRun || isRunning || isExportingBundle || isImportingBundle}
+              onClick={() => void exportSelectedRun()}
+              className="inline-flex items-center gap-2 rounded-md border border-border-main px-3 py-2 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50"
+            >
+              <Download size={14} />
+              {isExportingBundle ? "Preparing ZIP…" : "Export review bundle"}
+            </button>
+            <button
+              type="button"
+              disabled={isRunning || isExportingBundle || isImportingBundle}
+              onClick={() => bundleInputRef.current?.click()}
+              className="inline-flex items-center gap-2 rounded-md bg-accent-main px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+            >
+              <Upload size={14} />
+              {isImportingBundle ? "Checking ZIP…" : "Import review bundle"}
+            </button>
+            <input
+              ref={bundleInputRef}
+              type="file"
+              accept=".zip,application/zip,application/x-zip-compressed"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) void importBundle(file);
+              }}
+            />
+          </div>
+        </div>
+        {bundleStatus && <p className="mt-2 text-[11px] text-emerald-200">{bundleStatus}</p>}
+      </div>
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
       <p className="mt-3 text-xs text-text-muted">
         Rebuilding creates a new immutable dataset. Existing human reviews remain attached to their original replay run.

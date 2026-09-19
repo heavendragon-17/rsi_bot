@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import {
+  downloadSignalReplayBundle,
   getSignalChart,
   getSignalReplayAvailability,
   getSignalReplaySignal,
+  importSignalReplayBundle,
   listSignalReplaySignals,
   listSignalReplayRuns,
   startSignalReplay,
@@ -10,6 +12,7 @@ import {
   updateSignalReview,
   type SignalReplayListFilters,
 } from "../api/signalReplay";
+import { toast } from "sonner";
 import type {
   SignalChartResponse,
   SignalReplayAvailabilityResponse,
@@ -50,6 +53,9 @@ interface SignalReviewState {
   isLoadingChart: boolean;
   isLoadingAvailability: boolean;
   isRunning: boolean;
+  isExportingBundle: boolean;
+  isImportingBundle: boolean;
+  bundleStatus: string | null;
   reviewSaveState: ReviewSaveState;
   error: string | null;
   initialize: () => Promise<void>;
@@ -67,6 +73,8 @@ interface SignalReviewState {
   saveReview: (patch: SignalReviewUpdate) => Promise<void>;
   monitorReplay: (runId: number) => Promise<void>;
   startReplay: (scope: SignalReplayScope) => Promise<void>;
+  exportSelectedRun: () => Promise<void>;
+  importBundle: (file: File) => Promise<void>;
   clearSelection: () => void;
 }
 
@@ -112,6 +120,9 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
   isLoadingChart: false,
   isLoadingAvailability: false,
   isRunning: false,
+  isExportingBundle: false,
+  isImportingBundle: false,
+  bundleStatus: null,
   reviewSaveState: "idle",
   error: null,
 
@@ -200,6 +211,55 @@ export const useSignalReviewStore = create<SignalReviewState>((set, get) => ({
         isLoadingAvailability: false,
         error: error instanceof Error ? error.message : "Failed to inspect replay data",
       });
+    }
+  },
+
+  exportSelectedRun: async () => {
+    const runId = get().selectedRunId;
+    if (runId == null) {
+      set({ error: "Select a completed replay before exporting it" });
+      return;
+    }
+    set({ isExportingBundle: true, bundleStatus: null, error: null });
+    try {
+      await downloadSignalReplayBundle(runId);
+      const message = "Review bundle downloaded. Send the ZIP file without unpacking it.";
+      set({ bundleStatus: message });
+      toast.success(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to export review bundle";
+      set({ error: message });
+      toast.error(message);
+    } finally {
+      set({ isExportingBundle: false });
+    }
+  },
+
+  importBundle: async (file) => {
+    set({ isImportingBundle: true, bundleStatus: null, error: null });
+    try {
+      const result = await importSignalReplayBundle(file);
+      set({
+        selectedRunId: result.run_id,
+        selected: null,
+        chart: null,
+        qualityFilter: "",
+        outcomeFilter: "",
+      });
+      await get().loadRuns();
+      await get().loadSignals(1);
+      const message = result.duplicate
+        ? "This review bundle was already imported. Its existing dataset is now selected."
+        : `Imported ${result.signal_count.toLocaleString()} signals with ${result.reviewed_count.toLocaleString()} completed reviews.`;
+      set({ bundleStatus: message });
+      if (result.duplicate) toast.info(message);
+      else toast.success(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to import review bundle";
+      set({ error: message });
+      toast.error(message);
+    } finally {
+      set({ isImportingBundle: false });
     }
   },
 

@@ -6,12 +6,29 @@ Exits 0 if clean, 1 if violations found.
 """
 
 import ast
+import fnmatch
 import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = REPO_ROOT / "app"
+
+# Offline BTC research is versioned in this repository but is deliberately not
+# part of the production CI/CD architecture surface.
+RESEARCH_PATH_PREFIXES = ("app/research_pipeline/", "research/", "docs/06_quant_research/")
+RESEARCH_PATHS = {
+    "app/backtest/btc_research_phase1.py",
+    "btc_ai_pipeline.py",
+    "btc_research_phase1.py",
+    "tests/test_btc_four_year_data.py",
+    "tests/test_btc_research_phase1.py",
+}
+RESEARCH_PATH_GLOBS = (
+    "tests/test_btc_ai_pipeline*.py",
+    "tests/test_btc_m5_*.py",
+    "tests/test_btc_m15_*.py",
+)
 
 # ─── Rule 1: Import boundaries ───────────────────────────────────────────────
 # Enforces the dependency DAG: core → (nothing), trading → core+data, etc.
@@ -157,6 +174,25 @@ def _relative_path(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
 
 
+def _is_research_path(path: Path) -> bool:
+    """Return whether *path* belongs to the offline research-only surface."""
+
+    relative = _relative_path(path)
+    return (
+        relative in RESEARCH_PATHS
+        or relative.startswith(RESEARCH_PATH_PREFIXES)
+        or any(fnmatch.fnmatchcase(relative, pattern) for pattern in RESEARCH_PATH_GLOBS)
+    )
+
+
+def _runtime_app_python_files():
+    """Yield production app modules, excluding offline research code."""
+
+    for path in APP_DIR.rglob("*.py"):
+        if "__pycache__" not in path.parts and not _is_research_path(path):
+            yield path
+
+
 def get_imports(filepath: Path) -> list[str]:
     """Extract top-level import module paths from a Python file.
 
@@ -181,7 +217,7 @@ def get_imports(filepath: Path) -> list[str]:
 def check_import_boundaries() -> list[str]:
     """Check that import boundaries are respected."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         module_path = rel.replace("/", ".").replace(".py", "").replace(".__init__", "")
 
@@ -199,9 +235,7 @@ def check_import_boundaries() -> list[str]:
 def check_file_sizes() -> list[str]:
     """Check no Python file exceeds MAX_LINES."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         if rel in FILE_SIZE_EXCEPTIONS:
             continue
@@ -214,9 +248,7 @@ def check_file_sizes() -> list[str]:
 def check_forbidden_patterns() -> list[str]:
     """Check for hardcoded magic numbers that should use constants."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         content = py_file.read_text(encoding="utf-8")
 
@@ -265,8 +297,8 @@ def check_core_file_whitelist() -> list[str]:
 def check_class_count(max_classes: int = 1) -> list[str]:
     """Prevent god files: max 1 real class per file (dataclasses/enums don't count)."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file) or "__init__" in py_file.name:
+    for py_file in _runtime_app_python_files():
+        if "__init__" in py_file.name:
             continue
         rel = _relative_path(py_file)
         if rel in CLASS_COUNT_EXCEPTIONS:
@@ -321,9 +353,7 @@ def check_class_count(max_classes: int = 1) -> list[str]:
 def check_duplicate_helpers() -> list[str]:
     """Detect redefined utility functions that have canonical implementations."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         content = py_file.read_text(encoding="utf-8")
         for regex, desc, allowed in DUPLICATE_HELPER_PATTERNS:
@@ -335,8 +365,8 @@ def check_duplicate_helpers() -> list[str]:
 def check_snake_case_filenames() -> list[str]:
     """All .py files in app/ must use snake_case names."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file) or py_file.name == "__init__.py":
+    for py_file in _runtime_app_python_files():
+        if py_file.name == "__init__.py":
             continue
         if not SNAKE_CASE_PATTERN.match(py_file.name):
             rel = _relative_path(py_file)
@@ -347,9 +377,7 @@ def check_snake_case_filenames() -> list[str]:
 def check_no_print() -> list[str]:
     """No print() statements in app/ — use structlog."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         for i, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             stripped = line.lstrip()
@@ -363,9 +391,7 @@ def check_no_print() -> list[str]:
 def check_no_bare_except() -> list[str]:
     """No bare except: — always specify an exception type."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         for i, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             if BARE_EXCEPT_PATTERN.search(line):
@@ -380,7 +406,7 @@ def check_no_test_case() -> list[str]:
     if not tests_dir.exists():
         return violations
     for py_file in tests_dir.rglob("*.py"):
-        if "__pycache__" in str(py_file):
+        if "__pycache__" in str(py_file) or _is_research_path(py_file):
             continue
         rel = _relative_path(py_file)
         content = py_file.read_text(encoding="utf-8")
@@ -392,9 +418,7 @@ def check_no_test_case() -> list[str]:
 def check_no_stdlib_logging() -> list[str]:
     """No stdlib logging in app/ — use structlog exclusively."""
     violations = []
-    for py_file in APP_DIR.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
+    for py_file in _runtime_app_python_files():
         rel = _relative_path(py_file)
         if rel in LOGGING_ALLOWED_FILES:
             continue

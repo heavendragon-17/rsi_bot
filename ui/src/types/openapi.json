@@ -1109,6 +1109,67 @@
         }
       }
     },
+    "/api/signal-replays/runs/{run_id}/bundle": {
+      "get": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Download Signal Replay Bundle",
+        "operationId": "download_signal_replay_bundle_api_signal_replays_runs__run_id__bundle_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signal-replays/bundles/import": {
+      "post": {
+        "tags": [
+          "signal-replays"
+        ],
+        "summary": "Upload Signal Replay Bundle",
+        "operationId": "upload_signal_replay_bundle_api_signal_replays_bundles_import_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalReplayBundleImportResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/signal-replays/runs/{run_id}/progress": {
       "get": {
         "tags": [
@@ -2494,6 +2555,44 @@
           "sources"
         ],
         "title": "SignalReplayAvailabilityResponse"
+      },
+      "SignalReplayBundleImportResponse": {
+        "properties": {
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "bundle_id": {
+            "type": "string",
+            "title": "Bundle Id"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate"
+          },
+          "signal_count": {
+            "type": "integer",
+            "title": "Signal Count"
+          },
+          "reviewed_count": {
+            "type": "integer",
+            "title": "Reviewed Count"
+          },
+          "source_run_id": {
+            "type": "integer",
+            "title": "Source Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "bundle_id",
+          "duplicate",
+          "signal_count",
+          "reviewed_count",
+          "source_run_id"
+        ],
+        "title": "SignalReplayBundleImportResponse"
       },
       "SignalReplayListResponse": {
         "properties": {

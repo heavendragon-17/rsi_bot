@@ -2,6 +2,44 @@
 
 > Current work items. Update as you go — mark items complete, add new ones as they emerge.
 
+## ✅ COMPLETED — Portable BTC Signal Review handoff (2026-09-19)
+
+- [x] Add a versioned, hash-verified Signal Review ZIP format containing one
+      completed run, its M5/M15 reviews and forward observations, and the exact
+      M5/M15/H1/H4 chart sources.
+- [x] Add conflict-safe import that creates a separate local run, rewrites only
+      imported source paths, detects duplicate bundles, and never overwrites an
+      existing database or canonical CSV.
+- [x] Add one-click Export and Import controls to the Signal Review UI with
+      low-tech, actionable success/error feedback.
+- [x] Add focused backend/API/frontend validation and update generated API
+      types plus Signal Review documentation.
+- [x] Keep offline research outside production CI/CD: skip research-only
+      pushes/PRs, omit research from product gates and the Docker context, and
+      preserve full production validation for mixed changes and release tags.
+- [x] Independently review the diff, run proportional validation, commit only
+      scoped files, push `mua-tren-the-nang`, and verify the remote ref.
+
+### Review
+
+Implemented a single-file handoff for non-technical reviewers. Export binds one
+completed run and its four chart sources into a versioned ZIP; import validates
+inventory, sizes, hashes, source facts, schema, and counts before creating a
+separate local run. Duplicate imports reuse the existing imported dataset.
+
+The Signal Review launcher exposes plain Export/Import buttons and explains
+that the ZIP should be sent unchanged. Production CI/CD excludes offline BTC
+research code, tests, reports, and data while retaining repository-wide secret
+detection and all runtime gates.
+
+| Check | Result |
+|---|---|
+| Bundle/API + CI-boundary regression tests | **25 passed** |
+| Full production-scoped pytest + coverage | **1322 passed, 12 skipped; 74.63%** |
+| Ruff, architecture lint, mypy, Bandit, Markdown links | **Passed** |
+| Frontend TypeScript + production build | **Passed** |
+| Browser visual QA | **Passed; no console errors** |
+
 ## ⚪ ACTIVE — BTC Signal Review TP/SL outcome capture (2026-09-02)
 
 - [x] Add fixed signal-candle entry with adjacent TP/SL inputs to the Signal Review UI.

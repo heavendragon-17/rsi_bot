@@ -42,6 +42,15 @@ The store resumes the visible progress stream after a page refresh when the
 same API process still owns an active run. Interrupted database rows are
 reported as failed instead of leaving the page permanently busy.
 
+The launcher also provides a low-tech handoff workflow. **Export review
+bundle** downloads one ZIP for the selected completed run; the reviewer sends
+that file without unpacking or editing it. On another machine, **Import review
+bundle** opens the normal file picker, validates the bundle server-side, adds a
+separate local dataset, selects it, and clears the default `UNREVIEWED` filter
+so all transferred labels are visible. Re-importing the same ZIP is
+duplicate-safe and selects the existing dataset. Users do not copy or replace
+SQLite files.
+
 Selecting a row opens a full-page detail view that shows the reviewer's queue
 position and uses **Previous** / **Next signal** navigation. A completed outcome
 makes the Next signal action visually primary. The exact Telegram card,

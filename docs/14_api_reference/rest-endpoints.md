@@ -133,7 +133,9 @@ indicator fields, latest human review, and objective forward observations.
 | `POST` | `/api/signal-replays/runs` | Start a BTC M5/M15/H1/H4 replay job |
 | `GET` | `/api/signal-replays/runs` | List recent replay runs |
 | `GET` | `/api/signal-replays/runs/{run_id}` | Run provenance, counters, and signal counts |
+| `GET` | `/api/signal-replays/runs/{run_id}/bundle` | Download a portable, hash-verified ZIP for one completed run |
 | `GET` | `/api/signal-replays/runs/{run_id}/progress` | SSE replay progress and terminal status |
+| `POST` | `/api/signal-replays/bundles/import` | Validate and import a portable ZIP as a separate local run |
 | `GET` | `/api/signal-replays/signals` | Paginated signal list with filters |
 | `GET` | `/api/signal-replays/signals/{signal_id}` | Full card, structured snapshot, review, and metrics |
 | `GET` | `/api/signal-replays/signals/{signal_id}/chart` | Review-gated M5/M15/H1/H4 OHLCV/indicator chart window |
@@ -150,6 +152,25 @@ the aligned source coverage is rejected before a run row or worker is created.
 The response is `{ run_id, status: "running" }`. Missing or invalid canonical
 CSVs fail before a worker is submitted, and a second concurrent signal replay
 is rejected.
+
+### Portable review bundles
+
+`GET /api/signal-replays/runs/{run_id}/bundle` accepts completed runs only and
+returns `application/zip` with a download filename. The archive contains a
+versioned manifest, portable review JSON, a short README, and the exact M5,
+M15, H1, and H4 source CSVs. It excludes unrelated database rows. Export checks
+the run's persisted source facts and, for hash-bound replays, rejects changed
+source bytes.
+
+`POST /api/signal-replays/bundles/import` accepts that ZIP as the raw request
+body with `Content-Type: application/zip`; it is not multipart form data. The
+upload and expanded archive are bounded, and the importer rejects missing,
+duplicate, extra, encrypted, malformed, or hash-mismatched members before
+extracting the four fixed source names. A successful response is
+`{ run_id, bundle_id, duplicate, signal_count, reviewed_count, source_run_id }`.
+The imported run and chart sources are separate from existing runs and
+canonical CSVs. Uploading an already imported `bundle_id` returns the existing
+run with `duplicate: true`.
 
 ### `GET /api/signal-replays/availability`
 

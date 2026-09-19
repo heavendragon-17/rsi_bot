@@ -3,8 +3,32 @@ name: CI
 on:
   push:
     branches: [mua-tren-the-nang]
+    paths-ignore:
+      - "research/**"
+      - "docs/06_quant_research/**"
+      - "app/research_pipeline/**"
+      - "app/backtest/btc_research_phase1.py"
+      - "btc_ai_pipeline.py"
+      - "btc_research_phase1.py"
+      - "tests/test_btc_ai_pipeline*.py"
+      - "tests/test_btc_four_year_data.py"
+      - "tests/test_btc_m5_*.py"
+      - "tests/test_btc_m15_*.py"
+      - "tests/test_btc_research_phase1.py"
   pull_request:
     branches: [mua-tren-the-nang]
+    paths-ignore:
+      - "research/**"
+      - "docs/06_quant_research/**"
+      - "app/research_pipeline/**"
+      - "app/backtest/btc_research_phase1.py"
+      - "btc_ai_pipeline.py"
+      - "btc_research_phase1.py"
+      - "tests/test_btc_ai_pipeline*.py"
+      - "tests/test_btc_four_year_data.py"
+      - "tests/test_btc_m5_*.py"
+      - "tests/test_btc_m15_*.py"
+      - "tests/test_btc_research_phase1.py"
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -80,6 +104,11 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest tests/ -v --tb=short \
+            --ignore-glob='tests/test_btc_ai_pipeline*.py' \
+            --ignore=tests/test_btc_four_year_data.py \
+            --ignore-glob='tests/test_btc_m5_*.py' \
+            --ignore-glob='tests/test_btc_m15_*.py' \
+            --ignore=tests/test_btc_research_phase1.py \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
@@ -132,7 +161,7 @@ jobs:
       - name: Install Bandit
         run: python -m pip install "bandit[toml]==1.8.3"
       - name: Run Bandit
-        run: bandit -r app -c pyproject.toml
+        run: bandit -r app -c pyproject.toml -x app/research_pipeline,app/backtest/btc_research_phase1.py
 
   pip-audit:
     name: Dependency Audit
@@ -207,7 +236,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Validate local Markdown links
-        run: python scripts/check_markdown_links.py
+        run: python scripts/check_markdown_links.py --exclude-research
       - name: Check documentation impact
         if: github.event_name == 'pull_request'
         env:

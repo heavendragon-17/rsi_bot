@@ -19,6 +19,7 @@ REFERENCE_LINK_RE = re.compile(r"^[ \t]*\[[^\]]+\]:[ \t]*(?P<target><[^>]+>|\S+)
 INLINE_CODE_RE = re.compile(r"(?<!`)`[^`\r\n]*`(?!`)")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 MARKDOWN_PATTERNS = ("*.md", "*.mdx")
+RESEARCH_DOCUMENT_PREFIXES = ("research/", "docs/06_quant_research/")
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,14 @@ def _expand_paths(root: Path, paths: list[str]) -> list[Path]:
         else:
             raise FileNotFoundError(raw_path)
     return sorted(files)
+
+
+def _without_research_documents(root: Path, files: list[Path]) -> list[Path]:
+    return [
+        path
+        for path in files
+        if not path.relative_to(root).as_posix().startswith(RESEARCH_DOCUMENT_PREFIXES)
+    ]
 
 
 def _without_code(text: str) -> str:
@@ -175,11 +184,18 @@ def check_files(root: Path, files: list[Path]) -> list[BrokenLink]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="*", help="Optional Markdown files or directories")
+    parser.add_argument(
+        "--exclude-research",
+        action="store_true",
+        help="Omit offline research Markdown from the production documentation gate",
+    )
     args = parser.parse_args(argv)
 
     root = Path(__file__).resolve().parents[1]
     try:
         files = _expand_paths(root, args.paths) if args.paths else _tracked_markdown_files(root)
+        if args.exclude_research:
+            files = _without_research_documents(root, files)
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         print(f"documentation check could not start: {exc}", file=sys.stderr)
         return 2

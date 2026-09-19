@@ -14,6 +14,7 @@ observation.
 
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -78,15 +79,29 @@ def _utc_iso(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat()
 
 
-def source_metadata(path: str | Path, frame: pd.DataFrame, timeframe: str) -> dict[str, Any]:
-    """Return persisted source facts without claiming content hashing."""
+def _source_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def source_metadata(
+    path: str | Path,
+    frame: pd.DataFrame,
+    timeframe: str,
+    *,
+    include_sha256: bool = False,
+) -> dict[str, Any]:
+    """Return persisted source facts and optionally bind exact source bytes."""
 
     csv_path = Path(path).resolve()
     index = pd.DatetimeIndex(frame.index).tz_convert(UTC)
     duration = _duration_for_timeframe(timeframe)
     stat = csv_path.stat()
     modified_at = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
-    return {
+    metadata = {
         "path": str(csv_path),
         "timeframe": timeframe,
         "row_count": int(len(frame)),
@@ -96,6 +111,9 @@ def source_metadata(path: str | Path, frame: pd.DataFrame, timeframe: str) -> di
         "observed_at": datetime.now(UTC).isoformat(),
         "downloaded_at": None,
     }
+    if include_sha256:
+        metadata["sha256"] = _source_sha256(csv_path)
+    return metadata
 
 
 def _close_times(frame: pd.DataFrame, timeframe: str) -> pd.DatetimeIndex:

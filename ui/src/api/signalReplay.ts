@@ -1,7 +1,8 @@
-import { apiFetch, apiSSE } from "./client";
+import { apiBinaryUpload, apiDownload, apiFetch, apiSSE } from "./client";
 import type {
   SignalChartResponse,
   SignalReplayAvailabilityResponse,
+  SignalReplayBundleImportResponse,
   SignalReplayListResponse,
   SignalReplayRunDetail,
   SignalReplayRunRequest,
@@ -58,6 +59,27 @@ export async function getSignalReplayRun(
   runId: number,
 ): Promise<SignalReplayRunDetail> {
   return apiFetch<SignalReplayRunDetail>(`/api/signal-replays/runs/${runId}`);
+}
+
+export async function downloadSignalReplayBundle(runId: number): Promise<void> {
+  const download = await apiDownload(`/api/signal-replays/runs/${runId}/bundle`);
+  const url = URL.createObjectURL(download.blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = download.filename ?? `BTC-signal-review-run-${runId}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
+export async function importSignalReplayBundle(
+  file: File,
+): Promise<SignalReplayBundleImportResponse> {
+  return apiBinaryUpload<SignalReplayBundleImportResponse>(
+    "/api/signal-replays/bundles/import",
+    file,
+  );
 }
 
 export function streamSignalReplayProgress(

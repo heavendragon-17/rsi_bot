@@ -38,6 +38,10 @@ docs
 wiki
 tasks
 research
+app/research_pipeline
+app/backtest/btc_research_phase1.py
+btc_ai_pipeline.py
+btc_research_phase1.py
 tests
 scripts
 *.md

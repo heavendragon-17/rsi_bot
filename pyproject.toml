@@ -17,6 +17,9 @@ markers = [
 source = ["app"]
 omit = [
     "app/__pycache__/*",
+    # Offline research is intentionally outside the production CI/CD scope.
+    "app/research_pipeline/*",
+    "app/backtest/btc_research_phase1.py",
     # True CLI entry-point scripts — all logic delegated to library code.
     "app/backtest/backtest.py",
     "app/backtest/benchmark.py",
@@ -43,6 +46,18 @@ fail_under = 70
 [tool.ruff]
 target-version = "py313"
 line-length = 120
+extend-exclude = [
+    "app/research_pipeline",
+    "app/backtest/btc_research_phase1.py",
+    "research",
+    "btc_ai_pipeline.py",
+    "btc_research_phase1.py",
+    "tests/test_btc_ai_pipeline*.py",
+    "tests/test_btc_four_year_data.py",
+    "tests/test_btc_m5_*.py",
+    "tests/test_btc_m15_*.py",
+    "tests/test_btc_research_phase1.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
@@ -60,6 +75,10 @@ warn_unused_configs = true
 ignore_missing_imports = true
 no_implicit_optional = false
 disable_error_code = ["import-untyped"]
+exclude = [
+    "^app/research_pipeline/",
+    "^app/backtest/btc_research_phase1\\.py$",
+]
 
 [[tool.mypy.overrides]]
 module = [

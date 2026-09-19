@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: markdown-links
         name: Markdown local-link check
-        entry: python scripts/check_markdown_links.py
+        entry: python scripts/check_markdown_links.py --exclude-research
         language: system
         pass_filenames: false
         files: (^|/).*\.mdx?$
@@ -62,7 +62,7 @@ repos:
     rev: 1.8.3
     hooks:
       - id: bandit
-        args: [-r, app/, -c, pyproject.toml]
+        args: [-r, app/, -c, pyproject.toml, -x, "app/research_pipeline,app/backtest/btc_research_phase1.py"]
         pass_filenames: false
         files: ^app/.*\.py$
 
@@ -79,7 +79,7 @@ repos:
 
       - id: pytest
         name: Run tests
-        entry: pytest tests/ -x -q --tb=short --no-header
+        entry: pytest tests/ -x -q --tb=short --no-header --ignore-glob=tests/test_btc_ai_pipeline*.py --ignore=tests/test_btc_four_year_data.py --ignore-glob=tests/test_btc_m5_*.py --ignore-glob=tests/test_btc_m15_*.py --ignore=tests/test_btc_research_phase1.py
         language: system
         pass_filenames: false
         files: \.(py)$

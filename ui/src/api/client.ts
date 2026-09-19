@@ -23,6 +23,18 @@ export class ApiError extends Error {
   }
 }
 
+async function apiErrorFromResponse(res: Response, path: string): Promise<ApiError> {
+  let message = `HTTP ${res.status}`;
+  try {
+    const body = await res.json() as { detail?: string; error?: string; type?: string };
+    message = body.detail ?? body.error ?? message;
+    console.error(`[API] ${res.status} ${path}:`, body);
+  } catch {
+    console.error(`[API] ${res.status} ${path}: (no JSON body)`);
+  }
+  return new ApiError(res.status, message);
+}
+
 // ---------------------------------------------------------------------------
 // apiFetch
 // ---------------------------------------------------------------------------
@@ -49,21 +61,52 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    let message = `HTTP ${res.status}`;
-    try {
-      const body = await res.json() as { detail?: string; error?: string; type?: string };
-      message = body.detail ?? body.error ?? message;
-      console.error(`[API] ${res.status} ${path}:`, body);
-    } catch {
-      console.error(`[API] ${res.status} ${path}: (no JSON body)`);
-    }
-    throw new ApiError(res.status, message);
+    throw await apiErrorFromResponse(res, path);
   }
 
   // 204 No Content — return empty object cast to T
   if (res.status === 204) return {} as T;
 
   console.log(`[API] ${res.status} ${path} OK`);
+  return res.json() as Promise<T>;
+}
+
+export interface ApiDownload {
+  blob: Blob;
+  filename: string | null;
+}
+
+function responseFilename(res: Response): string | null {
+  const disposition = res.headers.get("Content-Disposition");
+  if (!disposition) return null;
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      return encoded;
+    }
+  }
+  return disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? null;
+}
+
+export async function apiDownload(path: string): Promise<ApiDownload> {
+  const url = `${BASE_URL}${path}`;
+  console.log(`[API] GET ${path}`);
+  const res = await fetch(url);
+  if (!res.ok) throw await apiErrorFromResponse(res, path);
+  return { blob: await res.blob(), filename: responseFilename(res) };
+}
+
+export async function apiBinaryUpload<T>(path: string, body: Blob): Promise<T> {
+  const url = `${BASE_URL}${path}`;
+  console.log(`[API] POST ${path}`);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": body.type || "application/zip" },
+    body,
+  });
+  if (!res.ok) throw await apiErrorFromResponse(res, path);
   return res.json() as Promise<T>;
 }
 

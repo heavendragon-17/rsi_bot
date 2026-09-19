@@ -357,7 +357,12 @@ class SignalReplayService:
             }
         try:
             frame = load_ohlcv_csv(csv_path, requested_timeframe)
-            current_source = source_metadata(csv_path, frame, requested_timeframe)
+            current_source = source_metadata(
+                csv_path,
+                frame,
+                requested_timeframe,
+                include_sha256=bool(metadata.get("sha256")),
+            )
             candles, chart_metadata = chart_window_from_frame(
                 frame,
                 requested_timeframe,
@@ -367,11 +372,23 @@ class SignalReplayService:
                 allow_future=allow_future,
             )
             source_warnings: list[str] = []
-            for key in ("row_count", "available_start", "available_end", "source_modified_at"):
+            for key in (
+                "row_count",
+                "available_start",
+                "available_end",
+                "source_modified_at",
+                "sha256",
+            ):
                 if metadata.get(key) and metadata.get(key) != current_source.get(key):
-                    source_warnings.append(f"Current CSV {key.replace('_', ' ')} differs from the replay source.")
+                    source_warnings.append(
+                        f"Current CSV {key.replace('_', ' ')} differs from the replay source."
+                    )
             if source_warnings:
-                warnings = [warning for warning in (chart_metadata.get("warning"), *source_warnings) if warning]
+                warnings = [
+                    warning
+                    for warning in (chart_metadata.get("warning"), *source_warnings)
+                    if warning
+                ]
                 chart_metadata["warning"] = " ".join(dict.fromkeys(warnings))
         except (LookupError, ValueError) as exc:
             return {

@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from app.api.schemas import (
     SignalChartResponse,
@@ -13,6 +18,7 @@ from app.api.schemas import (
     SignalHumanOutcome,
     SignalQuality,
     SignalReplayAvailabilityResponse,
+    SignalReplayBundleImportResponse,
     SignalReplayListResponse,
     SignalReplayRunDetail,
     SignalReplayRunRequest,
@@ -22,6 +28,14 @@ from app.api.schemas import (
     SignalReviewResponse,
     SignalReviewUpdate,
 )
+from app.backtest.signal_replay_bundle import (
+    create_signal_review_bundle,
+    import_signal_review_bundle,
+)
+from app.backtest.signal_replay_bundle_format import (
+    MAX_ARCHIVE_BYTES,
+    SignalReviewBundleError,
+)
 from app.backtest.signal_replay_service import SignalReplayService
 from app.backtest.signal_replay_support import api_datetime, run_summary
 from app.repository.backtest.database import SessionLocal
@@ -30,6 +44,10 @@ from app.repository.backtest.models import SignalReplayRun, SignalReplaySignal
 router = APIRouter(prefix="/api/signal-replays", tags=["signal-replays"])
 logger = structlog.get_logger()
 _service = SignalReplayService()
+
+
+def _remove_temporary_file(path: str) -> None:
+    Path(path).unlink(missing_ok=True)
 
 
 def get_db():
@@ -82,6 +100,92 @@ def get_signal_replay_run(run_id: int, db: Session = Depends(get_db)):
         return _service.get_run(run_id, db)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
+
+
+@router.get("/runs/{run_id}/bundle")
+def download_signal_replay_bundle(run_id: int, db: Session = Depends(get_db)):
+    try:
+        artifact = create_signal_review_bundle(run_id, db)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except (OSError, SignalReviewBundleError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    logger.info(
+        "api_signal_review_bundle_exported",
+        run_id=run_id,
+        bundle_id=artifact.bundle_id,
+    )
+    return FileResponse(
+        path=artifact.path,
+        media_type="application/zip",
+        filename=artifact.filename,
+        background=BackgroundTask(_remove_temporary_file, str(artifact.path)),
+    )
+
+
+@router.post("/bundles/import", response_model=SignalReplayBundleImportResponse)
+async def upload_signal_replay_bundle(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    raw_length = request.headers.get("content-length")
+    if raw_length is not None:
+        try:
+            content_length = int(raw_length)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid Content-Length header"
+            ) from None
+        if content_length > MAX_ARCHIVE_BYTES:
+            raise HTTPException(
+                status_code=413, detail="Review bundle exceeds the 1 GiB upload limit"
+            )
+
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix="signal-review-upload-", suffix=".zip", delete=False
+        ) as handle:
+            temp_path = Path(handle.name)
+            received = 0
+            async for chunk in request.stream():
+                received += len(chunk)
+                if received > MAX_ARCHIVE_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Review bundle exceeds the 1 GiB upload limit",
+                    )
+                handle.write(chunk)
+        if received == 0:
+            raise HTTPException(status_code=400, detail="Review bundle upload is empty")
+        result = await run_in_threadpool(import_signal_review_bundle, temp_path, db)
+    except HTTPException:
+        raise
+    except SignalReviewBundleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except OSError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Could not store review bundle: {exc}"
+        ) from None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+    logger.info(
+        "api_signal_review_bundle_imported",
+        run_id=result.run_id,
+        source_run_id=result.source_run_id,
+        bundle_id=result.bundle_id,
+        duplicate=result.duplicate,
+    )
+    return {
+        "run_id": result.run_id,
+        "bundle_id": result.bundle_id,
+        "duplicate": result.duplicate,
+        "signal_count": result.signal_count,
+        "reviewed_count": result.reviewed_count,
+        "source_run_id": result.source_run_id,
+    }
 
 
 @router.get("/runs/{run_id}/progress")

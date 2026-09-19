@@ -30,6 +30,7 @@ _INCLUDE = (
     "SignalHumanOutcome",
     "SignalTradeExit",
     "SignalReplayRunSummary",
+    "SignalReplayBundleImportResponse",
     "BacktestStartResponse",
     "SignalReplayListResponse",
     "SignalReplaySignalDetail",

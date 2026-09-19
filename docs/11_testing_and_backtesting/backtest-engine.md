@@ -323,6 +323,23 @@ Telegram card plus a versioned structured snapshot. A unique
 `(replay_run_id, event_id)` constraint prevents duplicate alerts within a run;
 rerunning a window creates a new run and never overwrites prior data.
 
+Completed runs can be handed to another installation as one portable Signal
+Review ZIP. The export contains only the selected run's immutable signals,
+latest reviews, forward metrics, and the exact BTC M5, M15, H1, and H4 CSVs
+needed to render its charts. It does not copy the SQLite database or expose
+other runs. New replays persist a SHA-256 for each source at replay time; export
+fails closed if those bytes later change. Older completed runs can still be
+exported after row/range validation, but the manifest records that their hash
+was established at export time.
+
+Import validates the versioned schema, exact ZIP inventory, expanded-size
+limits, every member size and SHA-256, source cadence/range facts, signal
+identity, and manifest counts before writing. Valid files are retained beneath
+the backtest database directory in `signal_review_imports/<bundle_id>/`, and a
+new local completed run is created with rewritten local source paths. Repeating
+the same bundle selects the existing imported run; it never overwrites a local
+run, canonical CSV, or review.
+
 The review layer keeps two labels independent:
 
 - `quality`: `UNREVIEWED`, `GOOD`, `BAD`, or `UNCERTAIN`;

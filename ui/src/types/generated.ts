@@ -1,7 +1,7 @@
 /* AUTO-GENERATED — do not edit manually.
  * Source: Pydantic models in app/api/schemas.py
  * Run `python scripts/gen_ts_types.py` to regenerate.
- * Generated: 2026-09-02T10:33:09Z
+ * Generated: 2026-09-19T09:00:42Z
  */
 
 export type BacktestMode = "single" | "portfolio" | "batch" | "tick_replay";
@@ -28,6 +28,15 @@ export interface SignalReplayRunSummary {
   m5_count: number;
   m15_count: number;
   error_message: string | null;
+}
+
+export interface SignalReplayBundleImportResponse {
+  run_id: number;
+  bundle_id: string;
+  duplicate: boolean;
+  signal_count: number;
+  reviewed_count: number;
+  source_run_id: number;
 }
 
 export interface BacktestStartResponse {

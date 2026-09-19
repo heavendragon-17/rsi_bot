@@ -370,6 +370,15 @@ class SignalReplayRunDetail(BaseModel):
     counters: dict[str, Any]
 
 
+class SignalReplayBundleImportResponse(BaseModel):
+    run_id: int
+    bundle_id: str
+    duplicate: bool
+    signal_count: int
+    reviewed_count: int
+    source_run_id: int
+
+
 class SignalChartResponse(BaseModel):
     signal_id: int
     timeframe: str

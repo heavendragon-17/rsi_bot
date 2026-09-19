@@ -61,6 +61,28 @@ cd ui && npm ci && npm run build
 `mua-tren-the-nang`, manual dispatches, and release workflow calls. A reusable
 caller may supply a `ref`; every checkout then validates that exact ref.
 
+Research-only pushes and pull requests do not start CI. The ignored set is
+limited to `research/`, the offline `app/research_pipeline/` and Phase 1 entry
+points, their `docs/06_quant_research/` documentation, and their explicitly
+named BTC research tests. GitHub applies `paths-ignore` only when every changed
+path is in that set, so any mixed change that also touches runtime, API, UI,
+general tests, configuration, or delivery code still runs the production CI
+workflow. Within that workflow, Ruff, architecture lint, mypy, Bandit,
+coverage, and pytest omit the same offline research modules and test families;
+the product gates therefore cannot be broken by an unrelated experiment.
+Repository-wide secret detection remains active because it protects all
+committed content without executing research. Markdown link validation is
+production-scoped and omits offline research reports. Manual dispatch and
+reusable workflow calls remain available.
+
+Deployment is not branch-push driven: only an explicit SemVer tag or manual
+Deploy invocation can enter the release workflow. Release tags always call the
+full production-scoped reusable CI workflow against the exact tag, regardless
+of research path filters; research-only work must not be tagged as a production
+release. `.dockerignore` also removes the research tree, research pipeline,
+Phase 1 entry points, tests, and research data from the production image build
+context.
+
 | Required job name | Primary validation | Timeout |
 |---|---|---:|
 | `Architecture Lint` | architecture rules and deployment shell syntax | 5 min |

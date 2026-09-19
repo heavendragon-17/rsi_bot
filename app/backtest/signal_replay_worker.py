@@ -66,10 +66,10 @@ def run_signal_replay_worker(
         h1_frame = load_ohlcv_csv(h1_path, "1h")
         h4_frame = load_ohlcv_csv(h4_path, "4h")
         source_facts = {
-            "5m": source_metadata(m5_path, m5_frame, "5m"),
-            "15m": source_metadata(m15_path, m15_frame, "15m"),
-            "1h": source_metadata(h1_path, h1_frame, "1h"),
-            "4h": source_metadata(h4_path, h4_frame, "4h"),
+            "5m": source_metadata(m5_path, m5_frame, "5m", include_sha256=True),
+            "15m": source_metadata(m15_path, m15_frame, "15m", include_sha256=True),
+            "1h": source_metadata(h1_path, h1_frame, "1h", include_sha256=True),
+            "4h": source_metadata(h4_path, h4_frame, "4h", include_sha256=True),
         }
         progress_cb({
             "pct": 10,
