@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts.arch_lint import _is_research_path, _runtime_app_python_files
+from scripts.ci_secret_scan import is_ci_secret_scan_excluded
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 )
 def test_research_paths_are_outside_the_runtime_architecture_scope(relative_path):
     assert _is_research_path(ROOT / relative_path)
+    assert is_ci_secret_scan_excluded(relative_path)
 
 
 @pytest.mark.parametrize(
@@ -43,6 +45,7 @@ def test_research_paths_are_outside_the_runtime_architecture_scope(relative_path
 )
 def test_runtime_paths_stay_inside_the_production_scope(relative_path):
     assert not _is_research_path(ROOT / relative_path)
+    assert not is_ci_secret_scan_excluded(relative_path)
 
 
 def test_runtime_architecture_scan_omits_research_modules():
@@ -75,5 +78,18 @@ def test_ci_skips_research_only_changes_and_research_test_collection():
         "--ignore-glob='tests/test_btc_m15_*.py'",
         "-x app/research_pipeline,app/backtest/btc_research_phase1.py",
         "python scripts/check_markdown_links.py --exclude-research",
+        "python scripts/ci_secret_scan.py",
     ):
         assert marker in workflow
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "ui/build/assets/index-generated.js",
+        "artifacts/core_v2_1/generated.json",
+        "research/notebook.ipynb",
+    ],
+)
+def test_generated_files_stay_outside_the_ci_secret_scan(relative_path):
+    assert is_ci_secret_scan_excluded(relative_path)
