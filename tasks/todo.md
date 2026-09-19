@@ -10,9 +10,10 @@
 - [x] Produce signal counts, coverage exclusions, and representative point-in-time decision charts.
 - [x] Classify execution/exit/partial-TP/sizing rules: specified vs reference-only vs unresolved (no invented rules, no one-hour policy reuse).
 - [x] Deliver findings report + one proposed reference-backtest protocol (no optimization/profitability claims).
-- [ ] Test (core suite + docs link check), then commit and push research-only outputs to `mua-tren-the-nang`. No tags/deploy/orders/provider calls/secret-baseline edits.
+- [x] Test (core suite + docs link check), then commit and push research-only outputs to `mua-tren-the-nang`. No tags/deploy/orders/provider calls/secret-baseline edits.
+  Commit `4cc47dc`, pushed `8fb4f76..4cc47dc`; full suite 1,768 passed/12 skipped; docs link check passed.
 
-### Review (so far)
+### Review
 
 Replay rerun (`full:common_window`, new dir `research/results/core_v2_1_audit_replay/`)
 reproduced the recorded run exactly: 125,000 ledger rows, 98,550 evaluated,
