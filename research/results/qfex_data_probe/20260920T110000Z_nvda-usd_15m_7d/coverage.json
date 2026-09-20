@@ -1,0 +1,61 @@
+{
+  "symbol": "NVDA-USD",
+  "venue": "QFEX",
+  "timeframe": "15-minute",
+  "window": {
+    "fromISO": "2026-09-13T00:00:00Z",
+    "toISO": "2026-09-20T00:00:00Z"
+  },
+  "underlier": {
+    "rows": 672,
+    "expected_intervals": 672,
+    "present_intervals": 672,
+    "missing_intervals": 0,
+    "missing_list": [],
+    "missing_truncated": false,
+    "extra_intervals": 0,
+    "extra_list": [],
+    "extra_truncated": false,
+    "duplicates": 0,
+    "nulls_ohlc_volume": 0,
+    "first_timestamp": "2026-09-13T00:00:00Z",
+    "last_timestamp": "2026-09-19T23:45:00Z",
+    "ohlc_violations": [],
+    "session_note": "Missing intervals are reported as observed gaps only; non-trading-session gaps are not classified as corruption, and this 7-day sample does not establish the API's full historical coverage."
+  },
+  "instrument": {
+    "rows": 672,
+    "expected_intervals": 672,
+    "present_intervals": 672,
+    "missing_intervals": 0,
+    "missing_list": [],
+    "missing_truncated": false,
+    "extra_intervals": 0,
+    "extra_list": [],
+    "extra_truncated": false,
+    "duplicates": 0,
+    "nulls_ohlc_volume": 0,
+    "first_timestamp": "2026-09-13T00:00:00Z",
+    "last_timestamp": "2026-09-19T23:45:00Z",
+    "ohlc_violations": [],
+    "session_note": "Missing intervals are reported as observed gaps only; non-trading-session gaps are not classified as corruption, and this 7-day sample does not establish the API's full historical coverage."
+  },
+  "volume_note": "Underlier responses carry no volume/trade fields, so none is stored for underlier. Instrument loader `volume` := venue `usdVolume` (quote-notional); `baseTokenVolume`, `trades` (nullable), midpoint open/close and startingOpenInterest are retained in normalized_instrument_full.csv. No volume invented, no underlier-for-instrument substitution, no gap filling.",
+  "close_divergence": {
+    "common_intervals": 672,
+    "comparison": "pairwise legs per shared timestamp (duplicate stamps expand, never collapse)",
+    "max_abs_diff": 2.942788,
+    "max_at": "2026-09-13T09:30:00Z",
+    "mean_abs_diff": 0.181545
+  },
+  "field_quality": {
+    "rows": 672,
+    "trades_null": 672,
+    "zero_volume_usd": 43,
+    "zero_volume_base": 672,
+    "zero_mid_open": 672,
+    "zero_mid_close": 672,
+    "zero_startingOpenInterest": 672,
+    "note": "Sentinel/nullable fields are retained verbatim from the venue response; zero/null legs are not measurements and must not feed signal logic."
+  }
+}

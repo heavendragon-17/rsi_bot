@@ -1,0 +1,43 @@
+[
+  {
+    "method": "GET",
+    "url": "https://api.qfex.com/refdata",
+    "endpoint": "/refdata",
+    "params": {},
+    "status": 200,
+    "bytes": 337991,
+    "sha256": "a9d3b2484a53cba7c9756d2b8c57380bbbe7c8b1a9aff42d2c62df43723b4ccc",
+    "elapsed_ms": null,
+    "note": "reconstructed from preserved raw response; no live call"
+  },
+  {
+    "method": "GET",
+    "url": "https://api.qfex.com/underlier/NVDA-USD?interval=15m&fromISO=2026-09-13T00%3A00%3A00Z&toISO=2026-09-20T00%3A00%3A00Z",
+    "endpoint": "/underlier/NVDA-USD",
+    "params": {
+      "interval": "15m",
+      "fromISO": "2026-09-13T00:00:00Z",
+      "toISO": "2026-09-20T00:00:00Z"
+    },
+    "status": 200,
+    "bytes": 108245,
+    "sha256": "45ccc67d67654d2f6c25a6c7fa5704b509743b7bbb2f676a607955b78e37688e",
+    "elapsed_ms": null,
+    "note": "reconstructed from preserved raw response; no live call"
+  },
+  {
+    "method": "GET",
+    "url": "https://api.qfex.com/candles/NVDA-USD?resolution=15MINS&fromISO=2026-09-13T00%3A00%3A00Z&toISO=2026-09-20T00%3A00%3A00Z",
+    "endpoint": "/candles/NVDA-USD",
+    "params": {
+      "resolution": "15MINS",
+      "fromISO": "2026-09-13T00:00:00Z",
+      "toISO": "2026-09-20T00:00:00Z"
+    },
+    "status": 200,
+    "bytes": 184125,
+    "sha256": "0317fd18c2c92aa0fbcdad7400305512d38e191c9c04c2d59e721532afbcd357",
+    "elapsed_ms": null,
+    "note": "reconstructed from preserved raw response; no live call"
+  }
+]

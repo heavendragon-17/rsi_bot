@@ -1,0 +1,25 @@
+{
+  "loader": "app.backtest.signal_replay_data.load_ohlcv_csv",
+  "required_columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "timeframe_label": "15m",
+  "rows": 672,
+  "first_utc": "2026-09-13T00:00:00Z",
+  "last_utc": "2026-09-19T23:45:00Z",
+  "columns": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "closed",
+    "timeframe"
+  ],
+  "timestamp_convention": "Loader parses timestamps with pandas mixed-format; naive values are assumed UTC+7 storage time, tz-aware values convert to UTC. The probe writes tz-aware '+00:00' UTC stamps, so the loader resolves the exact canonical instants with no shift. BacktestEngine reads the same timestamp,open,high,low,close,volume columns via pd.read_csv (app/backtest/engine/backtest_engine.py:55) + pd.to_datetime (:76)."
+}
