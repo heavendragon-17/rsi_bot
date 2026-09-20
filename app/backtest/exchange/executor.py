@@ -73,7 +73,7 @@ def execute_order(
         fee_cost = notional * fee_rate
         if entry_price is not None:
             if current_signed < 0:
-                gross_pnl = (exec_price - entry_price) * current_signed
+                gross_pnl = (entry_price - exec_price) * amount
                 pnl_pct = float((entry_price - exec_price) / entry_price * 100) if entry_price > 0 else 0.0
             else:
                 gross_pnl = (exec_price - entry_price) * amount

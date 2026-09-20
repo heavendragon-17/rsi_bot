@@ -217,22 +217,32 @@ class PortfolioEngine(Engine):
         Without this, strategy.analyze() reads position.tp1_hit=False after a TP1
         limit order fires, emits a duplicate PartialClose, and sells at close price
         (variable) instead of the exact TP price — producing inconsistent TP1 PnL.
+
+        Side-aware: SELL fills exit long positions, BUY fills exit short
+        positions.  Fills that are not exits for the current exchange-side
+        position are ignored.
         """
         for order in executed_orders:
-            if order.get("side", "").upper() != "SELL":
-                continue
-
+            side = order.get("side", "").upper()
             exit_reason = order.get("info", {}).get("exit_reason", "").upper()
             filled_amount = order.get("filled", order.get("amount", 0))
 
-            # Full close: clear portfolio position and reset context
-            if symbol not in self.exchange.positions:
+            exch_amount = self.exchange.positions.get(symbol)
+            if exch_amount is None or exch_amount == 0:
+                # Full close by either side: clear portfolio position and reset context
                 if symbol in self.portfolio.positions:
                     del self.portfolio.positions[symbol]
                 self.contexts[symbol] = ContextSnapshot(state="SCANNING")
                 return
 
-            # Partial TP fill: mark hit flag and reduce amount
+            # Only exits move the mirror: SELL exits a long, BUY exits a short.
+            if not (
+                (exch_amount > 0 and side == "SELL")
+                or (exch_amount < 0 and side == "BUY")
+            ):
+                continue
+
+            # Partial TP fill: mark hit flag and reduce amount toward zero
             pos = self.portfolio.positions.get(symbol)
             if pos is None:
                 continue
@@ -244,12 +254,18 @@ class PortfolioEngine(Engine):
             if exit_reason in ("TP1", "TP2", "TP3"):
                 flag = f"{exit_reason.lower()}_hit"
                 setattr(pos, flag, True)
-                pos.amount = max(Decimal("0"), pos.amount - filled_dec)
+                if pos.amount >= Decimal("0"):
+                    pos.amount = max(Decimal("0"), pos.amount - filled_dec)
+                else:
+                    pos.amount = min(Decimal("0"), pos.amount + filled_dec)
                 pos.tp_order_ids.pop(exit_reason, None)
 
-                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior
-                if exit_reason == "TP1" and pos.amount > Decimal("0"):
-                    self.portfolio.move_stop_loss(symbol, pos.entry_price)
+                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior.
+                # Strategies may opt out via DISABLE_TP1_BREAKEVEN_MOVE (Core V2.1
+                # has no approved breakeven/lock-profit rule).  Default False.
+                if exit_reason == "TP1" and pos.amount != Decimal("0"):
+                    if not getattr(self.strategy, "DISABLE_TP1_BREAKEVEN_MOVE", False):
+                        self.portfolio.move_stop_loss(symbol, pos.entry_price)
 
     def _record_equity(self, ts, force: bool = False) -> None:
         """Phase 2.2: Adaptively sample the equity curve.
@@ -318,19 +334,26 @@ class PortfolioEngine(Engine):
         )
 
     def _close_all_positions(self, reason: str = "EOD") -> None:
-        """Close all open positions at final price."""
+        """Close all open positions at final price (longs via SELL, shorts via BUY)."""
         if not self.exchange.positions:
             return
         from decimal import Decimal
 
         for symbol, amount in list(self.exchange.positions.items()):
+            curr_data = self.exchange.current_prices.get(symbol, {})
+            final_price = curr_data.get("price", self.exchange.entry_prices.get(symbol, Decimal("0")))
             if amount > 0:
-                curr_data = self.exchange.current_prices.get(symbol, {})
-                final_price = curr_data.get("price", self.exchange.entry_prices.get(symbol, Decimal("0")))
                 logger.info("closing_eod_position", symbol=symbol, amount=amount, price=final_price)
                 self.exchange.create_order(
                     symbol=symbol, order_type="market", side="SELL",
                     amount=Decimal(str(amount)), price=Decimal(str(final_price)),
+                    params={"exit_reason": reason},
+                )
+            elif amount < 0:
+                logger.info("closing_eod_position", symbol=symbol, amount=amount, price=final_price)
+                self.exchange.create_order(
+                    symbol=symbol, order_type="market", side="BUY",
+                    amount=Decimal(str(abs(amount))), price=Decimal(str(final_price)),
                     params={"exit_reason": reason},
                 )
         if self._last_ts:

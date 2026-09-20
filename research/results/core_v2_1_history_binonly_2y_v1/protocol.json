@@ -1,0 +1,129 @@
+{
+  "benchmark": "BTCUSDT",
+  "eval_end": "2026-09-20T08:15:00+00:00",
+  "eval_start": "2024-09-21T00:00:00+00:00",
+  "protocol": {
+    "accounting": {
+      "basis": "DOCUMENTED accounting fields",
+      "rule": "every fill kept with qty/price/fee/rate/kind/time; gross and net realized R stored separately on the fixed risk-amount basis; EOD closes labeled explicitly, never blended; UNCLOSED_ENGINE is defensive-only"
+    },
+    "capital": {
+      "basis": "RESOLVED_CODE (shared PortfolioEngine capital model)",
+      "rule": "one shared MockExchange account for all 24 symbols; concurrent positions share margin; fund-skipped entries are detected by entry_fired-vs-BUY cross-check and reported, never silently dropped"
+    },
+    "disaster_stop": {
+      "basis": "DOCUMENTED boundary",
+      "rule": "none placed; reference stop is sizing reference only"
+    },
+    "engine": "shared PortfolioEngine + MockExchange + PortfolioManager, single Binance venue, one shared-capital portfolio (no parallel simulator)",
+    "entry": {
+      "basis": "DOCUMENTED (execution decision 3)",
+      "fill": "entry-candle M15 open * (1 + slippage_rate) via shared MockExchange market slippage; labeled candle-price proxy",
+      "timing": "adapter defers the signal one candle; entry action carries the next open"
+    },
+    "excluded": [
+      "funding (EXCLUDED_BY_DESIGN)",
+      "Hyperliquid PUMP (venue exclusion for this run)",
+      "parameter search / optimization",
+      "live promotion"
+    ],
+    "fees": {
+      "BINANCE_FUTURES": {
+        "checked_on": "2026-09-19",
+        "maker": "0.0002",
+        "source": "binance.info FAQ 360033544231 (regular user USD-M)",
+        "source_updated": "2026-05-01",
+        "taker": "0.0005"
+      },
+      "basis_formula": "RESOLVED_CODE",
+      "basis_rates": "RESOLVED_EXTERNAL",
+      "fee_formula": "shared MockExchange executor: qty * price * rate; maker on limit TP, taker on market",
+      "funding": "EXCLUDED_BY_DESIGN"
+    },
+    "history_anchor": {
+      "basis": "ASSUMPTION_NOT_A_DECISION (research-only preparation mode)",
+      "rule": "research-only file-start seeding per symbol (HISTORY_ANCHOR_VERSION); live feature anchor 2026-06-29T11:15Z untouched and unused here"
+    },
+    "indicators": {
+      "basis": "DOCUMENTED (same builders as live/replay)",
+      "rule": "locked compute_m15/alt_h1/btc_h1/btc_h4 builders over full per-symbol history, then window-sliced; H1/H4 derived by resampling M15"
+    },
+    "max_holding": {
+      "basis": "GENUINELY_UNRESOLVED",
+      "rule": "no force-close applied"
+    },
+    "name": "core-v2.1-engine-history-binonly-v1",
+    "overlap": {
+      "basis": "DOCUMENTED (execution decision 6)",
+      "rule": "one open position per strategy+symbol; extra entries OVERLAP_SKIPPED, signal machine unaffected"
+    },
+    "parity": {
+      "basis": "DOCUMENTED (independent re-evaluation)",
+      "rule": "engine entry events + Decimal reference levels must match an independent CoreV21PointInTimeReplay over identically warmed frames (same window); mismatch fails closed"
+    },
+    "signals": {
+      "basis": "DOCUMENTED",
+      "rule": "locked CoreV21 evaluator; A_PLUS_LONG and PULLBACK_LONG open positions; state machine advances during positions so re-arm stays deterministic"
+    },
+    "sizing": {
+      "basis": "RESOLVED_CODE",
+      "config_source": "shared config.yaml risk + backtest blocks (no V2-only block)",
+      "entry_price_basis": "actual next-open order price",
+      "implementation": "shared PositionSizer via TradeExecutor (soft_sl=reference stop, no hard SL placed)"
+    },
+    "slippage_rate": {
+      "basis": "ASSUMPTION_NOT_A_DECISION",
+      "value": "0.001"
+    },
+    "state_warmup": {
+      "basis": "ASSUMPTION_NOT_A_DECISION (warmup length) + DOCUMENTED (evaluator semantics)",
+      "rule": "CoreState warmed over up to 5000 contiguous pre-window bars per symbol (state memory <= 5 bars by construction); no orders before evaluation start; late listings warm from file start and join once eligible"
+    },
+    "strategy_stop": {
+      "basis_exit_fill": "ASSUMPTION_NOT_A_DECISION",
+      "basis_trigger": "DOCUMENTED (execution decision 2)",
+      "exit_fill": "remaining quantity at following M15 open * (1 - slippage_rate) via ClosePosition at the next open; fills timestamped at that candle's close (candle-price proxy)",
+      "tp1_breakeven_move": "DISABLED via DISABLE_TP1_BREAKEVEN_MOVE (no approved rule)",
+      "trigger": "fully closed M15 Close < current M15 EMA21 (strict; wicks ignored)"
+    },
+    "take_profits": {
+      "activation": "resting limit orders filled by shared WickFillMode (high >= level); entry-candle TP excluded by construction (limits placed after that candle's fill check); same-candle TP-before-stop fills are kept",
+      "allocation": "TP1 = 1/3 of original, TP2 = 1/2 of remainder, TP3 = exact remainder",
+      "basis_activation": "ASSUMPTION_NOT_A_DECISION (engine wick-fill semantics)",
+      "basis_allocation": "ASSUMPTION_NOT_A_DECISION",
+      "basis_levels": "DOCUMENTED",
+      "levels": "original signal reference TP1/TP2/TP3 (1R/2R/3R)"
+    },
+    "universe": {
+      "basis": "DOCUMENTED (locked universe minus one venue exclusion)",
+      "rule": "24 Binance trade candidates (locked universe minus Hyperliquid PUMP) + BTC benchmark for context only; PUMP excluded from this run only, its file/routing/config untouched"
+    }
+  },
+  "protocol_sha256": "20145cea7db4e60940f8d5cf36e8250a0a0ae67a43a269b16bda6f71c780daf9",
+  "symbols": [
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "LINKUSDT",
+    "AVAXUSDT",
+    "SUIUSDT",
+    "HYPEUSDT",
+    "ZECUSDT",
+    "LITUSDT",
+    "AAVEUSDT",
+    "NEARUSDT",
+    "XMRUSDT",
+    "TAOUSDT",
+    "ENAUSDT",
+    "WLDUSDT",
+    "FARTCOINUSDT",
+    "JTOUSDT",
+    "INJUSDT",
+    "UNIUSDT",
+    "ONDOUSDT",
+    "GRASSUSDT"
+  ]
+}
