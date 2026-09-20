@@ -247,9 +247,12 @@ class PortfolioEngine(Engine):
                 pos.amount = max(Decimal("0"), pos.amount - filled_dec)
                 pos.tp_order_ids.pop(exit_reason, None)
 
-                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior
+                # Move SL to breakeven after TP1 — match live sync_tp_fills() behavior.
+                # Strategies may opt out via DISABLE_TP1_BREAKEVEN_MOVE (Core V2.1
+                # has no approved breakeven/lock-profit rule).  Default False.
                 if exit_reason == "TP1" and pos.amount > Decimal("0"):
-                    self.portfolio.move_stop_loss(symbol, pos.entry_price)
+                    if not getattr(self.strategy, "DISABLE_TP1_BREAKEVEN_MOVE", False):
+                        self.portfolio.move_stop_loss(symbol, pos.entry_price)
 
     def _record_equity(self, ts, force: bool = False) -> None:
         """Phase 2.2: Adaptively sample the equity curve.
