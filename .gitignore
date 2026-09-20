@@ -78,3 +78,9 @@ deploy/.env.deploy
 /.claude/settings.local.json
 /.claude/arch_baseline.txt
 /app/backtest/report
+
+# Throwaway test/run exhaust (regenerable, never commit)
+.deploy-test-harness-*/
+.pytest-basetemp*/
+.pytest-basetemp-focus/
+.pytest-core-report*/
