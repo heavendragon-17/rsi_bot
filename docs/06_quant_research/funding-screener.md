@@ -65,6 +65,25 @@ Not covered: TxFlow, PopDEX, Phoenix (no documented public funding API found).
 - Size tier from min leg OI: < $10k SKIP, < $50k SMALL, < $170k OK, else ROOM.
 - Verdict: CLEANEST = sust > 93, risk LOW/MED, BE ≤ 14h, OI ≥ $50k, no spike.
 
+## Backtest (`backtest.py`)
+
+```bash
+cd research/funding_screener
+python backtest.py --days 45 --lookback 14 --sizes 10000,20000 --max-positions 3 --hold-days 3
+```
+
+Walk-forward replay on real hourly funding history of venues with a history API
+(Hyperliquid + HIP-3, Lighter, QFEX, Extended, Aster). Universe = cross-venue
+pairs whose legs both have OI ≥ `--min-oi` today. Each 00:00 UTC, using only
+prior data: close positions held ≥ `--hold-days` or with trailing-24h carry ≤ 0,
+then open the best-ranked pairs (lookback avg > 0, sust > 61%, 24h avg > 0, no
+spike, no HIGH risk with sust < 85, break-even ≤ `--max-be-h`), one per symbol,
+up to `--max-positions`. Each fill pays taker fee + half bid/ask + `--impact`.
+A naive baseline (highest last-hour carry, no filters) runs alongside.
+Outputs `results/backtest_report.md` and `results/backtest.json`.
+Biases: today's OI/bid-ask, no basis or liquidation simulation, 8h funding spread
+evenly per hour.
+
 ## Assumptions to re-check against live data
 
 - Lighter `/funding-rates` lighter rows are treated as 8h-normalised fractions

@@ -157,3 +157,29 @@ def test_hyperliquid_and_variational(monkeypatch):
 def test_daily_flips():
     series = [(d * DAY + h * HOUR, (1 if d % 2 else -1) * 1e-5) for d in range(6) for h in range(24)]
     assert metrics.daily_flips(series) == 5
+
+
+def test_backtest_opens_steady_pair_and_skips_noise():
+    import argparse
+
+    import backtest
+
+    now = int(time.time()) // DAY * DAY
+    hours = range(now - 30 * DAY, now, HOUR)
+    a = Market(venue="Lighter", symbol="BTC", raw="BTC", rate_h=0.0, mark=100, oi_usd=1e6, bid=99.99, ask=100.01)
+    b = Market(venue="Extended", symbol="BTC", raw="BTC-USD", rate_h=0.0001, mark=100, oi_usd=1e6,
+               bid=99.99, ask=100.01)
+    c = Market(venue="Lighter", symbol="ETH", raw="ETH", rate_h=0.0, mark=50, oi_usd=1e6)
+    d = Market(venue="Extended", symbol="ETH", raw="ETH-USD", rate_h=0.0, mark=50, oi_usd=1e6)
+    hist = {
+        "Lighter|BTC": {h: 0.0 for h in hours}, "Extended|BTC-USD": {h: 0.0001 for h in hours},  # 87.6% APR steady
+        "Lighter|ETH": {h: 0.0 for h in hours},
+        "Extended|ETH-USD": {h: (0.0003 if (h // HOUR) % 2 else -0.0003) for h in hours},  # 50% sust noise
+    }
+    args = argparse.Namespace(lookback=7, hold_days=3, max_be_h=48, impact=0.02, max_positions=3)
+    run = backtest.run_backtest([(a, b), (c, d)], hist, now - 10 * DAY, now, 10_000, args, naive=False)
+    assert run.done and {p.symbol for p in run.done} == {"BTC"}
+    s = backtest.summarise(run, now - 10 * DAY, now)
+    # 10k * 0.0001 * 24 = $24/day funding, minus costs
+    assert 15 < s["avg_per_day_usd"] < 24
+    assert all(p["long"] == "Lighter|BTC" for p in s["positions"])
