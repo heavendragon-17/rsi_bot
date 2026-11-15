@@ -27,6 +27,7 @@ import argparse
 import json
 import logging
 import statistics
+import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -341,6 +342,8 @@ def main() -> None:
         ],
     }
     path = write_report(results, meta, Path(args.out))
+    if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to cp1252
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     print(path.read_text(encoding="utf-8"))  # noqa: T201 - CLI output
 
 
