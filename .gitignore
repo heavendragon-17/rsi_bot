@@ -78,3 +78,6 @@ deploy/.env.deploy
 /.claude/settings.local.json
 /.claude/arch_baseline.txt
 /app/backtest/report
+
+# Funding screener runtime cache
+research/funding_screener/cache/
