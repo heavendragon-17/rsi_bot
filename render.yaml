@@ -1,0 +1,18 @@
+# Render Blueprint for the public funding screener (research/funding_screener).
+# Dashboard -> New -> Blueprint -> pick this repo and branch. See
+# docs/06_quant_research/funding-screener.md for the manual alternative.
+services:
+  - type: web
+    name: funding-spread-radar
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: research/funding_screener
+    buildCommand: pip install -r requirements.txt
+    startCommand: python screener.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: REFRESH_S
+        value: "60"

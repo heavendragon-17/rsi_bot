@@ -7,12 +7,11 @@ open-at-end valuation, and deterministic reproduction.
 
 from __future__ import annotations
 
-from decimal import Decimal as D
 import json
+from decimal import Decimal as D
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from research import core_v2_1_reference_sim as sim
 
@@ -272,5 +271,4 @@ def test_protocol_freeze_roundtrip(tmp_path: Path) -> None:
     payload = __import__("json").loads(frozen)
     assert payload["protocol_sha256"] == digest
     assert payload["protocol"]["name"] == sim.PROTOCOL_NAME
-    bases = {v.get("basis") for v in payload["protocol"].values() if isinstance(v, dict)}
     assert "ASSUMPTION_NOT_A_DECISION" in json.dumps(payload)

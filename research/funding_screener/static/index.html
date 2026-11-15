@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Funding Spread Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky control bar, dense sortable board, slide-in detail drawer */
+:root{
+  --bg:#f3f5f4;--panel:#ffffff;--ink:#14201c;--muted:#5d6b66;--line:#d9e0dd;--hover:#eef3f1;
+  --accent:#0f7b6c;--accent-ink:#ffffff;--good:#13804b;--warn:#a86a00;--bad:#b3261e;--info:#2f5fb3;
+  --good-bg:#e3f4ea;--warn-bg:#fbf0d9;--bad-bg:#fbe6e4;--info-bg:#e5ecf9;--neutral-bg:#eceff0;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1513;--panel:#151e1b;--ink:#e3ebe8;--muted:#8fa19a;--line:#26332f;--hover:#1c2724;
+  --accent:#3cc2ab;--accent-ink:#06201b;--good:#4cc985;--warn:#e6b450;--bad:#f07a70;--info:#86a9f0;
+  --good-bg:#16301f;--warn-bg:#33280f;--bad-bg:#3a1a17;--info-bg:#1a2540;--neutral-bg:#1f2a27;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1513;--panel:#151e1b;--ink:#e3ebe8;--muted:#8fa19a;--line:#26332f;--hover:#1c2724;
+  --accent:#3cc2ab;--accent-ink:#06201b;--good:#4cc985;--warn:#e6b450;--bad:#f07a70;--info:#86a9f0;
+  --good-bg:#16301f;--warn-bg:#33280f;--bad-bg:#3a1a17;--info-bg:#1a2540;--neutral-bg:#1f2a27;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+header{padding:18px max(16px,env(safe-area-inset-left)) 10px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between}
+h1{font-size:20px;margin:0;letter-spacing:-.01em}
+h1 small{font:500 12px var(--mono);color:var(--muted);margin-left:8px}
+.status{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 11px var(--mono);padding:3px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;user-select:none}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip.err{border-color:var(--bad);color:var(--bad)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-left));display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.bar label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+input,select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+input[type=number]{width:90px}
+button{cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+main{padding:12px max(16px,env(safe-area-inset-left)) 40px}
+.summary{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.summary b{color:var(--ink);font-family:var(--mono)}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:1100px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);position:sticky;top:0;background:var(--panel);cursor:pointer}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--hover)}
+td.num{font-family:var(--mono);font-size:13px}
+.sym{font-weight:700}
+.tag{font:600 10px var(--mono);padding:1px 5px;border-radius:4px;margin-left:6px;background:var(--neutral-bg);color:var(--muted)}
+.route{font-size:12px}.route .l{color:var(--good)}.route .s{color:var(--bad)}
+.pos{color:var(--good)}.neg{color:var(--bad)}.dim{color:var(--muted)}
+.pill{display:inline-block;font:600 11px var(--mono);padding:2px 7px;border-radius:999px}
+.p-good{background:var(--good-bg);color:var(--good)}.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-bad{background:var(--bad-bg);color:var(--bad)}.p-info{background:var(--info-bg);color:var(--info)}.p-n{background:var(--neutral-bg);color:var(--muted)}
+.sbar{display:inline-block;width:46px;height:6px;border-radius:3px;background:var(--neutral-bg);vertical-align:middle;margin-left:6px;overflow:hidden}
+.sbar i{display:block;height:100%}
+.flags span{margin-left:4px}
+details.guide{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px}
+details.guide summary{cursor:pointer;font-weight:600}
+.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:4px 28px}
+.guide h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 4px}
+.guide li{margin:3px 0;max-width:65ch}
+#fees table{min-width:0;width:auto}#fees td,#fees th{text-align:left;padding:4px 8px}#fees input{width:72px}
+aside{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:-8px 0 24px rgb(0 0 0 / .12);transform:translateX(105%);transition:transform .2s;z-index:10;overflow-y:auto;padding:18px max(18px,env(safe-area-inset-right)) 30px 18px}
+aside.open{transform:none}
+aside h2{margin:0 0 4px;font-size:18px}
+aside .close{position:absolute;top:12px;right:14px}
+.kv{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;font-size:13px;margin:10px 0}
+.kv div{padding:5px 6px;border-bottom:1px solid var(--line)}.kv .h{color:var(--muted);font-size:11px;text-transform:uppercase}
+.kv .num{font-family:var(--mono)}
+.check li{list-style:none;margin:4px 0}.check{padding:0}
+svg text{fill:var(--muted);font:10px var(--mono)}
+.note{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){aside{transition:none}}
+@media (max-width:700px){.bar{position:static}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Funding Spread Radar <small id="upd">đang tải…</small></h1>
+  <div class="status" id="status"></div>
+</header>
+<div class="bar">
+  <div class="status" id="venues" title="Chọn sàn bạn có tài khoản"></div>
+  <label>Tìm <input id="q" placeholder="BTC, TSLA…" size="8"></label>
+  <label>Loại <select id="kind"><option value="all">Tất cả</option><option value="crypto">Crypto</option><option value="rwa">Cổ phiếu/RWA</option></select></label>
+  <label>OI tối thiểu <select id="minoi"><option value="0">—</option><option value="10000" selected>$10k</option><option value="50000">$50k</option><option value="170000">$170k</option></select></label>
+  <label>Size/chân $ <input id="size" type="number" value="10000" step="1000"></label>
+  <label><input type="checkbox" id="hideDrop" checked> Ẩn kèo bị loại</label>
+  <label><input type="checkbox" id="onlyClean"> Chỉ cleanest</label>
+  <label>Sắp xếp <select id="sort"><option value="smart">Smart</option><option value="now_apr">APR hiện tại</option><option value="avg7_apr">APR 7 ngày</option><option value="sust30">Sustainability</option><option value="be">Break-even</option><option value="min_oi">OI</option></select></label>
+  <button id="feesBtn">Phí &amp; trượt giá</button>
+</div>
+<main>
+  <div id="fees" hidden></div>
+  <div class="summary" id="summary"></div>
+  <div class="tablewrap"><table>
+    <thead><tr>
+      <th data-k="symbol">Cặp</th><th>Long → Short</th><th data-k="now_apr">APR now</th><th data-k="avg24_apr">24h</th>
+      <th data-k="avg7_apr">7d</th><th data-k="avg30_apr">30d</th><th data-k="sust30">Sust 30d</th><th>Risk</th>
+      <th data-k="be">Hoà vốn</th><th data-k="min_oi">OI min</th><th data-k="perday">$/ngày</th><th>Cờ</th><th>Đánh giá</th>
+    </tr></thead>
+    <tbody id="rows"><tr><td colspan="13" class="dim">Đang lấy dữ liệu từ các sàn… lần đầu mất khoảng 1 phút, lịch sử 30 ngày điền dần trong vài phút.</td></tr></tbody>
+  </table></div>
+  <details class="guide">
+    <summary>Quy tắc lọc kèo &amp; cách chạy delta-neutral</summary>
+    <div class="guide-grid">
+      <div><h3>Bước 1 · Loại cứng</h3><ul>
+        <li>TB 30 ngày của spread âm → loại, bất kể APR hiện tại.</li>
+        <li>Sustainability (% số giờ trong 30 ngày spread trả đúng chiều) ≤ 61% → loại.</li>
+        <li>APR "now" cao vọt so với TB 24h/7d → đột biến (cờ ⚡), không phải kèo.</li>
+        <li>Chiều long/short đảo liên tục (cờ ⇄) → không giữ được để ăn funding.</li></ul></div>
+      <div><h3>Bước 2 · Xếp hạng</h3><ul>
+        <li>Sustainability ≥ 90% lý tưởng; 73–85% chỉ khi spread risk thấp.</li>
+        <li>Spread risk LOW tốt, MED chấp nhận, HIGH giảm size hoặc bỏ.</li>
+        <li>Hoà vốn (phí vào + ra cả hai chân + bid/ask) ≤ 14h là sạch, 1–2 ngày cần kiên nhẫn, &gt; 3 ngày chỉ khi ~99% bền.</li>
+        <li>APR xét sau cùng. Cùng một coin, chọn cặp sàn bền hơn thay vì APR cao hơn.</li></ul></div>
+      <div><h3>Bước 3 · Định size theo OI</h3><ul>
+        <li>OI &lt; $10k: bỏ. $10–50k: size nhỏ. &gt; $50k: vào được. ≥ $170k: còn chỗ tăng size.</li>
+        <li>"Cleanest": sust &gt; 93%, risk LOW/MED, hoà vốn &lt; 14h, OI sâu.</li>
+        <li>Cổ phiếu/RWA biến động mạnh cuối tuần khi thị trường gốc đóng cửa (cờ 📅 từ thứ Sáu).</li></ul></div>
+      <div><h3>Vào lệnh &amp; quản lý</h3><ul>
+        <li>Hai chân bằng notional, vào gần như cùng lúc; đặt limit (maker) ở chân có phí maker thấp để rút ngắn hoà vốn.</li>
+        <li>Isolated margin, đòn bẩy thấp (2–3x), để dư ký quỹ cả hai sàn: rủi ro lớn nhất là một chân bị thanh lý khi giá chạy mạnh trong lúc chân kia đang lãi.</li>
+        <li>Theo dõi giá mark hai sàn lệch nhau (basis) và ADL; cân lại khi một bên lãi/lỗ lớn.</li>
+        <li>Kiểm tra hằng ngày, xoay vòng sau 2–3 ngày khi spread hết hấp dẫn; tính cả phí rút/nạp, bridge.</li>
+        <li>Funding 8h trả một lần lúc settle, funding 1h trả mỗi giờ: thời điểm vào lệnh ảnh hưởng tiền nhận thực tế.</li>
+        <li>Spread = funding chân short − funding chân long (có dấu). Không cộng trị tuyệt đối.</li></ul></div>
+    </div>
+    <p class="note">Spread risk là ước lượng riêng của trang này (độ biến động của spread theo giờ trong 7 ngày + sustainability), không phải công thức của ProFunding. Funding quá khứ không đảm bảo tương lai.</p>
+  </details>
+</main>
+<aside id="drawer" aria-hidden="true"><button class="close" id="closeD">Đóng</button><div id="dbody"></div></aside>
+<script>
+const DEFAULT_FEES={"Hyperliquid":[0.045,0.015],"HL:*":[0.09,0.03],"Lighter":[0,0],"QFEX":[0.05,0.02],
+  "Extended":[0.025,0],"Variational":[0,0],"Aster":[0.035,0.01],"Paradex":[0.02,0]};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let fees=Object.assign({},DEFAULT_FEES,store.get("fees",{}));
+let assumedSpread=store.get("assumedSpread",0.05), useMaker=store.get("useMaker",false);
+let offVenues=new Set(store.get("offVenues",[]));
+let data=null, sortKey=null, sortDir=-1;
+const $=id=>document.getElementById(id);
+const fmtPct=(v,d=1)=>v==null?'<span class="dim">–</span>':`<span class="${v>=0?'pos':'neg'}">${v.toFixed(d)}%</span>`;
+const fmtUsd=v=>v==null?'–':v>=1e6?`$${(v/1e6).toFixed(1)}M`:v>=1e3?`$${(v/1e3).toFixed(0)}k`:`$${v.toFixed(0)}`;
+const fmtH=h=>!isFinite(h)?'∞':h<48?`${h.toFixed(0)}h`:`${(h/24).toFixed(1)}d`;
+const famKey=v=>v.startsWith("HL:")?"HL:*":v;
+function feeFor(v){return fees[v]||fees[famKey(v)]||[0.05,0.02]}
+function legCost(leg){ // % of notional for entry + exit on this leg
+  const [tk,mk]=feeFor(leg.venue); const fee=useMaker?mk:tk;
+  const sp=leg.spread_rel!=null?leg.spread_rel*100:assumedSpread; return {fee:2*fee,spread:useMaker?0:sp,est:leg.spread_rel==null};
+}
+function enrich(r){
+  const cl=legCost(r.long), cs=legCost(r.short);
+  r.cost=cl.fee+cl.spread+cs.fee+cs.spread; r.costEst=cl.est||cs.est; r.cl=cl; r.cs=cs;
+  let exp=r.now_apr; if(r.avg7_apr!=null&&r.avg7_apr>0) exp=Math.min(exp,r.avg7_apr);
+  r.exp_apr=exp; const hourly=exp/8760; r.be=hourly>0?r.cost/hourly:Infinity;
+  r.perday=(+$('size').value||0)*hourly/100*24;
+  r.tier=r.min_oi==null?'?':r.min_oi<1e4?'SKIP':r.min_oi<5e4?'SMALL':r.min_oi<1.7e5?'OK':'ROOM';
+  const day=new Date().getUTCDay(); r.weekend=r.rwa&&(day===5||day===6||day===0);
+  const s=r.sust30, risk=r.risk; let v,c,rank;
+  if(r.drop){v='LOẠI · '+r.drop_reason;c='p-bad';rank=6}
+  else if(r.min_oi!=null&&r.min_oi<1e4){v='LOẠI · OI mỏng';c='p-bad';rank=6}
+  else if(risk==='HIGH'&&s!=null&&s<85){v='LOẠI · risk cao';c='p-bad';rank=6}
+  else if(r.hist_hours<72){v='THIẾU LỊCH SỬ';c='p-n';rank=5}
+  else if(s>93&&(risk==='LOW'||risk==='MED')&&r.be<=14&&(r.min_oi==null||r.min_oi>=5e4)&&!r.spike){v='CLEANEST';c='p-good';rank=0}
+  else if(s>=90&&r.be<=48&&!r.spike){v='TỐT';c='p-good';rank=1}
+  else if(r.be>72&&s<99){v='HOÀ VỐN CHẬM';c='p-warn';rank=4}
+  else if(s<85&&risk!=='LOW'){v='XÁM · cần risk thấp';c='p-warn';rank=3}
+  else {v='THEO DÕI';c='p-info';rank=2}
+  if(r.spike&&rank<3){v+=' · đột biến';}
+  r.verdict=v; r.vclass=c; r.rank=rank; r.clean=rank===0;
+}
+function visible(r){
+  if(offVenues.has(r.long.venue)||offVenues.has(r.short.venue)) return false;
+  const q=$('q').value.trim().toUpperCase(); if(q&&!r.symbol.includes(q)) return false;
+  const k=$('kind').value; if(k==='rwa'&&!r.rwa) return false; if(k==='crypto'&&r.rwa) return false;
+  const mo=+$('minoi').value; if(mo&&(r.min_oi==null||r.min_oi<mo)) return false;
+  if($('hideDrop').checked&&r.rank===6) return false;
+  if($('onlyClean').checked&&!r.clean) return false; return true;
+}
+function sorter(a,b){
+  const k=sortKey||$('sort').value;
+  if(k==='smart') return a.rank-b.rank||(b.sust30??-1)-(a.sust30??-1)||a.be-b.be||b.now_apr-a.now_apr;
+  if(k==='symbol'){const c=a.symbol.localeCompare(b.symbol); return sortKey?-sortDir*c:c;}
+  const av=a[k]??-Infinity, bv=b[k]??-Infinity; const dir=sortKey?sortDir:(k==='be'?1:-1);
+  return av===bv?0:dir*(av>bv?1:-1);
+}
+function riskPill(r){return r==null?'<span class="dim">–</span>':`<span class="pill ${r==='LOW'?'p-good':r==='MED'?'p-warn':'p-bad'}">${r}</span>`}
+function sustCell(s){if(s==null)return'<span class="dim">–</span>';const col=s>93?'var(--good)':s>=73?'var(--warn)':'var(--bad)';
+  return `${s.toFixed(0)}%<span class="sbar"><i style="width:${s}%;background:${col}"></i></span>`}
+function render(){
+  if(!data) return;
+  data.rows.forEach(enrich);
+  const rows=data.rows.filter(visible).sort(sorter);
+  const clean=rows.filter(r=>r.clean).length;
+  $('summary').innerHTML=`<span><b>${rows.length}</b> cặp hiển thị</span><span><b>${clean}</b> cleanest</span>
+    <span>Lịch sử đang tải: <b>${data.history_queue}</b> chân</span><span>Hoà vốn tính theo ${useMaker?'maker':'taker'}, APR kỳ vọng = min(now, 7d)</span>`;
+  $('rows').innerHTML=rows.slice(0,400).map(r=>`<tr data-id="${encodeURIComponent(r.id)}">
+    <td><span class="sym">${r.symbol}</span>${r.rwa?'<span class="tag">RWA</span>':''}</td>
+    <td class="route"><span class="l">L ${r.long.venue}</span> → <span class="s">S ${r.short.venue}</span></td>
+    <td class="num">${fmtPct(r.now_apr)}</td><td class="num">${fmtPct(r.avg24_apr)}</td><td class="num">${fmtPct(r.avg7_apr)}</td>
+    <td class="num">${fmtPct(r.avg30_apr)}</td><td class="num">${sustCell(r.sust30)}</td><td>${riskPill(r.risk)}</td>
+    <td class="num">${fmtH(r.be)}${r.costEst?'<span class="dim">*</span>':''}</td>
+    <td class="num">${fmtUsd(r.min_oi)} <span class="dim">${r.tier}</span></td><td class="num">${fmtUsd(r.perday)}</td>
+    <td class="flags">${r.spike?'<span title="APR now cao vọt so với TB 24h/7d">⚡</span>':''}${r.flip?'<span title="Chiều spread đảo nhiều lần">⇄</span>':''}${r.weekend?'<span title="Cổ phiếu/RWA cuối tuần">📅</span>':''}${r.hist_hours&&r.hist_hours<72?'<span title="Lịch sử < 72 giờ">⏳</span>':''}</td>
+    <td><span class="pill ${r.vclass}">${r.verdict}</span></td></tr>`).join('')||'<tr><td colspan="13" class="dim">Không có cặp nào khớp bộ lọc.</td></tr>';
+}
+function renderStatus(){
+  const st=data.status; $('status').innerHTML=Object.entries(st).map(([v,s])=>
+    `<span class="chip ${s.ok?'':'err'}" title="${s.ok?`${s.count} market · lịch sử: ${s.history}`:s.error}">${v} ${s.ok?s.count:'lỗi'}</span>`).join('');
+  const fam=[...new Set(data.venues.map(famKey))];
+  $('venues').innerHTML=fam.map(f=>{const on=!data.venues.filter(v=>famKey(v)===f).every(v=>offVenues.has(v));
+    return `<span class="chip ${on?'on':''}" data-f="${f}">${f==='HL:*'?'HL HIP-3':f}</span>`}).join('');
+  const age=Math.round((data.server_time-data.updated)); $('upd').textContent=data.updated?`cập nhật ${age}s trước`:'đang tải…';
+}
+$('venues').addEventListener('click',e=>{const f=e.target.dataset.f;if(!f)return;
+  const vs=data.venues.filter(v=>famKey(v)===f); const allOff=vs.every(v=>offVenues.has(v));
+  vs.forEach(v=>allOff?offVenues.delete(v):offVenues.add(v)); store.set("offVenues",[...offVenues]); renderStatus(); render();});
+['q','kind','minoi','size','hideDrop','onlyClean','sort'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='sort')sortKey=null;render()}));
+document.querySelector('thead').addEventListener('click',e=>{const k=e.target.dataset.k;if(!k)return;
+  sortDir=sortKey===k?-sortDir:-1; sortKey=k; render();});
+async function load(){
+  try{const r=await fetch('api/opps',{cache:'no-store'}); data=await r.json(); renderStatus(); render();}
+  catch(e){$('upd').textContent='mất kết nối server, thử lại…'}
+}
+load(); setInterval(load,30000);
+// ---- fees panel
+function renderFees(){
+  const fams=[...new Set(Object.keys(fees))];
+  $('fees').innerHTML=`<div class="tablewrap" style="padding:10px 12px;margin-bottom:12px"><table><thead><tr><th>Sàn</th><th>Taker %</th><th>Maker %</th></tr></thead><tbody>
+  ${fams.map(f=>`<tr><td>${f==='HL:*'?'HL HIP-3 (mọi dex)':f}</td><td><input type="number" step="0.001" data-f="${f}" data-i="0" value="${fees[f][0]}"></td><td><input type="number" step="0.001" data-f="${f}" data-i="1" value="${fees[f][1]}"></td></tr>`).join('')}
+  </tbody></table><p class="note"><label><input type="checkbox" id="maker" ${useMaker?'checked':''}> Vào/ra bằng limit (maker, bỏ qua bid/ask)</label> &nbsp;
+  <label>Bid/ask giả định khi sàn không trả: <input type="number" step="0.01" id="aspread" value="${assumedSpread}">%</label> &nbsp;<button id="resetFees">Mặc định</button></p>
+  <p class="note">Mặc định: phí taker/maker bậc thấp nhất công khai. QFEX: người nạp tiền từ 24/08/2026 được 0 maker / 0,015% taker cổ phiếu trọn đời. Lighter tài khoản Standard 0 phí. Variational không thu phí giao dịch (nhưng có spread RFQ). Dấu * ở cột hoà vốn: bid/ask là giả định.</p></div>`;
+}
+$('feesBtn').onclick=()=>{$('fees').hidden=!$('fees').hidden; renderFees();};
+$('fees').addEventListener('input',e=>{const t=e.target;
+  if(t.dataset.f){fees[t.dataset.f][+t.dataset.i]=+t.value; store.set("fees",fees);}
+  if(t.id==='maker'){useMaker=t.checked; store.set("useMaker",useMaker);}
+  if(t.id==='aspread'){assumedSpread=+t.value; store.set("assumedSpread",assumedSpread);} render();});
+$('fees').addEventListener('click',e=>{if(e.target.id==='resetFees'){fees=JSON.parse(JSON.stringify(DEFAULT_FEES));store.set("fees",{});renderFees();render();}});
+// ---- detail drawer
+$('rows').addEventListener('click',async e=>{const tr=e.target.closest('tr[data-id]'); if(!tr) return;
+  const id=decodeURIComponent(tr.dataset.id); const r=data.rows.find(x=>x.id===id); if(!r) return; openDrawer(r);
+  try{const d=await (await fetch('api/pair?id='+encodeURIComponent(id))).json(); drawChart(d,r);}catch(err){}});
+$('closeD').onclick=()=>{$('drawer').classList.remove('open');$('drawer').setAttribute('aria-hidden','true')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('closeD').click()});
+function legRow(label,l,c){return `<div class="h">${label}</div><div class="num">${l}</div><div class="num">${c}</div>`}
+function openDrawer(r){
+  const L=r.long,S=r.short, ok=b=>b?'✅':'❌';
+  const checks=[
+    [r.avg7_apr!=null&&r.now_apr<=Math.max(2*(r.avg7_apr||0),(r.avg7_apr||0)+30),'APR hiện tại gần TB 7 ngày (không đột biến)'],
+    [r.sust30!=null&&r.sust30>=80,'Sustainability ≥ 80%'],
+    [!r.flip,'Chiều long/short ổn định nhiều ngày'],
+    [r.min_oi!=null&&r.min_oi>=Math.max(5e4,(+$('size').value||0)*3),'OI đủ lớn so với size'],
+    [r.be<=72,'Hoà vốn (phí vào+ra, bid/ask) ≤ 3 ngày'],
+    [!r.weekend,r.rwa?'Không rơi vào cuối tuần (cổ phiếu/RWA)':'Không phải cổ phiếu/RWA']];
+  $('dbody').innerHTML=`<h2>${r.symbol} ${r.rwa?'<span class="tag">RWA</span>':''}</h2>
+  <div class="route"><span class="l">Long ${L.venue}</span> · <span class="s">Short ${S.venue}</span> · <span class="pill ${r.vclass}">${r.verdict}</span></div>
+  <div class="kv">${legRow('','Long · '+L.venue,'Short · '+S.venue)}
+   ${legRow('Funding now (APR)',fmtPct(L.apr,2),fmtPct(S.apr,2))}
+   ${legRow('Funding/giờ',(L.rate_h*100).toFixed(5)+'%',(S.rate_h*100).toFixed(5)+'%')}
+   ${legRow('Kỳ funding',L.interval_h+'h',S.interval_h+'h')}
+   ${legRow('Mark',L.mark?.toPrecision(6)??'–',S.mark?.toPrecision(6)??'–')}
+   ${legRow('Bid/ask',L.spread_rel!=null?(L.spread_rel*100).toFixed(3)+'%':'giả định',S.spread_rel!=null?(S.spread_rel*100).toFixed(3)+'%':'giả định')}
+   ${legRow('OI',fmtUsd(L.oi_usd),fmtUsd(S.oi_usd))}${legRow('Vol 24h',fmtUsd(L.vol_usd),fmtUsd(S.vol_usd))}
+   ${legRow('Chi phí vào+ra',(r.cl.fee+r.cl.spread).toFixed(3)+'%',(r.cs.fee+r.cs.spread).toFixed(3)+'%')}</div>
+  <p>Spread now <b>${r.now_apr.toFixed(1)}%</b> APR · kỳ vọng ${r.exp_apr.toFixed(1)}% · tổng chi phí ${r.cost.toFixed(3)}% · hoà vốn <b>${fmtH(r.be)}</b> · size ${$('size').value}$/chân ≈ <b>${fmtUsd(r.perday)}</b>/ngày</p>
+  <p class="note">TB 24h ${r.avg24_apr?.toFixed(1)??'–'}% · 7d ${r.avg7_apr?.toFixed(1)??'–'}% · 30d ${r.avg30_apr?.toFixed(1)??'–'}% · sustainability ${r.sust30?.toFixed(0)??'–'}% trên ${r.hist_hours} giờ · đổi chiều theo ngày: ${r.flips??'–'} lần</p>
+  <div id="chart" class="note">Đang tải biểu đồ…</div>
+  <h3 style="font-size:13px;margin:14px 0 4px">Checklist trước khi vào</h3><ul class="check">${checks.map(([b,t])=>`<li>${ok(b)} ${t}</li>`).join('')}</ul>
+  <p class="note">Gợi ý: hai chân bằng notional, isolated margin, đòn bẩy thấp; kiểm tra lại số trên giao diện sàn trước khi vào.</p>`;
+  $('drawer').classList.add('open'); $('drawer').setAttribute('aria-hidden','false');
+}
+function drawChart(d,r){
+  const pts=d.spread; const el=$('chart'); if(!el) return;
+  if(!pts.length){el.textContent=(d.long_local||d.short_local)?'Sàn này không có API lịch sử, đang tự ghi lại funding từ lúc server chạy.':'Chưa có lịch sử cho cặp này (đang tải).';return}
+  const W=520,H=180,P=30; const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const x0=Math.min(...xs),x1=Math.max(...xs); let y0=Math.min(0,...ys),y1=Math.max(0,...ys); if(y1===y0)y1=y0+1;
+  const X=t=>P+(t-x0)/(x1-x0||1)*(W-P-6), Y=v=>6+(y1-v)/(y1-y0)*(H-24);
+  const path=pts.map((p,i)=>`${i?'L':'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
+  const days=(x1-x0)/86400;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Spread APR theo giờ">
+   <line x1="${P}" x2="${W-6}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>
+   <path d="${path} L${X(x1)},${Y(0)} L${X(x0)},${Y(0)}Z" fill="var(--accent)" opacity=".12"/>
+   <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.2"/>
+   <text x="2" y="${Y(y1)+8}">${y1.toFixed(0)}%</text><text x="2" y="${Y(0)+3}">0</text>${y0<0?`<text x="2" y="${Y(y0)}">${y0.toFixed(0)}%</text>`:''}
+   <text x="${P}" y="${H-4}">${days.toFixed(0)} ngày trước</text><text x="${W-40}" y="${H-4}">bây giờ</text></svg>
+   <div class="note">Spread APR theo giờ (short − long). Vùng dưới 0 là giờ cặp này trả ngược chiều.</div>`;
+}
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@
 | Set up the environment or config | [03_setup_and_installation](03_setup_and_installation/) | [configuration.md](03_setup_and_installation/configuration.md) |
 | Work on data ingestion or WebSocket | [05_data_pipeline](05_data_pipeline/) | [live-data-flow.md](05_data_pipeline/live-data-flow.md) |
 | Research a new trading signal | [06_quant_research](06_quant_research/) | [research-workflow.md](06_quant_research/research-workflow.md) |
+| Run or extend the delta-neutral funding screener | [06_quant_research](06_quant_research/) | [funding-screener.md](06_quant_research/funding-screener.md) |
 | Compare AI and scripted research selection | [06_quant_research](06_quant_research/) | [research-selection-benchmark.md](06_quant_research/research-selection-benchmark.md) |
 | Continue the AI research pipeline on another device | [root handoff](../RESEARCH_PIPELINE_HANDOFF.md) | Findings, saved campaigns, data reconstruction, portability limits and next steps |
 | Add or modify a strategy | [07_trading_strategies](07_trading_strategies/), [workflows/](workflows/) | [strategy-pattern.md](07_trading_strategies/strategy-pattern.md), [Core V2.1 signal contract](07_trading_strategies/core-v2-1.md), [add-strategy.md](workflows/add-strategy.md) |
